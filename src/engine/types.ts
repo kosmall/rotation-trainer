@@ -271,6 +271,8 @@ export interface ScheduledAura {
   /**
    * Replaces the aura's own `durationMs` for this application (floored). NaN, infinite or
    * `<= 0`: the entry is ignored. A duration running past the fight's end is cut by the end.
+   * For a DoT the aura's total damage is spread over the ticks of the new duration, so use it
+   * for self auras and non-DoT target debuffs only.
    */
   durationMs?: number;
 }
