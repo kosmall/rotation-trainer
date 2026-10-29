@@ -14,6 +14,7 @@ import { computeStats } from './stats';
 import type {
   AuraDef,
   CastResult,
+  CharacterSetup,
   DerivedStats,
   HitOutcome,
   LogEvent,
@@ -45,12 +46,16 @@ type CastRejection = Extract<CastResult, { ok: false }>['reason'];
  */
 type SimEvent = () => void;
 
-/** The cast in progress: what snapshot().cast reports, plus its pending completion event. */
+/**
+ * The cast in progress: what snapshot().cast reports, plus its pending completion event and the
+ * mana cost checked at its start (spent at completion, whatever the modifiers are by then).
+ */
 interface ActiveCast {
   spellId: string;
   startMs: number;
   endMs: number;
   completionEventId: EventId;
+  manaCost: number;
 }
 
 /** The spell waiting in the single-slot queue, and the event that attempts it when the block ends. */
@@ -127,7 +132,14 @@ export class Simulation {
   private readonly selfAuras: AuraTracker;
   private readonly targetAuraEvents = new Map<string, AuraEvents>();
   private readonly selfAuraEvents = new Map<string, AuraEvents>();
-  private readonly stats: DerivedStats;
+  private readonly setup: CharacterSetup;
+  /** Stat bonuses and modifiers that never change: spec, gear and active set bonuses. */
+  private readonly baseStatBonuses: Partial<RawStats>[];
+  private readonly baseModifiers: SpellModifier[];
+  /** Built from the base inputs plus the self auras in `statsAuraIds` (see `syncSelfStats`). */
+  private stats: DerivedStats;
+  /** The active self aura ids (sorted) that `stats` and `spellMods` were last built from. */
+  private statsAuraIds: string[] = [];
   private readonly infiniteMana: boolean;
   private readonly spellQueueWindowMs: number;
 
@@ -152,21 +164,13 @@ export class Simulation {
     this.rng = createRng(config.seed);
 
     const sets = activeSetBonuses(spec.sets, spec.setup.setPieces);
-    this.stats = computeStats(
-      spec.setup,
-      sumStatBonuses([spec.statBonuses, ...sets.map((s) => s.statBonuses ?? {})]),
-    );
-    const modifiers = [
-      ...spec.modifiers,
-      ...spec.setup.modifiers,
-      ...sets.flatMap((s) => s.modifiers ?? []),
-    ];
-    for (const spell of spec.spells) {
-      this.spells.set(spell.id, spell);
-      this.spellMods.set(spell.id, foldModifiers(spell, modifiers));
-    }
-    this.hooks = [spec.hooks, ...sets.flatMap((s) => (s.hooks ? [s.hooks] : []))];
+    this.setup = spec.setup;
+    this.baseStatBonuses = [spec.statBonuses, ...sets.map((s) => s.statBonuses ?? {})];
+    this.baseModifiers = [...spec.modifiers, ...spec.setup.modifiers, ...sets.flatMap((s) => s.modifiers ?? [])];
+    for (const spell of spec.spells) this.spells.set(spell.id, spell);
     for (const aura of spec.auras) this.auraDefs.set(aura.id, aura);
+    this.stats = this.buildStatsAndModifiers([]);
+    this.hooks = [spec.hooks, ...sets.flatMap((s) => (s.hooks ? [s.hooks] : []))];
     this.targetAuras = new AuraTracker(spec.auras);
     this.selfAuras = new AuraTracker(spec.auras);
     this.mana = this.stats.maxMana;
@@ -198,6 +202,7 @@ export class Simulation {
     const untilMs = Math.min(tMs, this.durationMs);
     this.runEventsThrough(untilMs);
     if (untilMs > this.nowMs) this.nowMs = untilMs;
+    this.syncSelfStats();
     if (tMs >= this.durationMs) this.endFight();
   }
 
@@ -288,6 +293,7 @@ export class Simulation {
       const event = this.events.pop();
       if (!event) return;
       this.nowMs = event.atMs;
+      this.syncSelfStats();
       event.payload();
     }
   }
@@ -395,31 +401,38 @@ export class Simulation {
     this.queued = null;
   }
 
-  /** Starts the GCD now; completes at once (instant) or schedules the completion at cast end. */
+  /**
+   * Starts the GCD now; completes at once (instant) or schedules the completion at cast end.
+   * GCD length, cast time and mana cost are fixed here from the current stats and modifiers:
+   * a self aura that changes during the cast does not change them.
+   */
   private startCast(spell: SpellDef): void {
     if (spell.onGcd) this.gcdEndsAtMs = this.nowMs + this.gcdMs();
     const castMs = this.castTimeMs(spell);
+    const manaCost = this.manaCost(spell);
     if (castMs === 0) {
-      this.completeCast(spell);
+      this.completeCast(spell, manaCost);
       return;
     }
     const endMs = this.nowMs + castMs;
     this.addLog({ type: 'cast-start', spellId: spell.id });
     const completionEventId = this.schedule(endMs, () => {
+      // This event is cancelled with the cast (cancelCast) and never runs after the fight ends,
+      // so the active cast is the one it completes.
+      const cast = this.activeCast;
       this.activeCast = null;
-      this.completeCast(spell);
+      if (cast) this.completeCast(spell, cast.manaCost);
     });
-    this.activeCast = { spellId: spell.id, startMs: this.nowMs, endMs, completionEventId };
+    this.activeCast = { spellId: spell.id, startMs: this.nowMs, endMs, completionEventId, manaCost };
   }
 
   /**
-   * Cast end: the mana cost is spent (a costly spell also starts the five-second rule), the
-   * cooldown starts, a `gainMana` spell gives its mana, then the spell's effects resolve.
-   * Cancelled and cut-off casts never get here, so they spend nothing.
+   * Cast end: `cost` (checked at cast start) is spent (a costly spell also starts the
+   * five-second rule), the cooldown starts, a `gainMana` spell gives its mana, then the spell's
+   * effects resolve. Cancelled and cut-off casts never get here, so they spend nothing.
    */
-  private completeCast(spell: SpellDef): void {
+  private completeCast(spell: SpellDef, cost: number): void {
     this.addLog({ type: 'cast-complete', spellId: spell.id });
-    const cost = this.manaCost(spell);
     if (cost > 0) {
       this.mana = Math.max(0, this.mana - cost);
       this.lastManaSpendMs = this.nowMs;
@@ -462,16 +475,17 @@ export class Simulation {
    * direct damage dealt, 0 for none or a miss). They run after the spell's damage, consumption
    * and aura application. Auras applied through the api are logged with this spell as source.
    * `api.roll()` draws from the simulation's seeded Rng, so it shifts every later draw, but
-   * only when a hook calls it: hooks that never roll leave the draw order unchanged.
+   * only when a hook calls it: hooks that never roll leave the draw order unchanged. The api
+   * object is frozen.
    */
   private runHooks(spell: SpellDef, outcome: HitOutcome, damage: number): void {
-    const api = {
+    const api = Object.freeze({
       applyTargetAura: (id: string) => this.applyAura('target', id, spell),
       applySelfAura: (id: string) => this.applyAura('self', id, spell),
       roll: () => this.rng.next(),
       hasSelfAura: (id: string) => this.selfAuras.get(id, this.nowMs) !== undefined,
       hasTargetAura: (id: string) => this.targetAuras.get(id, this.nowMs) !== undefined,
-    };
+    });
     for (const hooks of this.hooks) {
       hooks.onSpellResolved?.({ spellId: spell.id, outcome, damage }, api);
     }
@@ -506,7 +520,7 @@ export class Simulation {
   // Mana
   // -------------------------------------------------------------------------
 
-  /** The cost checked at cast start and spent at completion; 0 with infiniteMana. */
+  /** The cost checked and stored at cast start (spent at completion); 0 with infiniteMana. */
   private manaCost(spell: SpellDef): number {
     if (this.infiniteMana) return 0;
     return spell.manaCost * this.modsFor(spell).manaCostMult;
@@ -545,6 +559,7 @@ export class Simulation {
    * Applies (or refreshes) `auraId` from `source`. A refresh cancels the aura's pending ticks
    * and fade, then reschedules them from now: no immediate tick, no double ticks. Ticks are
    * scheduled for target auras only. The fade event removes the aura through `removeAura`.
+   * A self aura's stat bonuses and modifiers take effect at once (`syncSelfStats`).
    */
   private applyAura(on: 'target' | 'self', auraId: string, source: SpellDef): void {
     const def = this.auraDef(auraId);
@@ -556,6 +571,7 @@ export class Simulation {
     const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, source) : [];
     const fadeEventId = this.schedule(this.nowMs + def.durationMs, () => this.removeAura(on, auraId));
     pending.set(auraId, { tickEventIds, fadeEventId });
+    if (on === 'self') this.syncSelfStats();
   }
 
   /**
@@ -600,6 +616,7 @@ export class Simulation {
     this.cancelAuraEvents(pending, auraId);
     (on === 'target' ? this.targetAuras : this.selfAuras).remove(auraId);
     this.addLog({ type: 'aura-fade', auraId });
+    if (on === 'self') this.syncSelfStats();
   }
 
   /**
@@ -622,6 +639,43 @@ export class Simulation {
     for (const id of events.tickEventIds) this.events.cancel(id);
     this.events.cancel(events.fadeEventId);
     pending.delete(auraId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Self stats
+  // -------------------------------------------------------------------------
+
+  /**
+   * Rebuilds the derived stats and the modifier table when the set of active self auras
+   * (the self tracker's view at `nowMs`) differs from the one they were built from. Runs
+   * before every event, at the end of `advanceTo`, and after a self aura is applied or removed.
+   * Because it reads the tracker, an aura is gone from the stats from its exact expiry ms on,
+   * even for events at that ms that run before its fade event (e.g. a regen tick).
+   *
+   * Rules: each active self aura adds its `selfStatBonuses` and `selfModifiers` once, whatever
+   * its stacks (a refresh changes nothing). Mana: raising maxMana adds no mana; lowering it
+   * clamps mana to [0, maxMana]; with infiniteMana, mana is pinned to the new maxMana.
+   */
+  private syncSelfStats(): void {
+    const ids = Object.keys(this.selfAuras.views(this.nowMs)).sort();
+    if (ids.length === this.statsAuraIds.length && ids.every((id, i) => id === this.statsAuraIds[i])) return;
+    this.statsAuraIds = ids;
+    this.stats = this.buildStatsAndModifiers(ids);
+    this.mana = this.infiniteMana ? this.stats.maxMana : Math.max(0, Math.min(this.mana, this.stats.maxMana));
+  }
+
+  /**
+   * Derived stats from the base bonuses plus the self auras `auraIds`; also rebuilds the
+   * per-spell modifier table from the base modifiers plus those auras' modifiers.
+   */
+  private buildStatsAndModifiers(auraIds: readonly string[]): DerivedStats {
+    const auras = auraIds.map((id) => this.auraDef(id));
+    const modifiers = [...this.baseModifiers, ...auras.flatMap((a) => a.selfModifiers ?? [])];
+    for (const spell of this.spells.values()) this.spellMods.set(spell.id, foldModifiers(spell, modifiers));
+    return computeStats(
+      this.setup,
+      sumStatBonuses([...this.baseStatBonuses, ...auras.map((a) => a.selfStatBonuses ?? {})]),
+    );
   }
 
   private auraDef(auraId: string): AuraDef {

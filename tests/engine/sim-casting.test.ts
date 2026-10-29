@@ -183,6 +183,10 @@ describe('Simulation cancelCast', () => {
       curse: 0,
       scorch: 0,
       tap: 0,
+      pump: 0,
+      hasteUp: 0,
+      dmgUp: 0,
+      scaled: 0,
     });
     expect(after.gcdEndsAtMs).toBe(3000);
     expect(sim.log().at(-1)).toEqual({ atMs: 2500, type: 'cast-cancel', spellId: 'bolt' });

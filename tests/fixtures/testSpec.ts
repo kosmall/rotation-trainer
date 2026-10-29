@@ -1,6 +1,6 @@
 // Deterministic spec and target for engine tests. Not game data: numbers are chosen for easy math.
 
-import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT } from '../../src/data/common/ratings';
+import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT, HASTE_RATING_PER_PCT } from '../../src/data/common/ratings';
 import type { SpecData } from '../../src/data/types';
 import type { AuraDef, SpecHooks, SpellDef, TargetData } from '../../src/engine/types';
 
@@ -8,6 +8,23 @@ import type { AuraDef, SpecHooks, SpellDef, TargetData } from '../../src/engine/
 export const TEST_TARGET: TargetData = { missPct: 0, minMissPct: 0, levelResistMult: 1, armor: 0 };
 
 const icon = 'test';
+
+/** A free, instant, off-GCD self buff that never misses or crits (no Rng draws): applies `auraId`. */
+function selfBuff(id: string, auraId: string): SpellDef {
+  return {
+    id,
+    name: id,
+    icon,
+    school: 'shadow',
+    manaCost: 0,
+    castTimeMs: 0,
+    cooldownMs: 0,
+    onGcd: false,
+    canMiss: false,
+    canCrit: false,
+    applyAura: { auraId, on: 'self' },
+  };
+}
 
 function testSpells(): SpellDef[] {
   return [
@@ -120,6 +137,24 @@ function testSpells(): SpellDef[] {
       canCrit: false,
       gainMana: { amount: 300, coeff: 0 },
     },
+    // Self buffs (Task 17): each applies the self aura of the same name.
+    selfBuff('pump', 'pumped'),
+    selfBuff('hasteUp', 'hasteUp'),
+    selfBuff('dmgUp', 'dmgUp'),
+    {
+      // Deals exactly its school's spell power (0 in the fixture): shows the current power.
+      id: 'scaled',
+      name: 'Scaled',
+      icon,
+      school: 'shadow',
+      manaCost: 0,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: false,
+      canMiss: false,
+      canCrit: false,
+      direct: { min: 0, max: 0, coeff: 1 },
+    },
   ];
 }
 
@@ -148,6 +183,23 @@ function testAuras(): AuraDef[] {
       charges: 2,
       damageTakenMult: { schools: ['shadow'], mult: 1.2, consumeChargeOnHit: true },
     },
+    { id: 'pumped', name: 'Pumped', icon, durationMs: 10000, selfStatBonuses: { spellPower: 100 } },
+    {
+      id: 'hasteUp',
+      name: 'Haste Up',
+      icon,
+      durationMs: 10000,
+      selfStatBonuses: { hasteRating: HASTE_RATING_PER_PCT * 10 },
+    },
+    {
+      id: 'dmgUp',
+      name: 'Damage Up',
+      icon,
+      durationMs: 10000,
+      selfModifiers: [{ schools: ['shadow'], damageMult: 1.5 }],
+    },
+    // Hidden internal-cooldown marker: no effect of its own, only checked by hooks (hasSelfAura).
+    { id: 'icd', name: 'Internal Cooldown', icon, durationMs: 5000 },
   ];
 }
 
@@ -159,6 +211,23 @@ export function boltCritProcHooks(): SpecHooks {
   return {
     onSpellResolved(e, api) {
       if (e.spellId === 'bolt' && e.outcome === 'crit') api.applyTargetAura('procAura');
+    },
+  };
+}
+
+/**
+ * Set-bonus style hooks: every resolved spell procs `pumped` (roll() < 1 always passes) unless
+ * the internal-cooldown aura `icd` is up; a proc also applies `icd` (5000 ms). Not in the
+ * default fixture.
+ */
+export function pumpProcHooks(): SpecHooks {
+  return {
+    onSpellResolved(_e, api) {
+      if (api.hasSelfAura('icd')) return;
+      if (api.roll() < 1) {
+        api.applySelfAura('pumped');
+        api.applySelfAura('icd');
+      }
     },
   };
 }
