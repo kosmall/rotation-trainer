@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT } from '../../src/data/common/ratings';
+import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT, HASTE_RATING_PER_PCT } from '../../src/data/common/ratings';
 import type { SpecData } from '../../src/data/types';
 import { Simulation } from '../../src/engine/sim';
 import { computeStats } from '../../src/engine/stats';
@@ -108,6 +108,40 @@ describe('Simulation lifecycle', () => {
     expect(sim.snapshot().nowMs).toBe(3000);
   });
 
+  it('advanceTo floors fractional times', () => {
+    const sim = newSim();
+    sim.cast('bolt');
+    sim.advanceTo(1999.99);
+    expect(sim.snapshot().nowMs).toBe(1999);
+    expect(damageOf(sim, 'bolt')).toEqual([]);
+    sim.advanceTo(2000.4);
+    expect(sim.snapshot().nowMs).toBe(2000);
+    expect(damageOf(sim, 'bolt')).toEqual([100]);
+    sim.advanceTo(59999.9);
+    expect(sim.snapshot().phase).toBe('running');
+    expect(sim.snapshot().nowMs).toBe(59999);
+  });
+
+  it('advanceTo throws a RangeError for NaN and infinite times and changes nothing', () => {
+    const sim = newSim();
+    sim.cast('bolt');
+    sim.advanceTo(1000);
+    const before = observe(sim);
+    for (const t of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => sim.advanceTo(t)).toThrow(RangeError);
+    }
+    expect(observe(sim)).toEqual(before);
+    expect(() => newSim().advanceTo(Number.NaN)).toThrow(RangeError);
+  });
+
+  it('log() entries cannot be used to mutate the internal log', () => {
+    const sim = newSim();
+    sim.cast('zap');
+    const entry = sim.log()[0];
+    if (entry) entry.atMs = 999;
+    expect(sim.log()[0]).toEqual({ atMs: 0, type: 'cast-complete', spellId: 'zap' });
+  });
+
   it('fight ends at durationMs: phase ended, nowMs 60000, cast returns ended', () => {
     const sim = newSim();
     sim.cast('zap');
@@ -171,6 +205,8 @@ describe('Simulation instant spells', () => {
     expect(sim.cast('bolt')).toEqual({ ok: false, reason: 'gcd' });
     sim.advanceTo(1500);
     expect(sim.cast('bolt')).toEqual({ ok: true });
+    // Bolt has a 2000 ms cast: it lands at 3500.
+    sim.advanceTo(3500);
     expect(damageOf(sim, 'bolt')).toEqual([100]);
   });
 
@@ -306,22 +342,49 @@ describe('Review Focus 6: set bonuses in the simulation', () => {
 
 describe('Simulation determinism', () => {
   it('Review Focus 4: advanceTo(60000) in one call equals 600 steps of 100 ms', () => {
-    const spec = specWithCritPct(50);
-    const jump = newSim({ spec, seed: 7 });
-    jump.cast('zap');
-    jump.advanceTo(1500);
-    jump.cast('bolt');
-    jump.advanceTo(60000);
-
-    const steps = newSim({ spec, seed: 7 });
-    steps.cast('zap');
-    for (let t = 100; t <= 1500; t += 100) steps.advanceTo(t);
-    steps.cast('bolt');
-    for (let t = 1600; t <= 60000; t += 100) steps.advanceTo(t);
+    // 10% haste: bolt casts in round(2000/1.1) = 1818 ms, so completions fall between 100 ms
+    // steps, and the gaps between scripted casts span many steps.
+    const base = specWithCritPct(50);
+    const spec = makeTestSpec({
+      setup: { ...base.setup, stats: { ...base.setup.stats, hasteRating: HASTE_RATING_PER_PCT * 10 } },
+    });
+    const script: [number, string][] = [
+      [0, 'bolt'],
+      [5000, 'zap'],
+      [5000, 'free'],
+      [9000, 'free'],
+      [9000, 'bolt'],
+      [20000, 'zap'],
+      [31000, 'bolt'],
+      [50000, 'bolt'],
+      [59000, 'bolt'], // would land at 60818: cut off by the fight end
+    ];
+    function play(stepMs: number | null): Simulation {
+      const sim = newSim({ spec, seed: 7 });
+      let now = 0;
+      const goTo = (t: number) => {
+        if (stepMs !== null) for (let s = now + stepMs; s < t; s += stepMs) sim.advanceTo(s);
+        sim.advanceTo(t);
+        now = t;
+      };
+      for (const [atMs, spellId] of script) {
+        goTo(atMs);
+        expect(sim.cast(spellId)).toEqual({ ok: true });
+      }
+      goTo(60000);
+      return sim;
+    }
+    const jump = play(null);
+    const steps = play(100);
 
     expect(steps.snapshot()).toEqual(jump.snapshot());
     expect(steps.log()).toEqual(jump.log());
     expect(jump.snapshot().phase).toBe('ended');
+    const boltCompletions = jump
+      .log()
+      .filter((e) => e.type === 'cast-complete' && e.spellId === 'bolt')
+      .map((e) => e.atMs);
+    expect(boltCompletions).toEqual([1818, 10818, 32818, 51818]);
   });
 
   it('same seed gives identical log; different seeds with crit enabled differ', () => {

@@ -6,6 +6,7 @@ import type { SpecData } from '../data/types';
 import { AuraTracker } from './auras';
 import { computeDamage, effectiveMissPct, rollOutcome } from './damage';
 import { EventQueue } from './events';
+import type { EventId } from './events';
 import { createRng } from './rng';
 import type { Rng } from './rng';
 import { activeSetBonuses } from './sets';
@@ -34,6 +35,14 @@ type CastRejection = Extract<CastResult, { ok: false }>['reason'];
  * are scheduled through `Simulation.schedule`.
  */
 type SimEvent = () => void;
+
+/** The cast in progress: what snapshot().cast reports, plus its pending completion event. */
+interface ActiveCast {
+  spellId: string;
+  startMs: number;
+  endMs: number;
+  completionEventId: EventId;
+}
 
 /** Every modifier matching one spell, folded: multipliers multiplied, deltas summed. */
 interface SpellMods {
@@ -99,6 +108,7 @@ export class Simulation {
   private phase: SimSnapshot['phase'] = 'ready';
   private nowMs = 0;
   private gcdEndsAtMs = 0;
+  private activeCast: ActiveCast | null = null;
   private readonly cooldownReadyAtMs = new Map<string, number>();
   private mana: number;
   private damageTotal = 0;
@@ -138,11 +148,14 @@ export class Simulation {
   }
 
   /**
-   * Moves fight time forward to `tMs`, running every event with `atMs <= min(tMs, durationMs)`
-   * in order. Reaching `durationMs` ends the fight. No-op before start, after the end, and for
-   * times not after the current time.
+   * Moves fight time forward to `timeMs` floored to whole ms (`tMs`), running every event with
+   * `atMs <= min(tMs, durationMs)` in order. Reaching `durationMs` ends the fight. No-op before
+   * start, after the end, and for times not after the current time. NaN and infinite times
+   * throw a RangeError (in every phase).
    */
-  advanceTo(tMs: number): void {
+  advanceTo(timeMs: number): void {
+    if (!Number.isFinite(timeMs)) throw new RangeError(`advanceTo needs a finite time, got ${timeMs}`);
+    const tMs = Math.floor(timeMs);
     if (this.phase !== 'running') return;
     const untilMs = Math.min(tMs, this.durationMs);
     this.runEventsThrough(untilMs);
@@ -165,8 +178,17 @@ export class Simulation {
     return { ok: true };
   }
 
-  /** Aborts the cast in progress. Every spell completes when cast until Task 7, so a no-op. */
-  cancelCast(): void {}
+  /**
+   * Aborts the cast in progress: logs `cast-cancel`; no damage, mana or cooldown. The GCD the
+   * cast started stays. No-op when nothing is being cast.
+   */
+  cancelCast(): void {
+    const cast = this.activeCast;
+    if (!cast) return;
+    this.events.cancel(cast.completionEventId);
+    this.activeCast = null;
+    this.addLog({ type: 'cast-cancel', spellId: cast.spellId });
+  }
 
   snapshot(): SimSnapshot {
     const cooldownRemainingMs: Record<string, number> = {};
@@ -176,7 +198,9 @@ export class Simulation {
       phase: this.phase,
       durationMs: this.durationMs,
       gcdEndsAtMs: this.gcdEndsAtMs,
-      cast: null,
+      cast: this.activeCast
+        ? { spellId: this.activeCast.spellId, startMs: this.activeCast.startMs, endMs: this.activeCast.endMs }
+        : null,
       mana: this.mana,
       maxMana: this.stats.maxMana,
       cooldownRemainingMs,
@@ -188,19 +212,19 @@ export class Simulation {
     };
   }
 
-  /** A copy of the combat log, oldest first. */
+  /** A copy of the combat log (entries copied too), oldest first. */
   log(): readonly LogEvent[] {
-    return this.logEvents.slice();
+    return this.logEvents.map((e) => ({ ...e }));
   }
 
   // -------------------------------------------------------------------------
   // Time and events
   // -------------------------------------------------------------------------
 
-  /** Schedules `action` at fight time `atMs` (never in the past). */
-  private schedule(atMs: number, action: SimEvent): void {
+  /** Schedules `action` at fight time `atMs` (never in the past); the id cancels it. */
+  private schedule(atMs: number, action: SimEvent): EventId {
     if (atMs < this.nowMs) throw new Error(`cannot schedule in the past: ${atMs} < ${this.nowMs}`);
-    this.events.schedule(atMs, action);
+    return this.events.schedule(atMs, action);
   }
 
   private runEventsThrough(untilMs: number): void {
@@ -214,7 +238,9 @@ export class Simulation {
     }
   }
 
+  /** Ends the fight. A cast still in progress is cut off (no event runs after the end). */
   private endFight(): void {
+    this.activeCast = null;
     this.nowMs = this.durationMs;
     this.phase = 'ended';
   }
@@ -225,17 +251,30 @@ export class Simulation {
 
   /** Why `spell` cannot be cast now, or null. Checks only; changes nothing. */
   private castRejection(spell: SpellDef): CastRejection | null {
+    if (this.activeCast) return 'busy';
     if (this.cooldownRemaining(spell.id) > 0) return 'cooldown';
     if (spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
     return null;
   }
 
+  /** Starts the GCD now; completes at once (instant) or schedules the completion at cast end. */
   private startCast(spell: SpellDef): void {
     if (spell.onGcd) this.gcdEndsAtMs = this.nowMs + this.gcdMs();
-    // Cast times arrive in Task 7; until then every spell completes when cast.
-    this.completeCast(spell);
+    const castMs = this.castTimeMs(spell);
+    if (castMs === 0) {
+      this.completeCast(spell);
+      return;
+    }
+    const endMs = this.nowMs + castMs;
+    this.addLog({ type: 'cast-start', spellId: spell.id });
+    const completionEventId = this.schedule(endMs, () => {
+      this.activeCast = null;
+      this.completeCast(spell);
+    });
+    this.activeCast = { spellId: spell.id, startMs: this.nowMs, endMs, completionEventId };
   }
 
+  /** Cast end: cooldown, then the spell's effects. Mana is spent here from Task 9 on. */
   private completeCast(spell: SpellDef): void {
     this.addLog({ type: 'cast-complete', spellId: spell.id });
     if (spell.cooldownMs > 0) this.cooldownReadyAtMs.set(spell.id, this.nowMs + spell.cooldownMs);
@@ -280,6 +319,12 @@ export class Simulation {
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
+
+  /** `max(0, round((base + castTimeMsDelta) / (1 + haste)))`; 0 means instant. */
+  private castTimeMs(spell: SpellDef): number {
+    const baseMs = spell.castTimeMs + this.modsFor(spell).castTimeMsDelta;
+    return Math.max(0, Math.round(baseMs / (1 + this.stats.hastePct / 100)));
+  }
 
   private gcdMs(): number {
     return Math.max(MIN_GCD_MS, Math.round(BASE_GCD_MS / (1 + this.stats.hastePct / 100)));
