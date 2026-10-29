@@ -299,4 +299,28 @@ describe('Setup wiring', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
     expect(stored(map)).toEqual(DEFAULT_SETUP);
   });
+
+  it('Space on a focused setup button presses it and does not start the fight', () => {
+    render(<GameView storage={null} />);
+    const reset = screen.getByRole('button', { name: 'Reset to defaults' });
+    fireEvent.keyDown(reset, { key: ' ' });
+    expect(startOverlay()).not.toBeNull();
+    fireEvent.keyDown(reset, { key: '1' }); // other hotkeys still reach the action bar
+    expect(castBar()).not.toBeNull();
+  });
+
+  it('the pending-setup note follows the config: gone when an edit is undone, "finished" after the end', () => {
+    render(<GameView storage={null} />);
+    press('1');
+    advance(500);
+    const note = () => document.querySelector('.setup-pending')?.textContent ?? null;
+    expect(note()).toBeNull();
+    fireEvent.click(checkbox('Misery'));
+    expect(note()).toMatch(/^The running fight keeps its setup/);
+    fireEvent.click(checkbox('Misery')); // back to what the fight uses
+    expect(note()).toBeNull();
+    fireEvent.click(checkbox('Misery'));
+    advance(61_000);
+    expect(note()).toMatch(/^The finished fight keeps its setup/);
+  });
 });

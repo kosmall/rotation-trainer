@@ -780,7 +780,7 @@ button.primary {
   user-select: none;
 }
 
-/* Two lines under the name; the full text is in the title tooltip. */
+/* Two lines under the name; the full text is in the title tooltip, and shows in full once the row is enabled or focused. */
 .setup-buff-desc {
   margin: 0 0 0 46px;
   font-size: 0.75rem;
@@ -790,6 +790,15 @@ button.primary {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+}
+
+/* An enabled or focused row shows its whole description (a title tooltip does not exist on touch screens). */
+.setup-buff-on .setup-buff-desc,
+.setup-buff:focus-within .setup-buff-desc {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
 }
 
 .setup-timed {

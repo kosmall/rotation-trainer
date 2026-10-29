@@ -240,6 +240,8 @@ export interface SetupPanelProps {
   fightLengthSec?: number;
   /** The running fight was built with another setup: say that the new one applies after R. */
   pending?: boolean;
+  /** The fight is over: the pending note then says "finished" instead of "in progress". */
+  fightEnded?: boolean;
 }
 
 /**
@@ -259,6 +261,7 @@ export function SetupPanel({
   disabled = false,
   fightLengthSec,
   pending = false,
+  fightEnded = false,
 }: SetupPanelProps) {
   const id = useId();
   const lifeTap = config.rotation.lifeTapBelowMana;
@@ -363,7 +366,7 @@ export function SetupPanel({
             </button>
           </div>
           {pending && (
-            <p className="setup-pending">The fight in progress keeps its setup: the new one applies from the next fight (press R).</p>
+            <p className="setup-pending">The {fightEnded ? 'finished' : 'running'} fight keeps its setup: the new one applies from the next fight (press R).</p>
           )}
         </div>
 

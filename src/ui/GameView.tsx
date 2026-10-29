@@ -29,8 +29,8 @@ const FLASH_MS = 700;
 /** Fields that take typed text or arrow keys: every key typed into them is theirs, never a hotkey. */
 const TEXT_TARGETS =
   'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), select, textarea, [contenteditable]:not([contenteditable="false"])';
-/** Toggles (a `<summary>`, checkboxes, radios): only Space and Enter belong to them, the other hotkeys still work after a click. */
-const TOGGLE_TARGETS = 'summary, input[type="checkbox"], input[type="radio"]';
+/** Toggles (a `<summary>`, checkboxes, radios, buttons): only Space and Enter belong to them, the other hotkeys still work after a click. */
+const TOGGLE_TARGETS = 'summary, button, input[type="checkbox"], input[type="radio"]';
 
 function isHotkeyBlocked(event: KeyboardEvent): boolean {
   const { target } = event;
@@ -82,7 +82,8 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
   const spec = fight.spec;
   const priority = nextFight.spec.priority;
   const fightPreset = useMemo(() => activePresetName(fight.config, SETUP_PRESETS, SETUP_CATALOG), [fight.config]);
-  const pending = fight !== nextFight && snapshot.phase !== 'ready';
+  // The edit differs from what the running (or ended) fight uses; toggling a buff on and off again does not count.
+  const pending = snapshot.phase !== 'ready' && JSON.stringify(fight.config) !== JSON.stringify(config);
   const [flash, setFlash] = useState<SlotFlash | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -166,6 +167,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
           onChange={changeConfig}
           fightLengthSec={snapshot.durationMs / 1000}
           pending={pending}
+          fightEnded={snapshot.phase === 'ended'}
         />
         <CharacterStats spec={nextFight.spec} />
         <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} />
