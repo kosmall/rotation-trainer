@@ -18,7 +18,7 @@ Not in the number:
 
 Assumed, not measured from the author's play:
 
-- The Succubus is sacrificed (Demonic Sacrifice: +15% shadow damage) and Fel Armor (+130 spell power) is up all fight, both from the start.
+- The Succubus is sacrificed (Demonic Sacrifice: +15% shadow damage) and Fel Armor (+130 spell power) is up all fight, both from the start. Since stage 1.5 both are warlock options (`buildDestructionWarlock`, default on); see "Part C: consumables, debuffs and warlock options".
 - The spell queue window is 400 ms (wowsims' setting; UNVERIFIED for the Anniversary client).
 
 Not applicable on a training dummy:
@@ -441,3 +441,65 @@ Source: wowsims/tbc-new @ `91f869a` `sim/core/buffs.go` (function named per row)
 - No double counting with the spec: the default gear (`destructionEquipped`, Task 12b) comes from the wowsims exporter's item ids with item, gem and enchant stats only (no raid buff is in `setup.stats`); the spec's own multipliers are Expansive Mind, Demonic Embrace and Fel Intellect, and its only flat bonus is Fel Armor (+130 spell power, a warlock option, Task 7). None of them is in this catalog, and a test pins the spec's values.
 - Exclusive categories in wowsims that matter only for buffs not in the catalog yet (`StatBuffCategory`: Arcane Brilliance and Prayer of Spirit vs scrolls; the totem categories vs a second shaman's totem): no `exclusiveGroup` is needed among these ten entries. The consumables (Task 7) add their own groups.
 - Icons: the `icon` names match Wowhead's tooltip for each `wowheadId`; the files are not committed yet (Task 11 extends `npm run icons` to the buff catalog).
+
+## Part C: consumables, debuffs and warlock options
+
+Stage 1.5 Task 7. `src/data/common/buffs.ts` gains `consumables` and `debuffs` (deep-frozen, like `commonBuffs`) and the `EXCLUDES` table; `src/data/classes/warlock/buffs.ts` holds the warlock side (`NEUTRALIZED_BY`, `neutralizeOwnAuras`, the option descriptions); `destruction.ts` gains `buildDestructionWarlock(options)`. Nothing is enabled by default: `destructionWarlock = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS)` (Fel Armor, Succubus sacrificed) is field by field the stage 1 spec, and the bot means do not move.
+
+### Consumables (static flat bonuses)
+
+Source: wowsims/tbc-new @ `91f869a` `assets/database/db.json` `consumables` (the `stats` array is indexed by `proto/common.proto` `Stat`; `applyConsumeEffects` in `sim/core/consumes.go` adds it with `AddStats`), weapon oils from `consumes.go` `registerStaticImbue`; every value cross-checked with the Wowhead TBC item tooltip. `wowheadId` is the buff (use) spell; its icon was taken from Wowhead's spell tooltip (for food the buff spell, whose icon is the generic `spell_misc_food`, because the use spells' `inv_misc_fork-knife` is not a valid icon file name for `npm run icons`).
+
+| Id | Group | Effect | Source (item) | Status |
+|---|---|---|---|---|
+| `flask-of-supreme-power` | `flask` | +70 spell power | db.json 13512 `SpellDamage 70`; Wowhead item=13512 | verified |
+| `flask-of-distilled-wisdom` | `flask` | +65 intellect | db.json 13511 `Intellect 65`; Wowhead item=13511 | verified |
+| `flask-of-pure-death` | `flask` | +80 shadow and fire power (frost unused) | db.json 22866 `Fire/Frost/ShadowDamage 80`; Wowhead item=22866 | verified |
+| `elixir-of-major-shadow-power` | `elixir-battle` | +55 shadow power | db.json 22835; Wowhead item=22835 | verified |
+| `elixir-of-major-firepower` | `elixir-battle` | +55 fire power | db.json 22833; Wowhead item=22833 | verified |
+| `adepts-elixir` | `elixir-battle` | +24 spell power, +24 crit rating | db.json 28103; Wowhead item=28103 | verified |
+| `greater-arcane-elixir` | `elixir-battle` | +35 spell power | db.json 13454; Wowhead item=13454 | verified |
+| `elixir-of-draenic-wisdom` | `elixir-guardian` | +30 intellect, +30 spirit | db.json 32067; Wowhead item=32067 | verified |
+| `elixir-of-major-mageblood` | `elixir-guardian` | 16 mp5 | db.json 22840; Wowhead item=22840 | verified |
+| `blackened-basilisk` | `food` | +23 spell power, +20 spirit (same buff as Crunchy Serpent, Poached Bluefish) | db.json 27657; Wowhead item=27657, buff spell=33263 | verified |
+| `skullfish-soup` | `food` | +20 crit rating, +20 spirit | db.json 33825; Wowhead item=33825, buff spell=43722 | verified |
+| `blackened-sporefish` | `food` | 8 mp5 (its stamina is irrelevant) | db.json 27663; Wowhead item=27663, buff spell=33265 | verified |
+| `brilliant-wizard-oil` | `weapon-oil` | +36 spell power, +14 crit rating | `registerStaticImbue` 25122; Wowhead item=20749 | verified |
+| `superior-wizard-oil` | `weapon-oil` | +42 spell power | `registerStaticImbue` 28017; Wowhead item=22522 | verified |
+
+Exclusivity: one entry per `exclusiveGroup` (flask, battle elixir, guardian elixir, food, weapon oil). `EXCLUDES = { flask: ['elixir-battle', 'elixir-guardian'] }`: a flask "counts as both a Battle and Guardian elixir" (the flask tooltips), so a flask and any elixir cannot be enabled together (Task 9's `normalizeSetup` keeps the later one). The weapon oil is a temporary enchant and stacks with the permanent weapon enchant of the gear (Major Spellpower on the main hand), as in the game.
+
+Choice of entries: the spec named Supreme Power and Distilled Wisdom; Flask of Pure Death (the TBC warlock flask) was added because it is what a Shadow Bolt warlock would use. Elixirs and foods: the ones that change a simulated stat for a warlock.
+
+**Deviation from the design spec §4.2 (to be confirmed by the author): Super Mana Potion and Dark Rune are not modelled.** They are actions the player takes for an instant mana gain at a moment of their choice (potion and rune cooldowns), not passive or scheduled buffs; the setup has no player-used consumables (spec §4.3: no automatic use by the player). If wanted later they need a spell-like action, not a catalog buff.
+
+### Target debuffs from other raid members
+
+Source: wowsims/tbc-new `sim/core/debuffs.go` (function per row), cross-checked with Wowhead TBC. Each is a target aura with its own id (never one of the spec's aura objects), no `exclusiveGroup`, and a 1-hour own duration (`SCHEDULED_DEBUFF_DURATION_MS` = 3600000, ruling S3: scheduled at 0 without an override, the end of the fight cuts it).
+
+| Id | Effect | Source | Status |
+|---|---|---|---|
+| `raid-curse-of-the-elements` | x1.10 arcane, fire, frost, shadow damage taken | `CurseOfElementsAura(target, -1, 0)` (`1.10 + 0.01 x ranks`, unimproved; wowsims' improved option x1.13 is not offered); Wowhead spell=27228 | verified |
+| `misery` | x1.05 arcane, fire, frost, holy, nature, shadow damage taken | `MiseryAura(target, 5)` (`1 + 0.01 x 5`); Wowhead spell=33195 "an additional 5% spell damage" | verified |
+| `shadow-weaving` | x1.10 shadow damage taken | `ShadowWeavingAura`: `1.0 + 0.02 x stacks` (one additive multiplier, not 1.02^5), 5 stacks; Wowhead spell=15334 | verified (ramp simplified, below) |
+| `judgement-of-wisdom` | 50% chance per landed spell to gain 74 mana | `JudgementOfWisdomAura`: `ProcChance 0.5`, `ProcMaskDirect`, landed spells only, `AddMana(74.0)`; Wowhead spell=27164 "(Proc chance: 50%)"; author's log: 74 per proc, 20 procs on 37 hits | verified |
+| `isb-from-others` | x1.2 shadow damage taken, whole fight, no charges | `ImprovedShadowBoltAura(target, uptime, 5)` (`1 + 0.04 x 5`; with an uptime it has no charges); Wowhead spell=17800 | verified (100% uptime: simplification) |
+
+Stacking (wowsims): Curse of the Elements, Misery and Shadow Weaving are exclusive effects of their own category ("CurseOfElements", "MiseryBonus", "ShadowWeaving"): one of each, the strongest. Different debuffs multiply each other (each multiplies `SchoolDamageTakenMultiplier`), as `damageTakenMult` does in the engine (`AuraTracker.damageTakenMult` multiplies every active aura): Misery and Shadow Weaving together are x1.05 x 1.10 on shadow.
+
+Simplifications:
+- **Shadow Weaving ramp**: wowsims adds one stack every 1.5 s from 0 (full at 6 s, `applyDebuffEffects` `ScheduledAura`); the trainer has the full x1.10 from the pull (the engine's `damageTakenMult` does not scale with stacks). Only the hits of the first 6 s are affected (at most 4 points of the 10%), a few tenths of a percent over a 60 s fight.
+- **Improved Shadow Bolt from others**: always up (wowsims takes an uptime percentage, `IsbUptime`); it multiplies DoT ticks too, like the own debuff (`SchoolDamageTakenMultiplier`). The plan's `directOnly` was left out: in the engine it only restricts which hits spend a charge, and this aura has no charges.
+- **Judgement of Wisdom**: the hook (run after every resolved spell; never for DoT ticks, matching `ProcMaskDirect`) rolls only for a landed spell (`outcome !== 'miss'`) and only while the debuff is on, so a setup without it keeps every random draw (and every stage 1 result) unchanged. Life Tap and Curse of the Elements never roll: in wowsims Life Tap deals no outcome to the target (`lifetap.go`) and Curse of the Elements has `ProcMaskEmpty` (`curse_of_elements.go`); every other trainer spell (Shadow Bolt, Immolate, Corruption, Curse of Agony, Curse of Doom, Shadowburn, Incinerate) has `ProcMaskSpellDamage`. Order of the roll differs from wowsims (which rolls before its landed check, on misses too); the rate per landed spell is the same. The log's 20 procs on 37 hits (54%) fits the 50% chance.
+
+### Own vs raid debuff: one effect (rulings S1, S2)
+
+In wowsims the raid's and the player's own Curse of the Elements share the exclusive effect "CurseOfElements", and the raid's and the player's own Improved Shadow Bolt are the same aura (label `ImprovedShadowBolt-5`): one multiplier each. In the trainer the raid debuff is a separate aura (the own curse keeps its curse slot, the own Shadow Vulnerability is still applied by Shadow Bolt crits), so giving them one `exclusiveGroup` would let the own application remove the permanent raid one. Instead `NEUTRALIZED_BY` (`src/data/classes/warlock/buffs.ts`) maps `raid-curse-of-the-elements` -> own `curse-of-the-elements` and `isb-from-others` -> own `shadow-vulnerability`, and `neutralizeOwnAuras(spec.auras, enabledBuffIds)` returns the auras with those own defs copied with `damageTakenMult.mult` 1 (schools, charges and charge spending kept). Task 9's `applySetup` must run the spec's auras through it; tests show that without it the two would give x1.21 and x1.44.
+
+### Warlock options (`buildDestructionWarlock`)
+
+`WarlockOptions = { armor: 'fel' | 'demon' | 'none'; sacrificeSuccubus: boolean }`, default `{ armor: 'fel', sacrificeSuccubus: true }` (stage 1).
+- `armor: 'fel'`: +130 spell power (`FEL_ARMOR_SPELL_POWER`: Fel Armor rank 2 +100, Wowhead spell=28189, x Demonic Aegis 3/3; `armors.go`). `demon` and `none`: no bonus. Demon Armor (Wowhead spell=27260; `armors.go`: armor and shadow resistance) changes nothing the trainer simulates.
+- `sacrificeSuccubus: false`: the Demonic Sacrifice modifier (shadow x1.15 direct and periodic, `talents.go applyDemonicSacrifice`, Wowhead spell=18791 Touch of Shadow "Shadow damage increased by 15%") is left out. The kept pet's own damage is not simulated; Master Demonologist (which wowsims applies only with the pet kept) has 0 points in this build.
+- The Demonic Sacrifice modifier is exported on its own from `talents.ts` (`demonicSacrificeModifiers`; `talentModifiers` still contains the same objects), so the builder can drop exactly it.
+- Every build returns new `modifiers`, `statBonuses`, `setup` and `priority` containers; spells, auras, sets, the priority steps and the hooks are the shared static data, so the default build equals the stage 1 spec field by field (`when` closures and hooks included).

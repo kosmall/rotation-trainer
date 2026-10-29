@@ -7,7 +7,7 @@ import { enchants, gems, items } from './items';
 import { ROTATION_PRESETS, buildPriority } from './rotation';
 import { warlockSets } from './sets';
 import { warlockSpells } from './spells';
-import { talentModifiers, talentRank as r } from './talents';
+import { demonicSacrificeModifiers, talentModifiers, talentRank as r } from './talents';
 
 export { destructionTalentString, parseTalentString } from './talents';
 
@@ -23,13 +23,14 @@ export { destructionTalentString, parseTalentString } from './talents';
 // ---------------------------------------------------------------------------
 
 /**
- * Flat stat bonuses of the build. Fel Armor rank 2 (spell_data_auto_gen.go FelArmor 28189:
- * A_MOD_DAMAGE_DONE 100) x Demonic Aegis 3/3 (armors.go: x (1 + 0.1 x rank)) = +130 spell damage;
- * the self buff is kept up all fight (tbc-new DefaultOptions armor: FelArmor, made permanent).
+ * Fel Armor's flat bonus. Fel Armor rank 2 (spell_data_auto_gen.go FelArmor 28189:
+ * A_MOD_DAMAGE_DONE 100; Wowhead TBC spell=28189 "increasing spell damage by up to 100") x
+ * Demonic Aegis 3/3 (armors.go: x (1 + 0.1 x rank)) = +130 spell damage; the self buff is kept up
+ * all fight (tbc-new DefaultOptions armor: FelArmor, made permanent). Demon Armor (27260: armor,
+ * shadow resistance, health regeneration) changes nothing the trainer simulates, so `demon` and
+ * `none` both have no bonus.
  */
-const talentStatBonuses: Partial<RawStats> = {
-  spellPower: 100 * (1 + 0.1 * r('demonicAegis')),
-};
+export const FEL_ARMOR_SPELL_POWER = 100 * (1 + 0.1 * r('demonicAegis'));
 
 /**
  * Percentage stat effects of race and talents (applied by computeStats to the totals):
@@ -111,43 +112,81 @@ const { setup: gearSetup } = buildSetup({
 // Spec
 // ---------------------------------------------------------------------------
 
-export const destructionWarlock: SpecData = {
-  id: 'destruction-warlock',
-  name: 'Destruction Warlock',
-  spells: warlockSpells,
-  auras: warlockAuras,
-  modifiers: talentModifiers,
-  statBonuses: talentStatBonuses,
-  sets: warlockSets,
-  // buildSetup does not carry statMultipliers: Expansive Mind etc. then scale the gear's stats too.
-  setup: { ...gearSetup, statMultipliers: destructionStatMultipliers },
-  // The DoT rotation preset at the default distance (rotation.ts); the UI and the bot may build
-  // another list with buildPriority.
-  priority: buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD),
-  // Action bar slots 1-9, 0, -, =.
-  keybinds: [
-    'shadow-bolt',
-    'immolate',
-    'corruption',
-    'curse-of-the-elements',
-    'shadowburn',
-    'life-tap',
-    'incinerate',
-    // Slot 8 left empty (ruling R17): no Conflagrate talent in this build; its SpellDef stays
-    // in spells.ts for the stage 2b talent editor. Other slots keep their positions.
-    '',
-    'curse-of-agony',
-    'curse-of-doom',
-    '',
-    '',
-  ],
-  hooks: {
-    // Improved Shadow Bolt 5/5 (shadowbolt.go): a landed Shadow Bolt crit (re)applies the
-    // debuff with all 4 charges (SetStacks(4)); it runs after the crit's own damage.
-    onSpellResolved(e, api) {
-      if (r('improvedShadowBolt') > 0 && e.spellId === 'shadow-bolt' && e.outcome === 'crit') {
-        api.applyTargetAura('shadow-vulnerability');
-      }
-    },
+/**
+ * The warlock's own choices that stage 1 fixed (stage 1.5 Part C, "warlock options"): the armor
+ * self buff kept up all fight and whether the Succubus is sacrificed (Demonic Sacrifice).
+ */
+export interface WarlockOptions {
+  armor: 'fel' | 'demon' | 'none';
+  sacrificeSuccubus: boolean;
+}
+
+/** Stage 1's assumptions (Fel Armor, Succubus sacrificed): the spec's numbers unchanged. */
+export const DEFAULT_WARLOCK_OPTIONS: Readonly<WarlockOptions> = Object.freeze({
+  armor: 'fel',
+  sacrificeSuccubus: true,
+});
+
+// The DoT rotation preset at the default distance (rotation.ts); the UI and the bot may build
+// another list with buildPriority. Built once: the options do not change it, and every build
+// sharing the same step objects keeps the default build equal to stage 1's spec, `when` included.
+const defaultPriority = buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD);
+
+const destructionHooks: SpecData['hooks'] = {
+  // Improved Shadow Bolt 5/5 (shadowbolt.go): a landed Shadow Bolt crit (re)applies the
+  // debuff with all 4 charges (SetStacks(4)); it runs after the crit's own damage.
+  onSpellResolved(e, api) {
+    if (r('improvedShadowBolt') > 0 && e.spellId === 'shadow-bolt' && e.outcome === 'crit') {
+      api.applyTargetAura('shadow-vulnerability');
+    }
   },
 };
+
+/**
+ * The Destruction Warlock spec for the given options. Pure: every call returns a new SpecData
+ * with its own `modifiers`, `statBonuses`, `setup` and `priority` arrays/objects; the spells,
+ * auras, sets, priority steps and hooks are the shared static data (never mutate them).
+ * - `armor: 'fel'` adds Fel Armor's +130 spell power (`FEL_ARMOR_SPELL_POWER`); `demon` and
+ *   `none` add nothing.
+ * - `sacrificeSuccubus: false` leaves out Demonic Sacrifice's shadow x1.15
+ *   (`demonicSacrificeModifiers`); the pet itself is not simulated either way.
+ */
+export function buildDestructionWarlock(options: WarlockOptions): SpecData {
+  const statBonuses: Partial<RawStats> = options.armor === 'fel' ? { spellPower: FEL_ARMOR_SPELL_POWER } : {};
+  const modifiers = options.sacrificeSuccubus
+    ? [...talentModifiers]
+    : talentModifiers.filter((m) => !demonicSacrificeModifiers.includes(m));
+  return {
+    id: 'destruction-warlock',
+    name: 'Destruction Warlock',
+    spells: warlockSpells,
+    auras: warlockAuras,
+    modifiers,
+    statBonuses,
+    sets: warlockSets,
+    // buildSetup does not carry statMultipliers: Expansive Mind etc. then scale the gear's stats too.
+    setup: { ...gearSetup, statMultipliers: destructionStatMultipliers },
+    priority: [...defaultPriority],
+    // Action bar slots 1-9, 0, -, =.
+    keybinds: [
+      'shadow-bolt',
+      'immolate',
+      'corruption',
+      'curse-of-the-elements',
+      'shadowburn',
+      'life-tap',
+      'incinerate',
+      // Slot 8 left empty (ruling R17): no Conflagrate talent in this build; its SpellDef stays
+      // in spells.ts for the stage 2b talent editor. Other slots keep their positions.
+      '',
+      'curse-of-agony',
+      'curse-of-doom',
+      '',
+      '',
+    ],
+    hooks: destructionHooks,
+  };
+}
+
+/** The stage 1 spec: Fel Armor and the Succubus sacrificed (`DEFAULT_WARLOCK_OPTIONS`). */
+export const destructionWarlock: SpecData = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS);

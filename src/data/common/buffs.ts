@@ -180,3 +180,401 @@ export const commonBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     effect: { statBonuses: { mp5: 49 } },
   },
 ]);
+
+// ===========================================================================
+// Consumables (stage 1.5 Task 7): static flat bonuses, active the whole fight when enabled.
+// Values: wowsims/tbc-new @ 91f869a assets/database/db.json `consumables` (stats array indexed by
+// proto/common.proto `Stat`: SpellDamage -> spellPower, ShadowDamage -> shadowPower, FireDamage ->
+// firePower, SpellCritRating -> critRating, MP5 -> mp5), which `applyConsumeEffects`
+// (sim/core/consumes.go) adds with `character.AddStats`; weapon oils from consumes.go
+// `registerStaticImbue`. Each cross-checked with the Wowhead TBC item tooltip
+// (nether.wowhead.com/tbc/tooltip/item/<item id>); `wowheadId` is the buff (use) spell, whose
+// icon the tooltip API confirms. See docs/data-sources.md, "Part C: consumables, debuffs and
+// warlock options".
+//
+// Not modelled (deviation from the design spec §4.2, to be confirmed by the author): Super Mana
+// Potion and Dark Rune. They are actions the player uses for an instant mana gain at a moment of
+// their choosing (sharing the potion / rune cooldowns), not passive or scheduled buffs.
+// ===========================================================================
+
+const CONSUMES = 'wowsims/tbc-new sim/core/consumes.go applyConsumeEffects + assets/database/db.json';
+const IMBUES = 'wowsims/tbc-new sim/core/consumes.go registerStaticImbue';
+
+export const consumables: readonly BuffDef[] = deepFreeze<BuffDef[]>([
+  // -------------------------------------------------------------------------
+  // Flasks: count as both a battle and a guardian elixir (see EXCLUDES)
+  // -------------------------------------------------------------------------
+  {
+    id: 'flask-of-supreme-power',
+    name: 'Flask of Supreme Power',
+    icon: 'inv_potion_41',
+    wowheadId: 17628,
+    group: 'consumable',
+    exclusiveGroup: 'flask',
+    description: '+70 spell power. Counts as both a battle and a guardian elixir.',
+    // db.json item 13512 (type Flask): SpellDamage 70; Wowhead TBC item=13512 "Increases damage
+    // done by magical spells and effects by up to 70 for 2 hrs".
+    source: `${CONSUMES} (item 13512); https://www.wowhead.com/tbc/item=13512`,
+    effect: { statBonuses: { spellPower: 70 } },
+  },
+  {
+    id: 'flask-of-distilled-wisdom',
+    name: 'Flask of Distilled Wisdom',
+    icon: 'inv_potion_97',
+    wowheadId: 17627,
+    group: 'consumable',
+    exclusiveGroup: 'flask',
+    description: '+65 intellect. Counts as both a battle and a guardian elixir.',
+    // db.json item 13511 (Flask): Intellect 65; Wowhead TBC item=13511 "Increases Intellect by 65".
+    source: `${CONSUMES} (item 13511); https://www.wowhead.com/tbc/item=13511`,
+    effect: { statBonuses: { intellect: 65 } },
+  },
+  {
+    id: 'flask-of-pure-death',
+    name: 'Flask of Pure Death',
+    icon: 'inv_potion_115',
+    wowheadId: 28540,
+    group: 'consumable',
+    exclusiveGroup: 'flask',
+    description:
+      '+80 shadow and fire spell power (frost too, unused). The TBC warlock flask. Counts as both a battle and a guardian elixir.',
+    // db.json item 22866 (Flask): FireDamage 80, FrostDamage 80, ShadowDamage 80; Wowhead TBC
+    // item=22866 "Increases spell damage caused by Shadow, Fire and Frost spells by up to 80".
+    source: `${CONSUMES} (item 22866); https://www.wowhead.com/tbc/item=22866`,
+    effect: { statBonuses: { shadowPower: 80, firePower: 80 } },
+  },
+
+  // -------------------------------------------------------------------------
+  // Battle elixirs
+  // -------------------------------------------------------------------------
+  {
+    id: 'elixir-of-major-shadow-power',
+    name: 'Elixir of Major Shadow Power',
+    icon: 'inv_potion_145',
+    wowheadId: 28503,
+    group: 'consumable',
+    exclusiveGroup: 'elixir-battle',
+    description: '+55 shadow spell power. Battle elixir.',
+    // db.json item 22835 (BattleElixir): ShadowDamage 55; Wowhead TBC item=22835 "Increases shadow
+    // spell damage by up to 55 for 1 hour. Battle Elixir."
+    source: `${CONSUMES} (item 22835); https://www.wowhead.com/tbc/item=22835`,
+    effect: { statBonuses: { shadowPower: 55 } },
+  },
+  {
+    id: 'elixir-of-major-firepower',
+    name: 'Elixir of Major Firepower',
+    icon: 'inv_potion_146',
+    wowheadId: 28501,
+    group: 'consumable',
+    exclusiveGroup: 'elixir-battle',
+    description: '+55 fire spell power. Battle elixir.',
+    // db.json item 22833 (BattleElixir): FireDamage 55; Wowhead TBC item=22833 "Increases fire
+    // spell damage by up to 55 for 1 hour. Battle Elixir."
+    source: `${CONSUMES} (item 22833); https://www.wowhead.com/tbc/item=22833`,
+    effect: { statBonuses: { firePower: 55 } },
+  },
+  {
+    id: 'adepts-elixir',
+    name: "Adept's Elixir",
+    icon: 'inv_potion_96',
+    wowheadId: 33721,
+    group: 'consumable',
+    exclusiveGroup: 'elixir-battle',
+    description: '+24 spell power and +24 spell crit rating. Battle elixir.',
+    // db.json item 28103 (BattleElixir): SpellDamage 24, SpellCritRating 24 (HealingPower 24
+    // unused); Wowhead TBC item=28103 "spell damage and healing by up to 24 and spell critical
+    // strike rating by 24".
+    source: `${CONSUMES} (item 28103); https://www.wowhead.com/tbc/item=28103`,
+    effect: { statBonuses: { spellPower: 24, critRating: 24 } },
+  },
+  {
+    id: 'greater-arcane-elixir',
+    name: 'Greater Arcane Elixir',
+    icon: 'inv_potion_25',
+    wowheadId: 17539,
+    group: 'consumable',
+    exclusiveGroup: 'elixir-battle',
+    description: '+35 spell power. Battle elixir.',
+    // db.json item 13454 (BattleElixir): SpellDamage 35; Wowhead TBC item=13454 "Increases spell
+    // damage by up to 35 for 1 hour. Battle Elixir."
+    source: `${CONSUMES} (item 13454); https://www.wowhead.com/tbc/item=13454`,
+    effect: { statBonuses: { spellPower: 35 } },
+  },
+
+  // -------------------------------------------------------------------------
+  // Guardian elixirs
+  // -------------------------------------------------------------------------
+  {
+    id: 'elixir-of-draenic-wisdom',
+    name: 'Elixir of Draenic Wisdom',
+    icon: 'inv_potion_155',
+    wowheadId: 39627,
+    group: 'consumable',
+    exclusiveGroup: 'elixir-guardian',
+    description: '+30 intellect and +30 spirit. Guardian elixir.',
+    // db.json item 32067 (GuardianElixir): Intellect 30, Spirit 30; Wowhead TBC item=32067
+    // "Increases Intellect and Spirit by 30 for 1 hour. Guardian Elixir."
+    source: `${CONSUMES} (item 32067); https://www.wowhead.com/tbc/item=32067`,
+    effect: { statBonuses: { intellect: 30, spirit: 30 } },
+  },
+  {
+    id: 'elixir-of-major-mageblood',
+    name: 'Elixir of Major Mageblood',
+    icon: 'inv_potion_151',
+    wowheadId: 28509,
+    group: 'consumable',
+    exclusiveGroup: 'elixir-guardian',
+    description: '16 mp5. Guardian elixir.',
+    // db.json item 22840 (GuardianElixir): MP5 16; Wowhead TBC item=22840 "Regenerate 16 mana per
+    // 5 sec for 1 hour. Guardian Elixir."
+    source: `${CONSUMES} (item 22840); https://www.wowhead.com/tbc/item=22840`,
+    effect: { statBonuses: { mp5: 16 } },
+  },
+
+  // -------------------------------------------------------------------------
+  // Food (one "Well Fed" buff at a time)
+  // -------------------------------------------------------------------------
+  {
+    id: 'blackened-basilisk',
+    name: 'Blackened Basilisk',
+    icon: 'spell_misc_food',
+    wowheadId: 33263,
+    group: 'consumable',
+    exclusiveGroup: 'food',
+    description:
+      'Well Fed: +23 spell power and +20 spirit (the same buff as Crunchy Serpent and Poached Bluefish).',
+    // db.json item 27657 (Food): SpellDamage 23, Spirit 20; Wowhead TBC item=27657 "gain 23 Spell
+    // Damage and 20 Spirit", buff spell=33263 "Spell Damage increased by 23 and Spirit increased
+    // by 20".
+    source: `${CONSUMES} (item 27657); https://www.wowhead.com/tbc/item=27657`,
+    effect: { statBonuses: { spellPower: 23, spirit: 20 } },
+  },
+  {
+    id: 'skullfish-soup',
+    name: 'Skullfish Soup',
+    icon: 'spell_misc_food',
+    wowheadId: 43722,
+    group: 'consumable',
+    exclusiveGroup: 'food',
+    description: 'Enlightened: +20 spell crit rating and +20 spirit.',
+    // db.json item 33825 (Food): SpellCritRating 20, Spirit 20; Wowhead TBC item=33825 "gain 20
+    // Spell Critical Strike Rating and Spirit", buff spell=43722 "Spell Critical Strike Rating and
+    // Spirit increased by 20".
+    source: `${CONSUMES} (item 33825); https://www.wowhead.com/tbc/item=33825`,
+    effect: { statBonuses: { critRating: 20, spirit: 20 } },
+  },
+  {
+    id: 'blackened-sporefish',
+    name: 'Blackened Sporefish',
+    icon: 'spell_misc_food',
+    wowheadId: 33265,
+    group: 'consumable',
+    exclusiveGroup: 'food',
+    description: 'Well Fed: 8 mp5 (its +20 stamina does not affect the simulated spells).',
+    // db.json item 27663 (Food): Stamina 20, MP5 8; Wowhead TBC item=27663 "gain 20 Stamina and 8
+    // Mana every 5 seconds", buff spell=33265.
+    source: `${CONSUMES} (item 27663); https://www.wowhead.com/tbc/item=27663`,
+    effect: { statBonuses: { mp5: 8 } },
+  },
+
+  // -------------------------------------------------------------------------
+  // Weapon oils (temporary weapon enchant; stacks with the permanent weapon enchant)
+  // -------------------------------------------------------------------------
+  {
+    id: 'brilliant-wizard-oil',
+    name: 'Brilliant Wizard Oil',
+    icon: 'inv_potion_105',
+    wowheadId: 25122,
+    group: 'consumable',
+    exclusiveGroup: 'weapon-oil',
+    description: '+36 spell power and +14 spell crit rating.',
+    // registerStaticImbue case 25122: SpellDamage 36, SpellCritRating 14; Wowhead TBC item=20749
+    // "increases spell damage by up to 36 and increases spell critical strike rating by 14".
+    source: `${IMBUES} (25122); https://www.wowhead.com/tbc/item=20749`,
+    effect: { statBonuses: { spellPower: 36, critRating: 14 } },
+  },
+  {
+    id: 'superior-wizard-oil',
+    name: 'Superior Wizard Oil',
+    icon: 'inv_potion_141',
+    wowheadId: 28017,
+    group: 'consumable',
+    exclusiveGroup: 'weapon-oil',
+    description: '+42 spell power.',
+    // registerStaticImbue case 28017: SpellDamage 42; Wowhead TBC item=22522 "increases spell
+    // damage by up to 42".
+    source: `${IMBUES} (28017); https://www.wowhead.com/tbc/item=22522`,
+    effect: { statBonuses: { spellPower: 42 } },
+  },
+]);
+
+/**
+ * Exclusive groups that also exclude other groups: a buff of the key's group and a buff of a
+ * listed group cannot be enabled together. A flask "counts as both a Battle and Guardian
+ * elixir" (Wowhead TBC tooltips of items 13511, 13512, 22866), so enabling a flask disables the
+ * enabled elixirs (and, read the other way, an elixir enabled later replaces the flask).
+ * Used by `normalizeSetup` (Task 9); within one group the normal `exclusiveGroup` rule applies.
+ */
+export const EXCLUDES: Readonly<Record<string, readonly string[]>> = deepFreeze({
+  flask: ['elixir-battle', 'elixir-guardian'],
+});
+
+// ===========================================================================
+// Target debuffs from other raid members (stage 1.5 Task 7)
+// Values: wowsims/tbc-new @ 91f869a sim/core/debuffs.go (function named per entry), cross-checked
+// with Wowhead TBC tooltips. Each is a target aura scheduled at 0 for the whole fight (Task 9).
+// None has an `exclusiveGroup`: the two that must not stack with the player's own aura (Curse of
+// the Elements, Improved Shadow Bolt) are handled by `neutralizeOwnAuras`
+// (src/data/classes/warlock/buffs.ts, rulings S1 and S2). Every aura below is its own object,
+// never one of the spec's (this catalog is deep-frozen).
+// ===========================================================================
+
+/**
+ * Own duration of every catalog target debuff (1 hour, ruling S3): `applySetup` schedules them
+ * at 0 without a duration override and the end of the fight cuts them.
+ */
+export const SCHEDULED_DEBUFF_DURATION_MS = 3600000;
+
+/** Judgement of Wisdom's proc chance per landed spell: debuffs.go JudgementOfWisdomAura ProcChance 0.5. */
+export const JUDGEMENT_OF_WISDOM_PROC_CHANCE = 0.5;
+/**
+ * Mana per Judgement of Wisdom proc: debuffs.go `unit.AddMana(sim, 74.0, ...)`; the author's
+ * Naj'entus log: 74 per proc (20 procs on 37 hits, checkpoint).
+ */
+export const JUDGEMENT_OF_WISDOM_MANA = 74;
+/**
+ * Warlock spells that never trigger Judgement of Wisdom in wowsims: Life Tap does not hit the
+ * target (lifetap.go deals no outcome to it), Curse of the Elements has `ProcMaskEmpty`
+ * (curse_of_elements.go), outside JoW's `ProcMaskDirect`. Every other warlock spell in the
+ * trainer has `ProcMaskSpellDamage` and procs it on a landed hit.
+ */
+const JOW_NO_PROC_SPELL_IDS: readonly string[] = ['life-tap', 'curse-of-the-elements'];
+
+const DEBUFFS = 'wowsims/tbc-new sim/core/debuffs.go';
+
+export const debuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
+  {
+    id: 'raid-curse-of-the-elements',
+    name: 'Curse of the Elements (another warlock)',
+    icon: 'spell_shadow_chilltouch',
+    wowheadId: 27228,
+    group: 'debuff',
+    description:
+      "x1.10 arcane, fire, frost and shadow damage taken, from another warlock (unimproved: no Malediction; wowsims' improved option is x1.13). Not in your curse slot, so your own curse does not remove it; your own Curse of the Elements then adds nothing (one 10% effect in total).",
+    // CurseOfElementsAura(target, -1, ranks 0): multiplier 1.10 + 0.01 x 0 on Arcane, Fire, Frost,
+    // Shadow; exclusive effect "CurseOfElements" shared with the self curse (only the strongest
+    // applies). Wowhead TBC spell=27228 "increasing Arcane, Fire, Frost, and Shadow damage taken
+    // by 10%". The -88 resistances are not modelled (as for the own curse).
+    source: `${DEBUFFS} CurseOfElementsAura (external, unimproved); https://www.wowhead.com/tbc/spell=27228`,
+    effect: {
+      targetAura: {
+        id: 'raid-curse-of-the-elements',
+        name: 'Curse of the Elements (raid)',
+        icon: 'spell_shadow_chilltouch',
+        wowheadId: 27228,
+        durationMs: SCHEDULED_DEBUFF_DURATION_MS,
+        damageTakenMult: { schools: ['arcane', 'fire', 'frost', 'shadow'], mult: 1.1 },
+      },
+    },
+  },
+  {
+    id: 'misery',
+    name: 'Misery',
+    icon: 'spell_shadow_misery',
+    wowheadId: 33195,
+    group: 'debuff',
+    description: 'x1.05 spell damage taken, every magic school (a shadow priest with Misery 5/5).',
+    // MiseryAura(target, 5): 1 + 0.01 x 5 on Arcane, Fire, Frost, Holy, Nature, Shadow damage
+    // taken, NeverExpires. Wowhead TBC spell=33195 "take an additional 5% spell damage".
+    source: `${DEBUFFS} MiseryAura (5 ranks); https://www.wowhead.com/tbc/spell=33195`,
+    effect: {
+      targetAura: {
+        id: 'misery',
+        name: 'Misery',
+        icon: 'spell_shadow_misery',
+        wowheadId: 33195,
+        durationMs: SCHEDULED_DEBUFF_DURATION_MS,
+        damageTakenMult: { schools: ['arcane', 'fire', 'frost', 'holy', 'nature', 'shadow'], mult: 1.05 },
+      },
+    },
+  },
+  {
+    id: 'shadow-weaving',
+    name: 'Shadow Weaving',
+    icon: 'spell_shadow_blackplague',
+    wowheadId: 15334,
+    group: 'debuff',
+    description:
+      'x1.10 shadow damage taken: 5 stacks x 2% (additive, as in wowsims), full from the pull. wowsims ramps it up one stack per 1.5 s over the first 6 s; the trainer does not.',
+    // ShadowWeavingAura: 1.0 + 0.02 x stacks on Shadow damage taken (one multiplier, not 1.02^n),
+    // MaxStacks 5; applyDebuffEffects adds a stack every 1.5 s from 0 (5 ticks) and makes it
+    // permanent. Wowhead TBC spell=15334 "increases the Shadow damage dealt to your target by 2%
+    // ... Stacks up to 5 times".
+    source: `${DEBUFFS} ShadowWeavingAura (5 stacks); https://www.wowhead.com/tbc/spell=15334`,
+    effect: {
+      targetAura: {
+        id: 'shadow-weaving',
+        name: 'Shadow Weaving',
+        icon: 'spell_shadow_blackplague',
+        wowheadId: 15334,
+        durationMs: SCHEDULED_DEBUFF_DURATION_MS,
+        damageTakenMult: { schools: ['shadow'], mult: 1 + 0.02 * 5 },
+      },
+    },
+  },
+  {
+    id: 'judgement-of-wisdom',
+    name: 'Judgement of Wisdom',
+    icon: 'spell_holy_righteousnessaura',
+    wowheadId: 27164,
+    group: 'debuff',
+    description:
+      "A paladin's judgement: each of your landed spells has a 50% chance to give you 74 mana (Life Tap and Curse of the Elements never proc it, as in wowsims). Author's log: 20 procs on 37 hits.",
+    // JudgementOfWisdomAura: ProcChance 0.5, ProcMask Direct, on a landed spell, AddMana 74.0.
+    // Wowhead TBC spell=27164 "(Proc chance: 50%)". Log checkpoint: 74 mana per proc.
+    source: `${DEBUFFS} JudgementOfWisdomAura; https://www.wowhead.com/tbc/spell=27164; author's log`,
+    effect: {
+      targetAura: {
+        id: 'judgement-of-wisdom',
+        name: 'Judgement of Wisdom',
+        icon: 'spell_holy_righteousnessaura',
+        wowheadId: 27164,
+        durationMs: SCHEDULED_DEBUFF_DURATION_MS,
+      },
+      hooks: {
+        // Runs after every resolved spell (the engine never calls hooks for DoT ticks, matching
+        // ProcMaskDirect). Rolls only while the debuff is on and only for a landed spell that
+        // hits the target, so a setup without it keeps every random draw unchanged.
+        onSpellResolved(e, api) {
+          if (e.outcome === 'miss' || JOW_NO_PROC_SPELL_IDS.includes(e.spellId)) return;
+          if (!api.hasTargetAura('judgement-of-wisdom')) return;
+          if (api.roll() < JUDGEMENT_OF_WISDOM_PROC_CHANCE) api.addMana(JUDGEMENT_OF_WISDOM_MANA);
+        },
+      },
+    },
+  },
+  {
+    id: 'isb-from-others',
+    name: 'Improved Shadow Bolt (other warlocks)',
+    icon: 'spell_shadow_shadowbolt',
+    wowheadId: 17800,
+    group: 'debuff',
+    description:
+      "x1.2 shadow damage taken for the whole fight, kept up by other warlocks' Shadow Bolt crits (wowsims models an uptime percentage instead; the trainer assumes 100%). Your own Improved Shadow Bolt then adds nothing (one x1.2 in total).",
+    // ImprovedShadowBoltAura(target, uptime, 5): 1 + 0.04 x 5 = 1.2 on Shadow damage taken
+    // (SchoolDamageTakenMultiplier: DoT ticks too); with an uptime it has no charges. Same aura
+    // label as the player's own, so the two never stack. Wowhead TBC spell=17800.
+    source: `${DEBUFFS} ImprovedShadowBoltAura (5 points, 100% uptime); https://www.wowhead.com/tbc/spell=17800`,
+    effect: {
+      targetAura: {
+        id: 'isb-from-others',
+        name: 'Shadow Vulnerability (raid)',
+        icon: 'spell_shadow_shadowbolt',
+        wowheadId: 17800,
+        durationMs: SCHEDULED_DEBUFF_DURATION_MS,
+        // No charges: permanent; multiplies every shadow hit and tick (as the own aura does).
+        damageTakenMult: { schools: ['shadow'], mult: 1.2 },
+      },
+    },
+  },
+]);

@@ -82,6 +82,17 @@ const r = talentRank;
 const DESTRUCTION_SPELLS = [...DESTRUCTION_SPELL_IDS];
 
 /**
+ * Demonic Sacrifice 1/1 with the Succubus sacrificed (applyDemonicSacrifice; tbc-new
+ * ui/specs/warlock/dps/presets.ts DefaultOptions: summon Succubus, sacrificeSummon true):
+ * SchoolDamageDealtMultiplier[shadow] x 1.15, direct and periodic. The export does not say
+ * which pet the author sacrifices: the Succubus is an assumption (see docs, open questions).
+ * UNVERIFIED (pet choice). Its own export so that `buildDestructionWarlock` (destruction.ts) can
+ * leave exactly these objects out when the setup keeps the pet (`sacrificeSuccubus: false`).
+ */
+export const demonicSacrificeModifiers: readonly SpellModifier[] =
+  r('demonicSacrifice') > 0 ? [{ schools: ['shadow'], damageMult: 1.15, dotDamageMult: 1.15 }] : [];
+
+/**
  * The talent build as spell modifiers. Each entry cites wowsims tbc-new
  * sim/warlock/talents.go and the rank used; spell data values from spell_data_auto_gen.go.
  */
@@ -110,12 +121,6 @@ export const talentModifiers: SpellModifier[] = [
   // Shadow and Flame 5/5 (applyShadowAndFlame; ShadowAndFlame rank 5 = 30292, Value 20):
   // BonusCoeffecient_Flat +0.04 x rank on Shadow Bolt and Incinerate.
   { spellIds: ['shadow-bolt', 'incinerate'], coeffDelta: 0.04 * r('shadowAndFlame') },
-  // Demonic Sacrifice 1/1 with the Succubus sacrificed (applyDemonicSacrifice; tbc-new
-  // ui/specs/warlock/dps/presets.ts DefaultOptions: summon Succubus, sacrificeSummon true):
-  // SchoolDamageDealtMultiplier[shadow] x 1.15, direct and periodic. The export does not say
-  // which pet the author sacrifices: the Succubus is an assumption (see docs, open questions).
-  // UNVERIFIED (pet choice).
-  ...(r('demonicSacrifice') > 0
-    ? [{ schools: ['shadow'], damageMult: 1.15, dotDamageMult: 1.15 } satisfies SpellModifier]
-    : []),
+  // Demonic Sacrifice (Succubus): see demonicSacrificeModifiers above (same objects).
+  ...demonicSacrificeModifiers,
 ];
