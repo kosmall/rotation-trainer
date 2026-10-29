@@ -5,6 +5,11 @@ export function formatInt(n: number): string {
   return Math.round(n).toLocaleString('en-US');
 }
 
+/** DPS with one decimal and thousands separators, e.g. "1,495.5" (live stats and summary alike). */
+export function formatDps(n: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 /** Seconds with one decimal, e.g. 1500 -> "1.5". */
 export function secondsText(ms: number): string {
   return (ms / 1000).toFixed(1);

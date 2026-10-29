@@ -4,7 +4,7 @@ import type { SimSnapshot } from '../engine/types';
 import { ActionBar, REJECT_LABELS } from './ActionBar';
 import type { SlotFlash } from './ActionBar';
 import { CastBar } from './CastBar';
-import { formatInt, secondsText } from './format';
+import { formatDps, formatInt, secondsText } from './format';
 import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
@@ -115,7 +115,7 @@ function FightStats({ snapshot }: { snapshot: SimSnapshot }) {
       <dl className="fight-stats">
         <div>
           <dt>DPS</dt>
-          <dd aria-label="DPS">{formatInt(snapshot.dps)}</dd>
+          <dd aria-label="DPS">{formatDps(snapshot.dps)}</dd>
         </div>
         <div>
           <dt>Total damage</dt>
@@ -142,7 +142,7 @@ function EndSummary({ snapshot, onReset }: { snapshot: SimSnapshot; onReset(): v
           <dt>Total damage</dt>
           <dd aria-label="Total damage">{formatInt(snapshot.damageTotal)}</dd>
           <dt>DPS</dt>
-          <dd aria-label="DPS">{snapshot.dps.toFixed(1)}</dd>
+          <dd aria-label="DPS">{formatDps(snapshot.dps)}</dd>
           <dt>Duration</dt>
           <dd aria-label="Duration">{secondsText(snapshot.nowMs)} s</dd>
         </dl>

@@ -222,7 +222,15 @@ function spellDef(id: string) {
   return s;
 }
 
-/** Base cast time plus the talents' flat cast time deltas (no haste: snapshots carry none). */
+/**
+ * Base cast time plus the talents' flat cast time deltas, unhasted on purpose. Snapshots carry
+ * the effective (hasted) cast times since ruling R20, but reading them here was tried and
+ * rejected: with the hasted values (e.g. Corruption 1945 ms) the refresh can become due just
+ * after the bot started another 2431 ms Shadow Bolt, so the DoT drops for up to one bolt (bot
+ * uptime from first to last application fell from >90% to 84% in one seed) and the DPS shifted
+ * by ~4% (window 400). The unhasted values (Shadow Bolt 2500, Immolate 1500, Corruption 2000 ms)
+ * fire slightly earlier and keep that margin. See docs/data-sources.md, Task 12b open question 3.
+ */
 function talentCastTimeMs(id: string): number {
   const s = spellDef(id);
   let ms = s.castTimeMs;

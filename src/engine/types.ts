@@ -238,7 +238,6 @@ export type CastResult =
   | {
       ok: false;
       reason:
-        | 'not-ready'
         | 'ended'
         | 'unknown-spell'
         | 'cooldown'

@@ -119,6 +119,16 @@ describe('GameView', () => {
     expect(screen.getAllByText(note)).toHaveLength(2); // live stats + summary
   });
 
+  it('the live DPS and the summary DPS use one format (one decimal, thousands separators)', () => {
+    render(<GameView spec={destructionWarlock} />);
+    press('1');
+    advance(61000);
+    const texts = screen.getAllByLabelText('DPS').map((el) => el.textContent);
+    expect(texts).toHaveLength(2);
+    expect(texts[0]).toBe(texts[1]);
+    expect(texts[0]).toMatch(/^\d{1,3}(,\d{3})*\.\d$/);
+  });
+
   it('R resets a running fight', () => {
     render(<GameView spec={destructionWarlock} />);
     press('1');
