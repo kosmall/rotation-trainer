@@ -10,7 +10,7 @@ The trainer's DPS is approximate: it scores the rotation, not the whole raid set
 Not in the number:
 
 - Raid buffs and consumables (no party/raid buffs, flasks, elixirs, food, oils or potions).
-- Item effects: Icon of the Silver Crescent's on-use (+155 spell damage for 20 s, 2 min cooldown) and Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown); Riding Crop has no combat effect. See Task 12b, "Not modeled".
+- Item effects unless enabled in the setup: Icon of the Silver Crescent's on-use (+155 spell damage for 20 s) and Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown) are modelled since stage 1.5 Task 8 as optional setup entries, off by default (see "Part C: cooldowns and item effects"); Riding Crop has no combat effect.
 - Since stage 1.5 Part A, missile travel time IS modelled (Shadow Bolt lands 1400 ms after its cast at the default 28 yd); a bolt still in flight at the end does not count. See "Part A: projectile travel".
 - Life Tap's health cost (health is not simulated; only its mana gain is).
 - Incinerate's extra base damage while Immolate is on the target (Task 12a, open question 4; Incinerate is not in the priority).
@@ -332,8 +332,6 @@ Worn: 4 pieces (Hood, Mantle, Gloves, Leggings), so both bonuses are active. No 
 
 | Item / enchant | Effect | Source |
 |---|---|---|
-| Icon of the Silver Crescent (29370) | On use: +155 spell damage for 20 s, 2 min cooldown (shared 20 s trinket category) | DB `itemEffects` (buff 35163); tbc-new `stat_bonus_cds_auto_gen.go` `NewSimpleStatActive(29370)`; OLD `caster_trinkets.go` |
-| Band of the Eternal Sage (29305) | "Your offensive spells have a chance on hit to increase your spell damage by 95 for 10 secs": 10% on cast complete, 60 s internal cooldown | DB `itemEffects` (buff 35084, `procChance 0.1`, `icdMs 60000`); tbc-new `stat_bonus_procs_auto_gen.go`; OLD `caster_items.go` |
 | Riding Crop (25653) | Mount speed (out of combat) | DB (`Mount Speed` 48776) |
 | Malefic Raiment 2pc | Heal 70 per Corruption/Immolate tick | see above |
 | Enchant Cloak - Subtlety (2621) | threat reduction (no damage effect) | DB, OLD (no stats) |
@@ -342,12 +340,14 @@ Worn: 4 pieces (Hood, Mantle, Gloves, Leggings), so both bonuses are active. No 
 
 The Maelstrom's Fury and Fetish of the Primal Gods have no on-use or proc effect in DB.
 
+Icon of the Silver Crescent's on-use and Band of the Eternal Sage's proc left this table in stage 1.5 Task 8: they are setup entries now (off by default), see "Part C: cooldowns and item effects".
+
 ### Open questions
 
 1. Malefic 4pc stacking with Emberstorm on Incinerate: wowsims adds both (`DamageMultiplierAdditive` 1 + 0.06 + 0.06 = 1.12), the engine multiplies (1.06 x 1.06 = 1.1236, +0.3%). Shadow Bolt is exact (its only other damage modifier, Demonic Sacrifice, is a school multiplier). Incinerate is not in the priority; an additive-damage modifier field would fix it. This supersedes the Task 12a note "each spell has at most one additive damage talent".
 2. The meta gem's Ruin term is tied to the fixed build (see above).
 3. The priority's rules use the unhasted talent cast times on purpose (Shadow Bolt 2500, Immolate 1500, Corruption 2000 ms; with gear haste they are 2431, 1458 and 1945 ms). Since ruling R20 the snapshot carries the effective cast times (`s.spells[id].castTimeMs`), and reading them was tried in the final fix wave: the DoT refresh then becomes due slightly later, sometimes just after the bot started another Shadow Bolt, so a DoT drops for up to one bolt (uptime from first to last application fell to 84% in one seed, below the bot test's 90%) and the mean DPS moved by about 4% (window 400). The unhasted values keep that margin; the finisher window is 69 ms wider than one hasted bolt. A rule that accounts for the cast in progress would be the real fix (a data decision for a later stage).
-4. Band of the Eternal Sage and Icon of the Silver Crescent would add DPS once item effects arrive (stage 2a): the procs fit a set-style hook with a hidden internal-cooldown aura; the on-use trinket needs a castable item.
+4. Band of the Eternal Sage and Icon of the Silver Crescent: resolved in stage 1.5 Task 8 (the Band as a hook with a hidden internal-cooldown aura, the Icon as a timed buff, not a castable item); see "Part C: cooldowns and item effects".
 
 ## Part A: projectile travel
 
@@ -503,3 +503,26 @@ In wowsims the raid's and the player's own Curse of the Elements share the exclu
 - `sacrificeSuccubus: false`: the Demonic Sacrifice modifier (shadow x1.15 direct and periodic, `talents.go applyDemonicSacrifice`, Wowhead spell=18791 Touch of Shadow "Shadow damage increased by 15%") is left out. The kept pet's own damage is not simulated; Master Demonologist (which wowsims applies only with the pet kept) has 0 points in this build.
 - The Demonic Sacrifice modifier is exported on its own from `talents.ts` (`demonicSacrificeModifiers`; `talentModifiers` still contains the same objects), so the builder can drop exactly it.
 - Every build returns new `modifiers`, `statBonuses`, `setup` and `priority` containers; spells, auras, sets, the priority steps and the hooks are the shared static data, so the default build equals the stage 1 spec field by field (`when` closures and hooks included).
+
+## Part C: cooldowns and item effects
+
+Stage 1.5 Task 8. `src/data/common/buffs.ts` gains `cooldowns` (Heroism, Destruction Potion); `src/data/classes/warlock/buffs.ts` gains `warlockItemBuffs` (group `item`: Icon of the Silver Crescent, Band of the Eternal Sage), because both items belong to the warlock's equipped gear, and the Band's proc list is made of warlock spell ids. Both lists are deep-frozen; every aura in them is its own object (never one of the spec's). Nothing is enabled by default, so the stage 1 numbers do not change.
+
+A **timed** buff (`timed: { defaultStartSec, durationSec }` + `effect.selfAura`) is a self aura the fight applies at a configurable second for a configurable duration: Task 9's `applySetup` turns it into a `ScheduledAura` (`on: 'self'`, `atMs = startSec x 1000`, `durationMs = durationSec x 1000`) and appends the aura def to `spec.auras`. The aura's own `durationMs` equals the default duration. The player does not press them (spec §4.3). A start after the fight's end is ignored by the engine, and a duration running past the end is cut by it (Task 5).
+
+| Id | Group | Effect | Default start / duration | Source | Status |
+|---|---|---|---|---|---|
+| `heroism` ("Heroism / Bloodlust") | `raid` | `selfStatMultipliers: { haste: 1.3 }`: multiplies the rating haste factor, so with the gear's 45 haste rating x1.0285 x 1.3 = x1.337 (Shadow Bolt 2431 -> 1870 ms, GCD 1458 -> 1122 ms) | 0 s / 40 s | tbc-new `sim/core/buffs.go` `BloodlustAura` (`BloodlustDuration` 40 s, `multiplyCastSpeedEffect(aura, 1.3)`), `sim/core/unit.go` `TotalSpellHasteMultiplier` = `CastSpeedMultiplier x (1 + rating haste)`; Wowhead spell=32182 "spell haste by 30% ... Lasts 40 sec." (Bloodlust 2825 the same); author's log: Heroism 40 s, Shadow Bolt 1.86-1.89 s under it | verified |
+| `destruction-potion` | `consumable` (`exclusiveGroup: 'potion'`) | `selfStatBonuses: { spellPower: 120 }`, `selfModifiers: [{ critPctDelta: 2 }]` | 0 s / 15 s | tbc-new `assets/database/db.json` consumable 22839: `SpellDamage 120`, `SpellCritRating 44.153846` (= 2 x 22.076923, exactly 2%), `buffDuration 15`, `categoryCooldownDuration 120`; `consumes.go` `makePotionActivationSpellInternal`; Wowhead item=22839 / spell=28508 "spell critical chance by 2% and spell damage by 120 for 15 sec. (2 Min Cooldown)"; author's log: 15 s | verified |
+| `icon-of-the-silver-crescent` | `item` | `selfStatBonuses: { spellPower: 155 }` (aura "Blessing of the Silver Crescent") | 0 s / 20 s | db.json item 29370 `itemEffects`: buff 35163, `effectDurationMs 20000`, `SpellDamage 155`, `onUse.cooldownMs 120000` (trinket category 1141, 20 s); `sim/common/tbc/stat_bonus_cds_auto_gen.go` `NewSimpleStatActive(29370)`; Wowhead spell=35163, item=29370; author's log: 20 s | verified |
+| `band-of-the-eternal-sage` | `item` | proc (below): +95 spell power for 10 s, 10% chance, 60 s internal cooldown | not timed | db.json item 29305 `itemEffects`: buff 35084, `effectDurationMs 10000`, `SpellDamage 95`, `proc { icdMs 60000, procChance 0.1 }`; `sim/common/tbc/stat_bonus_procs_auto_gen.go` (29305: `CallbackOnCastComplete`, `ProcMaskSpellDamage`); `sim/core/aura_helpers.go` `AttachProcTriggerCallback` (ICD checked before the roll, started on a proc); Wowhead spell=35083 "(Proc chance: 10%, 1m cooldown)", spell=35084; author's log: 10 s buff, 60 s internal cooldown | verified |
+
+Decisions:
+- **Cooldowns are not modelled as cooldowns.** Heroism (10 min, plus Exhaustion), the potion (2 min shared potion cooldown) and the Icon (2 min, plus the 20 s shared trinket category) can each be used once in a 60 s fight, so each is one timed buff and its cooldown only matters for a re-use the fight never needs. The setup can still move or shorten them (Task 9: `startSec` 0-600, `durationSec` 1-600).
+- **Heroism** is one entry for Heroism (Alliance, the author's log) and Bloodlust (Horde): identical effect. The aura is not hidden; its haste goes through `computeStats` (Task 5 formula).
+- **Destruction Potion's crit** is a percentage modifier on every spell (as Moonkin Aura), identical to wowsims' 44.153846 crit rating (2.000%); it does not show in `critRating` or `computeStats(...).critPct`. `exclusiveGroup: 'potion'`: one potion per fight (the only potion in the catalog for now).
+- **No double counting with the gear.** Both items are in the default gear (`destructionEquipped`: Icon 29370, Band 29305) and their equip stats are already in `setup.stats` (Icon +43 spell damage; Band +25 intellect, +34 spell damage, +24 crit rating; see "Items"). The catalog entries carry only the use / proc buff (+155, +95), no `statBonuses` (test).
+- **Band proc.** `effect.auras` holds two helper auras (Task 9 appends them to `spec.auras`): `band-of-the-eternal-sage` (10 s, +95 spell power, visible) and `band-of-the-eternal-sage-icd` (60 s, `hidden`). The hook (run after every resolved spell; DoT ticks never call hooks) returns for a miss or a spell not in `BAND_PROC_SPELL_IDS`, then returns while the ICD aura is up, and only then calls `api.roll()`; a roll under 0.1 applies the ICD aura, then the buff. So no random draw happens while the Band is on cooldown, and a setup without the Band never composes the hook and keeps every draw (and every stage 1 result) unchanged.
+- **Which spells proc the Band:** `BAND_PROC_SPELL_IDS` is derived from the warlock data: spells with a direct part or applying a DoT (Shadow Bolt, Immolate, Corruption, Curse of Agony, Curse of Doom, Conflagrate, Shadowburn, Incinerate). Life Tap and Curse of the Elements never roll: the tooltip says "offensive spells ... on hit", Life Tap does not target the enemy and Curse of the Elements deals no damage. Deviation from wowsims: there the proc rolls at cast end (`CallbackOnCastComplete`) for any `ProcMaskSpellDamage` cast, misses and Life Tap included (`lifetap.go` has `ProcMaskSpellDamage`); the trainer rolls when the spell lands (ruling S4) and only for a landed damaging spell, as the tooltip reads. A miss chance of about 1.5% (default gear, 15.54% hit against 17%) and about one Life Tap per fight make the difference small; it is mostly a different moment (impact instead of cast end) and RNG order.
+- **ICD from the proc.** wowsims starts the ICD when it procs (`icd.Use` right before the handler); the trainer applies the ICD aura in the same step. The buff lasts 10 s, so a proc never refreshes a running buff (the ICD is 60 s).
+
