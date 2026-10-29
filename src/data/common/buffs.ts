@@ -412,7 +412,8 @@ export const consumables: readonly BuffDef[] = deepFreeze<BuffDef[]>([
  * Exclusive groups that also exclude other groups: a buff of the key's group and a buff of a
  * listed group cannot be enabled together. A flask "counts as both a Battle and Guardian
  * elixir" (Wowhead TBC tooltips of items 13511, 13512, 22866), so enabling a flask disables the
- * enabled elixirs (and, read the other way, an elixir enabled later replaces the flask).
+ * enabled elixirs (and, read the other way, an elixir enabled later replaces the flask; the
+ * wowsims UI does the same both ways, tbc-new ui/features/settings/model/consumables.ts:431-438).
  * Used by `normalizeSetup` (Task 9); within one group the normal `exclusiveGroup` rule applies.
  */
 export const EXCLUDES: Readonly<Record<string, readonly string[]>> = deepFreeze({

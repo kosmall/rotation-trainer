@@ -144,8 +144,9 @@ const destructionHooks: SpecData['hooks'] = {
 
 /**
  * The Destruction Warlock spec for the given options. Pure: every call returns a new SpecData
- * with its own `modifiers`, `statBonuses`, `setup` and `priority` arrays/objects; the spells,
- * auras, sets, priority steps and hooks are the shared static data (never mutate them).
+ * with its own `modifiers`, `statBonuses`, `setup` (a shallow copy: the gear stats and the stat
+ * multipliers inside it are shared) and `priority` arrays/objects; the spells, auras, sets,
+ * priority steps and hooks are the shared static data (never mutate them).
  * - `armor: 'fel'` adds Fel Armor's +130 spell power (`FEL_ARMOR_SPELL_POWER`); `demon` and
  *   `none` add nothing.
  * - `sacrificeSuccubus: false` leaves out Demonic Sacrifice's shadow x1.15

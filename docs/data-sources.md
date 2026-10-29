@@ -467,7 +467,7 @@ Source: wowsims/tbc-new @ `91f869a` `assets/database/db.json` `consumables` (the
 | `brilliant-wizard-oil` | `weapon-oil` | +36 spell power, +14 crit rating | `registerStaticImbue` 25122; Wowhead item=20749 | verified |
 | `superior-wizard-oil` | `weapon-oil` | +42 spell power | `registerStaticImbue` 28017; Wowhead item=22522 | verified |
 
-Exclusivity: one entry per `exclusiveGroup` (flask, battle elixir, guardian elixir, food, weapon oil). `EXCLUDES = { flask: ['elixir-battle', 'elixir-guardian'] }`: a flask "counts as both a Battle and Guardian elixir" (the flask tooltips), so a flask and any elixir cannot be enabled together (Task 9's `normalizeSetup` keeps the later one). The weapon oil is a temporary enchant and stacks with the permanent weapon enchant of the gear (Major Spellpower on the main hand), as in the game.
+Exclusivity: one entry per `exclusiveGroup` (flask, battle elixir, guardian elixir, food, weapon oil). `EXCLUDES = { flask: ['elixir-battle', 'elixir-guardian'] }`: a flask "counts as both a Battle and Guardian elixir" (the flask tooltips), so a flask and any elixir cannot be enabled together (Task 9's `normalizeSetup` keeps the later one; the wowsims UI clears both ways too, tbc-new `ui/features/settings/model/consumables.ts:431-438`). The weapon oil is a temporary enchant and stacks with the permanent weapon enchant of the gear (Major Spellpower on the main hand), as in the game.
 
 Choice of entries: the spec named Supreme Power and Distilled Wisdom; Flask of Pure Death (the TBC warlock flask) was added because it is what a Shadow Bolt warlock would use. Elixirs and foods: the ones that change a simulated stat for a warlock.
 
