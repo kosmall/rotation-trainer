@@ -16,9 +16,10 @@
 - `src/engine` must not import React, the DOM, or anything from `src/ui`; it never reads the wall clock.
 - All sim times are integer milliseconds of fight time (0 = fight start). RNG is always the seeded `Rng`.
 - Character level 70, target boss level 73; fight length 60 000 ms; dummy never attacks.
-- Every game number carries a source comment (wowsims/tbc or Wowhead TBC); unverified values carry `// UNVERIFIED`.
+- Every game number carries a source comment (wowsims/tbc-new for TBC Anniversary, wowsims/tbc, or Wowhead TBC); unverified values carry `// UNVERIFIED`.
+- Gear is always a list of item IDs turned into a `CharacterSetup` by `buildSetup` (stats and `setPieces` are derived, never typed in by hand), so stage 2a's BIS presets and WowSimsExporter import need no engine change.
 - Adding a class/spec must be possible by adding data under `src/data/classes/<class>/` without editing `src/engine`.
-- Stage 1 scope: fixed talent build and fixed gear (no editor, no `localStorage`, no log/damage tabs, no dispels).
+- Stage 1 scope: fixed talent build and a fixed gear list of item IDs (no talent/gear editor, no BIS presets per phase, no WowSimsExporter import, no `localStorage`, no log/damage tabs, no dispels).
 - Set bonuses are required from stage 1: active bonuses follow `CharacterSetup.setPieces` (a bonus is active when pieces worn >= its threshold, so 4 pieces include the 2-piece bonus); they may be modifiers, stat bonuses, hooks (procs with `roll()` and an internal cooldown expressed as a hidden self aura), or timed self auras.
 
 ## Review Focus
@@ -37,9 +38,9 @@
 ```
 package.json  tsconfig.json  vite.config.ts  index.html  .gitignore
 src/main.tsx
-src/engine/{rng,events,types,stats,damage,auras,sets,sim}.ts
+src/engine/{rng,events,types,stats,damage,auras,sets,gear,sim}.ts
 src/data/common/{ratings,target}.ts
-src/data/classes/warlock/{spells,auras,sets,destruction}.ts
+src/data/classes/warlock/{spells,auras,sets,items,destruction}.ts
 src/data/types.ts                      # SpecData, PriorityStep
 src/bot/bot.ts
 src/ui/{keys.ts,useSimulation.ts,App.tsx,GameView.tsx,ActionBar.tsx,CastBar.tsx,TargetPanel.tsx,ManaBar.tsx,StartOverlay.tsx,SetBonusList.tsx}
@@ -116,7 +117,7 @@ docs/data-sources.md                   # where each number came from, what stays
   - `crit includes intellect/INT_PER_CRIT_PCT plus BASE_CRIT_PCT`.
   - `maxMana = baseMana + 15 * intellect` (TBC mana per intellect; UNVERIFIED — confirm and adjust test).
 - [ ] **Step 2: Run `npx vitest run tests/engine/stats.test.ts`** — Expected: FAIL.
-- [ ] **Step 3: Implement** the files. Source the constants from wowsims/tbc; add source comments. Regen formulas (`spiritRegenPerSec`, `mp5RegenPerSec`) follow wowsims; record them in `docs/data-sources.md`.
+- [ ] **Step 3: Implement** the files. Source the constants from wowsims/tbc-new (Anniversary; fall back to wowsims/tbc and Wowhead TBC and note any difference); add source comments. Regen formulas (`spiritRegenPerSec`, `mp5RegenPerSec`) follow wowsims; record them in `docs/data-sources.md`.
 - [ ] **Step 4: Run tests** — Expected: PASS.
 - [ ] **Step 5: Commit** `feat(engine): types, ratings and derived stats`.
 
@@ -210,6 +211,29 @@ docs/data-sources.md                   # where each number came from, what stays
 - [ ] **Step 3: Implement `activeSetBonuses`.**
 - [ ] **Step 4: Run tests** — Expected: PASS.
 - [ ] **Step 5: Commit** `feat(engine): active set bonuses`.
+
+---
+
+### Task 5c: Gear from item IDs
+
+**Files:**
+- Create: `src/engine/gear.ts`; extend `src/engine/types.ts`
+- Test: `tests/engine/gear.test.ts`
+
+**Interfaces:**
+- Consumes: `RawStats`, `CharacterSetup` (Task 3).
+- Produces in `types.ts`: `interface ItemDef { id:number; name:string; slot:string; stats:Partial<RawStats>; setId?:string }`.
+- Produces in `gear.ts`: `buildSetup(p:{ baseStats:RawStats; itemIds:number[]; items:Record<number, ItemDef> }): { setup: CharacterSetup; unknownItemIds: number[] }` — `setup.stats` = `baseStats` plus the sum of each known item's `stats`; `setup.setPieces[setId]` = number of entries in `itemIds` whose item has that `setId`; ids missing from `items` are skipped and returned in `unknownItemIds` (no throw), so the later importer can report them. This is the only way a `CharacterSetup` is built from gear, in stage 1 and in the stage 2a importer.
+
+- [ ] **Step 1: Write failing tests** (items: `1` shadowPower 10 set `a`; `2` shadowPower 20 set `a`; `3` hitRating 5, no set)
+  - `stats are base plus the sum of item stats` (all stats default to 0 for missing keys).
+  - `setPieces counts items per set id: [1,2,3] → {a: 2}`; `an item without setId adds no entry`.
+  - `unknown item id is skipped, reported in unknownItemIds, and does not change stats or set counts`.
+  - `empty itemIds returns baseStats and empty setPieces`.
+- [ ] **Step 2: Run `npx vitest run tests/engine/gear.test.ts`** — Expected: FAIL.
+- [ ] **Step 3: Implement `buildSetup`.**
+- [ ] **Step 4: Run tests** — Expected: PASS.
+- [ ] **Step 5: Commit** `feat(engine): build setup from item ids`.
 
 ---
 
@@ -319,7 +343,7 @@ Rules: a successful hit (not a miss) applies the aura; a miss applies nothing. D
 **Interfaces:**
 - Consumes: `DerivedStats.spiritRegenPerSec / mp5RegenPerSec / maxMana`. Produces: `reason:'no-mana'`; `mana` log events for regen and gains.
 
-Rules (verify against wowsims/tbc and record in `docs/data-sources.md`): mana is checked at cast start and spent at cast completion; regen ticks every 2000 ms; `mp5RegenPerSec` always applies, `spiritRegenPerSec` only when no mana-costing spell completed in the last 5000 ms; mana is capped at `maxMana`; `infiniteMana` makes cost 0 and keeps `mana == maxMana`.
+Rules (verify against wowsims/tbc-new and record in `docs/data-sources.md`): mana is checked at cast start and spent at cast completion; regen ticks every 2000 ms; `mp5RegenPerSec` always applies, `spiritRegenPerSec` only when no mana-costing spell completed in the last 5000 ms; mana is capped at `maxMana`; `infiniteMana` makes cost 0 and keeps `mana == maxMana`.
 
 - [ ] **Step 1: Write failing tests**
   - `cast with insufficient mana returns 'no-mana' and nothing changes` (Review Focus 1).
@@ -417,19 +441,20 @@ Rules: while a self aura is active its `selfStatBonuses` are added to the raw st
 ### Task 12: Destruction Warlock data
 
 **Files:**
-- Create: `src/data/classes/warlock/spells.ts`, `src/data/classes/warlock/auras.ts`, `src/data/classes/warlock/sets.ts`, `src/data/classes/warlock/destruction.ts`, `docs/data-sources.md`
+- Create: `src/data/classes/warlock/spells.ts`, `src/data/classes/warlock/auras.ts`, `src/data/classes/warlock/sets.ts`, `src/data/classes/warlock/items.ts`, `src/data/classes/warlock/destruction.ts`, `docs/data-sources.md`
 - Test: `tests/data/destruction.test.ts`
 
 **Interfaces:**
 - Consumes: `SpecData`, `SpellDef`, `AuraDef`, `SpellModifier`, `PriorityStep` (Task 5), `ratings.ts` constants.
 - Produces: `export const destructionWarlock: SpecData` with spell ids `shadow-bolt, immolate, corruption, curse-of-agony, curse-of-doom, curse-of-the-elements, conflagrate, shadowburn, incinerate, life-tap`; aura ids `immolate, corruption, curse-of-agony, curse-of-doom, curse-of-the-elements, shadow-vulnerability`; `keybinds` = those spell ids in action-bar order (slots 1–9, 0, -, = ; unused slots empty string); `priority` (shadow-destruction priority list: curse, Immolate, Corruption, Conflagrate when Immolate up, Shadowburn on cooldown, Life Tap when low mana, Shadow Bolt filler — final order and `when` rules per verified sources).
 
-Work: look up each spell's TBC Classic values (base damage range, coefficient, cast time, cost, cooldown, DoT total/ticks/duration, Conflagrate and Shadowburn rules, Life Tap yield, Curse of the Elements amount, Improved Shadow Bolt: 4 charges / 12 s, crit-triggered via `hooks.onSpellResolved`) from wowsims/tbc and Wowhead TBC. The fixed build is encoded as `modifiers` + `statBonuses` (Bane, Ruin, Cataclysm, Devastation, Emberstorm/Shadow Mastery as applicable to the chosen shadow build) and the fixed gear as `setup.stats`; stage 2 replaces both with talent/gear editors. Document every number's source and each `UNVERIFIED` item in `docs/data-sources.md`. If Conflagrate needs an engine feature the current `SpellDef` lacks, add it to `src/engine` with its own test before using it.
+Work: look up each spell's TBC Classic values (base damage range, coefficient, cast time, cost, cooldown, DoT total/ticks/duration, Conflagrate and Shadowburn rules, Life Tap yield, Curse of the Elements amount, Improved Shadow Bolt: 4 charges / 12 s, crit-triggered via `hooks.onSpellResolved`) from wowsims/tbc-new, wowsims/tbc and Wowhead TBC. The fixed build is encoded as `modifiers` + `statBonuses` (Bane, Ruin, Cataclysm, Devastation, Emberstorm/Shadow Mastery as applicable to the chosen shadow build). The default gear is a list of item IDs: take the earliest-phase BIS preset for Destruction Warlock from the wowsims presets, show the list to the author for approval before encoding, put exactly those items (name, slot, stats, `setId`) in `items.ts`, and build `setup` with `buildSetup` (Task 5c) from a fixed `baseStats`; stages 2a/2b replace the item table and the build with the full database, BIS presets, importer and talent editor. Document every number's source and each `UNVERIFIED` item in `docs/data-sources.md`. If Conflagrate needs an engine feature the current `SpellDef` lacks, add it to `src/engine` with its own test before using it.
 
-Set bonuses: `sets.ts` exports `warlockSets: SetBonusDef[]` covering every Warlock tier/PvE set the author may wear in TBC Classic Anniversary (the author picks the default tier and piece counts; ask before coding if not yet decided — the default goes in `setup.setPieces`). Each bonus is encoded as the right mix of `modifiers`, `statBonuses`, `hooks` (procs with `roll()` and an internal cooldown aura) and self auras defined in `auras.ts`, with its description text copied from the source and the source recorded in `docs/data-sources.md`. A bonus the engine cannot express is added as an engine feature with its own test before use.
+Set bonuses: `sets.ts` exports `warlockSets: SetBonusDef[]` covering every set that appears in the default gear's `items.ts` (all other Warlock sets arrive with the stage 2a item database). Each bonus is encoded as the right mix of `modifiers`, `statBonuses`, `hooks` (procs with `roll()` and an internal cooldown aura) and self auras defined in `auras.ts`, with its description text copied from the source and the source recorded in `docs/data-sources.md`. A bonus the engine cannot express is added as an engine feature with its own test before use.
 
 - [ ] **Step 1: Write failing tests** (these pin the data, not the engine)
   - `every set bonus has a unique (setId, pieces) pair`; `setup.setPieces only references known set ids`; `every aura id used by set hooks/bonuses is defined`.
+  - `every item in items.ts has a slot and non-empty stats, every setId on an item has at least one bonus in warlockSets, and the default gear has no unknown item ids (buildSetup returns empty unknownItemIds)`.
   - `with the default setPieces, each active set bonus changes the expected stat/damage: a Simulation with the bonus's setPieces removed produces different damage totals for the same seed`.
   - `every keybind entry is empty or a defined spell id`; `every priority step references a defined spell`; `every spell.applyAura/requiresTargetAura/consumesTargetAura references a defined aura`.
   - `shadow-bolt cast time after modifiers equals the verified value` (value from the sources; record it in the test).
@@ -494,6 +519,6 @@ Set bonuses: `sets.ts` exports `warlockSets: SetBonusDef[]` covering every Warlo
 
 ## Self-Review
 
-- **Spec coverage (stage 1 slice):** engine architecture, virtual time, event queue, pipeline, spell queue, mana/5SR/Life Tap/infinite mana, target debuffs, snapshot/log API (Tasks 2–11); data model with sources and `UNVERIFIED` markers (Tasks 3, 12); set bonuses (Tasks 5b, 6, 11, 11b, 12, 14); UI game tab with hotkeys, start overlay, cast bar, mana, target, DPS (Task 14); bot and Vitest strategy (Tasks 6–13). Deferred by design to later plans: character editor and `localStorage` (stage 2), Rotation/Damage/Log tabs, scoring (stage 3), dispels, pre-pull setup, scenarios (stage 4), other classes (stage 5).
+- **Spec coverage (stage 1 slice):** engine architecture, virtual time, event queue, pipeline, spell queue, mana/5SR/Life Tap/infinite mana, target debuffs, snapshot/log API (Tasks 2–11); data model with sources and `UNVERIFIED` markers (Tasks 3, 12); set bonuses and gear from item IDs (Tasks 5b, 5c, 6, 11, 11b, 12, 14); UI game tab with hotkeys, start overlay, cast bar, mana, target, DPS (Task 14); bot and Vitest strategy (Tasks 6–13). Deferred by design to later plans: character editor and `localStorage` (stage 2), Rotation/Damage/Log tabs, scoring (stage 3), dispels, pre-pull setup, scenarios (stage 4), other classes (stage 5).
 - **Type consistency:** `SpecData`, `SpellDef`, `AuraDef`, `SimSnapshot`, `CastResult`, `PriorityStep` are each defined once (Tasks 5–6) and reused by name; `keybinds` is `string[]` everywhere; `reason` strings are the closed set in Task 6.
 - **Known risk:** Task 12 depends on researched game values; if a rule needs an engine field that does not exist yet, the task adds it with its own test.

@@ -97,15 +97,22 @@ Zasady podziału:
 - `CharacterSetup` (rasa, staty z gearu, talenty, raid buffy, keybindy) zapisywany w
   `localStorage`; `stats.ts` liczy z niego staty końcowe (SP, crit, hit, haste, mana, regen).
 - **Źródła i weryfikacja.** Przy każdej wartości liczbowej komentarz ze źródłem
-  (wowsims/tbc lub Wowhead TBC). Wartości niezweryfikowane oznaczone `// UNVERIFIED`.
+  (wowsims/tbc-new dla Anniversary, wowsims/tbc lub Wowhead TBC). Wartości niezweryfikowane
+  oznaczone `// UNVERIFIED`.
   Testy pinują kluczowe liczby (np. cast time Shadow Bolta po konkretnym haste).
   Specyficzne dla Anniversary rzeczy (spell queue, wersja patcha) wymagają potwierdzenia
   przed uznaniem za gotowe.
 - Poziom postaci 70, cel: boss poziomu 73 (do potwierdzenia w danych: cap hit, mitygacja armoru).
 - **Sety.** `CharacterSetup` zawiera `setPieces` (id setu → liczba założonych itemów); aktywne są
   bonusy, których próg jest nie większy od tej liczby (4 części zawiera też bonus 2-częściowy).
-  Bonusy setów są w `data/classes/<klasa>/sets.ts`. Etap 1: stały zestaw; etap 2: liczba itemów
-  wynika z wybranego gearu. Wartości bonusów weryfikowane jak reszta danych.
+  Bonusy setów są w `data/classes/<klasa>/sets.ts`. `setPieces` jest zawsze **wyliczane z listy
+  ID założonych itemów** (`ItemDef {id, name, slot, stats, setId?}`), także w etapie 1, żeby
+  edytor i import gearu z etapu 2a nie wymagały zmian w silniku. Wartości bonusów
+  weryfikowane jak reszta danych.
+- **Gear i talenty jako dane użytkownika.** Gear = lista ID itemów (jeden na slot); staty to
+  baza postaci + suma statów itemów. Zestawy BIS na każdą fazę są presetami (listy ID),
+  import z WowSimsExporter wypełnia tę samą listę; talenty to preset „najlepsze talenty" na
+  fazę, edytowalny w edytorze drzewka (etap 2b).
 
 ## 5. UI
 
@@ -134,13 +141,17 @@ Vitest, deterministyczne seedy:
 
 Jeden spec, osobny plan implementacji i commit na etap:
 
-1. Silnik + dane Destruction Warlocka + minimalne UI (walka grywalna), z bonusami setowymi
-   przy stałym zestawie gearu.
-2. Edytor postaci: talenty, gear, raid buffy, keybindy, zapis lokalny; liczba itemów z setu
-   wynika z wybranego gearu.
+1. Silnik + dane Destruction Warlocka + minimalne UI (walka grywalna), z bonusami setowymi.
+   Gear to stała lista ID itemów z małej tabeli (staty, przynależność do setu); liczba części
+   setu jest wyliczana z itemów, nie wpisywana ręcznie. Talenty: stały build.
+   2a. Pełna baza itemów, zestawy BIS na każdą fazę i import gearu z addonu WowSimsExporter
+   po ID itemów (zakładka Gear).
+   2b. Gotowe „najlepsze talenty" na fazę i edytor drzewka talentów (zakładka Talents).
+   2c. Raid buffy, keybindy, zapis w `localStorage`.
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
-5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka).
+5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla
+   każdej dochodzą jej zestawy BIS na fazy, gotowe talenty i bonusy setowe.
 
 ## 8. Ryzyka i pytania otwarte
 
@@ -148,11 +159,17 @@ Jeden spec, osobny plan implementacji i commit na etap:
   konwersje ratingów, reguła 5 sekund). Mitigacja: sekcja 4, oznaczenia `UNVERIFIED`.
 - Konkretna lista priorytetów rotacji (build Shadow vs Fire, dobór klątwy) zostanie ustalona
   w etapie 1 na podstawie zweryfikowanych źródeł, nie z oryginału (oryginał jest pod inną wersją gry).
-- Domyślny gear (tier, staty) do ustalenia w etapie 1 przed edytorem z etapu 2.
+- Domyślny gear etapu 1 (lista ID itemów) proponuję z presetów BIS najwcześniejszej fazy
+  Anniversary i pokazuję autorowi do akceptacji przed zakodowaniem.
+- **Format eksportu WowSimsExporter** (pola, gemy, enchanty) nie jest mi znany; potrzebna jest
+  próbka eksportu autora na początku etapu 2a. Jeśli gemy/enchanty nie wchodzą do eksportu,
+  staty liczone są z samych itemów.
+- **Źródło danych o itemach i presetach.** wowsims/tbc jest porzucone; dla Anniversary
+  sprawdzam wowsims/tbc-new (licencja do potwierdzenia przy użyciu danych) oraz Wowhead TBC.
+  Struktura i format ich presetów/bazy itemów jeszcze niezweryfikowane.
 - Dodatek ze scoringiem względem bota można wyciąć bez wpływu na resztę.
 - Bonusy setowe: nie znam z pamięci ich wartości ani zasad (procenty, procki, wewnętrzne
-  cooldowny), więc każdy trafia do `docs/data-sources.md` ze źródłem. Którego tieru/fazy
-  dotyczy domyślny gear etapu 1, ustala autor.
+  cooldowny), więc każdy trafia do `docs/data-sources.md` ze źródłem.
 - Oryginał analizowany bez zrzutów ekranu; szczegóły wyglądu mogą się różnić od intencji autora
   i będą korygowane po pierwszym uruchomieniu.
 - Wartość `localStorage` jest per przeglądarka; brak synchronizacji między urządzeniami (świadomie).
