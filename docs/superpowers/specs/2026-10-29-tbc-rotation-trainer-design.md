@@ -18,6 +18,9 @@ procki, mana) oraz wynik DPS. Aplikacja nie jest kalkulatorem DPS; liczby są pr
 
 - Użytkownik: tylko autor. Bez kont, bez backendu, bez ruchu produkcyjnego.
 - Zakres funkcjonalny: **pełna kopia** oryginału (patrz sekcja 5), realizowana etapami.
+- **Bonusy setowe są wymaganiem od pierwszej wersji**, bo zmieniają DPS: symulacja uwzględnia
+  bonusy 2/4-częściowe wynikające z liczby założonych itemów danego setu (modyfikatory obrażeń,
+  staty, procki z szansą i wewnętrznym cooldownem, tymczasowe buffy).
 - Dodatek spoza oryginału: porównanie wyniku z botem grającym idealną rotację oraz
   GCD uptime i uptime DoT-ów (możliwy do wycięcia, patrz sekcja 8).
 
@@ -78,6 +81,12 @@ Zasady podziału:
 - **Mana:** reguła 5 sekund, regeneracja ze Spirit, Life Tap, flaga „Infinite mana".
 - **Cel:** manekin z armorem i debuffami (np. Curse of the Elements, Improved Shadow Bolt),
   dispele w etapie 4.
+- **Bonusy setowe i aury statystyk.** Bonus setowy jest daną (`SetBonusDef`): próg liczby itemów,
+  modyfikatory spelli, bonusy do statystyk i opcjonalny hook (proc z `roll()` i wewnętrznym
+  cooldownem wyrażonym jako ukryta aura). Aury gracza mogą dodawać staty i modyfikatory na czas
+  trwania; staty pochodne są przeliczane przy nałożeniu, odświeżeniu i wygaśnięciu aury.
+  Cast w toku zachowuje swój cast time, a DoT zapamiętuje spell power z chwili nałożenia
+  (do potwierdzenia w źródłach TBC).
 - **Interfejs:** wejście `cast(spellId)` / `cancelCast()`; wyjście: niemutowalny snapshot
   oraz strumień zdarzeń do logu. RNG zawsze z seedem.
 
@@ -93,6 +102,10 @@ Zasady podziału:
   Specyficzne dla Anniversary rzeczy (spell queue, wersja patcha) wymagają potwierdzenia
   przed uznaniem za gotowe.
 - Poziom postaci 70, cel: boss poziomu 73 (do potwierdzenia w danych: cap hit, mitygacja armoru).
+- **Sety.** `CharacterSetup` zawiera `setPieces` (id setu → liczba założonych itemów); aktywne są
+  bonusy, których próg jest nie większy od tej liczby (4 części zawiera też bonus 2-częściowy).
+  Bonusy setów są w `data/classes/<klasa>/sets.ts`. Etap 1: stały zestaw; etap 2: liczba itemów
+  wynika z wybranego gearu. Wartości bonusów weryfikowane jak reszta danych.
 
 ## 5. UI
 
@@ -104,6 +117,7 @@ Zasady podziału:
 - **Rotation:** lista priorytetów z podświetleniem aktualnie wskazanego spella.
 - **Damage:** podział obrażeń na spelle. **Log:** log zdarzeń.
 - Desktop jest priorytetem; układ ma być używalny także na telefonie.
+- Lista bonusów setowych spec z zaznaczeniem, które są aktywne przy bieżącym gearze.
 - **Dodatek:** po walce wynik % idealnego bota, GCD uptime, uptime DoT-ów.
 
 ## 6. Testy
@@ -120,8 +134,10 @@ Vitest, deterministyczne seedy:
 
 Jeden spec, osobny plan implementacji i commit na etap:
 
-1. Silnik + dane Destruction Warlocka + minimalne UI (walka grywalna).
-2. Edytor postaci: talenty, gear, raid buffy, keybindy, zapis lokalny.
+1. Silnik + dane Destruction Warlocka + minimalne UI (walka grywalna), z bonusami setowymi
+   przy stałym zestawie gearu.
+2. Edytor postaci: talenty, gear, raid buffy, keybindy, zapis lokalny; liczba itemów z setu
+   wynika z wybranego gearu.
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka).
@@ -134,6 +150,9 @@ Jeden spec, osobny plan implementacji i commit na etap:
   w etapie 1 na podstawie zweryfikowanych źródeł, nie z oryginału (oryginał jest pod inną wersją gry).
 - Domyślny gear (tier, staty) do ustalenia w etapie 1 przed edytorem z etapu 2.
 - Dodatek ze scoringiem względem bota można wyciąć bez wpływu na resztę.
+- Bonusy setowe: nie znam z pamięci ich wartości ani zasad (procenty, procki, wewnętrzne
+  cooldowny), więc każdy trafia do `docs/data-sources.md` ze źródłem. Którego tieru/fazy
+  dotyczy domyślny gear etapu 1, ustala autor.
 - Oryginał analizowany bez zrzutów ekranu; szczegóły wyglądu mogą się różnić od intencji autora
   i będą korygowane po pierwszym uruchomieniu.
 - Wartość `localStorage` jest per przeglądarka; brak synchronizacji między urządzeniami (świadomie).
