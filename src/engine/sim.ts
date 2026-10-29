@@ -204,27 +204,25 @@ export class Simulation {
    * Casts `spellId`, or returns why not without changing anything. In `ready` the checks run
    * at 0 ms, and only an accepted cast starts the fight.
    *
-   * Spell queue: a spell rejected only for `busy` or `gcd` whose block ends within
-   * `spellQueueWindowMs` is queued instead (`{ok: true, queued: true}`) and attempted exactly
-   * when the block ends; a newer queued spell replaces the older one silently. Its other checks
-   * (cooldown, missing-aura, no-mana) must pass now, otherwise that reason is returned and
-   * nothing changes (the spell already queued stays). Outside the window the plain rejection
-   * order applies (busy and gcd unchanged).
+   * Spell queue (ruling R15): a spell blocked by a cast in progress or the GCD whose block ends
+   * within `spellQueueWindowMs` is queued instead (`{ok: true, queued: true}`, logged `queue`)
+   * and attempted when the block ends, if its press-time checks pass (see
+   * `queuePressRejection`); otherwise that reason is returned and nothing changes (an already
+   * queued spell stays). A valid press replaces the queued spell (`queue-drop`, reason
+   * `replaced`). Outside the window the plain rejection order applies.
    */
   cast(spellId: string): CastResult {
     if (this.phase === 'ended') return { ok: false, reason: 'ended' };
     const spell = this.spells.get(spellId);
     if (!spell) return { ok: false, reason: 'unknown-spell' };
-    const rejection = this.castRejection(spell);
-    if (rejection === 'busy' || rejection === 'gcd') {
-      const blockEndMs = this.blockEndMs(spell);
-      if (blockEndMs - this.nowMs <= this.spellQueueWindowMs) {
-        const other = this.castRejection(spell, true);
-        if (other) return { ok: false, reason: other };
-        this.queueSpell(spell, blockEndMs);
-        return { ok: true, queued: true };
-      }
+    const blockEndMs = this.blockEndMs(spell);
+    if (blockEndMs > this.nowMs && blockEndMs - this.nowMs <= this.spellQueueWindowMs) {
+      const pressRejection = this.queuePressRejection(spell, blockEndMs);
+      if (pressRejection) return { ok: false, reason: pressRejection };
+      this.queueSpell(spell, blockEndMs);
+      return { ok: true, queued: true };
     }
+    const rejection = this.castRejection(spell);
     if (rejection) return { ok: false, reason: rejection };
     this.start();
     this.startCast(spell);
@@ -311,12 +309,11 @@ export class Simulation {
   /**
    * Why `spell` cannot be cast now, or null. Checks only; changes nothing.
    * Order: busy, cooldown, gcd, missing-aura, no-mana (the mana check is the last one).
-   * `ignoreBlock` skips busy and gcd (the checks a queued spell waits out).
    */
-  private castRejection(spell: SpellDef, ignoreBlock = false): CastRejection | null {
-    if (!ignoreBlock && this.activeCast) return 'busy';
+  private castRejection(spell: SpellDef): CastRejection | null {
+    if (this.activeCast) return 'busy';
     if (this.cooldownRemaining(spell.id) > 0) return 'cooldown';
-    if (!ignoreBlock && spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
+    if (spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
     if (spell.requiresTargetAura && !this.targetAuras.get(spell.requiresTargetAura, this.nowMs)) {
       return 'missing-aura';
     }
@@ -333,21 +330,59 @@ export class Simulation {
     return spell.onGcd ? Math.max(castEndMs, this.gcdEndsAtMs) : castEndMs;
   }
 
-  /** Puts `spell` in the queue slot (replacing any queued spell), attempted at `fireAtMs`. */
-  private queueSpell(spell: SpellDef, fireAtMs: number): void {
-    this.clearQueue();
-    const fireEventId = this.schedule(fireAtMs, () => this.fireQueued(spell));
-    this.queued = { spellId: spell.id, fireEventId };
+  /**
+   * Press-time checks for a spell entering the queue, judged against the block end: the
+   * cooldown must be ready at or before `blockEndMs`; the required target aura must be up now
+   * or be applied by the cast in progress (which ends by the block end; if it misses, the
+   * fire-time check drops the spell); the current mana must cover the cost. Order: cooldown,
+   * missing-aura, no-mana. Checks only; changes nothing.
+   */
+  private queuePressRejection(spell: SpellDef, blockEndMs: number): CastRejection | null {
+    if ((this.cooldownReadyAtMs.get(spell.id) ?? 0) > blockEndMs) return 'cooldown';
+    const auraId = spell.requiresTargetAura;
+    if (auraId && !this.targetAuras.get(auraId, this.nowMs) && !this.activeCastAppliesTargetAura(auraId)) {
+      return 'missing-aura';
+    }
+    if (this.mana < this.manaCost(spell)) return 'no-mana';
+    return null;
+  }
+
+  private activeCastAppliesTargetAura(auraId: string): boolean {
+    const cast = this.activeCast;
+    if (!cast) return false;
+    const applies = this.spells.get(cast.spellId)?.applyAura;
+    return applies?.on === 'target' && applies.auraId === auraId;
   }
 
   /**
-   * The block has ended: the queued spell is cast like a normal cast now, or, if any check
-   * fails (cooldown, mana, aura, or a new block), dropped with a `queue-drop` log entry.
+   * Puts `spell` in the queue slot, attempted at `fireAtMs`; logs `queue`. A spell already
+   * queued is displaced first (`queue-drop`, reason `replaced`).
+   */
+  private queueSpell(spell: SpellDef, fireAtMs: number): void {
+    const displaced = this.queued;
+    if (displaced) {
+      this.clearQueue();
+      this.addLog({ type: 'queue-drop', spellId: displaced.spellId, reason: 'replaced' });
+    }
+    this.addLog({ type: 'queue', spellId: spell.id });
+    this.queued = { spellId: spell.id, fireEventId: this.schedule(fireAtMs, () => this.fireQueued(spell)) };
+  }
+
+  /**
+   * The block has ended. Every other event at this ms runs first (cast landing, aura apply,
+   * ticks, fades, regen), even one scheduled after the queue request: while any is pending the
+   * fire moves to the back of this ms. Then all checks run against live state: the spell is
+   * cast like a normal cast, or dropped with `queue-drop` and the CastResult reason.
    */
   private fireQueued(spell: SpellDef): void {
+    if (this.events.peekTime() === this.nowMs) {
+      this.queued = { spellId: spell.id, fireEventId: this.schedule(this.nowMs, () => this.fireQueued(spell)) };
+      return;
+    }
     this.queued = null;
-    if (this.castRejection(spell)) {
-      this.addLog({ type: 'queue-drop', spellId: spell.id });
+    const rejection = this.castRejection(spell);
+    if (rejection) {
+      this.addLog({ type: 'queue-drop', spellId: spell.id, reason: rejection });
       return;
     }
     this.startCast(spell);

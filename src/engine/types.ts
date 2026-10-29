@@ -213,6 +213,7 @@ export type LogType =
   | 'aura-apply'
   | 'aura-fade'
   | 'mana'
+  | 'queue'
   | 'queue-drop';
 
 export interface LogEvent {
@@ -222,6 +223,11 @@ export interface LogEvent {
   auraId?: string;
   amount?: number;
   crit?: boolean;
+  /**
+   * `queue-drop` only: why the queued spell was dropped: a CastResult reason when its fire-time
+   * check failed ('cooldown', 'no-mana', 'missing-aura', 'busy', 'gcd'), or 'replaced'.
+   */
+  reason?: string;
 }
 
 export interface SimSnapshot {

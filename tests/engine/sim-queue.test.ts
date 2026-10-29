@@ -3,18 +3,18 @@ import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT, HASTE_RATING_PER_PCT } from '../../
 import type { SpecData } from '../../src/data/types';
 import { Simulation } from '../../src/engine/sim';
 import { computeStats } from '../../src/engine/stats';
-import type { CastResult, RawStats, SpellDef } from '../../src/engine/types';
+import type { CastResult, RawStats, SpellDef, TargetData } from '../../src/engine/types';
 import { TEST_TARGET, makeTestSpec } from '../fixtures/testSpec';
 
 const WINDOW_MS = 400;
 
 function newSim(
-  opts: { spec?: SpecData; durationMs?: number; windowMs?: number | null; seed?: number } = {},
+  opts: { spec?: SpecData; durationMs?: number; windowMs?: number | null; seed?: number; target?: TargetData } = {},
 ): Simulation {
   const windowMs = opts.windowMs === undefined ? WINDOW_MS : opts.windowMs;
   return new Simulation({
     spec: opts.spec ?? makeTestSpec(),
-    target: TEST_TARGET,
+    target: opts.target ?? TEST_TARGET,
     seed: opts.seed ?? 1,
     ...(windowMs !== null ? { spellQueueWindowMs: windowMs } : {}),
     ...(opts.durationMs !== undefined ? { durationMs: opts.durationMs } : {}),
@@ -30,6 +30,14 @@ function specWithStats(patch: Partial<RawStats>, spec: Partial<SpecData> = {}): 
 /** The fixture spec with one spell patched. */
 function specWithSpell(spellId: string, patch: Partial<SpellDef>): SpecData {
   return makeTestSpec({ spells: makeTestSpec().spells.map((s) => (s.id === spellId ? { ...s, ...patch } : s)) });
+}
+
+/** The fixture spec plus `slow`: bolt's numbers, but off the GCD, free, with the given cast time. */
+function specWithSlow(castTimeMs: number): SpecData {
+  const bolt = makeTestSpec().spells.find((s) => s.id === 'bolt');
+  if (!bolt) throw new Error('fixture bolt missing');
+  const slow: SpellDef = { ...bolt, id: 'slow', onGcd: false, manaCost: 0, castTimeMs };
+  return makeTestSpec({ spells: [...makeTestSpec().spells, slow] });
 }
 
 function maxManaOf(spec: SpecData): number {
@@ -58,7 +66,7 @@ describe('Simulation spell queue (window 400)', () => {
     const before = observe(sim);
     expect(sim.cast('zap')).toEqual(QUEUED);
     expect(sim.snapshot()).toEqual({ ...before.snapshot, queuedSpellId: 'zap' });
-    expect(sim.log()).toEqual(before.log);
+    expect(sim.log()).toEqual([...before.log, { atMs: 1200, type: 'queue', spellId: 'zap' }]);
     sim.advanceTo(1499);
     expect(castsOf(sim, 'zap')).toEqual([]);
     expect(sim.snapshot().queuedSpellId).toBe('zap');
@@ -66,6 +74,7 @@ describe('Simulation spell queue (window 400)', () => {
     expect(sim.log()).toEqual([
       { atMs: 0, type: 'cast-complete', spellId: 'scorch' },
       { atMs: 0, type: 'damage', spellId: 'scorch', amount: 100, crit: false },
+      { atMs: 1200, type: 'queue', spellId: 'zap' },
       { atMs: 1500, type: 'cast-complete', spellId: 'zap' },
       { atMs: 1500, type: 'damage', spellId: 'zap', amount: 50, crit: false },
     ]);
@@ -109,6 +118,7 @@ describe('Simulation spell queue (window 400)', () => {
     sim.advanceTo(2000);
     expect(sim.log()).toEqual([
       { atMs: 0, type: 'cast-start', spellId: 'bolt' },
+      { atMs: 1700, type: 'queue', spellId: 'bolt' },
       { atMs: 2000, type: 'cast-complete', spellId: 'bolt' },
       { atMs: 2000, type: 'damage', spellId: 'bolt', amount: 100, crit: false },
       { atMs: 2000, type: 'cast-start', spellId: 'bolt' },
@@ -159,8 +169,13 @@ describe('Simulation spell queue (window 400)', () => {
     expect(castsOf(sim, 'curse')).toEqual([1500]);
     expect(castsOf(sim, 'zap')).toEqual([]);
     expect(sim.snapshot().cooldownRemainingMs.zap).toBe(0);
-    // Replacing is silent: no queue-drop for the replaced request.
-    expect(sim.log().some((e) => e.type === 'queue-drop')).toBe(false);
+    expect(sim.log().filter((e) => e.atMs >= 1200 && e.atMs <= 1500 && e.type !== 'mana')).toEqual([
+      { atMs: 1200, type: 'queue', spellId: 'zap' },
+      { atMs: 1300, type: 'queue-drop', spellId: 'zap', reason: 'replaced' },
+      { atMs: 1300, type: 'queue', spellId: 'curse' },
+      { atMs: 1500, type: 'cast-complete', spellId: 'curse' },
+      { atMs: 1500, type: 'aura-apply', spellId: 'curse', auraId: 'weak' },
+    ]);
   });
 
   it('queued spell that is on cooldown at fire time is dropped and logged', () => {
@@ -174,9 +189,10 @@ describe('Simulation spell queue (window 400)', () => {
     sim.advanceTo(2000);
     expect(sim.log()).toEqual([
       { atMs: 0, type: 'cast-start', spellId: 'bolt' },
+      { atMs: 1800, type: 'queue', spellId: 'bolt' },
       { atMs: 2000, type: 'cast-complete', spellId: 'bolt' },
       { atMs: 2000, type: 'damage', spellId: 'bolt', amount: 100, crit: false },
-      { atMs: 2000, type: 'queue-drop', spellId: 'bolt' },
+      { atMs: 2000, type: 'queue-drop', spellId: 'bolt', reason: 'cooldown' },
     ]);
     const snap = sim.snapshot();
     expect(snap.queuedSpellId).toBeNull();
@@ -194,7 +210,7 @@ describe('Simulation spell queue (window 400)', () => {
     sim.advanceTo(1800);
     expect(sim.cast('bolt')).toEqual(QUEUED); // 80 >= 50 now; the first bolt spends 50 at 2000
     sim.advanceTo(2000);
-    expect(sim.log().slice(-1)).toEqual([{ atMs: 2000, type: 'queue-drop', spellId: 'bolt' }]);
+    expect(sim.log().slice(-1)).toEqual([{ atMs: 2000, type: 'queue-drop', spellId: 'bolt', reason: 'no-mana' }]);
     expect(sim.snapshot().mana).toBe(30);
     expect(sim.snapshot().cast).toBeNull();
   });
@@ -211,16 +227,13 @@ describe('Simulation spell queue (window 400)', () => {
       { atMs: 6000, type: 'aura-fade', auraId: 'dotAura' },
       { atMs: 6100, type: 'cast-complete', spellId: 'bolt' },
       { atMs: 6100, type: 'damage', spellId: 'bolt', amount: 100, crit: false },
-      { atMs: 6100, type: 'queue-drop', spellId: 'needy' },
+      { atMs: 6100, type: 'queue-drop', spellId: 'needy', reason: 'missing-aura' },
     ]);
     expect(sim.snapshot().cooldownRemainingMs.needy).toBe(0);
   });
 
   it('a queued spell meeting a new block at fire time (an off-GCD cast started meanwhile) is dropped', () => {
-    const bolt = makeTestSpec().spells.find((s) => s.id === 'bolt');
-    if (!bolt) throw new Error('fixture bolt missing');
-    const slow: SpellDef = { ...bolt, id: 'slow', onGcd: false, manaCost: 0 };
-    const sim = newSim({ spec: makeTestSpec({ spells: [...makeTestSpec().spells, slow] }) });
+    const sim = newSim({ spec: specWithSlow(2000) });
     sim.cast('scorch'); // GCD until 1500
     sim.advanceTo(1200);
     expect(sim.cast('zap')).toEqual(QUEUED);
@@ -228,7 +241,7 @@ describe('Simulation spell queue (window 400)', () => {
     expect(sim.cast('slow')).toEqual({ ok: true }); // off the GCD: casts now, until 3300
     expect(sim.snapshot().queuedSpellId).toBe('zap');
     sim.advanceTo(1500);
-    expect(sim.log().slice(-1)).toEqual([{ atMs: 1500, type: 'queue-drop', spellId: 'zap' }]);
+    expect(sim.log().slice(-1)).toEqual([{ atMs: 1500, type: 'queue-drop', spellId: 'zap', reason: 'busy' }]);
     expect(sim.snapshot().cast).toEqual({ spellId: 'slow', startMs: 1300, endMs: 3300 });
     sim.advanceTo(10000);
     expect(castsOf(sim, 'zap')).toEqual([]);
@@ -268,6 +281,7 @@ describe('Simulation spell queue (window 400)', () => {
     expect(castsOf(sim, 'bolt')).toEqual([]);
     expect(sim.log().filter((e) => e.type !== 'mana')).toEqual([
       { atMs: 0, type: 'cast-start', spellId: 'bolt' },
+      { atMs: 1800, type: 'queue', spellId: 'zap' },
       { atMs: 1800, type: 'cast-cancel', spellId: 'bolt' },
     ]);
   });
@@ -285,17 +299,104 @@ describe('Simulation spell queue (window 400)', () => {
     expect(sim.log().some((e) => e.type === 'queue-drop')).toBe(false);
   });
 
-  it('inside the window a spell that already fails another check is rejected with that reason, not queued', () => {
-    // zap on cooldown, pressed 200 ms before a bolt's cast end.
-    const sim = newSim();
-    sim.cast('zap');
+  it('pressed at 1200 with cooldown ready at 1400 and GCD end 1500 is queued and fires at exactly 1500', () => {
+    const sim = newSim({ spec: specWithSpell('zap', { cooldownMs: 1400 }) });
+    sim.cast('zap'); // cooldown ready at 1400, GCD until 1500
+    sim.advanceTo(1200);
+    expect(sim.snapshot().cooldownRemainingMs.zap).toBe(200);
+    expect(sim.cast('zap')).toEqual(QUEUED);
+    expect(sim.snapshot().queuedSpellId).toBe('zap');
+    sim.advanceTo(1499);
+    expect(castsOf(sim, 'zap')).toEqual([0]);
     sim.advanceTo(1500);
-    sim.cast('bolt'); // ends 3500
-    sim.advanceTo(3300);
-    let before = observe(sim);
+    expect(castsOf(sim, 'zap')).toEqual([0, 1500]);
+    expect(sim.snapshot().gcdEndsAtMs).toBe(3000);
+    expect(sim.log().some((e) => e.type === 'queue-drop')).toBe(false);
+  });
+
+  it("cooldown ready after the block end is rejected with 'cooldown' and leaves the existing queue untouched", () => {
+    const sim = newSim({ spec: specWithSpell('zap', { cooldownMs: 1501 }) });
+    sim.cast('zap'); // cooldown ready at 1501, GCD until 1500
+    sim.advanceTo(1100);
+    expect(sim.cast('scorch')).toEqual(QUEUED);
+    sim.advanceTo(1200);
+    const before = observe(sim);
     expect(sim.cast('zap')).toEqual({ ok: false, reason: 'cooldown' });
+    expect(observe(sim)).toEqual(before);
+    sim.advanceTo(1500);
+    expect(castsOf(sim, 'scorch')).toEqual([1500]);
+    expect(sim.log().some((e) => e.type === 'queue-drop')).toBe(false);
+
+    // Ready exactly at the block end counts as ready.
+    const exact = newSim({ spec: specWithSpell('zap', { cooldownMs: 1500 }) });
+    exact.cast('zap');
+    exact.advanceTo(1200);
+    expect(exact.cast('zap')).toEqual(QUEUED);
+    exact.advanceTo(1500);
+    expect(castsOf(exact, 'zap')).toEqual([0, 1500]);
+  });
+
+  it('Conflagrate-like spell pressed during the cast of the spell that applies its required aura is queued and fires once the aura is up', () => {
+    const spec = specWithSpell('dot', { castTimeMs: 2000 }); // Immolate-like: applies dotAura at cast end
+    const sim = newSim({ spec });
+    sim.cast('dot'); // ends 2000
+    sim.advanceTo(1700);
+    expect(sim.cast('needy')).toEqual(QUEUED);
+    sim.advanceTo(2000);
+    expect(sim.log().filter((e) => e.type !== 'mana')).toEqual([
+      { atMs: 0, type: 'cast-start', spellId: 'dot' },
+      { atMs: 1700, type: 'queue', spellId: 'needy' },
+      { atMs: 2000, type: 'cast-complete', spellId: 'dot' },
+      { atMs: 2000, type: 'aura-apply', spellId: 'dot', auraId: 'dotAura' },
+      { atMs: 2000, type: 'cast-complete', spellId: 'needy' },
+      { atMs: 2000, type: 'damage', spellId: 'needy', amount: 10, crit: false },
+      { atMs: 2000, type: 'aura-fade', auraId: 'dotAura' },
+    ]);
+    expect(sim.snapshot().cooldownRemainingMs.needy).toBe(10000);
+  });
+
+  it('Conflagrate-like spell queued during the aura cast is dropped with missing-aura when that cast misses', () => {
+    const spec = specWithSpell('dot', { castTimeMs: 2000 });
+    const sim = newSim({ spec, target: { ...TEST_TARGET, missPct: 100, minMissPct: 100 } });
+    sim.cast('dot');
+    sim.advanceTo(1700);
+    expect(sim.cast('needy')).toEqual(QUEUED);
+    sim.advanceTo(2000);
+    expect(sim.log().filter((e) => e.type !== 'mana')).toEqual([
+      { atMs: 0, type: 'cast-start', spellId: 'dot' },
+      { atMs: 1700, type: 'queue', spellId: 'needy' },
+      { atMs: 2000, type: 'cast-complete', spellId: 'dot' },
+      { atMs: 2000, type: 'miss', spellId: 'dot' },
+      { atMs: 2000, type: 'queue-drop', spellId: 'needy', reason: 'missing-aura' },
+    ]);
+    expect(sim.snapshot().cooldownRemainingMs.needy).toBe(0);
+  });
+
+  it("the aura prediction only counts the in-progress cast's own target aura", () => {
+    // A cast-time curse applies weak, not dotAura: needy pressed during it is still 'missing-aura'.
+    const sim = newSim({ spec: specWithSpell('curse', { castTimeMs: 2000 }) });
+    sim.cast('curse');
+    sim.advanceTo(1700);
+    const before = observe(sim);
     expect(sim.cast('needy')).toEqual({ ok: false, reason: 'missing-aura' });
     expect(observe(sim)).toEqual(before);
+  });
+
+  it('inside the window a doomed press is rejected with its reason and does not evict a valid queued spell', () => {
+    const sim = newSim({ spec: specWithSpell('curse', { manaCost: 2000 }) }); // curse is never affordable
+    sim.cast('zap'); // zap cooldown until 8000
+    sim.advanceTo(1500);
+    sim.cast('bolt'); // ends 3500; applies no aura
+    sim.advanceTo(3200);
+    expect(sim.cast('scorch')).toEqual(QUEUED);
+    const before = observe(sim);
+    expect(sim.cast('zap')).toEqual({ ok: false, reason: 'cooldown' });
+    expect(sim.cast('needy')).toEqual({ ok: false, reason: 'missing-aura' });
+    expect(sim.cast('curse')).toEqual({ ok: false, reason: 'no-mana' });
+    expect(observe(sim)).toEqual(before);
+    sim.advanceTo(3500);
+    expect(castsOf(sim, 'scorch')).toEqual([3500]);
+    expect(sim.log().some((e) => e.type === 'queue-drop')).toBe(false);
     // Outside the window the plain rejection order applies: busy first.
     const early = newSim();
     early.cast('zap');
@@ -303,30 +404,22 @@ describe('Simulation spell queue (window 400)', () => {
     early.cast('bolt');
     early.advanceTo(3000);
     expect(early.cast('zap')).toEqual({ ok: false, reason: 'busy' });
-
-    // Unaffordable now: rejected with 'no-mana'.
-    const poor = newSim({ spec: specWithStats({ baseMana: 360 }) }); // maxMana 80
-    poor.cast('bolt');
-    poor.advanceTo(2000); // mana 30
-    poor.cast('scorch'); // GCD until 3500
-    poor.advanceTo(3200);
-    before = observe(poor);
-    expect(poor.cast('bolt')).toEqual({ ok: false, reason: 'no-mana' });
-    expect(observe(poor)).toEqual(before);
   });
 
-  it('a rejected request keeps the spell already queued', () => {
-    const sim = newSim();
-    sim.cast('zap');
+  it('same ms: an off-GCD cast landing exactly at the GCD end runs before the queued spell fires', () => {
+    const sim = newSim({ spec: specWithSlow(300) });
+    sim.cast('scorch'); // GCD until 1500
+    sim.advanceTo(1100);
+    expect(sim.cast('zap')).toEqual(QUEUED); // fire scheduled at 1500
+    sim.advanceTo(1200);
+    expect(sim.cast('slow')).toEqual({ ok: true }); // completion scheduled later, also at 1500
     sim.advanceTo(1500);
-    sim.cast('bolt'); // ends 3500
-    sim.advanceTo(3200);
-    expect(sim.cast('scorch')).toEqual(QUEUED);
-    const before = observe(sim);
-    expect(sim.cast('zap')).toEqual({ ok: false, reason: 'cooldown' });
-    expect(observe(sim)).toEqual(before);
-    sim.advanceTo(3500);
-    expect(castsOf(sim, 'scorch')).toEqual([3500]);
+    expect(sim.log().filter((e) => e.atMs === 1500)).toEqual([
+      { atMs: 1500, type: 'cast-complete', spellId: 'slow' },
+      { atMs: 1500, type: 'damage', spellId: 'slow', amount: 100, crit: false },
+      { atMs: 1500, type: 'cast-complete', spellId: 'zap' },
+      { atMs: 1500, type: 'damage', spellId: 'zap', amount: 50, crit: false },
+    ]);
   });
 
   it('a spell queued past the fight end is discarded without queue-drop', () => {
@@ -375,6 +468,8 @@ describe('Simulation spell queue (window 400)', () => {
       [6000, 'curse', QUEUED],
       [6100, 'bolt', QUEUED], // replaces curse; fires 6364, ends 8182
       [8000, 'bolt', QUEUED], // dropped at 8182: bolt cooldown
+      [8500, 'scorch', { ok: true }], // GCD until 9864
+      [9500, 'zap', QUEUED], // zap cooldown ready at 9818, before the block end: fires 9864
       [20000, 'bolt', { ok: true }], // ends 21818
       [21500, 'bolt', QUEUED], // dropped at 21818: cooldown
       [30000, 'dot', { ok: true }],
@@ -406,11 +501,13 @@ describe('Simulation spell queue (window 400)', () => {
     expect(steps.sim.log()).toEqual(jump.sim.log());
     expect(jump.results).toEqual(script.map(([, , r]) => r));
     const log = jump.sim.log();
-    expect(log.filter((e) => e.type === 'queue-drop').map((e) => [e.atMs, e.spellId])).toEqual([
-      [8182, 'bolt'],
-      [21818, 'bolt'],
+    expect(log.filter((e) => e.type === 'queue-drop').map((e) => [e.atMs, e.spellId, e.reason])).toEqual([
+      [6100, 'curse', 'replaced'],
+      [8182, 'bolt', 'cooldown'],
+      [21818, 'bolt', 'cooldown'],
     ]);
-    expect(castsOf(jump.sim, 'zap')).toEqual([1818]);
+    expect(log.filter((e) => e.type === 'queue').length).toBe(script.filter(([, , r]) => r.ok && r.queued).length);
+    expect(castsOf(jump.sim, 'zap')).toEqual([1818, 9864]);
     expect(castsOf(jump.sim, 'needy')).toEqual([31364]);
     expect(castsOf(jump.sim, 'curse')).toEqual([]);
     expect(jump.sim.snapshot().queuedSpellId).toBeNull();
