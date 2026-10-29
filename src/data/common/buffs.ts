@@ -18,8 +18,11 @@
 import { HIT_RATING_PER_PCT } from './ratings';
 import type { BuffDef } from '../types';
 
-/** Freezes a buff and everything inside it (catalog entries are shared, never mutated). */
-function deepFreeze<T>(value: T): T {
+/**
+ * Freezes a buff and everything inside it (catalog entries are shared, never mutated). Functions
+ * (hooks) are not frozen. Also used by the warlock catalog (src/data/classes/warlock/buffs.ts).
+ */
+export function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);
     for (const v of Object.values(value)) deepFreeze(v);
@@ -577,5 +580,72 @@ export const debuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
         damageTakenMult: { schools: ['shadow'], mult: 1.2 },
       },
     },
+  },
+]);
+
+// ===========================================================================
+// Timed cooldowns (stage 1.5 Task 8): a self aura the fight applies at a configurable second for
+// a configurable duration (`timed`; applySetup schedules `effect.selfAura`, Task 9). The aura's
+// own `durationMs` is the default duration. The player does not press them (spec §4.3: no
+// automatic or manual use, a simulation of raid events). Item effects (Icon of the Silver
+// Crescent, Band of the Eternal Sage) are in src/data/classes/warlock/buffs.ts: they belong to the
+// warlock's equipped gear. See docs/data-sources.md, "Part C: cooldowns and item effects".
+// ===========================================================================
+
+export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
+  {
+    id: 'heroism',
+    name: 'Heroism / Bloodlust',
+    icon: 'ability_shaman_heroism',
+    wowheadId: 32182,
+    group: 'raid',
+    description:
+      "+30% spell haste for 40 s, multiplied with the haste from rating (45 rating: x1.0285, so x1.337 in total: Shadow Bolt 2431 -> 1870 ms). Author's log: Heroism for 40 s, Shadow Bolt 1.86-1.89 s under it. Its 10 min cooldown (and Exhaustion) means once per fight.",
+    // buffs.go BloodlustAura: Duration BloodlustDuration = 40 s, multiplyCastSpeedEffect(aura, 1.3)
+    // (unit.go TotalSpellHasteMultiplier = CastSpeedMultiplier x (1 + rating haste), so it
+    // multiplies the rating haste); BloodlustCD 10 min. Wowhead TBC spell=32182 "Increases melee,
+    // ranged, and spell haste by 30% ... Lasts 40 sec." (Bloodlust 2825: the same).
+    source: `${BUFFS} BloodlustAura / registerBloodlustCD; https://www.wowhead.com/tbc/spell=32182; author's log`,
+    effect: {
+      selfAura: {
+        id: 'heroism',
+        name: 'Heroism',
+        icon: 'ability_shaman_heroism',
+        wowheadId: 32182,
+        durationMs: 40000,
+        selfStatMultipliers: { haste: 1.3 },
+      },
+    },
+    timed: { defaultStartSec: 0, durationSec: 40 },
+  },
+  {
+    id: 'destruction-potion',
+    name: 'Destruction Potion',
+    icon: 'inv_potion_107',
+    wowheadId: 28508,
+    group: 'consumable',
+    exclusiveGroup: 'potion',
+    description:
+      "+120 spell power and +2% spell crit for 15 s (author's log: 15 s). Potions share a 2 min cooldown, so once per fight.",
+    // db.json consumable 22839 (Potion): SpellDamage 120, SpellCritRating 44.153846 (= 2 x
+    // CRIT_RATING_PER_PCT 22.076923: exactly 2%), buffDuration 15, categoryCooldownDuration 120;
+    // consumes.go makePotionActivationSpellInternal -> NewTemporaryStatsAura(stats, BuffDuration).
+    // Wowhead TBC spell=28508 / item=22839 "Increases spell critical chance by 2% and spell damage
+    // by 120 for 15 sec. (2 Min Cooldown)".
+    source: `${CONSUMES} (item 22839), makePotionActivationSpellInternal; https://www.wowhead.com/tbc/item=22839; author's log`,
+    effect: {
+      selfAura: {
+        id: 'destruction-potion',
+        name: 'Destruction Potion',
+        icon: 'inv_potion_107',
+        wowheadId: 28508,
+        durationMs: 15000,
+        selfStatBonuses: { spellPower: 120 },
+        // A percentage, so a modifier on every spell (as Moonkin Aura): the same +2.000% as
+        // wowsims' 44.153846 rating.
+        selfModifiers: [{ critPctDelta: 2 }],
+      },
+    },
+    timed: { defaultStartSec: 0, durationSec: 15 },
   },
 ]);
