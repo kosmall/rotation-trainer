@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-29-tbc-rotation-trainer-design.md` (stage 1 of section 7). Stages 2–5 get their own plans.
 
+**Execution order:** Tasks 1, 2, 3, 4, 5, 15, 16, 6, 7, 8, 9, 10, 11, 17, 12, 13, 14 (numbers 15–17 were inserted later; the order above is binding).
+
 ## Global Constraints
 
 - Pure frontend, static build; no backend, accounts or network calls at runtime.
@@ -29,7 +31,7 @@
 3. Events landing exactly at fight end (tick or cast completing at 60 000 ms) and after it → counted / not counted per the rule in Task 6.
 4. One huge `advanceTo` jump (hidden tab, throttled rAF) gives the same result as many small steps (Task 6).
 5. Refreshing an active DoT (Corruption/Immolate recast) resets its duration without an extra tick and without double ticking; Conflagrate consumes Immolate (Task 8).
-6. Set piece counts: 1 piece, exactly the 2-piece threshold, 3 pieces, 4 pieces, and a set id the spec does not know → only the bonuses whose threshold is met apply, 4 pieces include the 2-piece bonus, unknown ids are ignored (Tasks 5b, 6); a set proc cannot re-fire during its internal cooldown (Task 11b).
+6. Set piece counts: 1 piece, exactly the 2-piece threshold, 3 pieces, 4 pieces, and a set id the spec does not know → only the bonuses whose threshold is met apply, 4 pieces include the 2-piece bonus, unknown ids are ignored (Tasks 15, 6); a set proc cannot re-fire during its internal cooldown (Task 17).
 
 ---
 
@@ -101,7 +103,7 @@ docs/data-sources.md                   # where each number came from, what stays
   interface RawStats { intellect:number; spirit:number; spellPower:number; shadowPower:number; firePower:number;
                        critRating:number; hitRating:number; hasteRating:number; baseMana:number; mp5:number }
   interface CharacterSetup { stats: RawStats; setPieces: Record<string, number>;   // set id -> pieces worn
-                             modifiers: SpellModifier[] }                            // gear-derived (meta gem), see Task 5c
+                             modifiers: SpellModifier[] }                            // gear-derived (meta gem), see Task 16
   interface DerivedStats { maxMana:number; power:Record<School,number>; critPct:number; hitPct:number; hastePct:number;
                            spiritRegenPerSec:number; mp5RegenPerSec:number }
   interface TargetData { missPct:number; minMissPct:number; levelResistMult:number; armor:number }
@@ -194,7 +196,7 @@ docs/data-sources.md                   # where each number came from, what stays
 
 ---
 
-### Task 5b: Active set bonuses
+### Task 15: Active set bonuses
 
 **Files:**
 - Create: `src/engine/sets.ts`
@@ -215,7 +217,7 @@ docs/data-sources.md                   # where each number came from, what stays
 
 ---
 
-### Task 5c: Gear from item IDs
+### Task 16: Gear from item IDs
 
 **Files:**
 - Create: `src/engine/gear.ts`; extend `src/engine/types.ts`
@@ -430,7 +432,7 @@ Rules: hook runs after the spell's damage is applied; `consumeChargeOnHit` auras
 
 ---
 
-### Task 11b: Self stat and modifier auras (set procs and buffs)
+### Task 17: Self stat and modifier auras (set procs and buffs)
 
 **Files:**
 - Modify: `src/engine/sim.ts`
@@ -466,7 +468,7 @@ Rules: while a self aura is active its `selfStatBonuses` are added to the raw st
 - Consumes: `SpecData`, `SpellDef`, `AuraDef`, `SpellModifier`, `PriorityStep` (Task 5), `ratings.ts` constants.
 - Produces: `export const destructionWarlock: SpecData` with spell ids `shadow-bolt, immolate, corruption, curse-of-agony, curse-of-doom, curse-of-the-elements, conflagrate, shadowburn, incinerate, life-tap`; aura ids `immolate, corruption, curse-of-agony, curse-of-doom, curse-of-the-elements, shadow-vulnerability`; `keybinds` = those spell ids in action-bar order (slots 1–9, 0, -, = ; unused slots empty string); `priority` (shadow-destruction priority list: curse, Immolate, Corruption, Conflagrate when Immolate up, Shadowburn on cooldown, Life Tap when low mana, Shadow Bolt filler — final order and `when` rules per verified sources).
 
-Work: look up each spell's TBC Classic values (base damage range, coefficient, cast time, cost, cooldown, DoT total/ticks/duration, Conflagrate and Shadowburn rules, Life Tap yield, Curse of the Elements amount, Improved Shadow Bolt: 4 charges / 12 s, crit-triggered via `hooks.onSpellResolved`) from wowsims/tbc-new, wowsims/tbc and Wowhead TBC. The fixed build is encoded as `modifiers` + `statBonuses` (Bane, Ruin, Cataclysm, Devastation, Emberstorm/Shadow Mastery as applicable to the chosen shadow build). The default gear and build are the author's own WowSimsExporter export, `docs/samples/wowsimsexporter-destruction-warlock.json` (race Gnome, level 70, 17 equipped items with enchant and gem ids, talent string `affliction-demonology-destruction` = `000000000000000000000-2050130133200100000000-555000512200013330050`, i.e. 0/21/40; no approval round is needed, the author supplied it). Put every item, gem and enchant id that appears in the file in `items.ts` (exported as `items`, `gems`, `enchants`: name, slot, stats, `setId`, sockets and socket bonus, meta requirements/effects from the sources), define `equipped` as the file's `gear.items` array, and build `setup` with `buildSetup` (Task 5c) from a fixed `baseStats` (level 70 Gnome Warlock base stats, no raid buffs; sourced and documented). Translate the talent string into `modifiers` + `statBonuses` using the Warlock talent tree order from the sources (talents that do not affect the simulated spells are listed in `docs/data-sources.md` as not modeled). Item on-use/proc effects (trinkets, weapons) are NOT modeled in stage 1: list each such item and effect in `docs/data-sources.md` under "Not modeled". Stages 2a/2b replace the item table and the build with the full database, BIS presets, importer and talent editor. Document every number's source and each `UNVERIFIED` item in `docs/data-sources.md`. If Conflagrate needs an engine feature the current `SpellDef` lacks, add it to `src/engine` with its own test before using it.
+Work: look up each spell's TBC Classic values (base damage range, coefficient, cast time, cost, cooldown, DoT total/ticks/duration, Conflagrate and Shadowburn rules, Life Tap yield, Curse of the Elements amount, Improved Shadow Bolt: 4 charges / 12 s, crit-triggered via `hooks.onSpellResolved`) from wowsims/tbc-new, wowsims/tbc and Wowhead TBC. The fixed build is encoded as `modifiers` + `statBonuses` (Bane, Ruin, Cataclysm, Devastation, Emberstorm/Shadow Mastery as applicable to the chosen shadow build). The default gear and build are the author's own WowSimsExporter export, `docs/samples/wowsimsexporter-destruction-warlock.json` (race Gnome, level 70, 17 equipped items with enchant and gem ids, talent string `affliction-demonology-destruction` = `000000000000000000000-2050130133200100000000-555000512200013330050`, i.e. 0/21/40; no approval round is needed, the author supplied it). Put every item, gem and enchant id that appears in the file in `items.ts` (exported as `items`, `gems`, `enchants`: name, slot, stats, `setId`, sockets and socket bonus, meta requirements/effects from the sources), define `equipped` as the file's `gear.items` array, and build `setup` with `buildSetup` (Task 16) from a fixed `baseStats` (level 70 Gnome Warlock base stats, no raid buffs; sourced and documented). Translate the talent string into `modifiers` + `statBonuses` using the Warlock talent tree order from the sources (talents that do not affect the simulated spells are listed in `docs/data-sources.md` as not modeled). Item on-use/proc effects (trinkets, weapons) are NOT modeled in stage 1: list each such item and effect in `docs/data-sources.md` under "Not modeled". Stages 2a/2b replace the item table and the build with the full database, BIS presets, importer and talent editor. Document every number's source and each `UNVERIFIED` item in `docs/data-sources.md`. If Conflagrate needs an engine feature the current `SpellDef` lacks, add it to `src/engine` with its own test before using it.
 
 Set bonuses: `sets.ts` exports `warlockSets: SetBonusDef[]` covering every set that appears in the default gear's `items.ts` (all other Warlock sets arrive with the stage 2a item database). Each bonus is encoded as the right mix of `modifiers`, `statBonuses`, `hooks` (procs with `roll()` and an internal cooldown aura) and self auras defined in `auras.ts`, with its description text copied from the source and the source recorded in `docs/data-sources.md`. A bonus the engine cannot express is added as an engine feature with its own test before use.
 
@@ -539,6 +541,6 @@ Set bonuses: `sets.ts` exports `warlockSets: SetBonusDef[]` covering every set t
 
 ## Self-Review
 
-- **Spec coverage (stage 1 slice):** engine architecture, virtual time, event queue, pipeline, spell queue, mana/5SR/Life Tap/infinite mana, target debuffs, snapshot/log API (Tasks 2–11); data model with sources and `UNVERIFIED` markers (Tasks 3, 12); set bonuses and gear from item IDs (Tasks 5b, 5c, 6, 11, 11b, 12, 14); UI game tab with hotkeys, start overlay, cast bar, mana, target, DPS (Task 14); bot and Vitest strategy (Tasks 6–13). Deferred by design to later plans: character editor and `localStorage` (stage 2), Rotation/Damage/Log tabs, scoring (stage 3), dispels, pre-pull setup, scenarios (stage 4), other classes (stage 5).
+- **Spec coverage (stage 1 slice):** engine architecture, virtual time, event queue, pipeline, spell queue, mana/5SR/Life Tap/infinite mana, target debuffs, snapshot/log API (Tasks 2–11); data model with sources and `UNVERIFIED` markers (Tasks 3, 12); set bonuses and gear from item IDs (Tasks 15, 16, 6, 11, 17, 12, 14); UI game tab with hotkeys, start overlay, cast bar, mana, target, DPS (Task 14); bot and Vitest strategy (Tasks 6–13). Deferred by design to later plans: character editor and `localStorage` (stage 2), Rotation/Damage/Log tabs, scoring (stage 3), dispels, pre-pull setup, scenarios (stage 4), other classes (stage 5).
 - **Type consistency:** `SpecData`, `SpellDef`, `AuraDef`, `SimSnapshot`, `CastResult`, `PriorityStep` are each defined once (Tasks 5–6) and reused by name; `keybinds` is `string[]` everywhere; `reason` strings are the closed set in Task 6.
 - **Known risk:** Task 12 depends on researched game values; if a rule needs an engine field that does not exist yet, the task adds it with its own test.
