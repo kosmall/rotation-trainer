@@ -3,3 +3,6 @@ dist
 .superpowers/
 *.tsbuildinfo
 coverage
+
+# ralph-loop plugin state
+.claude/ralph-loop.local.md
