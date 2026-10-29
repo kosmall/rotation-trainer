@@ -1,8 +1,7 @@
-import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import type { SpecData } from '../data/types';
 import type { CastResult, SimSnapshot, SpellDef } from '../engine/types';
-import { SCHOOL_COLORS, initials, remainingText, secondsText } from './format';
+import { SCHOOL_COLORS, formatInt, initials, remainingText, secondsText } from './format';
 import { SLOT_KEYS } from './keys';
 
 export type RejectReason = Extract<CastResult, { ok: false }>['reason'];
@@ -31,17 +30,9 @@ interface ActionBarProps {
 }
 
 export function ActionBar({ spec, snapshot, flash, onPress }: ActionBarProps) {
-  // The snapshot has the GCD end but not its length: remember the fight time at which a new GCD
-  // end first appeared (the press itself, as casts are applied at the current fight time).
-  const gcd = useRef({ endsAtMs: 0, lengthMs: 1 });
-  if (snapshot.gcdEndsAtMs !== gcd.current.endsAtMs) {
-    gcd.current = {
-      endsAtMs: snapshot.gcdEndsAtMs,
-      lengthMs: Math.max(1, snapshot.gcdEndsAtMs - snapshot.nowMs),
-    };
-  }
   const gcdLeftMs = snapshot.phase === 'running' ? Math.max(0, snapshot.gcdEndsAtMs - snapshot.nowMs) : 0;
-  const gcdFraction = Math.min(1, gcdLeftMs / gcd.current.lengthMs);
+  // Measured against the current GCD length (a haste change mid-GCD only shifts the sweep).
+  const gcdFraction = Math.min(1, gcdLeftMs / Math.max(1, snapshot.gcdMs));
 
   return (
     <div className="action-bar" role="toolbar" aria-label="Action bar">
@@ -83,12 +74,12 @@ interface SpellSlotProps {
 
 function SpellSlot({ spell, hotkey, snapshot, gcdFraction, flash, onPress }: SpellSlotProps) {
   const cooldownMs = snapshot.cooldownRemainingMs[spell.id] ?? 0;
-  // Base cost from the spell data: talent cost reductions are not in the snapshot.
-  const outOfMana = snapshot.mana < spell.manaCost;
+  // Effective values (talents, gear, auras, haste) from the snapshot.
+  const { manaCost, castTimeMs } = snapshot.spells[spell.id] ?? { manaCost: spell.manaCost, castTimeMs: spell.castTimeMs };
+  const outOfMana = snapshot.mana < manaCost;
   const queued = snapshot.queuedSpellId === spell.id;
-  const castText = spell.castTimeMs > 0 ? `${secondsText(spell.castTimeMs)} s cast` : 'Instant';
-  // Base values from the spell data (before talents such as Bane or Cataclysm).
-  const tooltip = `${spell.name}\nBase: ${spell.manaCost > 0 ? `${spell.manaCost} mana` : 'no mana cost'} · ${castText}`;
+  const castText = castTimeMs > 0 ? `${secondsText(castTimeMs)} s cast` : 'Instant';
+  const tooltip = `${spell.name}\n${manaCost > 0 ? `${formatInt(manaCost)} mana` : 'No mana cost'} · ${castText}`;
   const classes = ['slot', outOfMana && 'slot-oom', queued && 'slot-queued'].filter(Boolean).join(' ');
 
   return (

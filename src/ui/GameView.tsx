@@ -41,7 +41,8 @@ export function GameView({ spec }: { spec: SpecData }) {
       const spellId = spec.keybinds[slot];
       if (!spellId) return; // empty slot
       const result = cast(spellId);
-      if (!result.ok) {
+      if (result.ok) setFlash((prev) => (prev?.slot === slot ? null : prev));
+      else {
         const label = REJECT_LABELS[result.reason];
         if (label) showFlash(slot, label);
       }

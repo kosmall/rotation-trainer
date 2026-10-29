@@ -2,6 +2,10 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { warlockSets } from '../../src/data/classes/warlock/sets';
+import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
+import { BOSS_TARGET } from '../../src/data/common/target';
+import { Simulation } from '../../src/engine/sim';
+import { ActionBar } from '../../src/ui/ActionBar';
 import { GameView } from '../../src/ui/GameView';
 import { SetBonusList } from '../../src/ui/SetBonusList';
 
@@ -146,10 +150,67 @@ describe('GameView', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('an accepted press of a flashing slot clears its rejection flash', () => {
+    render(<GameView spec={destructionWarlock} />);
+    const castMs = freshSim().snapshot().spells['shadow-bolt']?.castTimeMs ?? 0;
+    // Busy at 1800 (cast end beyond the queue window), queued at 2100 (within it).
+    expect(castMs - 1800).toBeGreaterThan(SPELL_QUEUE_WINDOW_MS);
+    expect(castMs - 2100).toBeLessThanOrEqual(SPELL_QUEUE_WINDOW_MS);
+    press('1');
+    advance(1800);
+    press('1');
+    expect(screen.getByRole('status').textContent).toBe('Busy');
+    advance(300);
+    press('1');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('the tooltip shows the effective (talented, hasted) cast time and cost', () => {
+    render(<GameView spec={destructionWarlock} />);
+    const { castTimeMs, manaCost } = freshSim().snapshot().spells['shadow-bolt'] ?? { castTimeMs: 0, manaCost: 0 };
+    expect(castTimeMs).toBeLessThan(2500); // Bane and gear haste, from the 3000 ms base
+    const title = screen.getByRole('button', { name: 'Shadow Bolt (1)' }).getAttribute('title') ?? '';
+    expect(title).toContain('2.4 s cast');
+    expect(title).not.toContain('3.0');
+    expect(title).toContain(`${Math.round(manaCost)} mana`);
+    expect(title).not.toContain('420');
+    expect(screen.getByRole('button', { name: 'Life Tap (6)' }).getAttribute('title')).toContain('Instant');
+  });
+
   it('clicking a slot casts its spell', () => {
     render(<GameView spec={destructionWarlock} />);
     fireEvent.click(screen.getByRole('button', { name: 'Immolate (2)' }));
     expect(castBar()?.textContent).toContain('Immolate');
+  });
+});
+
+/** A Simulation like the UI's, for reading effective values. */
+function freshSim() {
+  return new Simulation({
+    spec: destructionWarlock,
+    target: BOSS_TARGET,
+    seed: 1,
+    spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
+  });
+}
+
+describe('ActionBar', () => {
+  it('tints a slot out of mana only when mana is below the effective cost', () => {
+    const base = freshSim().snapshot();
+    const cost = base.spells['shadow-bolt']?.manaCost ?? 0;
+    expect(cost).toBeLessThan(410); // 420 base, Cataclysm 0.95
+    const slot = () => screen.getByRole('button', { name: 'Shadow Bolt (1)' });
+    const show = (mana: number) =>
+      render(<ActionBar spec={destructionWarlock} snapshot={{ ...base, mana }} flash={null} onPress={() => {}} />);
+
+    show(410);
+    expect(slot().classList.contains('slot-oom')).toBe(false);
+    cleanup();
+    show(Math.ceil(cost));
+    expect(slot().classList.contains('slot-oom')).toBe(false);
+    cleanup();
+    show(cost - 1);
+    expect(slot().classList.contains('slot-oom')).toBe(true);
   });
 });
 
