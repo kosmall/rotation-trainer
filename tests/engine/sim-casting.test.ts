@@ -157,7 +157,7 @@ describe('Simulation cancelCast', () => {
     expect(after.mana).toBe(before.mana);
     expect(after.mana).toBe(computeStats(makeTestSpec().setup).maxMana);
     expect(after.cooldownRemainingMs).toEqual(before.cooldownRemainingMs);
-    expect(after.cooldownRemainingMs).toEqual({ bolt: 0, zap: 5500, free: 0 });
+    expect(after.cooldownRemainingMs).toEqual({ bolt: 0, zap: 5500, free: 0, dot: 0, needy: 0, curse: 0, scorch: 0 });
     expect(after.gcdEndsAtMs).toBe(3000);
     expect(sim.log().at(-1)).toEqual({ atMs: 2500, type: 'cast-cancel', spellId: 'bolt' });
 

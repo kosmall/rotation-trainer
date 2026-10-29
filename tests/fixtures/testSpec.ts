@@ -2,7 +2,7 @@
 
 import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT } from '../../src/data/common/ratings';
 import type { SpecData } from '../../src/data/types';
-import type { SpellDef, TargetData } from '../../src/engine/types';
+import type { AuraDef, SpellDef, TargetData } from '../../src/engine/types';
 
 /** Never misses, no partial resists, no armor. */
 export const TEST_TARGET: TargetData = { missPct: 0, minMissPct: 0, levelResistMult: 1, armor: 0 };
@@ -49,6 +49,82 @@ function testSpells(): SpellDef[] {
       canMiss: false,
       canCrit: false,
     },
+    {
+      // Pure DoT: no direct damage; a hit applies dotAura (3 ticks of 100).
+      id: 'dot',
+      name: 'Dot',
+      icon,
+      school: 'shadow',
+      manaCost: 30,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: true,
+      canMiss: true,
+      canCrit: false,
+      applyAura: { auraId: 'dotAura', on: 'target' },
+    },
+    {
+      // Needs dotAura on the target and consumes it on a hit (Conflagrate-like).
+      id: 'needy',
+      name: 'Needy',
+      icon,
+      school: 'shadow',
+      manaCost: 10,
+      castTimeMs: 0,
+      cooldownMs: 10000,
+      onGcd: true,
+      canMiss: true,
+      canCrit: true,
+      direct: { min: 10, max: 10, coeff: 0 },
+      requiresTargetAura: 'dotAura',
+      consumesTargetAura: 'dotAura',
+    },
+    {
+      // Applies weak: the target takes 20% more shadow damage for 10 s.
+      id: 'curse',
+      name: 'Curse',
+      icon,
+      school: 'shadow',
+      manaCost: 20,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: true,
+      canMiss: true,
+      canCrit: false,
+      applyAura: { auraId: 'weak', on: 'target' },
+    },
+    {
+      id: 'scorch',
+      name: 'Scorch',
+      icon,
+      school: 'fire',
+      manaCost: 0,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: true,
+      canMiss: true,
+      canCrit: true,
+      direct: { min: 100, max: 100, coeff: 0 },
+    },
+  ];
+}
+
+function testAuras(): AuraDef[] {
+  return [
+    {
+      id: 'dotAura',
+      name: 'Dot',
+      icon,
+      durationMs: 6000,
+      tick: { intervalMs: 2000, total: 300, coeffTotal: 0, school: 'shadow' },
+    },
+    {
+      id: 'weak',
+      name: 'Weak',
+      icon,
+      durationMs: 10000,
+      damageTakenMult: { schools: ['shadow'], mult: 1.2 },
+    },
   ];
 }
 
@@ -61,7 +137,7 @@ export function makeTestSpec(overrides: Partial<SpecData> = {}): SpecData {
     id: 'test',
     name: 'Test Spec',
     spells: testSpells(),
-    auras: [],
+    auras: testAuras(),
     modifiers: [],
     statBonuses: {},
     sets: [

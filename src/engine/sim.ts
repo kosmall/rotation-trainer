@@ -12,6 +12,7 @@ import type { Rng } from './rng';
 import { activeSetBonuses } from './sets';
 import { computeStats } from './stats';
 import type {
+  AuraDef,
   CastResult,
   DerivedStats,
   HitOutcome,
@@ -42,6 +43,12 @@ interface ActiveCast {
   startMs: number;
   endMs: number;
   completionEventId: EventId;
+}
+
+/** The pending events of an active aura; cancelled when it is refreshed or consumed. */
+interface AuraEvents {
+  tickEventIds: EventId[];
+  fadeEventId: EventId;
 }
 
 /** Every modifier matching one spell, folded: multipliers multiplied, deltas summed. */
@@ -101,8 +108,11 @@ export class Simulation {
   /** Spec hooks first, then the hooks of active set bonuses (invoked from Task 11 on). */
   private readonly hooks: SpecHooks[];
   private readonly events = new EventQueue<SimEvent>();
+  private readonly auraDefs = new Map<string, AuraDef>();
   private readonly targetAuras: AuraTracker;
   private readonly selfAuras: AuraTracker;
+  private readonly targetAuraEvents = new Map<string, AuraEvents>();
+  private readonly selfAuraEvents = new Map<string, AuraEvents>();
   private readonly stats: DerivedStats;
 
   private phase: SimSnapshot['phase'] = 'ready';
@@ -135,6 +145,7 @@ export class Simulation {
       this.spellMods.set(spell.id, foldModifiers(spell, modifiers));
     }
     this.hooks = [spec.hooks, ...sets.flatMap((s) => (s.hooks ? [s.hooks] : []))];
+    for (const aura of spec.auras) this.auraDefs.set(aura.id, aura);
     this.targetAuras = new AuraTracker(spec.auras);
     this.selfAuras = new AuraTracker(spec.auras);
     // Mana is not spent yet (Task 9); the bar stays full.
@@ -254,6 +265,9 @@ export class Simulation {
     if (this.activeCast) return 'busy';
     if (this.cooldownRemaining(spell.id) > 0) return 'cooldown';
     if (spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
+    if (spell.requiresTargetAura && !this.targetAuras.get(spell.requiresTargetAura, this.nowMs)) {
+      return 'missing-aura';
+    }
     return null;
   }
 
@@ -281,7 +295,10 @@ export class Simulation {
     this.resolveSpell(spell);
   }
 
-  /** Rolls the hit table once per spell and applies its effects on a hit or crit. */
+  /**
+   * Rolls the hit table once per spell. On a hit or crit: direct damage, then the consumed
+   * target aura is removed, then the spell's aura is applied. A miss does none of these.
+   */
   private resolveSpell(spell: SpellDef): void {
     const mods = this.modsFor(spell);
     const outcome = rollOutcome(this.rng, {
@@ -295,6 +312,8 @@ export class Simulation {
       return;
     }
     if (spell.direct) this.dealDirectDamage(spell, mods, outcome);
+    if (spell.consumesTargetAura) this.removeTargetAura(spell.consumesTargetAura);
+    if (spell.applyAura) this.applyAura(spell.applyAura.on, spell.applyAura.auraId, spell);
   }
 
   private dealDirectDamage(spell: SpellDef, mods: SpellMods, outcome: Exclude<HitOutcome, 'miss'>): void {
@@ -314,6 +333,81 @@ export class Simulation {
     });
     this.damageTotal += amount;
     this.addLog({ type: 'damage', spellId: spell.id, amount, crit: outcome === 'crit' });
+  }
+
+  // -------------------------------------------------------------------------
+  // Auras and DoTs
+  // -------------------------------------------------------------------------
+
+  /**
+   * Applies (or refreshes) `auraId` from `source`. A refresh cancels the aura's pending ticks
+   * and fade, then reschedules them from now: no immediate tick, no double ticks. Ticks are
+   * scheduled for target auras only. The fade event removes the aura and logs `aura-fade`.
+   */
+  private applyAura(on: 'target' | 'self', auraId: string, source: SpellDef): void {
+    const def = this.auraDef(auraId);
+    const tracker = on === 'target' ? this.targetAuras : this.selfAuras;
+    const pending = on === 'target' ? this.targetAuraEvents : this.selfAuraEvents;
+    this.cancelAuraEvents(pending, auraId);
+    tracker.apply(auraId, this.nowMs);
+    this.addLog({ type: 'aura-apply', spellId: source.id, auraId });
+    const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, source) : [];
+    const fadeEventId = this.schedule(this.nowMs + def.durationMs, () => {
+      pending.delete(auraId);
+      tracker.remove(auraId);
+      this.addLog({ type: 'aura-fade', auraId });
+    });
+    pending.set(auraId, { tickEventIds, fadeEventId });
+  }
+
+  /**
+   * Schedules the DoT's `durationMs / intervalMs` ticks (floored) at every interval from now.
+   * Power and the source spell's `dotDamageMult` are snapshotted here; each tick reads the
+   * target's damage-taken multiplier current at that tick. Ticks never crit.
+   */
+  private scheduleTicks(def: AuraDef, tick: NonNullable<AuraDef['tick']>, source: SpellDef): EventId[] {
+    const count = Math.floor(def.durationMs / tick.intervalMs);
+    if (count <= 0) return [];
+    const perTick = (tick.total + tick.coeffTotal * this.stats.power[tick.school]) / count;
+    const dotDamageMult = this.modsFor(source).dotDamageMult;
+    const ids: EventId[] = [];
+    for (let k = 1; k <= count; k++) {
+      ids.push(
+        this.schedule(this.nowMs + k * tick.intervalMs, () => {
+          const amount = Math.round(
+            perTick *
+              dotDamageMult *
+              this.targetAuras.damageTakenMult(tick.school, this.nowMs) *
+              this.target.levelResistMult,
+          );
+          this.damageTotal += amount;
+          this.addLog({ type: 'tick', spellId: source.id, auraId: def.id, amount });
+        }),
+      );
+    }
+    return ids;
+  }
+
+  /** Removes an active target aura and its pending ticks and fade; logs `aura-fade`. */
+  private removeTargetAura(auraId: string): void {
+    if (!this.targetAuras.get(auraId, this.nowMs)) return;
+    this.cancelAuraEvents(this.targetAuraEvents, auraId);
+    this.targetAuras.remove(auraId);
+    this.addLog({ type: 'aura-fade', auraId });
+  }
+
+  private cancelAuraEvents(pending: Map<string, AuraEvents>, auraId: string): void {
+    const events = pending.get(auraId);
+    if (!events) return;
+    for (const id of events.tickEventIds) this.events.cancel(id);
+    this.events.cancel(events.fadeEventId);
+    pending.delete(auraId);
+  }
+
+  private auraDef(auraId: string): AuraDef {
+    const def = this.auraDefs.get(auraId);
+    if (!def) throw new Error(`unknown aura: ${auraId}`);
+    return def;
   }
 
   // -------------------------------------------------------------------------
