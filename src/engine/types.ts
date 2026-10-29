@@ -37,6 +37,48 @@ export interface CharacterSetup {
   modifiers: SpellModifier[];
 }
 
+export type GemColor =
+  | 'meta'
+  | 'red'
+  | 'blue'
+  | 'yellow'
+  | 'orange'
+  | 'purple'
+  | 'green'
+  | 'prismatic';
+
+export interface ItemDef {
+  id: number;
+  name: string;
+  slot: string;
+  stats: Partial<RawStats>;
+  setId?: string;
+  sockets?: GemColor[];
+  socketBonus?: Partial<RawStats>;
+}
+
+export interface GemDef {
+  id: number;
+  name: string;
+  color: GemColor;
+  stats: Partial<RawStats>;
+  metaRequires?: Partial<Record<'red' | 'blue' | 'yellow', number>>;
+  metaModifiers?: SpellModifier[];
+}
+
+export interface EnchantDef {
+  id: number;
+  name: string;
+  stats: Partial<RawStats>;
+}
+
+/** Same shape as the WowSimsExporter gear.items entries. */
+export interface EquippedItem {
+  id: number;
+  enchant?: number;
+  gems?: number[];
+}
+
 export interface DerivedStats {
   maxMana: number;
   power: Record<School, number>;
