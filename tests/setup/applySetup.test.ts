@@ -264,6 +264,7 @@ describe('normalizeSetup', () => {
     }
     expect(r({ ...dot, lifeTapBelowMana: 0 }).lifeTapBelowMana).toBe(0);
     expect(r({ ...dot, lifeTapBelowMana: 2000 }).lifeTapBelowMana).toBe(2000);
+    expect(r({ ...dot, lifeTapBelowMana: 1e308 }).lifeTapBelowMana).toBe(100000);
     // Not an object: the default rotation.
     for (const bad of [null, 'dot', [], 5]) expect(r(bad)).toEqual(dot);
     // Whatever comes out, buildPriority accepts it.
@@ -415,6 +416,14 @@ describe('applySetup', () => {
       { atMs: 0, type: 'aura-apply', auraId: 'misery' },
     ]);
     expect(fight.log().some((e) => e.type === 'aura-fade' && e.auraId === 'misery')).toBe(false);
+  });
+
+  it('start and duration are rounded to whole ms (1.005 s is 1005 ms, not 1004)', () => {
+    const { sim } = apply({
+      enabledBuffs: ['heroism'],
+      timed: { ...DEFAULT_SETUP.timed, heroism: { startSec: 1.005, durationSec: 30 } },
+    });
+    expect(sim.scheduledAuras).toEqual([{ auraId: 'heroism', on: 'self', atMs: 1005, durationMs: 30000 }]);
   });
 
   it('a timed buff uses the configured start and duration', () => {

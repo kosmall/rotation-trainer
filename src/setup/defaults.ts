@@ -27,6 +27,7 @@ export const SETUP_LIMITS = Object.freeze({
   distanceYd: Object.freeze({ min: 0, max: 100 }),
   startSec: Object.freeze({ min: 0, max: 600 }),
   durationSec: Object.freeze({ min: 1, max: 600 }),
+  lifeTapBelowMana: Object.freeze({ min: 0, max: 100000 }),
 });
 
 const CURSES: readonly CurseChoice[] = ['elements', 'agony', 'doom', 'none'];
@@ -138,7 +139,10 @@ function normalizeRotation(v: unknown): RotationConfig {
     corruption: flag('corruption'),
     shadowburnFinisher: flag('shadowburnFinisher'),
     // buildPriority accepts 'auto' or a number >= 0; anything else would throw there.
-    lifeTapBelowMana: typeof lifeTap === 'number' && Number.isFinite(lifeTap) && lifeTap >= 0 ? lifeTap : 'auto',
+    lifeTapBelowMana:
+      typeof lifeTap === 'number' && Number.isFinite(lifeTap) && lifeTap >= 0
+        ? Math.min(lifeTap, SETUP_LIMITS.lifeTapBelowMana.max)
+        : 'auto',
   };
 }
 
