@@ -138,6 +138,24 @@ describe('Simulation projectile travel (distanceFromTarget 28 → 1400 ms)', () 
     expect(ofType(sim, 'damage')).toEqual([{ atMs: 2400, type: 'damage', spellId: 'lob', amount: 150, crit: false }]);
   });
 
+  it('a target-aura charge is consumed at impact, not at cast end (procAura x1.2, 2 charges)', () => {
+    // curse patched to apply procAura off the GCD, so lob can be cast in the same ms: the aura
+    // is up with both charges from cast start (0) through cast end (1000) to the impact (2400).
+    const sim = newSim({ spec: patchedSpec({ curse: { applyAura: { auraId: 'procAura', on: 'target' }, onGcd: false } }) });
+    expect(sim.cast('curse')).toEqual({ ok: true });
+    expect(sim.snapshot().targetAuras.procAura?.charges).toBe(2);
+    expect(sim.cast('lob')).toEqual({ ok: true });
+    sim.advanceTo(1000);
+    expect(sim.snapshot().inFlight).toEqual([{ spellId: 'lob', landsAtMs: 2400 }]);
+    expect(sim.snapshot().targetAuras.procAura?.charges).toBe(2);
+    sim.advanceTo(2399);
+    expect(sim.snapshot().targetAuras.procAura?.charges).toBe(2);
+    expect(ofType(sim, 'damage')).toEqual([]);
+    sim.advanceTo(2400);
+    expect(sim.snapshot().targetAuras.procAura?.charges).toBe(1);
+    expect(ofType(sim, 'damage')).toEqual([{ atMs: 2400, type: 'damage', spellId: 'lob', amount: 120, crit: false }]);
+  });
+
   it('slowdot applies dotAura at impact and the ticks start from the impact', () => {
     const sim = newSim();
     const maxMana = sim.snapshot().maxMana;
