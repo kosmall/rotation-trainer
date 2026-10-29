@@ -174,6 +174,9 @@ export function buildPriority(config: RotationConfig, distanceYd: number): Prior
   if (typeof lifeTapBelowMana === 'number' && !(lifeTapBelowMana >= 0)) {
     throw new RangeError(`lifeTapBelowMana must be 'auto' or a number >= 0, got ${lifeTapBelowMana}`);
   }
+  if (config.curse !== 'none' && !Object.hasOwn(CURSE_STEPS, config.curse)) {
+    throw new RangeError(`unknown curse '${String(config.curse)}'`);
+  }
   const steps: PriorityStep[] = [];
 
   if (config.curse !== 'none') {

@@ -260,6 +260,20 @@ describe('rotation presets and buildPriority', () => {
     expect(() => buildPriority({ ...DOT, lifeTapBelowMana: 0 }, DEFAULT_DISTANCE_FROM_TARGET_YD)).not.toThrow();
   });
 
+  it('an unknown curse id throws a RangeError', () => {
+    for (const bad of ['foo', 'toString', '']) {
+      expect(() => buildPriority({ ...DOT, curse: bad as RotationConfig['curse'] }, DEFAULT_DISTANCE_FROM_TARGET_YD)).toThrow(RangeError);
+    }
+  });
+
+  it('the presets are frozen all the way down', () => {
+    expect(Object.isFrozen(ROTATION_PRESETS)).toBe(true);
+    for (const preset of Object.values(ROTATION_PRESETS)) {
+      expect(Object.isFrozen(preset)).toBe(true);
+      expect(Object.isFrozen(preset.config)).toBe(true);
+    }
+  });
+
   it('buildPriority is pure: same input twice gives equal output and does not mutate the preset configs', () => {
     const before = structuredClone(ROTATION_PRESETS);
     const snaps = sampleSnapshots();
