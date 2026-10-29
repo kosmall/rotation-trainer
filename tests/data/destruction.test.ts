@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HASTE_RATING_PER_PCT } from '../../src/data/common/ratings';
-import { BOSS_TARGET } from '../../src/data/common/target';
+import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
 import { warlockAuras } from '../../src/data/classes/warlock/auras';
 import {
   destructionBaseStats,
@@ -26,12 +26,16 @@ function spell(id: string): SpellDef {
   return s;
 }
 
-function newSim(p: { spec?: SpecData; target?: TargetData; infiniteMana?: boolean; seed?: number } = {}) {
+/** Distance 0 (no travel) unless given: the stage 1 tests below check timings at cast end. */
+function newSim(
+  p: { spec?: SpecData; target?: TargetData; infiniteMana?: boolean; seed?: number; distanceFromTarget?: number } = {},
+) {
   return new Simulation({
     spec: p.spec ?? destructionWarlock,
     target: p.target ?? NEVER_MISS,
     seed: p.seed ?? 1,
     infiniteMana: p.infiniteMana ?? false,
+    distanceFromTarget: p.distanceFromTarget ?? 0,
   });
 }
 
@@ -259,6 +263,50 @@ describe('destructionWarlock behaviour in the Simulation', () => {
     expect(rule('corruption')(sim.snapshot())).toBe(false);
   });
 
+  it('the Immolate and Corruption refresh rules are false while that spell is in flight (Part A)', () => {
+    // Real Immolate and Corruption have no missile (spells.ts); give both a hypothetical 20 yd/s
+    // missile so the in-flight guard is exercised: after the cast ends the DoT is not on the
+    // target for 1400 ms, and without the guard the rule would ask for a second cast at once.
+    const spec: SpecData = {
+      ...destructionWarlock,
+      spells: destructionWarlock.spells.map((s) =>
+        s.id === 'immolate' || s.id === 'corruption' ? { ...s, missileSpeed: 20 } : s,
+      ),
+    };
+    const rule = (id: string) => {
+      const when = spec.priority.find((p) => p.spellId === id)?.when;
+      if (!when) throw new Error(`no rule for ${id}`);
+      return when;
+    };
+    const sim = new Simulation({ spec, target: NEVER_MISS, seed: 1, distanceFromTarget: 28, infiniteMana: true });
+    expect(sim.cast('immolate')).toEqual({ ok: true });
+    sim.advanceTo(1458); // Immolate (1458 ms) completes; lands at 2858
+    expect(sim.snapshot().inFlight).toEqual([{ spellId: 'immolate', landsAtMs: 2858 }]);
+    expect(sim.snapshot().targetAuras.immolate).toBeUndefined();
+    expect(rule('immolate')(sim.snapshot())).toBe(false);
+    expect(rule('corruption')(sim.snapshot())).toBe(true);
+    expect(sim.cast('corruption')).toEqual({ ok: true });
+    sim.advanceTo(1458 + 1945); // Corruption completes at 3403 (lands 4803); Immolate is up
+    expect(sim.snapshot().targetAuras.immolate).toBeDefined();
+    expect(sim.snapshot().inFlight).toEqual([{ spellId: 'corruption', landsAtMs: 4803 }]);
+    expect(rule('immolate')(sim.snapshot())).toBe(false);
+    expect(rule('corruption')(sim.snapshot())).toBe(false);
+    sim.advanceTo(4803);
+    expect(sim.snapshot().targetAuras.corruption).toBeDefined();
+    expect(rule('corruption')(sim.snapshot())).toBe(false); // up for 18 s now
+  });
+
+  it('the Shadowburn finisher window is Shadow Bolt cast time + travel at 28 yd (2500 + 1400 ms)', () => {
+    const when = destructionWarlock.priority.find((p) => p.spellId === 'shadowburn')?.when;
+    if (!when) throw new Error('no shadowburn rule');
+    const s = newSim().snapshot();
+    const at = (remainingMs: number) => when({ ...s, phase: 'running', nowMs: s.durationMs - remainingMs });
+    expect(at(3901)).toBe(false);
+    expect(at(3900)).toBe(true);
+    expect(at(2500)).toBe(true);
+    expect(at(1)).toBe(true);
+  });
+
   it('shadow-bolt cast time after modifiers equals the verified value', () => {
     // 3000 ms base (spell data) - 5 x 100 ms Bane (talents.go applyBane) = 2500 ms, no haste.
     const sim = newSim({ spec: gearless() });
@@ -372,9 +420,12 @@ describe('destructionWarlock behaviour in the Simulation', () => {
     expect(d.power.shadow).toBe(130); // Fel Armor 100 x 1.3 (Demonic Aegis 3/3)
   });
 
-  /** Scripted run: every 100 ms press the first priority step whose rule holds and whose cast is accepted. */
+  /**
+   * Scripted run at the default 28 yd: every 100 ms press the first priority step whose rule
+   * holds and whose cast is accepted.
+   */
   function scriptedRun(infiniteMana: boolean): { sim: Simulation; casts: string[] } {
-    const sim = newSim({ target: BOSS_TARGET, seed: 42, infiniteMana });
+    const sim = newSim({ target: BOSS_TARGET, seed: 42, infiniteMana, distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD });
     expect(sim.snapshot().phase).toBe('ready');
     const casts: string[] = [];
     for (let t = 0; sim.snapshot().phase !== 'ended'; t += 100) {
@@ -401,9 +452,19 @@ describe('destructionWarlock behaviour in the Simulation', () => {
 
     const infinite = scriptedRun(true);
     expect(infinite.casts).not.toContain('life-tap');
-    // Shadowburn only as the finisher: the last cast of the fight.
+    // Shadowburn only as the finisher: cast once, and the last spell whose damage lands. The APL
+    // keeps casting Shadow Bolt after it (the GCD leaves up to 2442 ms), but such a bolt cannot
+    // land before the end (cast 2431 + travel 1400 ms): no impact or direct damage after it.
     expect(infinite.casts.filter((c) => c === 'shadowburn')).toHaveLength(1);
-    expect(infinite.casts[infinite.casts.length - 1]).toBe('shadowburn');
+    const after = infinite.casts.slice(infinite.casts.indexOf('shadowburn') + 1);
+    expect(after.every((c) => c === 'shadow-bolt')).toBe(true);
+    const log = infinite.sim.log();
+    const burnAt = log.find((e) => e.type === 'cast-complete' && e.spellId === 'shadowburn')?.atMs ?? -1;
+    expect(burnAt).toBeGreaterThanOrEqual(60000 - 3900);
+    // Only the bolt completed before Shadowburn may still land (1400 ms after its cast end).
+    const boltsAfter = log.filter((e) => e.type === 'cast-complete' && e.spellId === 'shadow-bolt' && e.atMs > burnAt);
+    for (const e of boltsAfter) expect(e.atMs + 1400).toBeGreaterThan(60000);
+    expect(log.filter((e) => e.type === 'impact' && e.atMs > burnAt + 1400)).toEqual([]);
   });
 });
 

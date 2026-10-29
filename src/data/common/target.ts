@@ -14,3 +14,12 @@ export const BOSS_TARGET: TargetData = {
   // sim/encounters/register_all.go: level 73 boss stats.Armor = 7685. Irrelevant to Warlock spells (non-physical).
   armor: 7685,
 };
+
+/**
+ * Default distance from the target in yards (`SimConfig.distanceFromTarget`), so missile spells
+ * land `distance / missileSpeed` after their cast ends (engine travel.ts). Author's Naj'entus log
+ * (Warcraft Logs): Shadow Bolt landed 1.33-1.41 s after its cast ended (25 of 25 bolts, about
+ * 1.39 s); at Shadow Bolt's MissileSpeed 20 yd/s (spells.ts) that is 1.39 s x 20 yd/s = 27.8 yd,
+ * rounded to 28 (1400 ms). See docs/data-sources.md, "Part A: projectile travel".
+ */
+export const DEFAULT_DISTANCE_FROM_TARGET_YD = 28;

@@ -7,8 +7,10 @@ import type { SpellDef } from '../../../engine/types';
 // matching sim/warlock/<spell>.go registration for flags such as canCrit and the GCD.
 // See docs/data-sources.md, section "Task 12a".
 // Icons are Wowhead icon file names (cosmetic; UNVERIFIED, the UI falls back to initials).
-// Not modeled: missile travel time (damage lands at cast completion), Soul Shard costs,
-// Life Tap's health cost, partial resists differing per spell (Shadowburn is a binary spell).
+// Missile travel: `missileSpeed` (yd/s) is the spell data row's MissileSpeed; spells whose row has
+// none (Immolate, Corruption, the curses, Conflagrate, Shadowburn, Life Tap) land at cast end.
+// Not modeled: Soul Shard costs, Life Tap's health cost, partial resists differing per spell
+// (Shadowburn is a binary spell).
 
 /**
  * wowsims tbc-new sim/warlock/warlock.go `WarlockDestructionSpells`, restricted to the spells
@@ -26,7 +28,8 @@ export const DESTRUCTION_SPELL_IDS: readonly string[] = [
 export const warlockSpells: SpellDef[] = [
   {
     // ShadowBolt rank 11, SpellID 27209: Cost 420, CastTime 3000 ms, Direct 544-607, Coef 0.857
-    // (0.8569999933). shadowbolt.go: OutcomeMagicHitAndCrit.
+    // (0.8569999933), MissileSpeed 20. shadowbolt.go: OutcomeMagicHitAndCrit, damage dealt after
+    // spell.WaitTravelTime. Author's log checkpoint: lands ~1.39 s after the cast at 28 yd.
     id: 'shadow-bolt',
     name: 'Shadow Bolt',
     icon: 'spell_shadow_shadowbolt',
@@ -39,6 +42,7 @@ export const warlockSpells: SpellDef[] = [
     canMiss: true,
     canCrit: true,
     direct: { min: 544, max: 607, coeff: 0.857 },
+    missileSpeed: 20,
   },
   {
     // Immolate rank 9, SpellID 27215: Cost 445, CastTime 2000 ms, Direct 331-332, Coef 0.2.
@@ -155,7 +159,8 @@ export const warlockSpells: SpellDef[] = [
   },
   {
     // Incinerate rank 2, SpellID 32231: Cost 355, CastTime 2500 ms, Direct 444-514, Coef 0.714
-    // (0.7139999866). Not modeled: incinerate.go adds sim.Roll(111, 128) base damage while
+    // (0.7139999866), MissileSpeed 24 (rank 1, 29722, has 20; incinerate.go reads the rank's
+    // value and deals damage after spell.WaitTravelTime). Not modeled: incinerate.go adds sim.Roll(111, 128) base damage while
     // Immolate is on the target (no conditional damage in SpellDef yet).
     id: 'incinerate',
     name: 'Incinerate',
@@ -169,6 +174,7 @@ export const warlockSpells: SpellDef[] = [
     canMiss: true,
     canCrit: true,
     direct: { min: 444, max: 514, coeff: 0.714 },
+    missileSpeed: 24,
   },
   {
     // LifeTap rank 7, SpellID 27222: no mana cost, GCD 1500 ms, effect value 582.

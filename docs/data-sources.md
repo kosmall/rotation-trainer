@@ -11,7 +11,7 @@ Not in the number:
 
 - Raid buffs and consumables (no party/raid buffs, flasks, elixirs, food, oils or potions).
 - Item effects: Icon of the Silver Crescent's on-use (+155 spell damage for 20 s, 2 min cooldown) and Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown); Riding Crop has no combat effect. See Task 12b, "Not modeled".
-- Missile travel time: damage lands when the cast completes.
+- Since stage 1.5 Part A, missile travel time IS modelled (Shadow Bolt lands 1400 ms after its cast at the default 28 yd); a bolt still in flight at the end does not count. See "Part A: projectile travel".
 - Life Tap's health cost (health is not simulated; only its mana gain is).
 - Incinerate's extra base damage while Immolate is on the target (Task 12a, open question 4; Incinerate is not in the priority).
 - Curse of the Elements' -88 resistances (the engine uses a fixed level-based resist multiplier; only its x1.10 damage taken is modeled).
@@ -183,15 +183,15 @@ No Conflagrate talent in this build: the spell is defined in `spells.ts` (for th
 
 ### Priority (shadow Destruction)
 
-Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fight time left <= Shadow Bolt cast time 2500 ms, unhasted talent values throughout) > Immolate (left <= its cast time 1500 ms and the fight outlasts cast + 15 s, and Immolate is not already being cast) > Corruption (same rule, 2000 ms + 18 s) > Life Tap (mana < 399, Shadow Bolt's cost) > Shadow Bolt.
+Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fight time left <= Shadow Bolt cast time 2500 ms + its travel time 1400 ms at 28 yd = 3900 ms since Part A, unhasted talent values throughout) > Immolate (left <= its cast time 1500 ms and the fight outlasts cast + 15 s, and Immolate is neither being cast nor in flight) > Corruption (same rule, 2000 ms + 18 s) > Life Tap (mana < 399, Shadow Bolt's cost) > Shadow Bolt.
 
 | Rule | Source | Status |
 |---|---|---|
 | Curse first, assigned curse when not active | tbc-new `ui/specs/warlock/dps/apls/destruction.apl.json` group "Cast Curse"; wowsims/tbc `sim/warlock/rotations.go` | verified |
 | Curse of the Elements as the warlock's curse | tbc-new DefaultOptions assign Recklessness (raid choice); CoE chosen here as it raises the warlock's own fire and shadow damage. Curse of Doom is a real alternative: cast at the pull, its single tick lands at exactly 60 s and counts (a tick at the fight end counts, ruling R6); the bot measured about the same DPS with Doom instead of CoE (1483 vs 1486, 20 seeds, window 400). Only one curse can be up (see "Curses: one per target" below) | UNVERIFIED (choice) |
-| Shadowburn only as a finisher (Soul Shard cost) | APL "Should Cast Shadow Burn" (`remainingTime <= spellCastTime(SB) + travel`) | verified (travel time ignored; unhasted 2500 ms on purpose, see Task 12b open question 3) |
+| Shadowburn only as a finisher (Soul Shard cost) | APL "Should Cast Shadow Burn" (`remainingTime <= spellCastTime(SB) + travel`) | verified (travel included since Part A: 2500 + 1400 ms at the default 28 yd; unhasted 2500 ms on purpose, see Task 12b open question 3) |
 | Immolate refresh | APL "Should Cast Immolate" | verified |
-| Immolate and Corruption rules are false while that same spell is being cast (`dotRefreshDue`, `s.cast?.spellId !== spellId`) | Spell-queue guard, not from the wowsims APL: with a queue window the bot or player could press the DoT again during its own cast and clip the first one, because the DoT is not on the target until the cast lands. wowsims evaluates its APL only when the player is free, so it never needs this. Added in Task 13; tested in `tests/data/destruction.test.ts` | deliberate deviation from the APL |
+| Immolate and Corruption rules are false while that same spell is being cast (`dotRefreshDue`, `s.cast?.spellId !== spellId`) or in flight (`!s.inFlight.some(f => f.spellId === spellId)`, Part A) | Spell-queue guard, not from the wowsims APL: with a queue window the bot or player could press the DoT again during its own cast and clip the first one, because the DoT is not on the target until the cast lands. wowsims evaluates its APL only when the player is free, so it never needs this. Added in Task 13; the in-flight part in stage 1.5 Task 2 (the real Immolate and Corruption have no missile, so it only matters for a DoT that flies; tested with a hypothetical missile Immolate/Corruption); tested in `tests/data/destruction.test.ts` and `tests/bot/bot.test.ts` | deliberate deviation from the APL |
 | Corruption | wowsims/tbc `rotations.go` (`Rotation.Corruption && !CorruptionDot.IsActive()`); the tbc-new APL does not cast it; refresh rule copied from Immolate | UNVERIFIED |
 | Life Tap when Shadow Bolt is unaffordable | APL: Life Tap is the last action, cast only when nothing else can be | verified (threshold derived) |
 | Shadow Bolt filler | APL | verified |
@@ -348,3 +348,40 @@ The Maelstrom's Fury and Fetish of the Primal Gods have no on-use or proc effect
 2. The meta gem's Ruin term is tied to the fixed build (see above).
 3. The priority's rules use the unhasted talent cast times on purpose (Shadow Bolt 2500, Immolate 1500, Corruption 2000 ms; with gear haste they are 2431, 1458 and 1945 ms). Since ruling R20 the snapshot carries the effective cast times (`s.spells[id].castTimeMs`), and reading them was tried in the final fix wave: the DoT refresh then becomes due slightly later, sometimes just after the bot started another Shadow Bolt, so a DoT drops for up to one bolt (uptime from first to last application fell to 84% in one seed, below the bot test's 90%) and the mean DPS moved by about 4% (window 400). The unhasted values keep that margin; the finisher window is 69 ms wider than one hasted bolt. A rule that accounts for the cast in progress would be the real fix (a data decision for a later stage).
 4. Band of the Eternal Sage and Icon of the Silver Crescent would add DPS once item effects arrive (stage 2a): the procs fit a set-style hook with a hidden internal-cooldown aura; the on-use trinket needs a castable item.
+
+## Part A: projectile travel
+
+Stage 1.5, Tasks 1-2. Files: `src/engine/travel.ts`, `src/engine/sim.ts` (Task 1), `src/data/common/target.ts`, `src/data/classes/warlock/spells.ts`, `src/data/classes/warlock/destruction.ts`, `src/ui/useSimulation.ts` (Task 2). Paths in wowsims/tbc-new @ `91f869a`; `SD` = `sim/warlock/spell_data_auto_gen.go`.
+
+### Numbers
+
+| Value | Number | Source | Status |
+|---|---|---|---|
+| Travel time | `round(distance / missileSpeed x 1000)` ms | `sim/core/spell.go` `TravelTime()` = `DistanceFromTarget / MissileSpeed` | verified |
+| Shadow Bolt `missileSpeed` | 20 yd/s | `SD` ShadowBolt rank 11 (27209) `MissileSpeed: 20`; `shadowbolt.go` deals the damage in `spell.WaitTravelTime` | verified |
+| Incinerate `missileSpeed` | 24 yd/s | `SD` Incinerate rank 2 (32231) `MissileSpeed: 24` (rank 1, 29722, has 20); `incinerate.go` reads the rank's value | verified (source data; not checked in a log) |
+| No missile | Immolate, Corruption, Curse of Agony/Doom/the Elements, Conflagrate, Shadowburn, Life Tap | their `SD` rows have no `MissileSpeed` (the spec's "Immolate to check" is resolved: none); they resolve at cast end as in stage 1 | verified |
+| `DEFAULT_DISTANCE_FROM_TARGET_YD` | 28 yd | author's Naj'entus log (Warcraft Logs): 25 of 25 Shadow Bolts landed 1.33-1.41 s after the cast ended, about 1.39 s; 1.39 s x 20 yd/s = 27.8 yd, rounded to 28 (1400 ms) | log checkpoint |
+| Shadow Bolt flight at 28 yd | 1400 ms | 28 / 20 | derived |
+| Incinerate flight at 28 yd | 1167 ms | 28 / 24 | derived |
+| Shadowburn finisher window | Shadow Bolt cast + travel = 2500 + 1400 = 3900 ms | tbc-new `ui/specs/warlock/dps/apls/destruction.apl.json` "Should Cast Shadow Burn": `remainingTime <= spellCastTime(27209) + spellTravelTime(27209)` | verified (unhasted cast time on purpose, Task 12b open question 3) |
+
+The engine default distance stays 0 (no travel) so engine fixtures are unaffected; the data layer passes 28 yd: `useSimulation` and the bot tests build every real-spec `Simulation` with `distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD`. Stage 1 data tests that check timings at cast end keep distance 0 explicitly. The finisher window uses the default distance until Task 3 makes `buildPriority` take the distance.
+
+### Model
+
+At cast end the cost is spent, the cooldown starts and `cast-complete` is logged (unchanged). A missile spell is then listed in `snapshot().inFlight` and resolves at impact (`impact` log entry first): hit/crit roll, damage, consumption of target-aura charges (Improved Shadow Bolt), aura application and hooks (the Improved Shadow Bolt proc). An impact at exactly the fight length counts; a later one is discarded. `cancelCast` does not stop a launched missile. The priority does not press a DoT again while its first cast is in flight.
+
+### Known difference from wowsims (ruling S4)
+
+The trainer evaluates everything at IMPACT, with the stats, modifiers and target auras of that moment (the design spec's model). wowsims tbc-new does not: `shadowbolt.go` (likewise `incinerate.go`, `shadowfury.go`) calls `spell.CalcDamage` at cast end, so the hit/crit roll, spell power, attacker multipliers and target multipliers (e.g. whether Improved Shadow Bolt's x1.2 is up, `core/spell_result.go` `applyTargetModifiers`) are fixed when the cast ends; only `DealDamage` waits for `spell.WaitTravelTime`. The charge is spent at impact in both (`core/debuffs.go` `ImprovedShadowBoltAura` `OnSpellHitTaken` -> `RemoveStack`), and the ISB proc is applied at impact in both. An earlier plan sentence said impact-time evaluation is "as wowsims does"; that was wrong (corrected in the plan).
+
+The difference is only visible when a buff or debuff starts or ends during a missile's ~1.4 s flight: e.g. Improved Shadow Bolt's last charge spent, or its 12 s duration running out, between a bolt's cast end and its impact, or a self buff (once Part C adds them) starting or ending mid-flight. That is a few boundaries per fight; the estimated effect is about 0.1% DPS. It also moves the RNG draws from cast end to impact, so a seed plays a different fight than in stage 1 (intended). Reversible inside `launchMissile`/`resolveSpell` if wowsims parity is wanted.
+
+### Spell queue and missiles
+
+`queuePressRejection` accepts a queued spell that requires a target aura while the spell being cast applies it, but does not look at missiles already in flight: such a queued spell is dropped at fire time (`missing-aura`) if the missile has not landed. For the warlock data this never matters: the only missile spells (Shadow Bolt, Incinerate) apply no aura through `applyAura` (Shadow Bolt's Improved Shadow Bolt comes from a hook, and nothing requires it), and the one aura requirement (Conflagrate needs Immolate) involves a spell without a missile; Conflagrate is also unbound (ruling R17).
+
+### Effect on the bot (stage 1.5 Task 2)
+
+Only the end of the fight changes: a Shadow Bolt counts only if it lands by 60 s, so the finisher window grows from 2500 to 3900 ms and the expected DPS falls from 1484 to 1448 (-2.4%, 0.57 Shadow Bolts fewer; derivation in `tests/bot/bot.test.ts`). Measured over seeds 1-10: 1425 (window 400) and 1428 (window 0), stage 1: 1483 and 1487. In this 60 s fight the bot's timeline barely varies between seeds and Shadowburn comes 2.9-3.6 s before the end (mean 3.2 s vs the 2.7 s average of the estimate), which explains about 14 DPS of the gap; the rest is seed noise (mean standard deviation about 41 DPS). The band stays +-12% around the re-derived value: [1274, 1622].

@@ -61,8 +61,11 @@ describe('GameView', () => {
 
     advance(3000);
     expect(castBar()).toBeNull();
-    expect(totalDamage()).toBeGreaterThan(0);
+    // At the default 28 yd the bolt (cast ends 2431) is still in flight until 3831.
+    expect(totalDamage()).toBe(0);
     expect(screen.getByLabelText('Elapsed').textContent).toBe('3.0 / 60s');
+    advance(1000);
+    expect(totalDamage()).toBeGreaterThan(0);
   });
 
   it('Esc during a cast removes the cast bar and logs cast-cancel', () => {

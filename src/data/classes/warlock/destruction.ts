@@ -1,4 +1,5 @@
 import { buildSetup } from '../../../engine/gear';
+import { projectileTravelMs } from '../../../engine/travel';
 import type {
   EquippedItem,
   RawStats,
@@ -6,6 +7,7 @@ import type {
   SpellModifier,
   StatMultipliers,
 } from '../../../engine/types';
+import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../common/target';
 import type { PriorityStep, SpecData } from '../../types';
 import { warlockAuras } from './auras';
 import { enchants, gems, items } from './items';
@@ -249,6 +251,8 @@ function auraDurationMs(id: string): number {
 }
 
 const SHADOW_BOLT_CAST_MS = talentCastTimeMs('shadow-bolt'); // 2500
+/** Shadow Bolt's flight at the default 28 yd (20 yd/s): 1400 ms. */
+const SHADOW_BOLT_TRAVEL_MS = projectileTravelMs(spellDef('shadow-bolt').missileSpeed, DEFAULT_DISTANCE_FROM_TARGET_YD);
 /** Shadow Bolt's cost after Cataclysm: below it the filler cannot be cast. */
 const SHADOW_BOLT_COST = spellDef('shadow-bolt').manaCost * (1 - 0.01 * r('cataclysm')); // 399
 
@@ -259,15 +263,19 @@ const targetAuraMs = (s: SimSnapshot, id: string) => s.targetAuras[id]?.remainin
  * tbc-new ui/specs/warlock/dps/apls/destruction.apl.json "Should Cast Immolate": refresh when
  * the DoT's remaining time <= the spell's cast time and the fight lasts at least cast time +
  * DoT duration longer. Reused for Corruption (UNVERIFIED: the tbc-new APL does not cast it).
- * Not while that spell is already being cast: the snapshot does not show the DoT until the cast
- * lands, and a press during the cast (spell queue window) would queue a second, clipping cast.
- * wowsims evaluates its APL only when the player is free, so it never meets this case.
+ * Not while that spell is already being cast, nor while it is in flight (Part A: a missile
+ * spell applies its DoT at impact): the snapshot does not show the DoT until the spell lands,
+ * and a press then (or during the cast, with the spell queue window) would start a second,
+ * clipping cast. wowsims evaluates its APL only when the player is free, so it never meets the
+ * cast case. The real Immolate and Corruption have no missile (spells.ts), so the in-flight
+ * guard only matters for a DoT that flies (tested with a hypothetical missile Immolate).
  */
 function dotRefreshDue(spellId: string, auraId: string) {
   const castMs = talentCastTimeMs(spellId);
   const durationMs = auraDurationMs(auraId);
   return (s: SimSnapshot) =>
     s.cast?.spellId !== spellId &&
+    !s.inFlight.some((f) => f.spellId === spellId) &&
     targetAuraMs(s, auraId) <= castMs &&
     remainingFightMs(s) >= castMs + durationMs;
 }
@@ -291,11 +299,13 @@ const priority: PriorityStep[] = [
     when: (s) => s.targetAuras['curse-of-the-elements'] === undefined,
   },
   {
-    // APL "Should Cast Shadow Burn": remaining fight time <= Shadow Bolt cast time (+ travel).
+    // APL "Should Cast Shadow Burn": remaining fight time <= spellCastTime(Shadow Bolt) +
+    // spellTravelTime(Shadow Bolt): a bolt started later would land after the end. Unhasted
+    // cast time 2500 (see talentCastTimeMs) + 1400 ms travel at the default 28 yd = 3900 ms.
     spellId: 'shadowburn',
     label: 'Shadowburn (finisher)',
-    hint: 'In the last Shadow Bolt cast time of the fight, finish with instant Shadowburn.',
-    when: (s) => remainingFightMs(s) <= SHADOW_BOLT_CAST_MS,
+    hint: 'When a Shadow Bolt started now would land after the end (cast + flight time), finish with instant Shadowburn.',
+    when: (s) => remainingFightMs(s) <= SHADOW_BOLT_CAST_MS + SHADOW_BOLT_TRAVEL_MS,
   },
   {
     spellId: 'immolate',

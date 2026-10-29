@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
-import { BOSS_TARGET } from '../../src/data/common/target';
-import type { PriorityStep } from '../../src/data/types';
+import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
+import type { PriorityStep, SpecData } from '../../src/data/types';
 import { Simulation } from '../../src/engine/sim';
 import type { CastResult, LogEvent } from '../../src/engine/types';
 import { TEST_TARGET, makeTestSpec } from '../fixtures/testSpec';
@@ -11,15 +11,43 @@ import { TEST_TARGET, makeTestSpec } from '../fixtures/testSpec';
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const WINDOWS = [SPELL_QUEUE_WINDOW_MS, 0];
 
-/** The Destruction Simulation exactly as the UI builds it (spell queue window from ratings.ts). */
-function destructionSim(seed: number, opts: { infiniteMana?: boolean; spellQueueWindowMs?: number } = {}) {
+/**
+ * The Destruction Simulation exactly as the UI builds it (spell queue window from ratings.ts,
+ * default distance 28 yd).
+ */
+function destructionSim(
+  seed: number,
+  opts: { infiniteMana?: boolean; spellQueueWindowMs?: number; spec?: SpecData } = {},
+) {
   return new Simulation({
-    spec: destructionWarlock,
+    spec: opts.spec ?? destructionWarlock,
     target: BOSS_TARGET,
     seed,
     spellQueueWindowMs: opts.spellQueueWindowMs ?? SPELL_QUEUE_WINDOW_MS,
     infiniteMana: opts.infiniteMana ?? false,
+    distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD,
   });
+}
+
+/**
+ * Each cast of `spellId` resolves (lands: hit or miss) before the next one starts: the DoT is
+ * cast at most once per refresh. Returns the number of completed casts.
+ */
+function expectOneCastPerRefresh(log: readonly LogEvent[], spellId: string, auraId: string): number {
+  const starts = log.filter((e) => e.type === 'cast-start' && e.spellId === spellId).map((e) => e.atMs);
+  const completes = completed(log, spellId).map((e) => e.atMs);
+  const resolved = log
+    .filter((e) => e.spellId === spellId && ((e.type === 'aura-apply' && e.auraId === auraId) || e.type === 'miss'))
+    .map((e) => e.atMs);
+  // Every completed cast resolved once (cast-complete -> aura-apply or miss), except a missile
+  // still in flight at the end.
+  expect(resolved.length).toBeGreaterThanOrEqual(completes.length - 1);
+  expect(resolved.length).toBeLessThanOrEqual(completes.length);
+  // No cast starts before the previous one has resolved.
+  starts.forEach((t, i) => {
+    if (i > 0) expect(resolved[i - 1], `${spellId} cast ${i + 1} at ${t}`).toBeLessThanOrEqual(t);
+  });
+  return completes.length;
 }
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -162,6 +190,31 @@ describe('runBot', () => {
     expect(c.log()).not.toEqual(a.log());
   });
 
+  it('the bot does not press Immolate or Corruption again while the first is in flight', () => {
+    // Real Immolate and Corruption have no missile (they land at cast end); the variant gives
+    // both a hypothetical 20 yd/s missile (1400 ms at 28 yd) so the in-flight guard is exercised.
+    const missileDots: SpecData = {
+      ...destructionWarlock,
+      spells: destructionWarlock.spells.map((s) =>
+        s.id === 'immolate' || s.id === 'corruption' ? { ...s, missileSpeed: 20 } : s,
+      ),
+    };
+    for (const spec of [destructionWarlock, missileDots]) {
+      for (const spellQueueWindowMs of WINDOWS) {
+        for (const seed of SEEDS.slice(0, 5)) {
+          const sim = destructionSim(seed, { spellQueueWindowMs, spec });
+          runBot(sim, destructionWarlock.priority);
+          const log = sim.log();
+          expect(expectOneCastPerRefresh(log, 'immolate', 'immolate')).toBeGreaterThanOrEqual(3);
+          expect(expectOneCastPerRefresh(log, 'corruption', 'corruption')).toBeGreaterThanOrEqual(2);
+          if (spec === missileDots) {
+            expect(log.filter((e) => e.type === 'impact' && e.spellId === 'immolate').length).toBeGreaterThanOrEqual(3);
+          }
+        }
+      }
+    }
+  });
+
   /*
    * Expected DPS of the priority with real mana, from the verified numbers (docs/data-sources.md,
    * sections "Task 3", "Task 12a" and "Task 12b"; gear totals from "Default gear totals"):
@@ -179,23 +232,34 @@ describe('runBot', () => {
    *   DoT (615 + 0.65 x 1247) x 1.06 x 1.10 x 0.955 x 0.9854 hit = 1564 -> 2414 per cast.
    * Corruption: (900 + 0.936 x 1300) x 1.15 x 1.10 x 0.955 x 1.152 ISB x 0.9854 = 2903 per cast.
    * Shadowburn: (631 + 0.429 x 1300) x 1.15 x 1.10 x 0.955 x 1.3141 x 1.152 = 2170, once.
+   * Travel (Part A, 28 yd): Shadow Bolt lands 1400 ms after its cast ends (20 yd/s); Immolate,
+   *   Corruption, CoE, Shadowburn and Life Tap have no missile. Only the end of the fight
+   *   changes: a bolt counts only if it lands by 60 s, so the finisher rule is now "fight time
+   *   left <= Shadow Bolt cast + travel" = 2500 + 1400 = 3900 ms (unhasted cast, as before).
    * Timeline (60 s): CoE 1 GCD (1458); Immolate 3 casts (the APL rule needs cast + 15 s of fight
    *   left: refreshes near 17 s and 32 s, none near 47 s) = 4374; Corruption 2 or 3 casts (needs
    *   2 + 18 s left; the third is borderline near 40 s), take 2.5 = 4862; the finisher window
-   *   (last Shadow Bolt decision point within 2500 ms of the end) about 1285 on average; mana:
-   *   9429 max, no mp5 and spirit regen only outside the five-second rule (never while
+   *   (Shadowburn at the first Shadow Bolt decision point within 3900 ms of the end, one bolt
+   *   (2431) apart: uniform in (1469, 3900], mean 2684.5; stage 1, without travel: 2500 ms window,
+   *   mean 1285) = 2684.5 lost (Shadowburn's GCD plus a bolt that would land after the end);
+   *   mana: 9429 max, no mp5 and spirit regen only outside the five-second rule (never while
    *   chain-casting); the other spells cost CoE 260 + 3 x 422.75 + 2.5 x 370 + 489.25 = 2942.5,
    *   leaving (9429 - 2942.5) / 399 = 16.3 Shadow Bolts' worth of mana. Without a tap the
-   *   timeline would hold 19.75 bolts (spend 10823); with one tap (582 + 0.8 x 1300 = 1622
-   *   mana, one GCD = 1458) it holds 19.15 (spend 2942.5 + 19.15 x 399 = 10583, short by
-   *   1154 < 1622), so 1 Life Tap.
-   *   Shadow Bolts: (60000 - 1458 - 4374 - 4862 - 1285 - 1458) / 2431 = 19.15.
-   * Total: 19.15 x 3780 + 3 x 2414 + 2.5 x 2903 + 2170 = 72387 + 7242 + 7258 + 2170 = 89057
-   *   -> 1484 DPS. Band: +-12%, i.e. [1306, 1662]. The mean over 10 seeds must fall inside: crits,
-   *   ISB and misses give a per-seed standard deviation of about 130 DPS (measured), so about 41
-   *   (2.8%) for the mean. Measured (Task 13 report): 1483 (window 400), 1487 (window 0).
+   *   timeline would hold 19.18 bolts (spend 10595); with one tap (582 + 0.8 x 1300 = 1622
+   *   mana, one GCD = 1458) it holds 18.58 (spend 2942.5 + 18.58 x 399 = 10356, short by
+   *   927 < 1622), so 1 Life Tap.
+   *   Shadow Bolts: (60000 - 1458 - 4374 - 4862 - 2684.5 - 1458) / 2431 = 18.58 (stage 1: 19.15).
+   * Total: 18.58 x 3780 + 3 x 2414 + 2.5 x 2903 + 2170 = 70225 + 7242 + 7258 + 2170 = 86895
+   *   -> 1448 DPS (stage 1: 1484, i.e. -2.4%: 0.57 bolts fewer). Band: +-12%, i.e. [1274, 1622].
+   *   The mean over 10 seeds must fall inside: crits, ISB and misses give a per-seed standard
+   *   deviation of about 130 DPS (measured), so about 41 (2.8%) for the mean.
+   *   Measured (stage 1.5 Task 2, 28 yd): 1425 (window 400), 1428 (window 0), -1.6% from the
+   *   estimate; stage 1 (Task 13, no travel): 1483 and 1487. Part of the gap: the bot's timeline
+   *   barely varies between seeds, and in this 60 s fight Shadowburn comes at 2.9 to 3.6 s left
+   *   (mean 3.2 s, not 2.7 s), about 0.2 bolts (14 DPS) more lost; the rest is seed noise (the
+   *   RNG is now drawn at impact, so each seed plays a different fight than in stage 1).
    */
-  const EXPECTED_DPS = 1484;
+  const EXPECTED_DPS = 1448;
   const DPS_LO = Math.round(EXPECTED_DPS * 0.88);
   const DPS_HI = Math.round(EXPECTED_DPS * 1.12);
 
@@ -264,14 +328,21 @@ describe('runBot', () => {
           expect(u.upMs / (u.to - u.from)).toBeGreaterThan(0.9);
         }
 
-        // Shadowburn: at most once, as the last completed spell, in the final 2500 ms.
+        // Immolate and Corruption are cast at most once per refresh (none pressed in flight).
+        expectOneCastPerRefresh(log, 'immolate', 'immolate');
+        expectOneCastPerRefresh(log, 'corruption', 'corruption');
+
+        // Shadowburn: once, as the last completed spell, in the final Shadow Bolt cast + travel
+        // (2500 + 1400 ms). The bolt completed just before it still lands 1400 ms later; the
+        // bolt the bot starts after it is cut off by the end. Every bolt completed by
+        // durationMs - 1400 lands, no other does.
         const casts = completed(log);
         const burns = completed(log, 'shadowburn');
-        expect(burns.length).toBeLessThanOrEqual(1);
-        if (burns.length === 1) {
-          expect(casts.at(-1)?.spellId).toBe('shadowburn');
-          expect(burns[0]?.atMs).toBeGreaterThanOrEqual(end.durationMs - 2500);
-        }
+        expect(burns).toHaveLength(1);
+        expect(casts.at(-1)?.spellId).toBe('shadowburn');
+        expect(burns[0]?.atMs).toBeGreaterThanOrEqual(end.durationMs - (2500 + 1400));
+        const boltsLanding = completed(log, 'shadow-bolt').filter((e) => e.atMs + 1400 <= end.durationMs);
+        expect(log.filter((e) => e.type === 'impact')).toHaveLength(boltsLanding.length);
       }
     });
   }

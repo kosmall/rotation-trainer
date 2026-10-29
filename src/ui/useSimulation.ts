@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SPELL_QUEUE_WINDOW_MS } from '../data/common/ratings';
-import { BOSS_TARGET } from '../data/common/target';
+import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
 import type { SpecData } from '../data/types';
 import { Simulation } from '../engine/sim';
 import type { CastResult, SimSnapshot } from '../engine/types';
@@ -21,9 +21,15 @@ function freshSeed(): number {
   return (Date.now() + Math.imul(seedCounter, 0x9e3779b9)) >>> 0;
 }
 
-/** The fight exactly as the bot builds it (src/bot tests): boss target, default spell queue window. */
+/** The fight exactly as the bot tests build it: boss target, default spell queue window, default 28 yd. */
 function createSimulation(spec: SpecData): Simulation {
-  return new Simulation({ spec, target: BOSS_TARGET, seed: freshSeed(), spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS });
+  return new Simulation({
+    spec,
+    target: BOSS_TARGET,
+    seed: freshSeed(),
+    spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
+    distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD,
+  });
 }
 
 /**
