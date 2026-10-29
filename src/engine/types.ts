@@ -53,3 +53,5 @@ export interface TargetData {
   levelResistMult: number;
   armor: number;
 }
+
+export type HitOutcome = 'miss' | 'hit' | 'crit';
