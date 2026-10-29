@@ -276,6 +276,14 @@ export interface SimSnapshot {
   mana: number;
   maxMana: number;
   cooldownRemainingMs: Record<string, number>;
+  /**
+   * Per spell id, the values a cast started now would use: after talents, gear, set bonuses,
+   * active self auras and haste, as the engine computes them (`castTimeMs` rounded to whole ms,
+   * 0 = instant; `manaCost` unrounded, 0 with infiniteMana).
+   */
+  spells: Record<string, { manaCost: number; castTimeMs: number }>;
+  /** The GCD an on-GCD spell started now would trigger (hasted, at least MIN_GCD_MS). */
+  gcdMs: number;
   /** Active target auras, without `hidden` ones. */
   targetAuras: Record<string, AuraView>;
   /** Active self auras, without `hidden` ones. */

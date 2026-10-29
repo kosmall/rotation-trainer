@@ -255,7 +255,11 @@ export class Simulation {
 
   snapshot(): SimSnapshot {
     const cooldownRemainingMs: Record<string, number> = {};
-    for (const id of this.spells.keys()) cooldownRemainingMs[id] = this.cooldownRemaining(id);
+    const spells: SimSnapshot['spells'] = {};
+    for (const [id, spell] of this.spells) {
+      cooldownRemainingMs[id] = this.cooldownRemaining(id);
+      spells[id] = { manaCost: this.manaCost(spell), castTimeMs: this.castTimeMs(spell) };
+    }
     return {
       nowMs: this.nowMs,
       phase: this.phase,
@@ -267,6 +271,8 @@ export class Simulation {
       mana: this.mana,
       maxMana: this.stats.maxMana,
       cooldownRemainingMs,
+      spells,
+      gcdMs: this.gcdMs(),
       targetAuras: this.visibleViews(this.targetAuras),
       selfAuras: this.visibleViews(this.selfAuras),
       damageTotal: this.damageTotal,
