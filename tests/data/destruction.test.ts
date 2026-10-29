@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HASTE_RATING_PER_PCT } from '../../src/data/common/ratings';
 import { BOSS_TARGET } from '../../src/data/common/target';
 import { warlockAuras } from '../../src/data/classes/warlock/auras';
 import {
@@ -34,11 +35,29 @@ function newSim(p: { spec?: SpecData; target?: TargetData; infiniteMana?: boolea
   });
 }
 
-/** The spec with every Shadow Bolt forced to crit. */
-function alwaysCritShadowBolt(): SpecData {
+/**
+ * The spec without gear (Task 12a view: base stats, race and talent multipliers, no items, set
+ * bonuses or meta gem), so talent-only numbers such as the 2500 ms Shadow Bolt are not hasted.
+ */
+function gearless(): SpecData {
   return {
     ...destructionWarlock,
-    modifiers: [...destructionWarlock.modifiers, { spellIds: ['shadow-bolt'], critPctDelta: 100 }],
+    sets: [],
+    setup: {
+      stats: destructionBaseStats,
+      setPieces: {},
+      modifiers: [],
+      statMultipliers: destructionWarlock.setup.statMultipliers,
+    },
+  };
+}
+
+/** The gearless spec with every Shadow Bolt forced to crit. */
+function alwaysCritShadowBolt(): SpecData {
+  const base = gearless();
+  return {
+    ...base,
+    modifiers: [...base.modifiers, { spellIds: ['shadow-bolt'], critPctDelta: 100 }],
   };
 }
 
@@ -221,9 +240,15 @@ describe('talent translation (0/21/40, wowsims tbc-new sim/warlock/talents.go)',
 describe('destructionWarlock behaviour in the Simulation', () => {
   it('shadow-bolt cast time after modifiers equals the verified value', () => {
     // 3000 ms base (spell data) - 5 x 100 ms Bane (talents.go applyBane) = 2500 ms, no haste.
-    const sim = newSim();
+    const sim = newSim({ spec: gearless() });
     expect(sim.cast('shadow-bolt')).toEqual({ ok: true });
     expect(sim.snapshot().cast).toEqual({ spellId: 'shadow-bolt', startMs: 0, endMs: 2500 });
+    // With the default gear: 45 haste rating (Task 12b) -> 2500 / (1 + 45 / 15.77 / 100) = 2431 ms.
+    const geared = newSim();
+    geared.cast('shadow-bolt');
+    const hasted = Math.round(2500 / (1 + 45 / HASTE_RATING_PER_PCT / 100));
+    expect(hasted).toBe(2431);
+    expect(geared.snapshot().cast).toEqual({ spellId: 'shadow-bolt', startMs: 0, endMs: hasted });
   });
 
   it('shadow-bolt costs 420 x 0.95 (Cataclysm 5/5) = 399 mana', () => {
@@ -252,12 +277,12 @@ describe('destructionWarlock behaviour in the Simulation', () => {
     const lifeTap = spell('life-tap');
     expect(lifeTap.manaCost).toBe(0);
     expect(lifeTap.gainMana).toEqual({ amount: 582, coeff: 0.8 });
-    const sim = newSim();
+    const sim = newSim({ spec: gearless() });
     sim.cast('shadow-bolt');
     sim.advanceTo(2500);
     const before = sim.snapshot().mana;
     expect(sim.cast('life-tap')).toEqual({ ok: true });
-    // No spell power in the 12a setup apart from Fel Armor (130): 582 + 0.8 * 130 = 686, capped at maxMana.
+    // Gearless: no spell power apart from Fel Armor (130): 582 + 0.8 * 130 = 686, capped at maxMana.
     const expected = Math.min(sim.snapshot().maxMana, before + 582 + 0.8 * 130);
     expect(sim.snapshot().mana).toBeCloseTo(expected, 9);
     expect(sim.snapshot().mana).toBeGreaterThan(before);
@@ -318,9 +343,9 @@ describe('destructionWarlock behaviour in the Simulation', () => {
 
   it('setup: level 70 Gnome Warlock base stats, Expansive Mind, Fel Intellect and Demonic Embrace', () => {
     expect(destructionBaseStats).toMatchObject({ intellect: 136, spirit: 139, baseMana: 2615 });
-    expect(destructionWarlock.setup.stats).toEqual(destructionBaseStats);
     expect(destructionWarlock.setup.statMultipliers).toEqual({ intellect: 1.05, spirit: 0.95, maxMana: 1.03 });
-    const d = computeStats(destructionWarlock.setup, destructionWarlock.statBonuses);
+    // Gearless; the default gear totals are pinned in tests/data/gear.test.ts.
+    const d = computeStats(gearless().setup, destructionWarlock.statBonuses);
     // (2615 + 15 * 136 * 1.05 - 280) * 1.03
     expect(d.maxMana).toBeCloseTo((2615 + 15 * 136 * 1.05 - 280) * 1.03, 9);
     expect(d.power.shadow).toBe(130); // Fel Armor 100 x 1.3 (Demonic Aegis 3/3)

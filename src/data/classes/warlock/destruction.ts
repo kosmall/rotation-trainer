@@ -1,13 +1,22 @@
 import { buildSetup } from '../../../engine/gear';
-import type { RawStats, SimSnapshot, SpellModifier, StatMultipliers } from '../../../engine/types';
+import type {
+  EquippedItem,
+  RawStats,
+  SimSnapshot,
+  SpellModifier,
+  StatMultipliers,
+} from '../../../engine/types';
 import type { PriorityStep, SpecData } from '../../types';
 import { warlockAuras } from './auras';
-import { warlockSpells } from './spells';
+import { enchants, gems, items } from './items';
+import { warlockSets } from './sets';
+import { DESTRUCTION_SPELL_IDS, warlockSpells } from './spells';
 
 // Destruction Warlock (Shadow Bolt build) for stage 1: the author's own character
 // (docs/samples/wowsimsexporter-destruction-warlock.json: Gnome, level 70).
 // Source unless noted: github.com/wowsims/tbc-new master @ 91f869a. See docs/data-sources.md,
-// section "Task 12a", for every number, the talent translation and what is not modeled.
+// sections "Task 12a" and "Task 12b", for every number, the talent translation, the gear and what is
+// not modeled.
 
 // ---------------------------------------------------------------------------
 // Talents
@@ -77,7 +86,7 @@ const rank = talentRanks(destructionTalentString);
 const r = (name: string): number => rank[name] ?? 0;
 
 /** wowsims warlock.go WarlockDestructionSpells, restricted to the spells defined in spells.ts. */
-const DESTRUCTION_SPELLS = ['shadow-bolt', 'immolate', 'incinerate', 'conflagrate', 'shadowburn'];
+const DESTRUCTION_SPELLS = [...DESTRUCTION_SPELL_IDS];
 
 /**
  * The talent build as spell modifiers. Each entry cites wowsims tbc-new
@@ -164,13 +173,43 @@ export const destructionBaseStats: RawStats = {
   mp5: 0,
 };
 
-// Task 12b replaces `equipped: []` and the empty tables with the author's gear.
+// ---------------------------------------------------------------------------
+// Gear (Task 12b)
+// ---------------------------------------------------------------------------
+
+/**
+ * The author's equipped gear: `gear.items` of docs/samples/wowsimsexporter-destruction-warlock.json,
+ * copied verbatim in slot order (head, neck, shoulder, back, chest, wrist, hands, waist, legs,
+ * feet, finger x2, trinket x2, main hand, off hand, ranged). tests/data/gear.test.ts asserts it
+ * equals the file. Item, gem and enchant values: items.ts; set bonuses: sets.ts.
+ */
+export const destructionEquipped: EquippedItem[] = [
+  { enchant: 3002, gems: [34220, 32218], id: 31051 },
+  { id: 32349, gems: [] },
+  { enchant: 2995, gems: [32215, 32218], id: 31054 },
+  { enchant: 2621, gems: [], id: 32590 },
+  { enchant: 2661, gems: [], id: 30913 },
+  { enchant: 2650, gems: [], id: 32586 },
+  { enchant: 2937, gems: [32196], id: 31050 },
+  { id: 30038, gems: [24056, 32207] },
+  { enchant: 2748, gems: [28123], id: 31053 },
+  { enchant: 2649, gems: [28118, 33133], id: 28517 },
+  { enchant: 2928, gems: [], id: 29305 },
+  { enchant: 2928, gems: [], id: 32247 },
+  { id: 25653, gems: [] },
+  { id: 29370, gems: [] },
+  { enchant: 2669, gems: [], id: 32237 },
+  { id: 33334, gems: [] },
+  { id: 29982, gems: [] },
+];
+
+// setPieces (4 x Malefic Raiment) and the meta gem's modifiers come from buildSetup.
 const { setup: gearSetup } = buildSetup({
   baseStats: destructionBaseStats,
-  equipped: [],
-  items: {},
-  gems: {},
-  enchants: {},
+  equipped: destructionEquipped,
+  items,
+  gems,
+  enchants,
 });
 
 // ---------------------------------------------------------------------------
@@ -282,7 +321,8 @@ export const destructionWarlock: SpecData = {
   auras: warlockAuras,
   modifiers: talentModifiers,
   statBonuses: talentStatBonuses,
-  sets: [],
+  sets: warlockSets,
+  // buildSetup does not carry statMultipliers: Expansive Mind etc. then scale the gear's stats too.
   setup: { ...gearSetup, statMultipliers: destructionStatMultipliers },
   priority,
   // Action bar slots 1-9, 0, -, =.

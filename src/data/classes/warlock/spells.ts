@@ -10,6 +10,19 @@ import type { SpellDef } from '../../../engine/types';
 // Not modeled: missile travel time (damage lands at cast completion), Soul Shard costs,
 // Life Tap's health cost, partial resists differing per spell (Shadowburn is a binary spell).
 
+/**
+ * wowsims tbc-new sim/warlock/warlock.go `WarlockDestructionSpells`, restricted to the spells
+ * defined below: the spells Cataclysm, Devastation and Ruin modify (destruction.ts) and the
+ * meta gem's Ruin interaction applies to (items.ts).
+ */
+export const DESTRUCTION_SPELL_IDS: readonly string[] = [
+  'shadow-bolt',
+  'immolate',
+  'incinerate',
+  'conflagrate',
+  'shadowburn',
+];
+
 export const warlockSpells: SpellDef[] = [
   {
     // ShadowBolt rank 11, SpellID 27209: Cost 420, CastTime 3000 ms, Direct 544-607, Coef 0.857
