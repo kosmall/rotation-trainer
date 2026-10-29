@@ -9,7 +9,8 @@ The trainer's DPS is approximate: it scores the rotation, not the whole raid set
 
 Not in the number:
 
-- Raid buffs and consumables unless enabled in the setup (stage 1.5 Part C, all off by default): no party/raid buffs, flasks, elixirs, food, oils, potions, Heroism or debuffs in the default run.
+- Raid buffs and consumables unless enabled in the setup (stage 1.5 Part C, all off by default): no party/raid buffs, flasks, elixirs, food, oils, potions, Heroism or debuffs in the default run. The "Raid as in my log" preset enables an approximation of the author's raid, several of whose buffs are guesses (see "Part C: setup rules and calibration").
+- Super Mana Potion and Dark Rune (mana the player uses at a moment of their choice) are not in the setup, and Improved Divine Spirit's spell power (10% of spirit) is not modelled (see "Part C: raid, party and individual buffs").
 - Item effects unless enabled in the setup: Icon of the Silver Crescent's on-use (+155 spell damage for 20 s) and Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown) are modelled since stage 1.5 Task 8 as optional setup entries, off by default (see "Part C: cooldowns and item effects"); Riding Crop has no combat effect.
 - Since stage 1.5 Part A, missile travel time IS modelled (Shadow Bolt lands 1400 ms after its cast at the default 28 yd); a bolt still in flight at the end does not count. See "Part A: projectile travel".
 - Life Tap's health cost (health is not simulated; only its mana gain is).
@@ -20,6 +21,7 @@ Assumed, not measured from the author's play:
 
 - The Succubus is sacrificed (Demonic Sacrifice: +15% shadow damage) and Fel Armor (+130 spell power) is up all fight, both from the start. Since stage 1.5 both are warlock options (`buildDestructionWarlock`, default on); see "Part C: consumables, debuffs and warlock options".
 - The spell queue window is 400 ms (wowsims' setting; UNVERIFIED for the Anniversary client).
+- There are no range checks: Shadowburn (20 yd, 24 yd with Destructive Reach) is cast at the default 28 yd (see "Effect on the bot (stage 1.5 Task 2)").
 
 Not applicable on a training dummy:
 
@@ -526,3 +528,102 @@ Decisions:
 - **Which spells proc the Band:** `BAND_PROC_SPELL_IDS` is derived from the warlock data: spells with a direct part or applying a DoT (Shadow Bolt, Immolate, Corruption, Curse of Agony, Curse of Doom, Conflagrate, Shadowburn, Incinerate). Life Tap and Curse of the Elements never roll: the tooltip says "offensive spells ... on hit", Life Tap does not target the enemy and Curse of the Elements deals no damage. Deviation from wowsims: there the proc rolls at cast end (`CallbackOnCastComplete`) for any `ProcMaskSpellDamage` cast, misses and Life Tap included (`lifetap.go` has `ProcMaskSpellDamage`); the trainer rolls when the spell lands (ruling S4) and only for a landed damaging spell, as the tooltip reads. A miss chance of about 1.5% (default gear, 15.54% hit against 17%) and few Life Taps in a 60 s fight make the difference small; it is mostly a different moment (impact instead of cast end) and RNG order.
 - **ICD from the proc.** wowsims starts the ICD when it procs (`icd.Use` right before the handler); the trainer applies the ICD aura in the same step. The buff lasts 10 s, so a proc never refreshes a running buff (the ICD is 60 s).
 
+
+## Part C: setup rules and calibration
+
+Stage 1.5 Tasks 9-12. Files: `src/setup/{types,defaults,applySetup,storage,presets}.ts`, the panel `src/ui/SetupPanel.tsx`, the wiring in `src/ui/GameView.tsx` and `src/ui/useSimulation.ts`.
+
+### Setup config and `normalizeSetup` (`src/setup/defaults.ts`)
+
+`SetupConfig = { version: 1, enabledBuffs, timed, rotation, distanceYd, warlock }`. `SETUP_CATALOG` lists every buff in a fixed order: `commonBuffs`, `consumables`, `debuffs`, `cooldowns` (`src/data/common/buffs.ts`), then `warlockItemBuffs` (`src/data/classes/warlock/buffs.ts`). `DEFAULT_SETUP` has no buff enabled, the DoT rotation, 28 yd, Fel Armor and the Succubus sacrificed, and every timed buff at its catalog start and duration. With it `applySetup` reproduces the stage 1 spec and the Part B bot means exactly (golden test in `tests/setup/applySetup.test.ts`).
+
+`normalizeSetup(input, catalog)` turns untrusted data (storage, a preset, a UI edit) into a valid config. It never throws, never mutates `input`, reads own properties only, and a hostile getter or proxy gives the defaults.
+- A value that is not a plain object, or has a `version` other than 1, gives the defaults.
+- `enabledBuffs`: catalog ids only (non-strings, unknown ids and duplicates are dropped). In an exclusive group, and for the `EXCLUDES` pairs (a flask vs the battle and guardian elixirs, both ways), the buff later in the list wins.
+- `timed`: one entry per timed catalog buff, enabled or not. `startSec` is clamped to [0, 600] and `durationSec` to [1, 600] (`SETUP_LIMITS`); a missing or non-number value takes the catalog default.
+- `distanceYd` is clamped to [0, 100]; NaN or a non-number gives 28.
+- `rotation` and `warlock`: each field is checked against its type or union, else its default. `lifeTapBelowMana` is `auto` unless it is a finite number >= 0 (capped at 100000), so `buildPriority` never throws on it.
+
+`applySetup` trusts its config: every UI edit and every storage load goes through `normalizeSetup` first.
+
+### `applySetup` wiring (`src/setup/applySetup.ts`)
+
+`applySetup({ buildSpec, catalog, config })` returns `{ spec, sim: { scheduledAuras, distanceFromTarget } }`. It is pure: the spec from `buildSpec(config.warlock)`, the catalog and the config are never mutated.
+- The enabled buffs are folded in CATALOG order. Unknown ids are ignored.
+  - `statBonuses` are summed into the spec's flat bonuses.
+  - `statMultipliers` are multiplied into a new `setup.statMultipliers` (see "Stacking rule").
+  - `modifiers` are appended.
+  - `targetAura`, `selfAura` and helper `auras` are appended to `spec.auras`.
+  - `hooks` run after the spec's own hook (`composeHooks`, in catalog order: Judgement of Wisdom before the Band).
+- `neutralizeOwnAuras`: with the raid's Curse of the Elements, the own curse multiplies by 1; with `isb-from-others`, the own Shadow Vulnerability multiplies by 1 (rulings S1, S2). The own auras still show (the target panel marks them "(no extra effect)") and keep their curse slot and charges.
+- `scheduledAuras`:
+  - Each `targetAura` is put on the target at 0 with no duration override. Its own 1 h duration is cut by the end of the fight (ruling S3).
+  - Each timed `selfAura` is put on the player at `startSec x 1000` for `durationSec x 1000` ms.
+  - A `selfAura` without `timed` is put on at 0.
+  - A start after the fight's end is kept; the engine ignores it.
+- `spec.priority = buildPriority(config.rotation, config.distanceYd)`; `distanceFromTarget = config.distanceYd`.
+
+### Persistence (`src/setup/storage.ts`)
+
+- The setup is saved in `localStorage` under the key `rotation-trainer:setup:v1`.
+- Text longer than `SETUP_STORAGE_MAX_CHARS` (100000 UTF-16 code units; a full config is under 1 kB) is ignored before `JSON.parse` and never written.
+- `loadSetup`, `saveSetup` and `clearSetup` never throw. Every access is in `try/catch`. A throwing or missing storage, invalid JSON, or deep nesting all give the defaults (load) or `false` (save, clear); the app then keeps the setting in memory.
+- Loads and saves both normalize, so storage only ever holds a normalized config.
+- A change applies from the next fight: a running fight keeps the setup it was built with (the panel shows a pending note), and a fight that has not started yet is rebuilt at once.
+
+### Simplifications of the setup model
+
+- **Own vs raid debuff:** one effect each, by neutralizing the own aura (rulings S1, S2; "Own vs raid debuff: one effect").
+- **Shadow Weaving** is at full stacks (x1.10) from the pull. wowsims ramps it up over the first 6 s.
+- **Improved Shadow Bolt from others** has 100% uptime. wowsims uses an uptime percentage.
+- **Band of the Eternal Sage** rolls when a damaging spell lands, DoT applications included (Immolate, Corruption, Curse of Agony, Curse of Doom). It never rolls on misses, DoT ticks, Life Tap or Curse of the Elements. wowsims rolls at cast end.
+- **Impact-time evaluation (ruling S4):** a missile's hit, crit and damage use the buffs and debuffs at impact. A buff that starts or ends during the 1.4 s flight shows the difference (see "Known difference from wowsims (ruling S4)").
+- **No range checks:** the Shadowburn finisher is cast at 28 yd, although its range is 20 yd (24 yd with Destructive Reach; `SD` Shadowburn `MaxRange: 20`).
+- **Cooldowns are timed buffs:** each is used once, at its start second; no cooldown is tracked ("Part C: cooldowns and item effects").
+- **Not modelled:**
+  - Super Mana Potion and Dark Rune: actions the player takes, not buffs.
+  - Improved Divine Spirit's spell power.
+
+### Calibration: the "Raid as in my log" preset (`SETUP_PRESETS['raid-log']`, Task 12)
+
+The preset approximates the author's Naj'entus raid (Warcraft Logs, 2026-10). The raid's exact buffs are unknown: the log shows some of them, and the rest were chosen as the standard buffs that reproduce the character totals. Tests: `tests/setup/raid-log.test.ts`.
+
+**What each entry rests on:**
+
+| Entry | Basis |
+|---|---|
+| Moonkin Aura, Mana Spring Totem, Judgement of Wisdom | seen in the log (Mana Spring 20 mana per 2 s, Judgement of Wisdom 74 mana per proc) |
+| Heroism from 6.4 s, Destruction Potion at 7.5 s, Icon of the Silver Crescent at 30.2 s | seen in the log (start seconds as timed settings; durations 40 / 15 / 20 s, as in the log and the catalog) |
+| Band of the Eternal Sage | seen in the log (procs at 0.8 s and 69.5 s). It is a proc, so it is enabled and never scheduled: its procs in the trainer are random. |
+| Rotation `sb-spam` (Curse of Doom, Shadow Bolt, Life Tap, Shadowburn finisher), 28 yd | the log (Part B; travel checkpoint, Part A) |
+| Improved Shadow Bolt from others | the design spec's preset list; not measured |
+| Arcane Brilliance, Gift of the Wild, Blessing of Kings, Blackened Basilisk | **guessed**: the intellect and spirit totals |
+| Wrath of Air Totem, Flask of Pure Death, Superior Wizard Oil (and the Basilisk's +23) | **guessed**: the Life Tap's spell power. Superior rather than Brilliant oil because Brilliant's +14 crit rating would overshoot the header's crit rating. |
+| Left out | Prayer of Spirit (spirit would be 222.6, far over 191; so Improved Divine Spirit's spell power, which the engine does not model, plays no part either); Totem of Wrath (nothing shows it; Shadow Bolt crit is already about the log's); Blessing of Wisdom, Misery, Shadow Weaving, the raid's Curse of the Elements, Inspiring Presence (nothing in the log shows them) |
+
+Warlock options: Fel Armor and the Succubus sacrificed (the defaults).
+
+**Checkpoints.** Character header at the pull; Life Tap at 63 s and 99 s, when no timed buff is up (Heroism ended at 46.4 s, the potion at 22.5 s, the Icon at 50.2 s; the Band's buffs were up at 0.8-10.8 s and 69.5-79.5 s).
+
+| Checkpoint | Log | `none` | `raid-log` | Residual and reason |
+|---|---|---|---|---|
+| Intellect | 593 | 454.65 | 567.1 = (433 + 40 + 18) x 1.05 x 1.1 | -4.4% (26 intellect, about 0.3% crit and 390 mana): see below |
+| Spirit | 191 | 137.75 | 191.2 = (145 + 18 + 20) x 0.95 x 1.1 | +0.1% |
+| Crit rating | 361 | 339 | 359 = 339 + Moonkin idol 20 | -2. The raid's druid wore the idol, or the gear differs by 22 rating and there was no idol; the log cannot tell. |
+| Hit rating | 177 | 196 | 196 | The export's gear has 19 more (15.54% vs 14.03% hit), so the gear is not the raid's. The trainer misses about 1.5 points less often than the log. |
+| Haste rating | 45 | 45 | 45 | exact |
+| Shadow power (from Life Tap) | about 1592 (1856 = 582 + 0.8 x 1592.5; 1855 gives 1591.25) | 1300 | 1566 = 1117 + 53 + Fel Armor 130 + Wrath of Air 121 + Pure Death 80 + Basilisk 23 + oil 42 | -26.5 |
+| Life Tap | 1856, 1855 | 1622 | 1834.8 | -1.1% |
+| Shadow Bolt crit at the pull | 37.8% (the design spec's figure from the log) | 30.60% | 37.88% = 24.88 + Moonkin 5 + Backlash 3 + Devastation 5 | Matches. The log figure's definition is not recorded; over about 40 Shadow Bolts it carries about +-8 points of noise anyway. The Destruction Potion adds 2% from 7.5 to 22.5 s. |
+
+**Why intellect is 26 short.** An exhaustive search covered every combination of the catalog's intellect, spirit and spell power entries, normalized: 3168 distinct setups. None meets intellect within 3%, spirit within 3% and Life Tap within 2% together.
+- The only intellect consumables, Flask of Distilled Wisdom and Elixir of Draenic Wisdom, exclude every flask.
+- Without Flask of Pure Death or Flask of Supreme Power, Life Tap stays at or below 1815 (-2.2%).
+- The closest intellect-and-spirit match (Kings, Gift of the Wild, Flask of Distilled Wisdom, Basilisk: 596 intellect, 191.2 spirit, no Arcane Brilliance) gives a Life Tap of only 1771 (-4.6%).
+
+The preset keeps the spell power right, because it matters far more for the damage. It leaves the intellect residual, which the gear difference (shown by the hit rating) can explain. The test allows 5% on intellect instead of the plan's 3% and says why.
+
+**Bot results** (seeds 1-10, 28 yd; not asserted, only "more than `none`"):
+- `raid-log`: 2305 DPS, with either queue window (400 or 0 ms).
+- `none`: 1425 (400 ms) / 1428 (0 ms).
+- `raid-log` with the DoT rotation instead: 2250 / 2227.
