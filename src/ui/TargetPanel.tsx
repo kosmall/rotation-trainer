@@ -8,9 +8,10 @@ interface AuraListProps {
   label: string;
 }
 
-/** Aura chips: initials, name, stacks or charges, and time left. */
+/** Aura chips: initials, name, stacks or charges, and time left. Nothing when no aura is up. */
 export function AuraList({ spec, auras, label }: AuraListProps) {
   const views = Object.values(auras);
+  if (views.length === 0) return null;
   return (
     <ul className="aura-list" aria-label={label}>
       {views.map((view) => {
