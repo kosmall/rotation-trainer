@@ -15,7 +15,10 @@ interface AuraListProps {
   fightRemainingMs?: number;
 }
 
-/** Aura chips: icon (initials underneath), name, stacks or charges, and time left. Nothing when no aura is up. */
+/**
+ * Aura chips: icon (initials underneath), name, stacks or charges, and time left. Nothing when no
+ * aura is up. An own aura neutralized by a raid debuff gets "(no extra effect)" after its name.
+ */
 export function AuraList({ spec, auras, label, fightRemainingMs = Infinity }: AuraListProps) {
   const views = Object.values(auras);
   if (views.length === 0) return null;
@@ -28,14 +31,17 @@ export function AuraList({ spec, auras, label, fightRemainingMs = Infinity }: Au
         const school =
           spec.spells.find((s) => s.applyAura?.auraId === view.auraId)?.school ?? def?.tick?.school ?? 'shadow';
         const count = view.stacks > 1 ? view.stacks : view.charges > 0 ? view.charges : null;
+        // An own aura that a raid debuff replaces multiplies by 1 (neutralizeOwnAuras, rulings
+        // S1 and S2): still shown (it keeps its slot and charges), but marked as adding nothing.
+        const shown = def?.damageTakenMult?.mult === 1 ? `${name} (no extra effect)` : name;
         return (
-          <li key={view.auraId} className="aura" title={count === null ? name : `${name} (${count})`}>
+          <li key={view.auraId} className="aura" title={count === null ? shown : `${shown} (${count})`}>
             <span className="aura-icon" style={{ background: SCHOOL_COLORS[school] }}>
               {initials(name)}
               {def && <SpellIcon icon={def.icon} className="aura-image" />}
               {count !== null && <span className="aura-count">{count}</span>}
             </span>
-            <span className="aura-name">{name}</span>
+            <span className="aura-name">{shown}</span>
             <span className="aura-time">{remainingText(Math.max(0, Math.min(view.remainingMs, fightRemainingMs)))}</span>
           </li>
         );

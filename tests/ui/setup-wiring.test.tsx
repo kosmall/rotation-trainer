@@ -6,6 +6,9 @@ import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { GameView } from '../../src/ui/GameView';
+import { TargetPanel } from '../../src/ui/TargetPanel';
+import { applySetup } from '../../src/setup/applySetup';
+import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
 
 // Same fake clock as game.test.tsx: fight time moves only through vi.advanceTimersByTime, and
 // the seed (Date.now()-based) is fixed.
@@ -322,5 +325,39 @@ describe('Setup wiring', () => {
     fireEvent.click(checkbox('Misery'));
     advance(61_000);
     expect(note()).toMatch(/^The finished fight keeps its setup/);
+  });
+});
+
+describe('Target debuffs: own aura under the raid one', () => {
+  /** The visible names of the target's aura chips. */
+  const chipNames = () =>
+    within(screen.getByRole('list', { name: 'Target debuffs' }))
+      .getAllByRole('listitem')
+      .map((li) => li.querySelector('.aura-name')?.textContent);
+  const views = {
+    'isb-from-others': { auraId: 'isb-from-others', stacks: 1, charges: 0, remainingMs: 3_600_000 },
+    'shadow-vulnerability': { auraId: 'shadow-vulnerability', stacks: 1, charges: 4, remainingMs: 12_000 },
+  };
+  const specFor = (enabledBuffs: string[]) =>
+    applySetup({
+      buildSpec: buildDestructionWarlock,
+      catalog: SETUP_CATALOG,
+      config: normalizeSetup({ ...structuredClone(DEFAULT_SETUP), enabledBuffs }, SETUP_CATALOG),
+    }).spec;
+
+  it("the own Shadow Vulnerability chip says it adds nothing while 'Shadow Vulnerability (raid)' is on (ruling S2)", () => {
+    render(<TargetPanel spec={specFor(['isb-from-others'])} targetAuras={views} fightRemainingMs={30_000} />);
+    expect(chipNames()).toEqual(['Shadow Vulnerability (raid)', 'Shadow Vulnerability (no extra effect)']);
+    cleanup();
+
+    // Without the raid debuff the own aura counts and has no note.
+    render(
+      <TargetPanel
+        spec={specFor([])}
+        targetAuras={{ 'shadow-vulnerability': views['shadow-vulnerability'] }}
+        fightRemainingMs={30_000}
+      />,
+    );
+    expect(chipNames()).toEqual(['Shadow Vulnerability']);
   });
 });
