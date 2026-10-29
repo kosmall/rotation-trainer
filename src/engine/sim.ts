@@ -27,6 +27,10 @@ import type {
 } from './types';
 
 const DEFAULT_DURATION_MS = 60000;
+/** Mana regenerates in ticks every 2 s of fight time, from fight start (wowsims `initManaTickAction`). */
+const MANA_TICK_MS = 2000;
+/** Spirit regen stops for this long after a mana-costing cast completes (the five-second rule). */
+const FIVE_SECOND_RULE_MS = 5000;
 
 type CastRejection = Extract<CastResult, { ok: false }>['reason'];
 
@@ -114,6 +118,7 @@ export class Simulation {
   private readonly targetAuraEvents = new Map<string, AuraEvents>();
   private readonly selfAuraEvents = new Map<string, AuraEvents>();
   private readonly stats: DerivedStats;
+  private readonly infiniteMana: boolean;
 
   private phase: SimSnapshot['phase'] = 'ready';
   private nowMs = 0;
@@ -121,6 +126,8 @@ export class Simulation {
   private activeCast: ActiveCast | null = null;
   private readonly cooldownReadyAtMs = new Map<string, number>();
   private mana: number;
+  /** When the last spell with a mana cost completed (null: none yet); drives the five-second rule. */
+  private lastManaSpendMs: number | null = null;
   private damageTotal = 0;
   private readonly logEvents: LogEvent[] = [];
 
@@ -128,6 +135,7 @@ export class Simulation {
     const spec: SpecData = config.spec;
     this.target = config.target;
     this.durationMs = config.durationMs ?? DEFAULT_DURATION_MS;
+    this.infiniteMana = config.infiniteMana ?? false;
     this.rng = createRng(config.seed);
 
     const sets = activeSetBonuses(spec.sets, spec.setup.setPieces);
@@ -148,14 +156,20 @@ export class Simulation {
     for (const aura of spec.auras) this.auraDefs.set(aura.id, aura);
     this.targetAuras = new AuraTracker(spec.auras);
     this.selfAuras = new AuraTracker(spec.auras);
-    // Mana is not spent yet (Task 9); the bar stays full.
     this.mana = this.stats.maxMana;
   }
 
-  /** Starts the fight at 0 ms. No-op once started. */
+  /**
+   * Starts the fight at 0 ms and schedules every mana regen tick of the fight (at 2000, 4000, ...).
+   * They are scheduled first, so a regen tick runs before any other event at the same time.
+   * No-op once started.
+   */
   start(): void {
     if (this.phase !== 'ready') return;
     this.phase = 'running';
+    for (let atMs = MANA_TICK_MS; atMs <= this.durationMs; atMs += MANA_TICK_MS) {
+      this.schedule(atMs, () => this.manaTick());
+    }
   }
 
   /**
@@ -260,7 +274,10 @@ export class Simulation {
   // Casting
   // -------------------------------------------------------------------------
 
-  /** Why `spell` cannot be cast now, or null. Checks only; changes nothing. */
+  /**
+   * Why `spell` cannot be cast now, or null. Checks only; changes nothing.
+   * Order: busy, cooldown, gcd, missing-aura, no-mana (the mana check is the last one).
+   */
   private castRejection(spell: SpellDef): CastRejection | null {
     if (this.activeCast) return 'busy';
     if (this.cooldownRemaining(spell.id) > 0) return 'cooldown';
@@ -268,6 +285,7 @@ export class Simulation {
     if (spell.requiresTargetAura && !this.targetAuras.get(spell.requiresTargetAura, this.nowMs)) {
       return 'missing-aura';
     }
+    if (this.mana < this.manaCost(spell)) return 'no-mana';
     return null;
   }
 
@@ -288,10 +306,23 @@ export class Simulation {
     this.activeCast = { spellId: spell.id, startMs: this.nowMs, endMs, completionEventId };
   }
 
-  /** Cast end: cooldown, then the spell's effects. Mana is spent here from Task 9 on. */
+  /**
+   * Cast end: the mana cost is spent (a costly spell also starts the five-second rule), the
+   * cooldown starts, a `gainMana` spell gives its mana, then the spell's effects resolve.
+   * Cancelled and cut-off casts never get here, so they spend nothing.
+   */
   private completeCast(spell: SpellDef): void {
     this.addLog({ type: 'cast-complete', spellId: spell.id });
+    const cost = this.manaCost(spell);
+    if (cost > 0) {
+      this.mana = Math.max(0, this.mana - cost);
+      this.lastManaSpendMs = this.nowMs;
+    }
     if (spell.cooldownMs > 0) this.cooldownReadyAtMs.set(spell.id, this.nowMs + spell.cooldownMs);
+    if (spell.gainMana) {
+      const amount = this.addMana(spell.gainMana.amount + spell.gainMana.coeff * this.stats.power[spell.school]);
+      this.addLog({ type: 'mana', spellId: spell.id, amount });
+    }
     this.resolveSpell(spell);
   }
 
@@ -333,6 +364,41 @@ export class Simulation {
     });
     this.damageTotal += amount;
     this.addLog({ type: 'damage', spellId: spell.id, amount, crit: outcome === 'crit' });
+  }
+
+  // -------------------------------------------------------------------------
+  // Mana
+  // -------------------------------------------------------------------------
+
+  /** The cost checked at cast start and spent at completion; 0 with infiniteMana. */
+  private manaCost(spell: SpellDef): number {
+    if (this.infiniteMana) return 0;
+    return spell.manaCost * this.modsFor(spell).manaCostMult;
+  }
+
+  /**
+   * One regen tick (2 s worth): mp5 regen always, spirit regen only when no mana-costing spell
+   * completed in the last 5000 ms (a spend exactly 5000 ms ago no longer counts). Logged as a
+   * `mana` event (no spellId) only when the bar actually changed.
+   */
+  private manaTick(): void {
+    const inFiveSecondRule =
+      this.lastManaSpendMs !== null && this.nowMs - this.lastManaSpendMs < FIVE_SECOND_RULE_MS;
+    const perSec = this.stats.mp5RegenPerSec + (inFiveSecondRule ? 0 : this.stats.spiritRegenPerSec);
+    const amount = this.addMana((perSec * MANA_TICK_MS) / 1000);
+    if (amount > 0) this.addLog({ type: 'mana', amount });
+  }
+
+  /** Adds up to `amount` (negative counts as 0) without passing maxMana; returns the actual gain. */
+  private addMana(amount: number): number {
+    const room = this.stats.maxMana - this.mana;
+    if (amount >= room) {
+      this.mana = this.stats.maxMana;
+      return Math.max(0, room);
+    }
+    if (amount <= 0) return 0;
+    this.mana += amount;
+    return amount;
   }
 
   // -------------------------------------------------------------------------

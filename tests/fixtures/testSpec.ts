@@ -106,6 +106,20 @@ function testSpells(): SpellDef[] {
       canCrit: true,
       direct: { min: 100, max: 100, coeff: 0 },
     },
+    {
+      // Life Tap-like: free, on the GCD, gives 300 mana at completion (capped at maxMana).
+      id: 'tap',
+      name: 'Tap',
+      icon,
+      school: 'shadow',
+      manaCost: 0,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: true,
+      canMiss: false,
+      canCrit: false,
+      gainMana: { amount: 300, coeff: 0 },
+    },
   ];
 }
 

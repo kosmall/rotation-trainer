@@ -61,7 +61,7 @@ describe('Simulation lifecycle', () => {
       cast: null,
       mana: maxMana,
       maxMana,
-      cooldownRemainingMs: { bolt: 0, zap: 0, free: 0, dot: 0, needy: 0, curse: 0, scorch: 0 },
+      cooldownRemainingMs: { bolt: 0, zap: 0, free: 0, dot: 0, needy: 0, curse: 0, scorch: 0, tap: 0 },
       targetAuras: {},
       selfAuras: {},
       damageTotal: 0,

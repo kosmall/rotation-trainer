@@ -153,11 +153,22 @@ describe('Simulation cancelCast', () => {
     sim.cancelCast();
     const after = sim.snapshot();
 
+    const maxMana = computeStats(makeTestSpec().setup).maxMana;
     expect(after.cast).toBeNull();
+    // Only zap (20) has been spent: the cancelled bolt spends nothing.
     expect(after.mana).toBe(before.mana);
-    expect(after.mana).toBe(computeStats(makeTestSpec().setup).maxMana);
+    expect(after.mana).toBe(maxMana - 20);
     expect(after.cooldownRemainingMs).toEqual(before.cooldownRemainingMs);
-    expect(after.cooldownRemainingMs).toEqual({ bolt: 0, zap: 5500, free: 0, dot: 0, needy: 0, curse: 0, scorch: 0 });
+    expect(after.cooldownRemainingMs).toEqual({
+      bolt: 0,
+      zap: 5500,
+      free: 0,
+      dot: 0,
+      needy: 0,
+      curse: 0,
+      scorch: 0,
+      tap: 0,
+    });
     expect(after.gcdEndsAtMs).toBe(3000);
     expect(sim.log().at(-1)).toEqual({ atMs: 2500, type: 'cast-cancel', spellId: 'bolt' });
 
@@ -173,9 +184,12 @@ describe('Simulation cancelCast', () => {
     expect(damageOf(sim, 'bolt')).toEqual([]);
     expect(sim.log().filter((e) => e.type === 'cast-complete' && e.spellId === 'bolt')).toEqual([]);
     expect(sim.snapshot().cooldownRemainingMs.bolt).toBe(0);
+    expect(sim.snapshot().mana).toBe(maxMana - 20);
     sim.advanceTo(5000);
     expect(damageOf(sim, 'bolt')).toEqual([100]);
     expect(sim.snapshot().damageTotal).toBe(150);
+    // The completed bolt spends exactly its cost.
+    expect(sim.snapshot().mana).toBe(maxMana - 20 - 50);
   });
 
   it('cancelCast with nothing casting is a no-op', () => {
@@ -213,6 +227,7 @@ describe('Simulation fight-end boundary', () => {
     expect(s.phase).toBe('ended');
     expect(s.damageTotal).toBe(100);
     expect(s.cooldownRemainingMs.bolt).toBe(10000);
+    expect(s.mana).toBe(computeStats(makeTestSpec().setup).maxMana - 50);
     expect(s.cast).toBeNull();
     expect(sim.log()).toContainEqual({ atMs: 5000, type: 'damage', spellId: 'bolt', amount: 100, crit: false });
   });
@@ -228,7 +243,8 @@ describe('Simulation fight-end boundary', () => {
     expect(s.nowMs).toBe(5000);
     expect(s.damageTotal).toBe(0);
     expect(s.cooldownRemainingMs.bolt).toBe(0);
-    expect(s.mana).toBe(s.maxMana);
+    // The cut-off bolt spends nothing (a completed one would leave maxMana - 50).
+    expect(s.mana).toBe(computeStats(makeTestSpec().setup).maxMana);
     expect(s.cast).toBeNull();
     expect(sim.log()).toEqual([{ atMs: 3001, type: 'cast-start', spellId: 'bolt' }]);
     sim.cancelCast();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SpecData } from '../../src/data/types';
 import { Simulation } from '../../src/engine/sim';
+import { computeStats } from '../../src/engine/stats';
 import type { AuraDef, LogEvent, RawStats, SpellDef, SpellModifier, TargetData } from '../../src/engine/types';
 import { TEST_TARGET, makeTestSpec } from '../fixtures/testSpec';
 
@@ -19,6 +20,21 @@ function newSim(
 
 function ofType(sim: Simulation, type: LogEvent['type']): LogEvent[] {
   return sim.log().filter((e) => e.type === type);
+}
+
+/**
+ * The fixture's spirit regen is the formula's base rate alone (spirit 0): one regen tick outside
+ * the five-second rule gives 2 s of it. These `mana` entries appear once a spent bar can refill.
+ */
+const FIXTURE_SPIRIT_TICK = computeStats(makeTestSpec().setup).spiritRegenPerSec * 2;
+
+/** The regen `mana` log entries every 2000 ms from `fromMs` through `toMs`. */
+function regenEntries(fromMs: number, toMs: number): LogEvent[] {
+  const entries: LogEvent[] = [];
+  for (let atMs = fromMs; atMs <= toMs; atMs += 2000) {
+    entries.push({ atMs, type: 'mana', amount: FIXTURE_SPIRIT_TICK });
+  }
+  return entries;
 }
 
 function tickTimes(sim: Simulation): number[] {
@@ -61,8 +77,11 @@ describe('Simulation DoTs and auras', () => {
       { atMs: 0, type: 'aura-apply', spellId: 'dot', auraId: 'dotAura' },
       { atMs: 2000, type: 'tick', spellId: 'dot', auraId: 'dotAura', amount: 100 },
       { atMs: 4000, type: 'tick', spellId: 'dot', auraId: 'dotAura', amount: 100 },
+      // dot's cost was spent at 0: spirit regen is back from 6000 (regen ticks run first).
+      ...regenEntries(6000, 6000),
       { atMs: 6000, type: 'tick', spellId: 'dot', auraId: 'dotAura', amount: 100 },
       { atMs: 6000, type: 'aura-fade', auraId: 'dotAura' },
+      ...regenEntries(8000, 10000),
     ]);
     expect(sim.snapshot().damageTotal).toBe(300);
     expect(sim.snapshot().targetAuras).toEqual({});
@@ -157,6 +176,8 @@ describe('Simulation DoTs and auras', () => {
       { atMs: 2000, type: 'cast-complete', spellId: 'needy' },
       { atMs: 2000, type: 'damage', spellId: 'needy', amount: 10, crit: false },
       { atMs: 2000, type: 'aura-fade', auraId: 'dotAura' },
+      // Mana regen only (needy's cost was spent at 2000): no ticks or fade of the consumed dot.
+      ...regenEntries(8000, 20000),
     ]);
     expect(sim.snapshot().damageTotal).toBe(110);
   });
@@ -271,6 +292,8 @@ describe('Simulation DoTs and auras', () => {
     expect(sim.log()).toEqual([
       { atMs: 0, type: 'cast-complete', spellId: 'dot' },
       { atMs: 0, type: 'miss', spellId: 'dot' },
+      // A missed spell still spends its mana.
+      ...regenEntries(6000, 10000),
     ]);
     expect(sim.snapshot().damageTotal).toBe(0);
   });
