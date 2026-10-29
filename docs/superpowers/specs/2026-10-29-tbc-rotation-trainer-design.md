@@ -147,7 +147,9 @@ Jeden spec, osobny plan implementacji i commit na etap:
    2a. Pełna baza itemów, zestawy BIS na każdą fazę i import gearu z addonu WowSimsExporter
    po ID itemów (zakładka Gear).
    2b. Gotowe „najlepsze talenty" na fazę i edytor drzewka talentów (zakładka Talents).
-   2c. Raid buffy, keybindy, zapis w `localStorage`.
+   2c. Keybindy konfigurowalne. (Raid buffy, consumables, zapis w `localStorage` i konfigurowalna
+   rotacja zostały przeniesione do etapu 1.5: `2026-10-29-realism-and-setup-design.md`,
+   razem z czasem lotu pocisków; wykonywane przed 2a/2b.)
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla
