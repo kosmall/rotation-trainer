@@ -108,6 +108,17 @@ describe('GameView', () => {
     expect(totalDamage()).toBe(0);
   });
 
+  it('the live stats and the end summary both say what the DPS leaves out', () => {
+    const note = 'No raid buffs, consumables or trinket effects — approximate (see docs/data-sources.md)';
+    render(<GameView spec={destructionWarlock} />);
+    expect(screen.getAllByText(note)).toHaveLength(1); // under the live stats, before the fight
+    press('1');
+    advance(61000);
+    const summary = screen.getByRole('region', { name: 'Fight summary' });
+    expect(within(summary).getByText(note)).toBeTruthy();
+    expect(screen.getAllByText(note)).toHaveLength(2); // live stats + summary
+  });
+
   it('R resets a running fight', () => {
     render(<GameView spec={destructionWarlock} />);
     press('1');

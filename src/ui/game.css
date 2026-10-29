@@ -131,6 +131,13 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
+/* What the DPS leaves out: one quiet line under the live stats and in the end summary. */
+.dps-note {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 /* Target */
 .arena {
   position: relative;

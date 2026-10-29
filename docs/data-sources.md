@@ -3,6 +3,32 @@
 Every game number in `src/data` carries a source comment. Status is `verified` (read from the cited source) or `UNVERIFIED` (best value kept, marked `// UNVERIFIED` in code).
 Primary source: github.com/wowsims/tbc-new (TBC Anniversary), `master` @ `91f869a` (2026-10-26). Secondary: github.com/wowsims/tbc `master` @ `3301fca`. Wowhead TBC was not needed for Tasks 3 and 9; Task 12a cites it where used.
 
+## What the DPS excludes
+
+The trainer's DPS is approximate: it scores the rotation, not the whole raid setting. The UI says so in one line under the live stats and in the end summary. Details are in the sections cited.
+
+Not in the number:
+
+- Raid buffs and consumables (no party/raid buffs, flasks, elixirs, food, oils or potions).
+- Item effects: Icon of the Silver Crescent's on-use (+155 spell damage for 20 s, 2 min cooldown) and Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown); Riding Crop has no combat effect. See Task 12b, "Not modeled".
+- Missile travel time: damage lands when the cast completes.
+- Life Tap's health cost (health is not simulated; only its mana gain is).
+- Incinerate's extra base damage while Immolate is on the target (Task 12a, open question 4; Incinerate is not in the priority).
+- Curse of the Elements' -88 resistances (the engine uses a fixed level-based resist multiplier; only its x1.10 damage taken is modeled).
+
+Assumed, not measured from the author's play:
+
+- The Succubus is sacrificed (Demonic Sacrifice: +15% shadow damage) and Fel Armor (+130 spell power) is up all fight, both from the start.
+- The spell queue window is 400 ms (wowsims' setting; UNVERIFIED for the Anniversary client).
+
+Not applicable on a training dummy:
+
+- Backlash's proc (instant Shadow Bolt after being hit) needs incoming attacks; the dummy never attacks (its +3% crit is modeled). Nightfall-style procs are not in the build.
+
+Rotation effect worth knowing:
+
+- Under the verified DoT refresh rule (ruling R19) the bot stops refreshing Immolate and Corruption once a full DoT no longer fits, so its DoTs end about 13 s before the fight end. Refreshing later in your own play is not wrong.
+
 ## Task 3
 
 Files: `src/data/common/ratings.ts`, `src/data/common/target.ts`, `src/engine/stats.ts`.

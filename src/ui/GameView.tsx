@@ -106,24 +106,30 @@ export function GameView({ spec }: { spec: SpecData }) {
   );
 }
 
+/** What the trainer's DPS leaves out (full list: docs/data-sources.md, "What the DPS excludes"). */
+const DPS_NOTE = 'No raid buffs, consumables or trinket effects — approximate (see docs/data-sources.md)';
+
 function FightStats({ snapshot }: { snapshot: SimSnapshot }) {
   return (
-    <dl className="fight-stats">
-      <div>
-        <dt>DPS</dt>
-        <dd aria-label="DPS">{formatInt(snapshot.dps)}</dd>
-      </div>
-      <div>
-        <dt>Total damage</dt>
-        <dd aria-label="Total damage">{formatInt(snapshot.damageTotal)}</dd>
-      </div>
-      <div>
-        <dt>Time</dt>
-        <dd aria-label="Elapsed">
-          {secondsText(snapshot.nowMs)} / {Math.round(snapshot.durationMs / 1000)}s
-        </dd>
-      </div>
-    </dl>
+    <div>
+      <dl className="fight-stats">
+        <div>
+          <dt>DPS</dt>
+          <dd aria-label="DPS">{formatInt(snapshot.dps)}</dd>
+        </div>
+        <div>
+          <dt>Total damage</dt>
+          <dd aria-label="Total damage">{formatInt(snapshot.damageTotal)}</dd>
+        </div>
+        <div>
+          <dt>Time</dt>
+          <dd aria-label="Elapsed">
+            {secondsText(snapshot.nowMs)} / {Math.round(snapshot.durationMs / 1000)}s
+          </dd>
+        </div>
+      </dl>
+      <p className="dps-note">{DPS_NOTE}</p>
+    </div>
   );
 }
 
@@ -140,6 +146,7 @@ function EndSummary({ snapshot, onReset }: { snapshot: SimSnapshot; onReset(): v
           <dt>Duration</dt>
           <dd aria-label="Duration">{secondsText(snapshot.nowMs)} s</dd>
         </dl>
+        <p className="dps-note">{DPS_NOTE}</p>
         <button
           type="button"
           className="primary"
