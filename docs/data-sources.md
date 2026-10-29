@@ -170,3 +170,131 @@ Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fi
 4. Incinerate's bonus 111-128 base damage while Immolate is up (`incinerate.go`) needs conditional damage in `SpellDef`.
 5. Curse of the Elements' -88 resistances and Shadowburn's binary resist are not modeled (fixed level-based resist multiplier).
 6. Fel Armor is assumed up all fight (stat bonus, not a castable buff).
+
+## Task 12b
+
+Files: `src/data/classes/warlock/items.ts` (`items`, `gems`, `enchants`), `src/data/classes/warlock/sets.ts` (`warlockSets`), `src/data/classes/warlock/destruction.ts` (`destructionEquipped`, `sets`, `setup`), `DESTRUCTION_SPELL_IDS` moved to `spells.ts` (shared by the talents and the meta gem). Engine: `AuraDef.hidden` (commit `feat(engine): hidden auras left out of snapshots`): `snapshot().selfAuras` / `targetAuras` omit hidden auras; they are still tracked for `hasSelfAura` / `hasTargetAura`, keep their effects and are logged. Meant for set-proc internal cooldowns; the default gear has no such proc, so no warlock aura uses it yet. `tsconfig.json`: `resolveJsonModule` (the gear test imports the sample export).
+
+Default gear: `gear.items` of `docs/samples/wowsimsexporter-destruction-warlock.json`, copied verbatim into `destructionEquipped` (a test asserts equality with the file). `setPieces` and the meta gem's modifiers come from `buildSetup`; `statMultipliers` (Expansive Mind, Demonic Embrace, Fel Intellect) are spread back in, so they also scale the gear's intellect and spirit.
+
+Sources: `DB` = wowsims/tbc-new @ `91f869a` `assets/database/db.json` (`items[]`, `gems[]`, `enchants[]` by `effectId`; stat index = `proto/common.proto` `Stat`: 3 Int, 5 SpellDamage, 11 ShadowDamage, 12 hit, 13 crit, 14 haste, 16 Spirit). `OLD` = wowsims/tbc @ `3301fca` `sim/core/items/all_items.go` / `all_gems.go` / `all_enchants.go`. Every value below matches in both unless noted, so all are **verified**. Only modeled stats are kept: stamina, healing (always equal to spell damage here), armor, strength, agility and weapon damage are dropped.
+
+### Items
+
+| Id | Item | Slot | Modeled stats | Sockets (bonus) | Set | Source |
+|---|---|---|---|---|---|---|
+| 31051 | Hood of the Malefic | head | Int 36, SD 63, hit 16, crit 32 | meta, yellow (+5 SD) | Malefic Raiment (670) | DB, OLD |
+| 32349 | Translucent Spellthread Necklace | neck | SD 46, hit 15, crit 24 | - | - | DB, OLD |
+| 31054 | Mantle of the Malefic | shoulder | Int 22, SD 46, hit 21, crit 13 | blue, yellow (+4 SD) | 670 | DB, OLD |
+| 32590 | Nethervoid Cloak | back | Int 18, shadow 53, hit 18 | - | - | DB, OLD |
+| 30913 | Robes of Rhonin | chest | Int 38, SD 81, hit 27, crit 24 | - | - | DB, OLD |
+| 32586 | Bracers of Nimble Thought | wrist | Int 20, SD 34, haste 28 | - | - | DB, OLD |
+| 31050 | Gloves of the Malefic | hands | Int 27, SD 46, hit 11, crit 19 | yellow (+2 hit) | 670 | DB, OLD |
+| 30038 | Belt of Blasting | waist | SD 50, hit 23, crit 30 | blue, yellow (+4 SD) | - | DB, OLD |
+| 31053 | Leggings of the Malefic | legs | Int 44, SD 62, hit 19, crit 37 | yellow (+2 hit) | 670 | DB, OLD |
+| 28517 | Boots of Foretelling | feet | Int 23, SD 26, crit 19 | red, yellow (+3 Int) | - | DB, OLD |
+| 29305 | Band of the Eternal Sage | finger | Int 25, SD 34, crit 24 | - | - | DB, OLD |
+| 32247 | Ring of Captured Storms | finger | SD 42, hit 19, crit 29 | - | - | DB, OLD |
+| 25653 | Riding Crop | trinket | none (mount speed only) | - | - | DB (`stat_bonus_procs_auto_gen.go`: "Not simulated"); not in OLD |
+| 29370 | Icon of the Silver Crescent | trinket | SD 43 | - | - | DB, OLD |
+| 32237 | The Maelstrom's Fury | mainHand | Int 21, SD 236, crit 22 | - | - | DB, OLD |
+| 33334 | Fetish of the Primal Gods | offHand | Int 17, SD 37, haste 17 | - | - | DB, OLD |
+| 29982 | Wand of the Forgotten Star | ranged | SD 23, hit 11, crit 14 | - | - | DB, OLD |
+
+Malefic Raiment membership: DB `setId 670` / `setName`; Wowhead TBC item-set=670 lists 31050, 31051, 31053, 31054 (plus Robe 31052 and the Sunwell bracers, belt and boots, not worn).
+
+### Gems
+
+| Id | Gem | Color | Modeled stats | Source |
+|---|---|---|---|---|
+| 34220 | Chaotic Skyfire Diamond | meta | crit 12; needs 2 blue gems; crit damage +3% (see below) | DB, OLD; `sim/common/tbc/metagems.go`; `sim/core/reforge_optimizer/meta_gem_constraints.go` (`34220: {minBlue: 2}`) |
+| 32218 | Potent Pyrestone | orange | SD 6, crit 5 | DB, OLD |
+| 32215 | Glowing Shadowsong Amethyst | purple | SD 6 (stamina 7 dropped) | DB, OLD |
+| 32196 | Runed Crimson Spinel | red | SD 12 | DB, OLD |
+| 24056 | Glowing Nightseye | purple | SD 5 (stamina 6 dropped) | DB, OLD |
+| 32207 | Gleaming Lionseye | yellow | crit 10 | DB, OLD |
+| 28123 | Potent Ornate Topaz | orange | SD 6, crit 5 | DB, OLD |
+| 28118 | Runed Ornate Ruby | red | SD 12 | DB, OLD |
+| 33133 | Don Julio's Heart | red | SD 14 | DB, OLD |
+
+### Enchants (by effect id)
+
+| Id | Enchant | Modeled stats | Source |
+|---|---|---|---|
+| 3002 | Glyph of Power (head) | SD 22, hit 14 | DB, OLD |
+| 2995 | Greater Inscription of the Orb (shoulder) | SD 12, crit 15 | DB, OLD |
+| 2621 | Enchant Cloak - Subtlety | none (threat) | DB, OLD |
+| 2661 | Enchant Chest - Exceptional Stats | Int 6, Spirit 6 (Str/Agi/Sta dropped) | DB, OLD |
+| 2650 | Enchant Bracer - Spellpower | SD 15 | DB, OLD |
+| 2937 | Enchant Gloves - Major Spellpower | SD 20 | DB, OLD |
+| 2748 | Runic Spellthread (legs) | SD 35 (stamina 20 dropped) | DB, OLD |
+| 2649 | Enchant Boots - Fortitude | none (stamina 12) | DB, OLD (two items share effect 2649; the export puts it on boots) |
+| 2928 | Enchant Ring - Spellpower (x2) | SD 12 | DB, OLD |
+| 2669 | Enchant Weapon - Major Spellpower | SD 40 | DB, OLD |
+
+### Socket bonus decisions (`buildSetup` socket matching)
+
+| Item | Sockets | Gems | Bonus |
+|---|---|---|---|
+| Hood | meta, yellow | Chaotic Skyfire (meta), Potent Pyrestone (orange fits yellow) | +5 SD |
+| Mantle | blue, yellow | Glowing Shadowsong Amethyst (purple fits blue), Potent Pyrestone (orange fits yellow) | +4 SD |
+| Gloves | yellow | Runed Crimson Spinel (red) | none (red does not fit yellow) |
+| Belt | blue, yellow | Glowing Nightseye (purple), Gleaming Lionseye (yellow) | +4 SD |
+| Leggings | yellow | Potent Ornate Topaz (orange) | +2 hit |
+| Boots | red, yellow | Runed Ornate Ruby (red), Don Julio's Heart (red in yellow) | none |
+
+Meta requirement: 2 blue gems; the two purple gems count as blue (and red), so Chaotic Skyfire is active.
+
+### Meta gem crit damage (Chaotic Skyfire Diamond)
+
+wowsims: `core.ApplyMetaGemCriticalDamageEffect` sets `PseudoStats.CritDamageMultiplier *= 1.03`, and `sim/core/spell.go` `CritDamageMultiplier` = `(1.5 x CritDamageMultiplier - 1) x (CritMultiplierAdditive + 1) + 1`; Ruin is `CritMultiplier_Flat 1.0` (additive). The engine sums `critMultDelta` onto 1.5 (Ruin = +0.5, Task 12a).
+
+- Without Ruin: 1.5 x 1.03 = 1.545, so +0.045.
+- Destruction spells with Ruin: (1.545 - 1) x 2 + 1 = 2.09 vs 2.0 for Ruin alone, so +0.09.
+
+Encoded as `metaModifiers` `[{critMultDelta: 0.045}, {spellIds: DESTRUCTION_SPELL_IDS, critMultDelta: 0.045}]`: every spell gets +0.045, the Destruction spells another +0.045 (Ruin doubling the meta's part). The second term assumes Ruin 1/1 (fixed stage 1 build); the stage 2b talent editor must make it conditional. A test checks the crit/non-crit ratio of Shadow Bolt and Shadowburn is 2.09 on the same seed.
+
+### Default gear totals (`setup.stats`, before talents and multipliers)
+
+| Stat | Total | Arithmetic |
+|---|---|---|
+| spellPower | 1117 | items 869 (63+46+46+81+34+46+50+62+26+34+42+43+236+37+23) + gems 67 (6+6+6+12+5+6+12+14) + socket bonuses 13 (5+4+4) + enchants 168 (22+12+15+20+35+12+12+40) |
+| shadowPower | 53 | Nethervoid Cloak |
+| critRating | 339 | items 287 (32+24+13+24+19+30+37+19+24+29+22+14) + gems 37 (12+5+5+10+5) + Orb 15 |
+| hitRating | 196 | items 180 (16+15+21+18+27+11+23+19+19+11) + Leggings bonus 2 + Glyph of Power 14 (15.5% of the 16% cap) |
+| hasteRating | 45 | 28 + 17 (2.85%: Shadow Bolt 2500 -> 2431 ms) |
+| intellect | 433 -> 454.65 | base 136 + items 291 (36+22+18+38+20+27+44+23+25+21+17) + chest enchant 6; x1.05 Expansive Mind |
+| spirit | 145 -> 137.75 | base 139 + chest enchant 6; x0.95 Demonic Embrace |
+| maxMana | 9429.39 | (2615 + 20 + 15 x (454.65 - 20)) x 1.03 = 9154.75 x 1.03 |
+
+With Fel Armor (+130): shadow power 1300, fire power 1247. A scripted 60 s run of the priority on `BOSS_TARGET` (100 ms steps) does about 1330-1570 DPS with real mana (seeds 1, 7, 42; one Life Tap) and 1380-1640 with infinite mana.
+
+### Set bonuses (`warlockSets`)
+
+| Set | Pieces | Description (Wowhead TBC item-set=670) | Encoding | Source | Status |
+|---|---|---|---|---|---|
+| Malefic Raiment (`malefic-raiment`, wowsims 670) | 2 | "Each time one of your Corruption or Immolate spells deals periodic damage, you heal 70 health." | none (no damage effect; the engine has no health); kept so the UI lists it | tbc-new `sim/warlock/items.go` `ItemSetMaleficRaiment` bonus 2 (Dot Heals 38394, `GainHealth(70)` on periodic damage) | verified |
+| Malefic Raiment | 4 | "Increases the damage dealt by your Shadow Bolt and Incinerate abilities by 6%." | `modifiers: [{spellIds: ['shadow-bolt', 'incinerate'], damageMult: 1.06}]` | `items.go` bonus 4 (38393, `SpellMod_DamageDone_Flat 0.06`, `WarlockSpellShadowBolt \| WarlockSpellIncinerate`) | verified |
+
+Worn: 4 pieces (Hood, Mantle, Gloves, Leggings), so both bonuses are active. No other set has pieces in the default gear. No set in the default gear needs a proc, hook, self aura or new engine feature.
+
+### Not modeled (equipped effects excluded from the trainer's DPS)
+
+| Item / enchant | Effect | Source |
+|---|---|---|
+| Icon of the Silver Crescent (29370) | On use: +155 spell damage for 20 s, 2 min cooldown (shared 20 s trinket category) | DB `itemEffects` (buff 35163); tbc-new `stat_bonus_cds_auto_gen.go` `NewSimpleStatActive(29370)`; OLD `caster_trinkets.go` |
+| Band of the Eternal Sage (29305) | "Your offensive spells have a chance on hit to increase your spell damage by 95 for 10 secs": 10% on cast complete, 60 s internal cooldown | DB `itemEffects` (buff 35084, `procChance 0.1`, `icdMs 60000`); tbc-new `stat_bonus_procs_auto_gen.go`; OLD `caster_items.go` |
+| Riding Crop (25653) | Mount speed (out of combat) | DB (`Mount Speed` 48776) |
+| Malefic Raiment 2pc | Heal 70 per Corruption/Immolate tick | see above |
+| Enchant Cloak - Subtlety (2621) | threat reduction (no damage effect) | DB, OLD (no stats) |
+| Stamina, armor, healing, Str/Agi on items, gems and enchants | health and defence are not simulated | - |
+| Wand of the Forgotten Star (29982) | wand attacks are not simulated (its stats count) | - |
+
+The Maelstrom's Fury and Fetish of the Primal Gods have no on-use or proc effect in DB.
+
+### Open questions
+
+1. Malefic 4pc stacking with Emberstorm on Incinerate: wowsims adds both (`DamageMultiplierAdditive` 1 + 0.06 + 0.06 = 1.12), the engine multiplies (1.06 x 1.06 = 1.1236, +0.3%). Shadow Bolt is exact (its only other damage modifier, Demonic Sacrifice, is a school multiplier). Incinerate is not in the priority; an additive-damage modifier field would fix it. This supersedes the Task 12a note "each spell has at most one additive damage talent".
+2. The meta gem's Ruin term is tied to the fixed build (see above).
+3. The priority's Shadowburn window still uses the unhasted 2500 ms Shadow Bolt cast (snapshots carry no haste); with gear the bolt takes 2431 ms, so the finisher window is 69 ms wider than one bolt.
+4. Band of the Eternal Sage and Icon of the Silver Crescent would add DPS once item effects arrive (stage 2a): the procs fit a set-style hook with a hidden internal-cooldown aura; the on-use trinket needs a castable item.
