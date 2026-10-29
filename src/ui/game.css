@@ -1,0 +1,514 @@
+:root {
+  --bg: #f3f1ec;
+  --panel: #ffffff;
+  --panel-border: #d8d3c8;
+  --text: #1d1b18;
+  --muted: #6b655b;
+  --accent: #7b4fc4;
+  --health: #2f9a3a;
+  --mana: #2f63c4;
+  --cast: #d9a21b;
+  --track: #e2ddd2;
+  --overlay: rgba(243, 241, 236, 0.86);
+  color-scheme: light;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15141a;
+    --panel: #201f27;
+    --panel-border: #34323d;
+    --text: #ebe8f0;
+    --muted: #9c97a8;
+    --accent: #a77ff0;
+    --health: #3fae4a;
+    --mana: #3c74e0;
+    --cast: #e0ae2a;
+    --track: #2c2a34;
+    --overlay: rgba(21, 20, 26, 0.86);
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px 24px;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.app-header h1 {
+  font-size: 1.25rem;
+  margin: 0 0 8px;
+}
+
+.app-spec,
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+kbd {
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 0.8em;
+  background: var(--panel);
+}
+
+.game {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .game {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.game-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.panel,
+.arena,
+.player {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+/* Live numbers */
+.fight-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.fight-stats > div {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.fight-stats dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.fight-stats dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Target */
+.arena {
+  position: relative;
+  min-height: 210px;
+}
+
+.target-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.target-level {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.bar {
+  position: relative;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+}
+
+.health-bar .bar-fill {
+  background: var(--health);
+}
+
+.mana-bar .bar-fill {
+  background: var(--mana);
+}
+
+.bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Auras */
+.aura-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.aura {
+  display: grid;
+  grid-template-columns: 36px auto;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.aura-icon {
+  grid-row: span 2;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.aura-count {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-size: 0.75rem;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+
+.aura-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Overlays (start, end summary) cover the arena only, so the action bar stays clickable. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.overlay-card {
+  text-align: center;
+}
+
+.overlay-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.3rem;
+}
+
+.overlay-card .hint {
+  margin: 8px 0 0;
+}
+
+button.primary {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 16px;
+  margin: 0 auto 12px;
+  width: max-content;
+  text-align: left;
+}
+
+.summary dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Player: buffs, cast bar, mana, action bar */
+.player {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player .aura-list {
+  margin: 0;
+}
+
+.cast-bar {
+  position: relative;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--track);
+}
+
+.cast-bar-idle {
+  background: transparent;
+}
+
+.cast-bar-fill {
+  height: 100%;
+  background: var(--cast);
+}
+
+.cast-bar-name,
+.cast-bar-time {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.cast-bar-name {
+  left: 8px;
+}
+
+.cast-bar-time {
+  right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.action-bar {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .action-bar {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.slot {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 6px;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font: inherit;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.slot-empty {
+  background: var(--track);
+  border-style: dashed;
+  border-color: var(--panel-border);
+  cursor: default;
+}
+
+.slot-initials {
+  font-weight: 700;
+  font-size: 1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.slot-key {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  z-index: 3;
+}
+
+.slot-empty .slot-key {
+  color: var(--muted);
+  text-shadow: none;
+}
+
+.slot-gcd {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(rgba(0, 0, 0, 0.6) var(--sweep), transparent 0);
+  z-index: 1;
+}
+
+.slot-cooldown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  z-index: 2;
+}
+
+.slot-oom {
+  filter: saturate(0.4);
+  box-shadow: inset 0 0 0 100px rgba(40, 70, 200, 0.45);
+}
+
+.slot-queued {
+  border-color: #ffd34d;
+  box-shadow: 0 0 0 2px #ffd34d;
+}
+
+.slot-flash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1px 0;
+  background: rgba(190, 30, 30, 0.92);
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  z-index: 4;
+  animation: slot-flash 700ms ease-out forwards;
+}
+
+@keyframes slot-flash {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Side panel */
+.game-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.set-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.set ul,
+.priority ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bonus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.bonus.active {
+  color: var(--text);
+}
+
+.bonus-pieces {
+  font-weight: 600;
+}
+
+.bonus-state {
+  font-size: 0.75rem;
+  border-radius: 3px;
+  padding: 0 4px;
+  background: var(--track);
+}
+
+.bonus.active .bonus-state {
+  background: var(--health);
+  color: #fff;
+}
+
+.bonus-description {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+.priority summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.priority ol {
+  margin-top: 8px;
+  counter-reset: step;
+}
+
+.priority li {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
