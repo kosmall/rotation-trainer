@@ -21,14 +21,19 @@ function freshSeed(): number {
   return (Date.now() + Math.imul(seedCounter, 0x9e3779b9)) >>> 0;
 }
 
-/** The fight exactly as the bot tests build it: boss target, default spell queue window, default 28 yd. */
-function createSimulation(spec: SpecData): Simulation {
+export interface SimulationOptions {
+  /** Distance from the target in yards for the fights this hook builds (default 28, target.ts). */
+  distanceYd?: number;
+}
+
+/** The fight as the bot tests build it: boss target, default spell queue window, the given distance. */
+function createSimulation(spec: SpecData, distanceYd: number): Simulation {
   return new Simulation({
     spec,
     target: BOSS_TARGET,
     seed: freshSeed(),
     spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
-    distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD,
+    distanceFromTarget: distanceYd,
   });
 }
 
@@ -37,17 +42,30 @@ function createSimulation(spec: SpecData): Simulation {
  * wall time the fight started at, applied once per animation frame. A backgrounded tab gets no
  * frames; on return the next frame catches up with a single `advanceTo` (the engine runs the
  * skipped events in order). `reset()` replaces the Simulation with a fresh seed.
+ *
+ * `options.distanceYd` is read only when a Simulation is built (creation and `reset()`): a fight
+ * that has started keeps its distance, the next one gets the new value. A fight that has not
+ * started yet (phase 'ready') is rebuilt at once, so a distance set before the first press
+ * applies to that fight.
  */
-export function useSimulation(spec: SpecData): SimulationControls {
+export function useSimulation(spec: SpecData, options: SimulationOptions = {}): SimulationControls {
+  const distanceYd = options.distanceYd ?? DEFAULT_DISTANCE_FROM_TARGET_YD;
   const simRef = useRef<Simulation | null>(null);
-  if (simRef.current === null) simRef.current = createSimulation(spec);
+  /** The distance the current Simulation was built with. */
+  const builtDistanceRef = useRef(distanceYd);
+  if (simRef.current === null) {
+    simRef.current = createSimulation(spec, distanceYd);
+    builtDistanceRef.current = distanceYd;
+  }
   const [snapshot, setSnapshot] = useState<SimSnapshot>(() => (simRef.current as Simulation).snapshot());
   /** performance.now() at fight time 0, or null before the fight starts. */
   const startedAtRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
 
   const sim = useCallback((): Simulation => {
-    if (simRef.current === null) simRef.current = createSimulation(spec);
+    // Not reached after the first render; uses the last built distance so that a distance change
+    // does not recreate this callback (and every callback and effect that depends on it).
+    if (simRef.current === null) simRef.current = createSimulation(spec, builtDistanceRef.current);
     return simRef.current;
   }, [spec]);
 
@@ -108,9 +126,17 @@ export function useSimulation(spec: SpecData): SimulationControls {
   const reset = useCallback(() => {
     stopLoop();
     startedAtRef.current = null;
-    simRef.current = createSimulation(spec);
+    simRef.current = createSimulation(spec, distanceYd);
+    builtDistanceRef.current = distanceYd;
     setSnapshot(simRef.current.snapshot());
-  }, [spec, stopLoop]);
+  }, [spec, distanceYd, stopLoop]);
+
+  // A new distance rebuilds a fight that has not started; a started or ended fight keeps its own.
+  useEffect(() => {
+    if (Object.is(builtDistanceRef.current, distanceYd)) return;
+    if (sim().snapshot().phase !== 'ready') return;
+    reset();
+  }, [distanceYd, reset, sim]);
 
   // Resume the loop after a remount (StrictMode) and stop it on unmount.
   useEffect(() => {

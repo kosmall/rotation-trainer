@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildPriority, ROTATION_PRESETS } from '../data/classes/warlock/rotation';
+import type { RotationConfig } from '../data/classes/warlock/rotation';
+import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
 import type { SpecData } from '../data/types';
 import type { SimSnapshot } from '../engine/types';
 import { ActionBar, REJECT_LABELS } from './ActionBar';
@@ -8,6 +11,7 @@ import { formatDps, formatInt, secondsText } from './format';
 import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
+import { SetupPanel } from './SetupPanel';
 import { StartOverlay } from './StartOverlay';
 import { AuraList, TargetPanel } from './TargetPanel';
 import { useSimulation } from './useSimulation';
@@ -15,9 +19,23 @@ import { useSimulation } from './useSimulation';
 /** How long a rejected press shows its reason on the slot. */
 const FLASH_MS = 700;
 
-/** The playable fight: target, cast bar, mana, action bar, live numbers and the end summary. */
+/** Keys typed into these (the Setup panel's fields, a focused `<summary>`) are not hotkeys. */
+const TYPING_TARGETS = 'input, select, textarea, summary, [contenteditable]:not([contenteditable="false"])';
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.matches(TYPING_TARGETS);
+}
+
+/**
+ * The playable fight: target, cast bar, mana, action bar, live numbers and the end summary, plus
+ * the Setup panel. The rotation and the distance live here (not saved yet): the Priority list
+ * follows them at once; the distance reaches the next Simulation only (useSimulation).
+ */
 export function GameView({ spec }: { spec: SpecData }) {
-  const { snapshot, cast, cancel, reset, start } = useSimulation(spec);
+  const [rotation, setRotation] = useState<RotationConfig>(() => ({ ...ROTATION_PRESETS.dot.config }));
+  const [distanceYd, setDistanceYd] = useState(DEFAULT_DISTANCE_FROM_TARGET_YD);
+  const priority = useMemo(() => buildPriority(rotation, distanceYd), [rotation, distanceYd]);
+  const { snapshot, cast, cancel, reset, start } = useSimulation(spec, { distanceYd });
   const [flash, setFlash] = useState<SlotFlash | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -58,6 +76,7 @@ export function GameView({ spec }: { spec: SpecData }) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTypingTarget(event.target)) return; // e.g. digits typed into the distance field
       const slot = keyToSlot(event.key);
       const handled = slot !== undefined || event.key === 'Escape' || event.key === ' ' || event.key === 'r' || event.key === 'R';
       if (!handled) return;
@@ -89,11 +108,12 @@ export function GameView({ spec }: { spec: SpecData }) {
         </div>
       </main>
       <aside className="game-side">
+        <SetupPanel rotation={rotation} distanceYd={distanceYd} onRotation={setRotation} onDistance={setDistanceYd} />
         <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} />
         <details className="panel priority">
           <summary>Priority</summary>
           <ol>
-            {spec.priority.map((step) => (
+            {priority.map((step) => (
               <li key={step.spellId}>
                 <strong>{step.label}</strong>
                 <span className="hint">{step.hint}</span>
