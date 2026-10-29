@@ -128,10 +128,10 @@ describe('setup catalog, DEFAULT_SETUP and SETUP_PRESETS', () => {
     expect(normalizeSetup(DEFAULT_SETUP, SETUP_CATALOG)).toEqual(DEFAULT_SETUP);
   });
 
-  it("SETUP_PRESETS: 'none' is the default, 'raid-log' a copy of it for now; frozen, and both normalize to themselves", () => {
+  it("SETUP_PRESETS: 'none' is the default, 'raid-log' its own setup (Task 12, tests/setup/raid-log.test.ts); frozen, and both normalize to themselves", () => {
     expect(Object.keys(SETUP_PRESETS)).toEqual(['none', 'raid-log']);
     expect(SETUP_PRESETS.none.config).toEqual(DEFAULT_SETUP);
-    expect(SETUP_PRESETS['raid-log'].config).toEqual(SETUP_PRESETS.none.config);
+    expect(SETUP_PRESETS['raid-log'].config).not.toEqual(SETUP_PRESETS.none.config);
     expect(SETUP_PRESETS['raid-log'].config).not.toBe(SETUP_PRESETS.none.config);
     expect(SETUP_PRESETS.none.name).toBe('None');
     expect(SETUP_PRESETS['raid-log'].name).toBe('Raid as in my log');

@@ -425,6 +425,30 @@ describe('SetupPanel', () => {
       expect(last(onChange)).toEqual(SETUP_PRESETS[id].config);
     }
   });
+
+  it("the real 'Raid as in my log' preset is told apart from None: clicking it shows it as active", () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const raidButton = screen.getByRole('button', { name: 'Raid as in my log' });
+    const noneButton = screen.getByRole('button', { name: 'None' });
+    expect(activePreset()).toBe('None');
+    expect(raidButton.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(raidButton);
+    expect(activePreset()).toBe('Raid as in my log');
+    expect(raidButton.getAttribute('aria-pressed')).toBe('true');
+    expect(noneButton.getAttribute('aria-pressed')).toBe('false');
+    expect(checkbox(buff('moonkin-aura').name).checked).toBe(true);
+    expect(checkbox(buff('band-of-the-eternal-sage').name).checked).toBe(true);
+    expect(startInput(buff('heroism').name).value).toBe('6.4');
+    expect(startInput(buff('icon-of-the-silver-crescent').name).value).toBe('30.2');
+    expect(presetSelect().value).toBe('sb-spam');
+
+    fireEvent.click(noneButton);
+    expect(activePreset()).toBe('None');
+    expect(noneButton.getAttribute('aria-pressed')).toBe('true');
+    expect(raidButton.getAttribute('aria-pressed')).toBe('false');
+  });
 });
 
 describe('SetupPanel in GameView', () => {
