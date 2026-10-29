@@ -80,6 +80,17 @@ describe('Simulation lifecycle', () => {
     expect(sim.snapshot().nowMs).toBe(1000);
   });
 
+  it("a rejected cast in 'ready' does not start the fight", () => {
+    const sim = newSim();
+    const before = observe(sim);
+    expect(sim.cast('nope')).toEqual({ ok: false, reason: 'unknown-spell' });
+    expect(sim.snapshot().phase).toBe('ready');
+    expect(sim.log()).toEqual([]);
+    expect(observe(sim)).toEqual(before);
+    sim.advanceTo(1000);
+    expect(sim.snapshot().nowMs).toBe(0);
+  });
+
   it('start() begins the fight at 0 and is idempotent', () => {
     const sim = newSim();
     sim.start();

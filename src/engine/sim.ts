@@ -150,13 +150,17 @@ export class Simulation {
     if (tMs >= this.durationMs) this.endFight();
   }
 
+  /**
+   * Casts `spellId`, or returns why not without changing anything. In `ready` the checks run
+   * at 0 ms, and only an accepted cast starts the fight.
+   */
   cast(spellId: string): CastResult {
-    if (this.phase === 'ready') this.start();
     if (this.phase === 'ended') return { ok: false, reason: 'ended' };
     const spell = this.spells.get(spellId);
     if (!spell) return { ok: false, reason: 'unknown-spell' };
     const rejection = this.castRejection(spell);
     if (rejection) return { ok: false, reason: rejection };
+    this.start();
     this.startCast(spell);
     return { ok: true };
   }
