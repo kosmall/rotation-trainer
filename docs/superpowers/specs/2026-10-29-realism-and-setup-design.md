@@ -127,7 +127,7 @@ Nowe w silniku (każde z testem):
   automatyczne używanie przez gracza. To symulacja zdarzeń raidu, bez klawiszy.
 - Preset **"Jak w moim raidzie"** (z logu): Heroism od ~6 s, Destruction Potion od ~7,5 s, Icon od ~30 s,
   Judgement of Wisdom, Mana Spring Totem, Moonkin Aura, buffy Int/Spirit zgodne z rozbieżnością z logu
-  (Int 593, Spirit 191, spell power 1592 przy Life Tapie), Band of the Eternal Sage, `isbFromOthers`.
+  (Int 593, Spirit 191, spell power 1592 przy Life Tapie), Band of the Eternal Sage, `isb-from-others`.
   Preset **"Bez buffów"** to domyślny.
 
 ## 5. Panel "Setup" i zapis
@@ -137,7 +137,7 @@ Nowe w silniku (każde z testem):
 - Model: `SetupConfig` (czysty obiekt, wersjonowany): `{ version: 1; enabledBuffs: string[];
   timed: Record<buffId, { startSec: number; durationSec: number }>; rotation: RotationConfig;
   distanceYd: number; warlock: { armor: 'fel' | 'demon' | 'none'; sacrificeSuccubus: boolean } }`
-  (`isbFromOthers` jest zwykłym buffem z katalogu, nie polem osobnym).
+  (Improved Shadow Bolt od innych (`isb-from-others`) to zwykła pozycja katalogu, nie osobne pole).
 - `applySetup(spec, config): { spec: SpecData; simConfig: Partial<SimConfig> }` w `src/setup/`. Funkcja
   czysta: scala efekty włączonych buffów ze statami gearu i talentów, buduje aury zaplanowane, listę
   priorytetów i `distanceFromTarget`. Silnik nie zna katalogu buffów, tylko aury i ich efekty.
