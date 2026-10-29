@@ -2,7 +2,7 @@
 
 import { BASE_CRIT_PCT, CRIT_RATING_PER_PCT } from '../../src/data/common/ratings';
 import type { SpecData } from '../../src/data/types';
-import type { AuraDef, SpellDef, TargetData } from '../../src/engine/types';
+import type { AuraDef, SpecHooks, SpellDef, TargetData } from '../../src/engine/types';
 
 /** Never misses, no partial resists, no armor. */
 export const TEST_TARGET: TargetData = { missPct: 0, minMissPct: 0, levelResistMult: 1, armor: 0 };
@@ -139,7 +139,28 @@ function testAuras(): AuraDef[] {
       durationMs: 10000,
       damageTakenMult: { schools: ['shadow'], mult: 1.2 },
     },
+    {
+      // Improved Shadow Bolt-like: the next 2 shadow damage instances (hits or ticks) are ×1.2.
+      id: 'procAura',
+      name: 'Proc',
+      icon,
+      durationMs: 12000,
+      charges: 2,
+      damageTakenMult: { schools: ['shadow'], mult: 1.2, consumeChargeOnHit: true },
+    },
   ];
+}
+
+/**
+ * Spec hooks that apply `procAura` to the target whenever `bolt` crits. Not in the default
+ * fixture (its hooks are `{}`); pass it with `makeTestSpec({ hooks: boltCritProcHooks() })`.
+ */
+export function boltCritProcHooks(): SpecHooks {
+  return {
+    onSpellResolved(e, api) {
+      if (e.spellId === 'bolt' && e.outcome === 'crit') api.applyTargetAura('procAura');
+    },
+  };
 }
 
 /**

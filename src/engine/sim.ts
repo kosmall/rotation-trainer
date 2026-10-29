@@ -18,6 +18,7 @@ import type {
   HitOutcome,
   LogEvent,
   RawStats,
+  School,
   SimConfig,
   SimSnapshot,
   SpecHooks,
@@ -118,7 +119,7 @@ export class Simulation {
   private readonly rng: Rng;
   private readonly spells = new Map<string, SpellDef>();
   private readonly spellMods = new Map<string, SpellMods>();
-  /** Spec hooks first, then the hooks of active set bonuses (invoked from Task 11 on). */
+  /** Spec hooks first, then the hooks of active set bonuses; all run after every completed spell. */
   private readonly hooks: SpecHooks[];
   private readonly events = new EventQueue<SimEvent>();
   private readonly auraDefs = new Map<string, AuraDef>();
@@ -433,7 +434,8 @@ export class Simulation {
 
   /**
    * Rolls the hit table once per spell. On a hit or crit: direct damage, then the consumed
-   * target aura is removed, then the spell's aura is applied. A miss does none of these.
+   * target aura is removed, then the spell's aura is applied. A miss does none of these. Then,
+   * on every outcome, the hooks run (see `runHooks`).
    */
   private resolveSpell(spell: SpellDef): void {
     const mods = this.modsFor(spell);
@@ -443,18 +445,45 @@ export class Simulation {
       canMiss: spell.canMiss,
       canCrit: spell.canCrit,
     });
+    let damage = 0;
     if (outcome === 'miss') {
       this.addLog({ type: 'miss', spellId: spell.id });
-      return;
+    } else {
+      if (spell.direct) damage = this.dealDirectDamage(spell, spell.direct, mods, outcome);
+      if (spell.consumesTargetAura) this.removeAura('target', spell.consumesTargetAura);
+      if (spell.applyAura) this.applyAura(spell.applyAura.on, spell.applyAura.auraId, spell);
     }
-    if (spell.direct) this.dealDirectDamage(spell, mods, outcome);
-    if (spell.consumesTargetAura) this.removeTargetAura(spell.consumesTargetAura);
-    if (spell.applyAura) this.applyAura(spell.applyAura.on, spell.applyAura.auraId, spell);
+    this.runHooks(spell, outcome, damage);
   }
 
-  private dealDirectDamage(spell: SpellDef, mods: SpellMods, outcome: Exclude<HitOutcome, 'miss'>): void {
-    const direct = spell.direct;
-    if (!direct) return;
+  /**
+   * Calls `onSpellResolved` of the spec hooks, then of each active set bonus's hooks, once per
+   * completed spell (every outcome, including spells with no direct damage; `damage` is the
+   * direct damage dealt, 0 for none or a miss). They run after the spell's damage, consumption
+   * and aura application. Auras applied through the api are logged with this spell as source.
+   * `api.roll()` draws from the simulation's seeded Rng, so it shifts every later draw, but
+   * only when a hook calls it: hooks that never roll leave the draw order unchanged.
+   */
+  private runHooks(spell: SpellDef, outcome: HitOutcome, damage: number): void {
+    const api = {
+      applyTargetAura: (id: string) => this.applyAura('target', id, spell),
+      applySelfAura: (id: string) => this.applyAura('self', id, spell),
+      roll: () => this.rng.next(),
+      hasSelfAura: (id: string) => this.selfAuras.get(id, this.nowMs) !== undefined,
+      hasTargetAura: (id: string) => this.targetAuras.get(id, this.nowMs) !== undefined,
+    };
+    for (const hooks of this.hooks) {
+      hooks.onSpellResolved?.({ spellId: spell.id, outcome, damage }, api);
+    }
+  }
+
+  /** Deals and logs the direct damage of a hit or crit; returns the amount. */
+  private dealDirectDamage(
+    spell: SpellDef,
+    direct: NonNullable<SpellDef['direct']>,
+    mods: SpellMods,
+    outcome: Exclude<HitOutcome, 'miss'>,
+  ): number {
     const amount = computeDamage({
       rng: this.rng,
       min: direct.min,
@@ -469,6 +498,8 @@ export class Simulation {
     });
     this.damageTotal += amount;
     this.addLog({ type: 'damage', spellId: spell.id, amount, crit: outcome === 'crit' });
+    this.consumeDamageCharges(spell.school);
+    return amount;
   }
 
   // -------------------------------------------------------------------------
@@ -513,7 +544,7 @@ export class Simulation {
   /**
    * Applies (or refreshes) `auraId` from `source`. A refresh cancels the aura's pending ticks
    * and fade, then reschedules them from now: no immediate tick, no double ticks. Ticks are
-   * scheduled for target auras only. The fade event removes the aura and logs `aura-fade`.
+   * scheduled for target auras only. The fade event removes the aura through `removeAura`.
    */
   private applyAura(on: 'target' | 'self', auraId: string, source: SpellDef): void {
     const def = this.auraDef(auraId);
@@ -523,11 +554,7 @@ export class Simulation {
     tracker.apply(auraId, this.nowMs);
     this.addLog({ type: 'aura-apply', spellId: source.id, auraId });
     const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, source) : [];
-    const fadeEventId = this.schedule(this.nowMs + def.durationMs, () => {
-      pending.delete(auraId);
-      tracker.remove(auraId);
-      this.addLog({ type: 'aura-fade', auraId });
-    });
+    const fadeEventId = this.schedule(this.nowMs + def.durationMs, () => this.removeAura(on, auraId));
     pending.set(auraId, { tickEventIds, fadeEventId });
   }
 
@@ -553,18 +580,40 @@ export class Simulation {
           );
           this.damageTotal += amount;
           this.addLog({ type: 'tick', spellId: source.id, auraId: def.id, amount });
+          this.consumeDamageCharges(tick.school);
         }),
       );
     }
     return ids;
   }
 
-  /** Removes an active target aura and its pending ticks and fade; logs `aura-fade`. */
-  private removeTargetAura(auraId: string): void {
-    if (!this.targetAuras.get(auraId, this.nowMs)) return;
-    this.cancelAuraEvents(this.targetAuraEvents, auraId);
-    this.targetAuras.remove(auraId);
+  /**
+   * The one removal routine for every path: expiry (the fade event), consumption by a spell
+   * and running out of charges; target and self auras alike. Cancels the aura's pending ticks
+   * and fade, removes it and logs `aura-fade`. An aura counts as applied while it has pending
+   * events (set by `applyAura`, cleared here), so each application logs exactly one fade, at
+   * the time it actually ends. No-op for an aura that is not applied.
+   */
+  private removeAura(on: 'target' | 'self', auraId: string): void {
+    const pending = on === 'target' ? this.targetAuraEvents : this.selfAuraEvents;
+    if (!pending.has(auraId)) return;
+    this.cancelAuraEvents(pending, auraId);
+    (on === 'target' ? this.targetAuras : this.selfAuras).remove(auraId);
     this.addLog({ type: 'aura-fade', auraId });
+  }
+
+  /**
+   * After one damage instance of `school` (a direct hit or a DoT tick) has been calculated:
+   * every active target aura with `damageTakenMult.consumeChargeOnHit` for that school loses
+   * one charge; one that runs out is removed (`removeAura`, logged `aura-fade` now).
+   */
+  private consumeDamageCharges(school: School): void {
+    for (const auraId of Object.keys(this.targetAuras.views(this.nowMs))) {
+      const mult = this.auraDef(auraId).damageTakenMult;
+      if (!mult?.consumeChargeOnHit || !mult.schools.includes(school)) continue;
+      this.targetAuras.consumeCharge(auraId, this.nowMs);
+      if (!this.targetAuras.get(auraId, this.nowMs)) this.removeAura('target', auraId);
+    }
   }
 
   private cancelAuraEvents(pending: Map<string, AuraEvents>, auraId: string): void {
