@@ -130,6 +130,8 @@ export interface AuraDef {
   id: string;
   name: string;
   icon: string;
+  /** Wowhead (TBC) spell id: source of the icon file; `npm run icons` verifies `icon` against it. */
+  wowheadId?: number;
   durationMs: number;
   maxStacks?: number;
   charges?: number;
@@ -174,6 +176,8 @@ export interface SpellDef {
   id: string;
   name: string;
   icon: string;
+  /** Wowhead (TBC) spell id: source of the icon file; `npm run icons` verifies `icon` against it. */
+  wowheadId?: number;
   school: School;
   manaCost: number;
   castTimeMs: number;
