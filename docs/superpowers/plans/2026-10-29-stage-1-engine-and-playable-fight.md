@@ -100,7 +100,8 @@ docs/data-sources.md                   # where each number came from, what stays
   type School = 'physical'|'shadow'|'fire'|'arcane'|'frost'|'nature'|'holy'
   interface RawStats { intellect:number; spirit:number; spellPower:number; shadowPower:number; firePower:number;
                        critRating:number; hitRating:number; hasteRating:number; baseMana:number; mp5:number }
-  interface CharacterSetup { stats: RawStats; setPieces: Record<string, number> }   // set id -> pieces worn
+  interface CharacterSetup { stats: RawStats; setPieces: Record<string, number>;   // set id -> pieces worn
+                             modifiers: SpellModifier[] }                            // gear-derived (meta gem), see Task 5c
   interface DerivedStats { maxMana:number; power:Record<School,number>; critPct:number; hitPct:number; hastePct:number;
                            spiritRegenPerSec:number; mp5RegenPerSec:number }
   interface TargetData { missPct:number; minMissPct:number; levelResistMult:number; armor:number }
@@ -222,14 +223,31 @@ docs/data-sources.md                   # where each number came from, what stays
 
 **Interfaces:**
 - Consumes: `RawStats`, `CharacterSetup` (Task 3).
-- Produces in `types.ts`: `interface ItemDef { id:number; name:string; slot:string; stats:Partial<RawStats>; setId?:string }`.
-- Produces in `gear.ts`: `buildSetup(p:{ baseStats:RawStats; itemIds:number[]; items:Record<number, ItemDef> }): { setup: CharacterSetup; unknownItemIds: number[] }` — `setup.stats` = `baseStats` plus the sum of each known item's `stats`; `setup.setPieces[setId]` = number of entries in `itemIds` whose item has that `setId`; ids missing from `items` are skipped and returned in `unknownItemIds` (no throw), so the later importer can report them. This is the only way a `CharacterSetup` is built from gear, in stage 1 and in the stage 2a importer.
+- Produces in `types.ts`:
+  ```ts
+  type GemColor = 'meta'|'red'|'blue'|'yellow'|'orange'|'purple'|'green'|'prismatic'
+  interface ItemDef { id:number; name:string; slot:string; stats:Partial<RawStats>; setId?:string;
+                      sockets?:GemColor[]; socketBonus?:Partial<RawStats> }
+  interface GemDef { id:number; name:string; color:GemColor; stats:Partial<RawStats>;
+                     metaRequires?:Partial<Record<'red'|'blue'|'yellow', number>>; metaModifiers?:SpellModifier[] }
+  interface EnchantDef { id:number; name:string; stats:Partial<RawStats> }
+  interface EquippedItem { id:number; enchant?:number; gems?:number[] }      // same shape as WowSimsExporter gear.items entries
+  ```
+  and `CharacterSetup` becomes `{ stats: RawStats; setPieces: Record<string, number>; modifiers: SpellModifier[] }` (`modifiers` = gear-derived effects such as the meta gem's; Task 3 declares it, Task 6 merges it into the active modifier list).
+- Produces in `gear.ts`: `buildSetup(p:{ baseStats:RawStats; equipped:EquippedItem[]; items:Record<number, ItemDef>; gems:Record<number, GemDef>; enchants:Record<number, EnchantDef> }): { setup: CharacterSetup; unknown: { items:number[]; gems:number[]; enchants:number[] } }`:
+  - `setup.stats` = `baseStats` + each known item's `stats` + each known enchant's `stats` + each known gem's `stats` + the `socketBonus` of every item whose sockets are all filled with gems whose color satisfies the socket (match table: red←red/orange/purple; blue←blue/purple/green; yellow←yellow/orange/green; meta←meta only; prismatic←any) — gems beyond the item's sockets are ignored;
+  - the meta gem's `metaModifiers` go to `setup.modifiers` only if `metaRequires` is met by the non-meta gems (counting orange as red+yellow, purple as red+blue, green as blue+yellow);
+  - `setup.setPieces[setId]` = number of `equipped` entries whose item has that `setId`;
+  - ids missing from the tables are skipped and listed in `unknown` (no throw), so the stage 2a importer can report them. This is the only way a `CharacterSetup` is built from gear, in stage 1 and in the stage 2a importer.
 
-- [ ] **Step 1: Write failing tests** (items: `1` shadowPower 10 set `a`; `2` shadowPower 20 set `a`; `3` hitRating 5, no set)
-  - `stats are base plus the sum of item stats` (all stats default to 0 for missing keys).
-  - `setPieces counts items per set id: [1,2,3] → {a: 2}`; `an item without setId adds no entry`.
-  - `unknown item id is skipped, reported in unknownItemIds, and does not change stats or set counts`.
-  - `empty itemIds returns baseStats and empty setPieces`.
+- [ ] **Step 1: Write failing tests** (items: `1` shadowPower 10, set `a`, sockets `['red','blue']`, socketBonus hitRating 4; `2` shadowPower 20, set `a`; `3` hitRating 5, no set; gems: `10` red spellPower 7, `11` blue spellPower 7, `12` yellow critRating 8, `13` meta critRating 12 with `metaRequires {red: 2}` and `metaModifiers [{critMultDelta: 0.03}]`; enchant `100` spellPower 15)
+  - `stats are base plus item, enchant and gem stats` (missing keys count as 0).
+  - `setPieces counts equipped items per set id: [1,2,3] → {a: 2}`; `an item without setId adds no entry`.
+  - `socket bonus applies only when every socket's color is satisfied` (`[10,11]` yes; `[10,12]` no; `[10]` only one gem → no; an orange or purple gem satisfies red).
+  - `extra gems beyond the item's sockets are ignored`.
+  - `meta gem modifiers appear in setup.modifiers only when metaRequires is met; its stats apply either way`.
+  - `unknown item/gem/enchant ids are skipped, reported in unknown, and change nothing else`.
+  - `empty equipped returns baseStats, empty setPieces and empty modifiers`.
 - [ ] **Step 2: Run `npx vitest run tests/engine/gear.test.ts`** — Expected: FAIL.
 - [ ] **Step 3: Implement `buildSetup`.**
 - [ ] **Step 4: Run tests** — Expected: PASS.
@@ -259,7 +277,7 @@ docs/data-sources.md                   # where each number came from, what stays
   class Simulation { constructor(config: SimConfig); start(): void; advanceTo(tMs: number): void;
     cast(spellId: string): CastResult; cancelCast(): void; snapshot(): SimSnapshot; log(): readonly LogEvent[] }
   ```
-- `tests/fixtures/testSpec.ts` exports `makeTestSpec(overrides?)` and `TEST_TARGET` (`missPct 0, minMissPct 0, levelResistMult 1, armor 0`), a spec with deterministic spells: `bolt` (cast 2000, direct min=max=100, coeff 0, cost 50, gcd), `zap` (instant, direct 50, cd 8000, cost 20, gcd), `free` (instant, off gcd, no damage), `setup` with `critRating 0` and `intellect 0`, `baseMana 1000`, `spellPower 0`, `mp5 0` (so crit 0, no regen) and `setPieces {}`; `sets` holds `test-set` bonuses: 2 pieces `modifiers [{spellIds:['zap'], damageMult:1.1}]`, 4 pieces `modifiers [{spellIds:['bolt'], damageMult:1.5}]`.
+- `tests/fixtures/testSpec.ts` exports `makeTestSpec(overrides?)` and `TEST_TARGET` (`missPct 0, minMissPct 0, levelResistMult 1, armor 0`), a spec with deterministic spells: `bolt` (cast 2000, direct min=max=100, coeff 0, cost 50, gcd), `zap` (instant, direct 50, cd 8000, cost 20, gcd), `free` (instant, off gcd, no damage), `setup` with `critRating 0` and `intellect 0`, `baseMana 1000`, `spellPower 0`, `mp5 0` (so crit 0, no regen) `setPieces {}` and `modifiers []`; `sets` holds `test-set` bonuses: 2 pieces `modifiers [{spellIds:['zap'], damageMult:1.1}]`, 4 pieces `modifiers [{spellIds:['bolt'], damageMult:1.5}]`.
 
 Rules: phase starts `ready`; `advanceTo` is a no-op in `ready`; `cast` in `ready` calls `start()` first; `nowMs` is fight time. Instant GCD spell: cast completes immediately, GCD = `max(MIN_GCD_MS, round(BASE_GCD_MS / (1 + hastePct/100)))`; cooldown starts at completion; damage and mana apply at completion. Events with `atMs <= durationMs` are processed in order; at the end `phase` becomes `ended`, `nowMs = durationMs`, and later `cast` returns `{ok:false, reason:'ended'}`. `dps = damageTotal / (nowMs/1000)` (0 at 0 ms). `advanceTo` must be idempotent for earlier times (never moves back).
 
@@ -276,7 +294,7 @@ Rules: phase starts `ready`; `advanceTo` is a no-op in `ready`; `cast` in `ready
   - `same seed gives identical log; different seeds with crit enabled differ`.
   - Review Focus 6: `with setPieces {test-set: 1} zap deals 50`; `{test-set: 2} zap deals 55 and bolt is unchanged`; `{test-set: 4} zap deals 55 and bolt deals 150`; `{unknown-set: 4} changes nothing`.
 - [ ] **Step 2: Run `npx vitest run tests/engine/sim-core.test.ts`** — Expected: FAIL.
-- [ ] **Step 3: Implement `Simulation`** with the event queue, the constructor merging `activeSetBonuses(spec.sets, spec.setup.setPieces)` into the modifier list, the `statBonuses` passed to `computeStats`, and the hook list (set hooks run after spec hooks), spell/modifier lookup tables built in the constructor (modifiers applied per spell: `castTimeMsDelta`, `manaCostMult`, `damageMult`, `critPctDelta`, `critMultDelta`, matched by `spellIds`/`schools`), `computeStats(spec.setup, spec.statBonuses)` for stats. Direct damage uses `rollOutcome` + `computeDamage` from Task 4 with `targetMult = targetAuras.damageTakenMult(school)` and `resistMult = target.levelResistMult`.
+- [ ] **Step 3: Implement `Simulation`** with the event queue, the constructor merging `spec.modifiers`, `spec.setup.modifiers` and `activeSetBonuses(spec.sets, spec.setup.setPieces)` modifiers into one modifier list, the `statBonuses` passed to `computeStats`, and the hook list (set hooks run after spec hooks), spell/modifier lookup tables built in the constructor (modifiers applied per spell: `castTimeMsDelta`, `manaCostMult`, `damageMult`, `critPctDelta`, `critMultDelta`, matched by `spellIds`/`schools`), `computeStats(spec.setup, spec.statBonuses)` for stats. Direct damage uses `rollOutcome` + `computeDamage` from Task 4 with `targetMult = targetAuras.damageTakenMult(school)` and `resistMult = target.levelResistMult`.
 - [ ] **Step 4: Run tests** — Expected: PASS.
 - [ ] **Step 5: Commit** `feat(engine): simulation core with instant spells`.
 
@@ -448,13 +466,15 @@ Rules: while a self aura is active its `selfStatBonuses` are added to the raw st
 - Consumes: `SpecData`, `SpellDef`, `AuraDef`, `SpellModifier`, `PriorityStep` (Task 5), `ratings.ts` constants.
 - Produces: `export const destructionWarlock: SpecData` with spell ids `shadow-bolt, immolate, corruption, curse-of-agony, curse-of-doom, curse-of-the-elements, conflagrate, shadowburn, incinerate, life-tap`; aura ids `immolate, corruption, curse-of-agony, curse-of-doom, curse-of-the-elements, shadow-vulnerability`; `keybinds` = those spell ids in action-bar order (slots 1–9, 0, -, = ; unused slots empty string); `priority` (shadow-destruction priority list: curse, Immolate, Corruption, Conflagrate when Immolate up, Shadowburn on cooldown, Life Tap when low mana, Shadow Bolt filler — final order and `when` rules per verified sources).
 
-Work: look up each spell's TBC Classic values (base damage range, coefficient, cast time, cost, cooldown, DoT total/ticks/duration, Conflagrate and Shadowburn rules, Life Tap yield, Curse of the Elements amount, Improved Shadow Bolt: 4 charges / 12 s, crit-triggered via `hooks.onSpellResolved`) from wowsims/tbc-new, wowsims/tbc and Wowhead TBC. The fixed build is encoded as `modifiers` + `statBonuses` (Bane, Ruin, Cataclysm, Devastation, Emberstorm/Shadow Mastery as applicable to the chosen shadow build). The default gear is a list of item IDs: take the earliest-phase BIS preset for Destruction Warlock from the wowsims presets, show the list to the author for approval before encoding, put exactly those items (name, slot, stats, `setId`) in `items.ts`, and build `setup` with `buildSetup` (Task 5c) from a fixed `baseStats`; stages 2a/2b replace the item table and the build with the full database, BIS presets, importer and talent editor. Document every number's source and each `UNVERIFIED` item in `docs/data-sources.md`. If Conflagrate needs an engine feature the current `SpellDef` lacks, add it to `src/engine` with its own test before using it.
+Work: look up each spell's TBC Classic values (base damage range, coefficient, cast time, cost, cooldown, DoT total/ticks/duration, Conflagrate and Shadowburn rules, Life Tap yield, Curse of the Elements amount, Improved Shadow Bolt: 4 charges / 12 s, crit-triggered via `hooks.onSpellResolved`) from wowsims/tbc-new, wowsims/tbc and Wowhead TBC. The fixed build is encoded as `modifiers` + `statBonuses` (Bane, Ruin, Cataclysm, Devastation, Emberstorm/Shadow Mastery as applicable to the chosen shadow build). The default gear and build are the author's own WowSimsExporter export, `docs/samples/wowsimsexporter-destruction-warlock.json` (race Gnome, level 70, 17 equipped items with enchant and gem ids, talent string `affliction-demonology-destruction` = `000000000000000000000-2050130133200100000000-555000512200013330050`, i.e. 0/21/40; no approval round is needed, the author supplied it). Put every item, gem and enchant id that appears in the file in `items.ts` (exported as `items`, `gems`, `enchants`: name, slot, stats, `setId`, sockets and socket bonus, meta requirements/effects from the sources), define `equipped` as the file's `gear.items` array, and build `setup` with `buildSetup` (Task 5c) from a fixed `baseStats` (level 70 Gnome Warlock base stats, no raid buffs; sourced and documented). Translate the talent string into `modifiers` + `statBonuses` using the Warlock talent tree order from the sources (talents that do not affect the simulated spells are listed in `docs/data-sources.md` as not modeled). Item on-use/proc effects (trinkets, weapons) are NOT modeled in stage 1: list each such item and effect in `docs/data-sources.md` under "Not modeled". Stages 2a/2b replace the item table and the build with the full database, BIS presets, importer and talent editor. Document every number's source and each `UNVERIFIED` item in `docs/data-sources.md`. If Conflagrate needs an engine feature the current `SpellDef` lacks, add it to `src/engine` with its own test before using it.
 
 Set bonuses: `sets.ts` exports `warlockSets: SetBonusDef[]` covering every set that appears in the default gear's `items.ts` (all other Warlock sets arrive with the stage 2a item database). Each bonus is encoded as the right mix of `modifiers`, `statBonuses`, `hooks` (procs with `roll()` and an internal cooldown aura) and self auras defined in `auras.ts`, with its description text copied from the source and the source recorded in `docs/data-sources.md`. A bonus the engine cannot express is added as an engine feature with its own test before use.
 
 - [ ] **Step 1: Write failing tests** (these pin the data, not the engine)
   - `every set bonus has a unique (setId, pieces) pair`; `setup.setPieces only references known set ids`; `every aura id used by set hooks/bonuses is defined`.
-  - `every item in items.ts has a slot and non-empty stats, every setId on an item has at least one bonus in warlockSets, and the default gear has no unknown item ids (buildSetup returns empty unknownItemIds)`.
+  - `every item in items.ts has a slot and non-empty stats, every setId on an item has at least one bonus in warlockSets, and the default gear has nothing unknown (buildSetup returns empty unknown.items/gems/enchants)`.
+  - `the default gear is exactly the 17 entries of docs/samples/wowsimsexporter-destruction-warlock.json (same ids, enchants and gems)`.
+  - `the default talent string parses to 0/21/40 points`.
   - `with the default setPieces, each active set bonus changes the expected stat/damage: a Simulation with the bonus's setPieces removed produces different damage totals for the same seed`.
   - `every keybind entry is empty or a defined spell id`; `every priority step references a defined spell`; `every spell.applyAura/requiresTargetAura/consumesTargetAura references a defined aura`.
   - `shadow-bolt cast time after modifiers equals the verified value` (value from the sources; record it in the test).

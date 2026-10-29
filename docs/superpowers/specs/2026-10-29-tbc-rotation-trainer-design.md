@@ -164,6 +164,11 @@ Jeden spec, osobny plan implementacji i commit na etap:
 - **Format eksportu WowSimsExporter** (pola, gemy, enchanty) nie jest mi znany; potrzebna jest
   próbka eksportu autora na początku etapu 2a. Jeśli gemy/enchanty nie wchodzą do eksportu,
   staty liczone są z samych itemów.
+- **Gemy, enchanty i efekty itemów.** Eksport zawiera ID gemów i enchantów, więc staty liczone
+  są z itemów, gemów (z bonusami socketów i wymaganiami meta gema) i enchantów. Efekty
+  on-use/proc itemów (trinkety, bronie) **nie są modelowane w etapie 1** (lista w
+  `docs/data-sources.md`, „Not modeled"); zaniżają DPS względem gry i są kandydatem na
+  późniejszy etap.
 - **Źródło danych o itemach i presetach.** wowsims/tbc jest porzucone; dla Anniversary
   sprawdzam wowsims/tbc-new (licencja do potwierdzenia przy użyciu danych) oraz Wowhead TBC.
   Struktura i format ich presetów/bazy itemów jeszcze niezweryfikowane.
