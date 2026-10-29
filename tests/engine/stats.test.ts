@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats } from '../../src/engine/stats';
+import { combineStatMultipliers, computeStats } from '../../src/engine/stats';
 import type { CharacterSetup, RawStats } from '../../src/engine/types';
 import {
   BASE_CRIT_PCT,
@@ -137,5 +137,65 @@ describe('computeStats statMultipliers (racial and talent % stat effects)', () =
     expect(computeStats({ ...setupWith({ intellect: 400, spirit: 100, baseMana: 2000 }), statMultipliers: {} })).toEqual(
       base,
     );
+  });
+});
+
+describe('computeStats haste multiplier (StatMultipliers.haste)', () => {
+  it('haste factor 1.3 with 45 haste rating gives hastePct ≈ 33.7 (multiplicative, from the log: Shadow Bolt 2500 ms → 1870 ms)', () => {
+    const d = computeStats({ ...setupWith({ hasteRating: 45 }), statMultipliers: { haste: 1.3 } });
+    const ratingPct = 45 / HASTE_RATING_PER_PCT;
+    expect(d.hastePct).toBeCloseTo(((1 + ratingPct / 100) * 1.3 - 1) * 100, 9);
+    expect(d.hastePct).toBeCloseTo(33.71, 2);
+    expect(Math.round(2500 / (1 + d.hastePct / 100))).toBe(1870);
+  });
+
+  it('a haste factor of 1 (or none) leaves hastePct exactly the rating percentage', () => {
+    const plain = computeStats(setupWith({ hasteRating: 45 }));
+    expect(plain.hastePct).toBe(45 / HASTE_RATING_PER_PCT);
+    expect(computeStats({ ...setupWith({ hasteRating: 45 }), statMultipliers: { haste: 1 } })).toEqual(plain);
+  });
+
+  it('a haste factor works without haste rating', () => {
+    const d = computeStats({ ...setupWith({}), statMultipliers: { haste: 1.3 } });
+    expect(d.hastePct).toBeCloseTo(30, 9);
+  });
+
+  it('extra multipliers (self auras) combine multiplicatively with the setup multipliers', () => {
+    const setup: CharacterSetup = {
+      ...setupWith({ intellect: 400, spirit: 100, baseMana: 2000, hasteRating: 45 }),
+      statMultipliers: { intellect: 1.1, haste: 1.2 },
+    };
+    const d = computeStats(setup, {}, [{ intellect: 1.1, spirit: 1.5 }, { haste: 1.3, maxMana: 1.02 }]);
+    const same = computeStats({
+      ...setupWith({ intellect: 400, spirit: 100, baseMana: 2000, hasteRating: 45 }),
+      statMultipliers: { intellect: 1.1 * 1.1, spirit: 1.5, maxMana: 1.02, haste: 1.2 * 1.3 },
+    });
+    expect(d.maxMana).toBeCloseTo(same.maxMana, 9);
+    expect(d.critPct).toBeCloseTo(same.critPct, 9);
+    expect(d.spiritRegenPerSec).toBeCloseTo(same.spiritRegenPerSec, 9);
+    expect(d.hastePct).toBeCloseTo(same.hastePct, 9);
+    expect(d.hastePct).toBeCloseTo(((1 + 45 / HASTE_RATING_PER_PCT / 100) * 1.56 - 1) * 100, 9);
+  });
+
+  it('an empty list of extra multipliers changes nothing', () => {
+    const setup: CharacterSetup = { ...setupWith({ intellect: 400, hasteRating: 45 }), statMultipliers: { intellect: 1.1 } };
+    expect(computeStats(setup, {}, [])).toEqual(computeStats(setup));
+  });
+});
+
+describe('combineStatMultipliers', () => {
+  it('multiplies factor by factor, skips undefined sets and keeps only present factors', () => {
+    expect(combineStatMultipliers({ intellect: 1.1, haste: 1.3 }, undefined, { intellect: 1.1, maxMana: 1.02 })).toEqual({
+      intellect: 1.1 * 1.1,
+      haste: 1.3,
+      maxMana: 1.02,
+    });
+    expect(combineStatMultipliers()).toEqual({});
+  });
+
+  it('does not mutate its inputs', () => {
+    const a = Object.freeze({ haste: 1.3 });
+    const b = Object.freeze({ haste: 1.2 });
+    expect(combineStatMultipliers(a, b).haste).toBeCloseTo(1.56, 12);
   });
 });

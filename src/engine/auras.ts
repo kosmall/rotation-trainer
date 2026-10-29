@@ -18,7 +18,11 @@ export class AuraTracker {
     for (const d of defs) this.defs.set(d.id, d);
   }
 
-  apply(id: string, nowMs: number): void {
+  /**
+   * Applies or refreshes `id`: one more stack (up to `maxStacks`), full charges, and it expires
+   * `durationMs` (default: the def's own duration) from `nowMs`.
+   */
+  apply(id: string, nowMs: number, durationMs?: number): void {
     const def = this.defs.get(id);
     if (!def) throw new Error(`unknown aura: ${id}`);
     const cur = this.live(id, nowMs);
@@ -26,7 +30,7 @@ export class AuraTracker {
     this.active.set(id, {
       stacks: Math.min((cur?.stacks ?? 0) + 1, maxStacks),
       charges: def.charges ?? 0,
-      expiresAtMs: nowMs + def.durationMs,
+      expiresAtMs: nowMs + (durationMs ?? def.durationMs),
     });
   }
 

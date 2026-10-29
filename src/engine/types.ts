@@ -37,8 +37,10 @@ export interface SpellModifier {
 }
 
 /**
- * Percentage stat effects (racials such as Expansive Mind, talents such as Fel Intellect). Each
- * factor scales the total (setup stats + extra bonuses); absent means 1.
+ * Percentage stat effects (racials such as Expansive Mind, talents such as Fel Intellect, buffs
+ * such as Blessing of Kings or Heroism). Each factor scales the total (setup stats + extra
+ * bonuses); absent means 1. Several sets of multipliers (the setup's and those of active self
+ * auras) combine multiplicatively, factor by factor.
  */
 export interface StatMultipliers {
   /** Scales total intellect before it feeds mana, crit and spirit regen. */
@@ -47,6 +49,13 @@ export interface StatMultipliers {
   spirit?: number;
   /** Scales the whole mana pool (base mana and intellect mana). */
   maxMana?: number;
+  /**
+   * Multiplies the haste factor `1 + ratingHastePct / 100` (Heroism / Bloodlust: 1.3), so
+   * `hastePct = ((1 + ratingHastePct / 100) * haste - 1) * 100` (wowsims tbc-new
+   * sim/core/unit.go `TotalSpellHasteMultiplier` = `CastSpeedMultiplier * (1 + rating / ...)`;
+   * buffs multiply `CastSpeedMultiplier` through `MultiplyCastSpeed`).
+   */
+  haste?: number;
 }
 
 export interface CharacterSetup {
@@ -151,6 +160,12 @@ export interface AuraDef {
   selfStatBonuses?: Partial<RawStats>;
   selfModifiers?: SpellModifier[];
   /**
+   * Applied while the aura is active on the player, combined multiplicatively with
+   * `CharacterSetup.statMultipliers` and the other active self auras' multipliers. Like
+   * `selfStatBonuses`, counted once whatever the stacks.
+   */
+  selfStatMultipliers?: StatMultipliers;
+  /**
    * Bookkeeping aura (for example a set proc's internal cooldown): left out of
    * `SimSnapshot.selfAuras` / `targetAuras`. It is still applied, tracked (hook `hasSelfAura` /
    * `hasTargetAura`), keeps any effect and is logged like any other aura.
@@ -214,6 +229,12 @@ export interface SpecHooks {
       roll(): number;
       hasSelfAura(id: string): boolean;
       hasTargetAura(id: string): boolean;
+      /**
+       * Gives the player up to `amount` mana (never past max mana; 0, negative or NaN gives
+       * nothing) and returns the actual gain. A positive gain is logged as a `mana` event with
+       * the resolving spell's id (Judgement of Wisdom-like procs).
+       */
+      addMana(amount: number): number;
     },
   ): void;
 }
@@ -232,6 +253,28 @@ export interface SetBonusDef {
 // Simulation interface shapes (implemented by Simulation in a later task)
 // ---------------------------------------------------------------------------
 
+/**
+ * An aura applied by the fight itself, not by a spell (raid buffs and debuffs, Heroism,
+ * potions, trinkets): `auraId` (an `AuraDef` of the spec) goes on the player (`self`) or the
+ * target at fight time `atMs`. Applied through the normal aura rules (refresh, stacks, charges,
+ * `exclusiveGroup`), with no source spell: logged `aura-apply` without `spellId`, no hooks, and a
+ * DoT ticks with `dotDamageMult` 1.
+ */
+export interface ScheduledAura {
+  auraId: string;
+  on: 'self' | 'target';
+  /**
+   * Fight time in ms (floored). `<= 0`: applied when the fight starts, before the first cast.
+   * After the fight's end, NaN or infinite: the entry is ignored.
+   */
+  atMs: number;
+  /**
+   * Replaces the aura's own `durationMs` for this application (floored). NaN, infinite or
+   * `<= 0`: the entry is ignored. A duration running past the fight's end is cut by the end.
+   */
+  durationMs?: number;
+}
+
 export interface SimConfig {
   spec: SpecData;
   target: TargetData;
@@ -247,6 +290,8 @@ export interface SimConfig {
    * after their cast ends.
    */
   distanceFromTarget?: number;
+  /** Auras the fight applies at set times (see `ScheduledAura`); entries applied in order. */
+  scheduledAuras?: readonly ScheduledAura[];
 }
 
 export type CastResult =

@@ -387,6 +387,7 @@ describe('destructionWarlock behaviour in the Simulation', () => {
       roll: () => 0,
       hasSelfAura: () => false,
       hasTargetAura: () => false,
+      addMana: () => 0,
     };
     const cases: [string, HitOutcome][] = [
       ['shadow-bolt', 'hit'],

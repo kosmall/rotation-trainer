@@ -130,6 +130,7 @@ describe('warlock set bonuses', () => {
       roll: () => 0,
       hasSelfAura: () => false,
       hasTargetAura: () => false,
+      addMana: () => 0,
     };
     const outcomes: HitOutcome[] = ['miss', 'hit', 'crit'];
     for (const b of warlockSets) {

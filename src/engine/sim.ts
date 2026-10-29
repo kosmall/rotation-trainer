@@ -21,6 +21,7 @@ import type {
   HitOutcome,
   LogEvent,
   RawStats,
+  ScheduledAura,
   School,
   SimConfig,
   SimSnapshot,
@@ -43,8 +44,8 @@ type CastRejection = Extract<CastResult, { ok: false }>['reason'];
 
 /**
  * A scheduled event: an action run when fight time reaches its `atMs`. Events at the same
- * time run in scheduling order. Cast completions, missile impacts, DoT ticks, aura expiry and
- * mana regen are scheduled through `Simulation.schedule`.
+ * time run in scheduling order. Cast completions, missile impacts, DoT ticks, aura expiry,
+ * mana regen and scheduled auras are scheduled through `Simulation.schedule`.
  */
 type SimEvent = () => void;
 
@@ -70,6 +71,38 @@ interface QueuedSpell {
 interface Missile {
   spellId: string;
   landsAtMs: number;
+}
+
+/** A valid `ScheduledAura` entry, normalized: whole ms, `atMs` in [0, fight end]. */
+interface PlannedAura {
+  auraId: string;
+  on: 'self' | 'target';
+  atMs: number;
+  /** The override duration (whole ms, > 0), or undefined for the aura's own. */
+  durationMs: number | undefined;
+}
+
+/**
+ * Keeps the `ScheduledAura` entries that can apply, in their order: `atMs` must be finite
+ * (floored; `<= 0` becomes 0, the fight start) and not after `fightMs`; a given `durationMs`
+ * must be finite and at least 1 ms once floored. Everything else is dropped silently, so no
+ * entry can throw or loop, and none applies after the fight's end.
+ */
+function planScheduledAuras(entries: readonly ScheduledAura[], fightMs: number): PlannedAura[] {
+  const planned: PlannedAura[] = [];
+  for (const e of entries) {
+    if (!Number.isFinite(e.atMs)) continue;
+    const atMs = Math.max(0, Math.floor(e.atMs));
+    if (atMs > fightMs) continue;
+    let durationMs: number | undefined;
+    if (e.durationMs !== undefined) {
+      if (!Number.isFinite(e.durationMs)) continue;
+      durationMs = Math.floor(e.durationMs);
+      if (durationMs <= 0) continue;
+    }
+    planned.push({ auraId: e.auraId, on: e.on, atMs, durationMs });
+  }
+  return planned;
 }
 
 /** The pending events of an active aura; cancelled when it is refreshed or consumed. */
@@ -155,6 +188,8 @@ export class Simulation {
   private readonly spellQueueWindowMs: number;
   /** Yards to the target (0: no travel); with `SpellDef.missileSpeed` gives the travel time. */
   private readonly distanceYd: number;
+  /** The valid `SimConfig.scheduledAuras` entries, applied or scheduled by `start()`. */
+  private readonly plannedAuras: PlannedAura[];
 
   private phase: SimSnapshot['phase'] = 'ready';
   private nowMs = 0;
@@ -185,6 +220,10 @@ export class Simulation {
     this.baseModifiers = [...spec.modifiers, ...spec.setup.modifiers, ...sets.flatMap((s) => s.modifiers ?? [])];
     for (const spell of spec.spells) this.spells.set(spell.id, spell);
     for (const aura of spec.auras) this.auraDefs.set(aura.id, aura);
+    // Every scheduled aura id must be known (a data error otherwise), checked here and not when
+    // the entry would apply mid-fight.
+    for (const e of config.scheduledAuras ?? []) this.auraDef(e.auraId);
+    this.plannedAuras = planScheduledAuras(config.scheduledAuras ?? [], this.durationMs);
     this.stats = this.buildStatsAndModifiers([]);
     this.hooks = [spec.hooks, ...sets.flatMap((s) => (s.hooks ? [s.hooks] : []))];
     this.targetAuras = new AuraTracker(spec.auras);
@@ -195,7 +234,11 @@ export class Simulation {
   /**
    * Starts the fight at 0 ms and schedules every mana regen tick of the fight (at 2000, 4000, ...).
    * They are scheduled first, so a regen tick runs before any other event at the same time.
-   * No-op once started.
+   * Then the scheduled auras (`SimConfig.scheduledAuras`), in their order: those at 0 are
+   * applied now, the others become events. Scheduled next, an aura event runs after the regen
+   * tick but before every cast completion, missile impact, tick, fade or queued spell of the
+   * same ms (all scheduled later). The fight starts with a full mana bar, including the max
+   * mana of the auras applied at 0. No-op once started.
    */
   start(): void {
     if (this.phase !== 'ready') return;
@@ -203,6 +246,12 @@ export class Simulation {
     for (let atMs = MANA_TICK_MS; atMs <= this.durationMs; atMs += MANA_TICK_MS) {
       this.schedule(atMs, () => this.manaTick());
     }
+    for (const a of this.plannedAuras) {
+      const apply = () => this.applyAura(a.on, a.auraId, undefined, a.durationMs);
+      if (a.atMs === 0) apply();
+      else this.schedule(a.atMs, apply);
+    }
+    this.mana = this.stats.maxMana;
   }
 
   /**
@@ -232,6 +281,10 @@ export class Simulation {
    * `queuePressRejection`); otherwise that reason is returned and nothing changes (an already
    * queued spell stays). A valid press replaces the queued spell (`queue-drop`, reason
    * `replaced`). Outside the window the plain rejection order applies.
+   *
+   * In `ready` the checks see the state before `start()` applies the scheduled auras at 0 (a
+   * rejected cast must leave the fight unstarted, R13); an accepted cast starts after them, so
+   * its cast time, GCD and cost include them.
    */
   cast(spellId: string): CastResult {
     if (this.phase === 'ended') return { ok: false, reason: 'ended' };
@@ -535,8 +588,9 @@ export class Simulation {
    * a miss). They run after the spell's damage, consumption and aura application. Auras
    * applied through the api are logged with this spell as source.
    * `api.roll()` draws from the simulation's seeded Rng, so it shifts every later draw, but
-   * only when a hook calls it: hooks that never roll leave the draw order unchanged. The api
-   * object is frozen.
+   * only when a hook calls it: hooks that never roll leave the draw order unchanged.
+   * `api.addMana` gains mana like a `gainMana` spell (capped at max mana) and logs a positive
+   * gain as `mana` with this spell's id. The api object is frozen.
    */
   private runHooks(spell: SpellDef, outcome: HitOutcome, damage: number): void {
     const api = Object.freeze({
@@ -545,6 +599,11 @@ export class Simulation {
       roll: () => this.rng.next(),
       hasSelfAura: (id: string) => this.selfAuras.get(id, this.nowMs) !== undefined,
       hasTargetAura: (id: string) => this.targetAuras.get(id, this.nowMs) !== undefined,
+      addMana: (amount: number) => {
+        const gain = this.addMana(amount);
+        if (gain > 0) this.addLog({ type: 'mana', spellId: spell.id, amount: gain });
+        return gain;
+      },
     });
     for (const hooks of this.hooks) {
       hooks.onSpellResolved?.({ spellId: spell.id, outcome, damage }, api);
@@ -599,8 +658,12 @@ export class Simulation {
     if (amount > 0) this.addLog({ type: 'mana', amount });
   }
 
-  /** Adds up to `amount` (negative counts as 0) without passing maxMana; returns the actual gain. */
+  /**
+   * Adds up to `amount` (negative or NaN counts as 0) without passing maxMana; returns the
+   * actual gain.
+   */
   private addMana(amount: number): number {
+    if (Number.isNaN(amount)) return 0;
     const room = this.stats.maxMana - this.mana;
     if (amount >= room) {
       this.mana = this.stats.maxMana;
@@ -616,14 +679,19 @@ export class Simulation {
   // -------------------------------------------------------------------------
 
   /**
-   * Applies (or refreshes) `auraId` from `source`. A refresh cancels the aura's pending ticks
-   * and fade, then reschedules them from now: no immediate tick, no double ticks. Ticks are
-   * scheduled for target auras only. The fade event removes the aura through `removeAura`.
-   * A self aura's stat bonuses and modifiers take effect at once (`syncSelfStats`).
+   * Applies (or refreshes) `auraId` from `source` (undefined: a scheduled aura, logged without
+   * `spellId`), lasting `durationMs` (default: the aura's own). A refresh cancels the aura's
+   * pending ticks and fade, then reschedules them from now: no immediate tick, no double ticks.
+   * Ticks are scheduled for target auras only. The fade event removes the aura through
+   * `removeAura`. A self aura's stat bonuses, multipliers and modifiers take effect at once
+   * (`syncSelfStats`).
    * An aura with an `exclusiveGroup` first removes every other applied aura of that group on the
    * same unit (`removeAura`: their pending events cancelled, `aura-fade` logged now).
+   * An earlier application that expired exactly now (the tracker drops an aura at its expiry
+   * ms) but whose fade event comes later in this ms is faded first: this is a fresh
+   * application (stacks from 1), and each application still logs exactly one fade.
    */
-  private applyAura(on: 'target' | 'self', auraId: string, source: SpellDef): void {
+  private applyAura(on: 'target' | 'self', auraId: string, source: SpellDef | undefined, durationMs?: number): void {
     const def = this.auraDef(auraId);
     const tracker = on === 'target' ? this.targetAuras : this.selfAuras;
     const pending = on === 'target' ? this.targetAuraEvents : this.selfAuraEvents;
@@ -634,29 +702,41 @@ export class Simulation {
         }
       }
     }
+    if (pending.has(auraId) && !tracker.get(auraId, this.nowMs)) this.removeAura(on, auraId);
     this.cancelAuraEvents(pending, auraId);
-    tracker.apply(auraId, this.nowMs);
-    this.addLog({ type: 'aura-apply', spellId: source.id, auraId });
-    const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, source) : [];
-    const fadeEventId = this.schedule(this.nowMs + def.durationMs, () => this.removeAura(on, auraId));
+    const lastsMs = durationMs ?? def.durationMs;
+    tracker.apply(auraId, this.nowMs, lastsMs);
+    this.addLog(source ? { type: 'aura-apply', spellId: source.id, auraId } : { type: 'aura-apply', auraId });
+    const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, lastsMs, source) : [];
+    // A fade after the fight's end never runs: the end cuts the aura without an `aura-fade`.
+    const fadeEventId = this.schedule(this.nowMs + lastsMs, () => this.removeAura(on, auraId));
     pending.set(auraId, { tickEventIds, fadeEventId });
     if (on === 'self') this.syncSelfStats();
   }
 
   /**
-   * Schedules the DoT's `durationMs / intervalMs` ticks (floored) at every interval from now.
-   * Power and the source spell's `dotDamageMult` are snapshotted here; each tick reads the
-   * target's damage-taken multiplier current at that tick. Ticks never crit.
+   * Schedules the DoT's `durationMs / intervalMs` ticks (floored) at every interval from now,
+   * up to the fight's end (later ones could never run). Power and the source spell's
+   * `dotDamageMult` (1 without a source) are snapshotted here; each tick reads the target's
+   * damage-taken multiplier current at that tick. Ticks never crit.
    */
-  private scheduleTicks(def: AuraDef, tick: NonNullable<AuraDef['tick']>, source: SpellDef): EventId[] {
-    const count = Math.floor(def.durationMs / tick.intervalMs);
+  private scheduleTicks(
+    def: AuraDef,
+    tick: NonNullable<AuraDef['tick']>,
+    durationMs: number,
+    source: SpellDef | undefined,
+  ): EventId[] {
+    if (!(tick.intervalMs > 0)) return [];
+    const count = Math.floor(durationMs / tick.intervalMs);
     if (count <= 0) return [];
     const perTick = (tick.total + tick.coeffTotal * this.stats.power[tick.school]) / count;
-    const dotDamageMult = this.modsFor(source).dotDamageMult;
+    const dotDamageMult = source ? this.modsFor(source).dotDamageMult : 1;
     const ids: EventId[] = [];
     for (let k = 1; k <= count; k++) {
+      const atMs = this.nowMs + k * tick.intervalMs;
+      if (atMs > this.durationMs) break;
       ids.push(
-        this.schedule(this.nowMs + k * tick.intervalMs, () => {
+        this.schedule(atMs, () => {
           const amount = Math.round(
             perTick *
               dotDamageMult *
@@ -664,7 +744,11 @@ export class Simulation {
               this.target.levelResistMult,
           );
           this.damageTotal += amount;
-          this.addLog({ type: 'tick', spellId: source.id, auraId: def.id, amount });
+          this.addLog(
+            source
+              ? { type: 'tick', spellId: source.id, auraId: def.id, amount }
+              : { type: 'tick', auraId: def.id, amount },
+          );
           this.consumeDamageCharges(tick.school, true);
         }),
       );
@@ -723,8 +807,9 @@ export class Simulation {
    * Because it reads the tracker, an aura is gone from the stats from its exact expiry ms on,
    * even for events at that ms that run before its fade event (e.g. a regen tick).
    *
-   * Rules: each active self aura adds its `selfStatBonuses` and `selfModifiers` once, whatever
-   * its stacks (a refresh changes nothing). Mana: raising maxMana adds no mana; lowering it
+   * Rules: each active self aura adds its `selfStatBonuses`, `selfStatMultipliers` (combined
+   * multiplicatively with the setup's) and `selfModifiers` once, whatever its stacks (a refresh
+   * changes nothing). Mana: raising maxMana adds no mana; lowering it
    * clamps mana to [0, maxMana]; with infiniteMana, mana is pinned to the new maxMana.
    */
   private syncSelfStats(): void {
@@ -746,6 +831,7 @@ export class Simulation {
     return computeStats(
       this.setup,
       sumStatBonuses([...this.baseStatBonuses, ...auras.map((a) => a.selfStatBonuses ?? {})]),
+      auras.flatMap((a) => (a.selfStatMultipliers ? [a.selfStatMultipliers] : [])),
     );
   }
 

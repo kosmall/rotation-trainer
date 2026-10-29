@@ -381,3 +381,80 @@ describe('Simulation aura removal (one routine for expiry, consumption and charg
     ]);
   });
 });
+
+describe('Simulation hook api.addMana', () => {
+  /** Real mana; the fixture's max mana is 720 (baseMana 1000, intellect 0). */
+  function manaSim(gain: Record<string, number>, seen: number[] = []): Simulation {
+    const hooks: SpecHooks = {
+      onSpellResolved(e, api) {
+        const amount = gain[e.spellId];
+        if (amount !== undefined) seen.push(api.addMana(amount));
+      },
+    };
+    return newSim({ spec: makeTestSpec({ hooks }), infiniteMana: false });
+  }
+
+  it('api.addMana adds mana, caps at max mana, returns the gain, logs a mana event with the spell id', () => {
+    const seen: number[] = [];
+    const sim = manaSim({ zap: 5, bolt: 74 }, seen);
+    const max = sim.snapshot().maxMana;
+    expect(max).toBe(720);
+    sim.cast('zap'); // costs 20: 700, then +5
+    expect(sim.snapshot().mana).toBe(705);
+    sim.advanceTo(1500);
+    sim.cast('bolt'); // completes at 3500, costs 50: 655, then +74 = 729 → capped at 720
+    sim.advanceTo(3500);
+    expect(sim.snapshot().mana).toBe(max);
+    expect(seen).toEqual([5, 65]);
+    const manaLog = sim.log().filter((e) => e.type === 'mana');
+    expect(manaLog).toEqual([
+      { atMs: 0, type: 'mana', spellId: 'zap', amount: 5 },
+      { atMs: 3500, type: 'mana', spellId: 'bolt', amount: 65 },
+    ]);
+    // Logged after the spell's own damage.
+    const at0 = sim.log().filter((e) => e.atMs === 0).map((e) => e.type);
+    expect(at0).toEqual(['cast-complete', 'damage', 'mana']);
+  });
+
+  it('api.addMana at full mana, or of 0, a negative amount or NaN, gains 0 and logs nothing', () => {
+    for (const amount of [10, 0, -5, Number.NaN]) {
+      const seen: number[] = [];
+      const sim = manaSim({ free: amount }, seen);
+      sim.cast('free');
+      expect(seen).toEqual([0]);
+      expect(sim.snapshot().mana).toBe(sim.snapshot().maxMana);
+      expect(sim.log().filter((e) => e.type === 'mana')).toEqual([]);
+    }
+  });
+
+  it('api.addMana of Infinity fills the bar exactly', () => {
+    const seen: number[] = [];
+    const sim = manaSim({ zap: Number.POSITIVE_INFINITY }, seen);
+    sim.cast('zap');
+    expect(seen).toEqual([20]);
+    expect(sim.snapshot().mana).toBe(720);
+  });
+
+  it('with infiniteMana api.addMana gains 0', () => {
+    const seen: number[] = [];
+    const hooks: SpecHooks = { onSpellResolved: (_e, api) => void seen.push(api.addMana(50)) };
+    const sim = newSim({ spec: makeTestSpec({ hooks }) });
+    sim.cast('zap');
+    expect(seen).toEqual([0]);
+  });
+
+  it('api object stays frozen', () => {
+    const apis: object[] = [];
+    const sim = newSim({ spec: makeTestSpec({ hooks: { onSpellResolved: (_e, api) => void apis.push(api) } }) });
+    sim.cast('zap');
+    expect(apis).toHaveLength(1);
+    const api = apis[0] as Record<string, unknown>;
+    expect(Object.isFrozen(api)).toBe(true);
+    expect(Object.keys(api).sort()).toEqual(
+      ['addMana', 'applySelfAura', 'applyTargetAura', 'hasSelfAura', 'hasTargetAura', 'roll'].sort(),
+    );
+    expect(() => {
+      api.addMana = () => 1000;
+    }).toThrow(TypeError);
+  });
+});
