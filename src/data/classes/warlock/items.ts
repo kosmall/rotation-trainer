@@ -103,7 +103,7 @@ export const items: Record<number, ItemDef> = {
     sockets: ['red', 'yellow'],
     socketBonus: { intellect: 3 },
   },
-  // Band of the Eternal Sage: Int 25, SD 34, Crit 24. Not modeled: its 95 SD proc (docs).
+  // Band of the Eternal Sage: Int 25, SD 34, Crit 24. The 95 SD proc is a setup buff (warlockItemBuffs 'band-of-the-eternal-sage'), off unless enabled.
   29305: {
     id: 29305,
     name: 'Band of the Eternal Sage',
@@ -125,7 +125,7 @@ export const items: Record<number, ItemDef> = {
     slot: 'trinket',
     stats: {},
   },
-  // Icon of the Silver Crescent: SD 43. Not modeled: its on-use +155 SD for 20 s (docs).
+  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is a setup buff (warlockItemBuffs 'icon-of-the-silver-crescent'), off unless enabled.
   29370: {
     id: 29370,
     name: 'Icon of the Silver Crescent',
