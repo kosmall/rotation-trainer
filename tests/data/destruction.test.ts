@@ -238,6 +238,27 @@ describe('talent translation (0/21/40, wowsims tbc-new sim/warlock/talents.go)',
 });
 
 describe('destructionWarlock behaviour in the Simulation', () => {
+  it('the Immolate and Corruption refresh rules are false while that spell is being cast (Task 13)', () => {
+    // The DoT only shows in the snapshot once the cast lands; with the spell queue window a
+    // press during the cast would queue a second, clipping cast.
+    const rule = (id: string) => {
+      const when = destructionWarlock.priority.find((p) => p.spellId === id)?.when;
+      if (!when) throw new Error(`no rule for ${id}`);
+      return when;
+    };
+    const sim = new Simulation({ spec: destructionWarlock, target: NEVER_MISS, seed: 1, spellQueueWindowMs: 400 });
+    expect(rule('immolate')(sim.snapshot())).toBe(true);
+    expect(sim.cast('immolate')).toEqual({ ok: true });
+    sim.advanceTo(1200); // Immolate (1458 ms) ends within the 400 ms window
+    expect(rule('immolate')(sim.snapshot())).toBe(false);
+    expect(rule('corruption')(sim.snapshot())).toBe(true);
+    expect(sim.cast('corruption')).toEqual({ ok: true, queued: true });
+    sim.advanceTo(1458 + 1700); // Corruption (1945 ms) in progress, Immolate up
+    expect(sim.snapshot().cast?.spellId).toBe('corruption');
+    expect(rule('immolate')(sim.snapshot())).toBe(false);
+    expect(rule('corruption')(sim.snapshot())).toBe(false);
+  });
+
   it('shadow-bolt cast time after modifiers equals the verified value', () => {
     // 3000 ms base (spell data) - 5 x 100 ms Bane (talents.go applyBane) = 2500 ms, no haste.
     const sim = newSim({ spec: gearless() });

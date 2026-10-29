@@ -251,12 +251,17 @@ const targetAuraMs = (s: SimSnapshot, id: string) => s.targetAuras[id]?.remainin
  * tbc-new ui/specs/warlock/dps/apls/destruction.apl.json "Should Cast Immolate": refresh when
  * the DoT's remaining time <= the spell's cast time and the fight lasts at least cast time +
  * DoT duration longer. Reused for Corruption (UNVERIFIED: the tbc-new APL does not cast it).
+ * Not while that spell is already being cast: the snapshot does not show the DoT until the cast
+ * lands, and a press during the cast (spell queue window) would queue a second, clipping cast.
+ * wowsims evaluates its APL only when the player is free, so it never meets this case.
  */
 function dotRefreshDue(spellId: string, auraId: string) {
   const castMs = talentCastTimeMs(spellId);
   const durationMs = auraDurationMs(auraId);
   return (s: SimSnapshot) =>
-    targetAuraMs(s, auraId) <= castMs && remainingFightMs(s) >= castMs + durationMs;
+    s.cast?.spellId !== spellId &&
+    targetAuraMs(s, auraId) <= castMs &&
+    remainingFightMs(s) >= castMs + durationMs;
 }
 
 /**
