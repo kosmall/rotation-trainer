@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { warlockSets } from '../../src/data/classes/warlock/sets';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
-import { BOSS_TARGET } from '../../src/data/common/target';
+import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
 import { Simulation } from '../../src/engine/sim';
 import { ActionBar } from '../../src/ui/ActionBar';
 import { GameView } from '../../src/ui/GameView';
@@ -215,6 +215,7 @@ function freshSim() {
     target: BOSS_TARGET,
     seed: 1,
     spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
+    distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD,
   });
 }
 

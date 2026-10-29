@@ -254,10 +254,12 @@ describe('runBot', () => {
    *   The mean over 10 seeds must fall inside: crits, ISB and misses give a per-seed standard
    *   deviation of about 130 DPS (measured), so about 41 (2.8%) for the mean.
    *   Measured (stage 1.5 Task 2, 28 yd): 1425 (window 400), 1428 (window 0), -1.6% from the
-   *   estimate; stage 1 (Task 13, no travel): 1483 and 1487. Part of the gap: the bot's timeline
-   *   barely varies between seeds, and in this 60 s fight Shadowburn comes at 2.9 to 3.6 s left
-   *   (mean 3.2 s, not 2.7 s), about 0.2 bolts (14 DPS) more lost; the rest is seed noise (the
-   *   RNG is now drawn at impact, so each seed plays a different fight than in stage 1).
+   *   estimate; stage 1 (Task 13, no travel): 1483 and 1487. The gap is the integer bolt count:
+   *   the bot lands exactly 18 Shadow Bolts in every seed (stage 1: 19). The estimate's 18.58
+   *   assumes the finisher point is uniform, but in this fight it always falls 2.9 to 3.6 s before
+   *   the end, inside the widened (2.5, 3.9] s window, so exactly one bolt is lost against stage 1
+   *   (about 63 DPS, -4.2%). Travel itself and the RNG draws at impact change almost nothing:
+   *   at 0 yd with the 3900 ms window the bot does about the same (1420).
    */
   const EXPECTED_DPS = 1448;
   const DPS_LO = Math.round(EXPECTED_DPS * 0.88);
