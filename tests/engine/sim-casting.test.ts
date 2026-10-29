@@ -140,6 +140,21 @@ describe('Simulation cast times', () => {
     sim.advanceTo(2000);
     expect(sim.cast('zap')).toEqual({ ok: true });
   });
+
+  it("rejection order: 'busy' wins over a spell that is also on cooldown", () => {
+    // Full order: ended > unknown-spell > busy > cooldown > gcd > missing-aura > no-mana.
+    const sim = newSim();
+    sim.cast('zap'); // zap cooldown until 8000
+    sim.advanceTo(1500);
+    sim.cast('bolt'); // casting until 3500
+    sim.advanceTo(2000);
+    expect(sim.snapshot().cooldownRemainingMs.zap).toBeGreaterThan(0);
+    const before = observe(sim);
+    expect(sim.cast('zap')).toEqual({ ok: false, reason: 'busy' });
+    expect(observe(sim)).toEqual(before);
+    sim.advanceTo(3500);
+    expect(sim.cast('zap')).toEqual({ ok: false, reason: 'cooldown' });
+  });
 });
 
 describe('Simulation cancelCast', () => {

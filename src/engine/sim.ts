@@ -52,6 +52,12 @@ interface ActiveCast {
   completionEventId: EventId;
 }
 
+/** The spell waiting in the single-slot queue, and the event that attempts it when the block ends. */
+interface QueuedSpell {
+  spellId: string;
+  fireEventId: EventId;
+}
+
 /** The pending events of an active aura; cancelled when it is refreshed or consumed. */
 interface AuraEvents {
   tickEventIds: EventId[];
@@ -122,11 +128,13 @@ export class Simulation {
   private readonly selfAuraEvents = new Map<string, AuraEvents>();
   private readonly stats: DerivedStats;
   private readonly infiniteMana: boolean;
+  private readonly spellQueueWindowMs: number;
 
   private phase: SimSnapshot['phase'] = 'ready';
   private nowMs = 0;
   private gcdEndsAtMs = 0;
   private activeCast: ActiveCast | null = null;
+  private queued: QueuedSpell | null = null;
   private readonly cooldownReadyAtMs = new Map<string, number>();
   private mana: number;
   /** When the last spell with a mana cost completed (null: none yet); drives the five-second rule. */
@@ -139,6 +147,7 @@ export class Simulation {
     this.target = config.target;
     this.durationMs = config.durationMs ?? DEFAULT_DURATION_MS;
     this.infiniteMana = config.infiniteMana ?? false;
+    this.spellQueueWindowMs = config.spellQueueWindowMs ?? 0;
     this.rng = createRng(config.seed);
 
     const sets = activeSetBonuses(spec.sets, spec.setup.setPieces);
@@ -194,12 +203,28 @@ export class Simulation {
   /**
    * Casts `spellId`, or returns why not without changing anything. In `ready` the checks run
    * at 0 ms, and only an accepted cast starts the fight.
+   *
+   * Spell queue: a spell rejected only for `busy` or `gcd` whose block ends within
+   * `spellQueueWindowMs` is queued instead (`{ok: true, queued: true}`) and attempted exactly
+   * when the block ends; a newer queued spell replaces the older one silently. Its other checks
+   * (cooldown, missing-aura, no-mana) must pass now, otherwise that reason is returned and
+   * nothing changes (the spell already queued stays). Outside the window the plain rejection
+   * order applies (busy and gcd unchanged).
    */
   cast(spellId: string): CastResult {
     if (this.phase === 'ended') return { ok: false, reason: 'ended' };
     const spell = this.spells.get(spellId);
     if (!spell) return { ok: false, reason: 'unknown-spell' };
     const rejection = this.castRejection(spell);
+    if (rejection === 'busy' || rejection === 'gcd') {
+      const blockEndMs = this.blockEndMs(spell);
+      if (blockEndMs - this.nowMs <= this.spellQueueWindowMs) {
+        const other = this.castRejection(spell, true);
+        if (other) return { ok: false, reason: other };
+        this.queueSpell(spell, blockEndMs);
+        return { ok: true, queued: true };
+      }
+    }
     if (rejection) return { ok: false, reason: rejection };
     this.start();
     this.startCast(spell);
@@ -208,9 +233,11 @@ export class Simulation {
 
   /**
    * Aborts the cast in progress: logs `cast-cancel`; no damage, mana or cooldown. The GCD the
-   * cast started stays. No-op when nothing is being cast.
+   * cast started stays. Also clears the queued spell (silently), even when nothing is being
+   * cast. Otherwise a no-op.
    */
   cancelCast(): void {
+    this.clearQueue();
     const cast = this.activeCast;
     if (!cast) return;
     this.events.cancel(cast.completionEventId);
@@ -236,7 +263,7 @@ export class Simulation {
       selfAuras: this.selfAuras.views(this.nowMs),
       damageTotal: this.damageTotal,
       dps: this.nowMs > 0 ? this.damageTotal / (this.nowMs / 1000) : 0,
-      queuedSpellId: null,
+      queuedSpellId: this.queued?.spellId ?? null,
     };
   }
 
@@ -266,9 +293,13 @@ export class Simulation {
     }
   }
 
-  /** Ends the fight. A cast still in progress is cut off (no event runs after the end). */
+  /**
+   * Ends the fight. A cast still in progress is cut off and a queued spell is discarded without
+   * `queue-drop` (no event runs after the end).
+   */
   private endFight(): void {
     this.activeCast = null;
+    this.queued = null;
     this.nowMs = this.durationMs;
     this.phase = 'ended';
   }
@@ -280,16 +311,52 @@ export class Simulation {
   /**
    * Why `spell` cannot be cast now, or null. Checks only; changes nothing.
    * Order: busy, cooldown, gcd, missing-aura, no-mana (the mana check is the last one).
+   * `ignoreBlock` skips busy and gcd (the checks a queued spell waits out).
    */
-  private castRejection(spell: SpellDef): CastRejection | null {
-    if (this.activeCast) return 'busy';
+  private castRejection(spell: SpellDef, ignoreBlock = false): CastRejection | null {
+    if (!ignoreBlock && this.activeCast) return 'busy';
     if (this.cooldownRemaining(spell.id) > 0) return 'cooldown';
-    if (spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
+    if (!ignoreBlock && spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
     if (spell.requiresTargetAura && !this.targetAuras.get(spell.requiresTargetAura, this.nowMs)) {
       return 'missing-aura';
     }
     if (this.mana < this.manaCost(spell)) return 'no-mana';
     return null;
+  }
+
+  /**
+   * When the busy/gcd block on `spell` ends: the later of the active cast's end and, for an
+   * on-GCD spell, the GCD end (a cast shorter than the GCD still leaves the GCD running).
+   */
+  private blockEndMs(spell: SpellDef): number {
+    const castEndMs = this.activeCast?.endMs ?? 0;
+    return spell.onGcd ? Math.max(castEndMs, this.gcdEndsAtMs) : castEndMs;
+  }
+
+  /** Puts `spell` in the queue slot (replacing any queued spell), attempted at `fireAtMs`. */
+  private queueSpell(spell: SpellDef, fireAtMs: number): void {
+    this.clearQueue();
+    const fireEventId = this.schedule(fireAtMs, () => this.fireQueued(spell));
+    this.queued = { spellId: spell.id, fireEventId };
+  }
+
+  /**
+   * The block has ended: the queued spell is cast like a normal cast now, or, if any check
+   * fails (cooldown, mana, aura, or a new block), dropped with a `queue-drop` log entry.
+   */
+  private fireQueued(spell: SpellDef): void {
+    this.queued = null;
+    if (this.castRejection(spell)) {
+      this.addLog({ type: 'queue-drop', spellId: spell.id });
+      return;
+    }
+    this.startCast(spell);
+  }
+
+  private clearQueue(): void {
+    if (!this.queued) return;
+    this.events.cancel(this.queued.fireEventId);
+    this.queued = null;
   }
 
   /** Starts the GCD now; completes at once (instant) or schedules the completion at cast end. */
