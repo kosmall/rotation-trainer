@@ -29,7 +29,10 @@ import type {
 const DEFAULT_DURATION_MS = 60000;
 /** Mana regenerates in ticks every 2 s of fight time, from fight start (wowsims `initManaTickAction`). */
 const MANA_TICK_MS = 2000;
-/** Spirit regen stops for this long after a mana-costing cast completes (the five-second rule). */
+/**
+ * Spirit regen stops for this long after a mana-costing cast completes (the five-second rule;
+ * wowsims `ManaCost.SpendCost` sets `FiveSecondRuleRefreshTime` to completion + 5 s).
+ */
 const FIVE_SECOND_RULE_MS = 5000;
 
 type CastRejection = Extract<CastResult, { ok: false }>['reason'];
