@@ -3,7 +3,8 @@
 // Usage: npm run icons            (downloads missing icons, verifies every icon name)
 //        npm run icons -- --force (re-downloads all)
 //
-// For every spell and aura with a `wowheadId` it asks Wowhead's tooltip API for the real icon
+// For every spell and aura of the spec, every buff of the setup catalog (the buff, the auras it
+// applies and the warlock options), each with a `wowheadId`, it asks Wowhead's tooltip API for the real icon
 // name, compares it with the `icon` in the data (a mismatch is reported and exits 1: fix the
 // data, the script never edits source files) and downloads the JPG from Wowhead's CDN.
 // Icons are Blizzard artwork served by Wowhead: this is for the author's personal use.
@@ -13,6 +14,8 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { destructionWarlock } from '../src/data/classes/warlock/destruction.ts';
+import { SACRIFICE_SUCCUBUS_OPTION, WARLOCK_ARMOR_OPTIONS } from '../src/data/classes/warlock/buffs.ts';
+import { SETUP_CATALOG } from '../src/setup/defaults.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'icons', 'spells');
@@ -21,9 +24,25 @@ const TOOLTIP = (id) => `https://nether.wowhead.com/tbc/tooltip/spell/${id}?data
 const CDN = (icon) => `https://wow.zamimg.com/images/wow/icons/large/${icon}.jpg`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The setup catalog's buffs and the auras they apply (debuffs, timed buffs, item procs).
+const buffAuras = SETUP_CATALOG.flatMap((b) =>
+  [b.effect.targetAura, b.effect.selfAura, ...(b.effect.auras ?? [])].filter((a) => a !== undefined),
+);
+// Warlock options with an icon ('No armor' has none).
+const warlockOptions = [
+  ...Object.entries(WARLOCK_ARMOR_OPTIONS).map(([id, o]) => ({ ...o, id: `armor-${id}` })),
+  { ...SACRIFICE_SUCCUBUS_OPTION, id: 'sacrifice-succubus' },
+].filter((o) => o.icon !== '');
+
 // One entry per distinct wowheadId; remember every def that claims it.
 const byId = new Map();
-for (const [kind, defs] of [['spell', destructionWarlock.spells], ['aura', destructionWarlock.auras]]) {
+for (const [kind, defs] of [
+  ['spell', destructionWarlock.spells],
+  ['aura', destructionWarlock.auras],
+  ['buff', SETUP_CATALOG],
+  ['buff aura', buffAuras],
+  ['warlock option', warlockOptions],
+]) {
   for (const def of defs) {
     if (!def.wowheadId) {
       console.error(`FAIL ${kind} ${def.id}: no wowheadId`);
