@@ -14,6 +14,11 @@ export interface RawStats {
   critRating: number;
   hitRating: number;
   hasteRating: number;
+  /**
+   * Class base mana EXCLUDING intellect (wowsims `ExtraClassBaseStats[class].Mana`; Warlock level
+   * 70: 2615). `computeStats` adds intellect mana: maxMana = baseMana + 15 * intellect - 280
+   * (the first 20 intellect give 1 mana each).
+   */
   baseMana: number;
   mp5: number;
 }
@@ -27,6 +32,21 @@ export interface SpellModifier {
   dotDamageMult?: number;
   critPctDelta?: number;
   critMultDelta?: number;
+  /** Added to `DirectEffect.coeff` (direct damage only; DoT ticks use `AuraDef.tick.coeffTotal`). */
+  coeffDelta?: number;
+}
+
+/**
+ * Percentage stat effects (racials such as Expansive Mind, talents such as Fel Intellect). Each
+ * factor scales the total (setup stats + extra bonuses); absent means 1.
+ */
+export interface StatMultipliers {
+  /** Scales total intellect before it feeds mana, crit and spirit regen. */
+  intellect?: number;
+  /** Scales total spirit before spirit regen. */
+  spirit?: number;
+  /** Scales the whole mana pool (base mana and intellect mana). */
+  maxMana?: number;
 }
 
 export interface CharacterSetup {
@@ -35,6 +55,8 @@ export interface CharacterSetup {
   setPieces: Record<string, number>;
   /** Gear-derived modifiers (for example a meta gem's effect). */
   modifiers: SpellModifier[];
+  /** Racial and talent percentage stat effects, applied by `computeStats`. */
+  statMultipliers?: StatMultipliers;
 }
 
 export type GemColor =
@@ -113,7 +135,16 @@ export interface AuraDef {
   charges?: number;
   /** Damage over time. */
   tick?: { intervalMs: number; total: number; coeffTotal: number; school: School };
-  damageTakenMult?: { schools: School[]; mult: number; consumeChargeOnHit?: boolean };
+  damageTakenMult?: {
+    schools: School[];
+    mult: number;
+    consumeChargeOnHit?: boolean;
+    /**
+     * With `consumeChargeOnHit`: only direct (non-periodic) damage spends a charge; DoT ticks are
+     * still multiplied but spend nothing (Improved Shadow Bolt).
+     */
+    directOnly?: boolean;
+  };
   /** Applied while the aura is active on the player. */
   selfStatBonuses?: Partial<RawStats>;
   selfModifiers?: SpellModifier[];

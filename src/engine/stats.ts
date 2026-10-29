@@ -27,17 +27,23 @@ const STAT_KEYS: (keyof RawStats)[] = [
 
 /**
  * Converts raw stats to derived stats. `extra` (for example talent flat bonuses) is added to the
- * raw stats before conversion. `setPieces` and `modifiers` of the setup are not used here.
+ * raw stats before conversion; then `setup.statMultipliers` scale total intellect and spirit, and
+ * the finished mana pool (wowsims `MultiplyStat`: a multiplier applies to the stat's total,
+ * unrounded). `setPieces` and `modifiers` of the setup are not used here.
  */
 export function computeStats(setup: CharacterSetup, extra: Partial<RawStats> = {}): DerivedStats {
   const s = { ...setup.stats };
   for (const key of STAT_KEYS) s[key] += extra[key] ?? 0;
+  const mult = setup.statMultipliers ?? {};
+  s.intellect *= mult.intellect ?? 1;
+  s.spirit *= mult.spirit ?? 1;
 
   return {
     maxMana:
-      s.baseMana +
-      INT_MANA_FREE_THRESHOLD +
-      MANA_PER_INTELLECT * (s.intellect - INT_MANA_FREE_THRESHOLD),
+      (s.baseMana +
+        INT_MANA_FREE_THRESHOLD +
+        MANA_PER_INTELLECT * (s.intellect - INT_MANA_FREE_THRESHOLD)) *
+      (mult.maxMana ?? 1),
     power: {
       physical: s.spellPower,
       shadow: s.spellPower + s.shadowPower,

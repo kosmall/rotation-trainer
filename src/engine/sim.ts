@@ -78,6 +78,7 @@ interface SpellMods {
   dotDamageMult: number;
   critPctDelta: number;
   critMultDelta: number;
+  coeffDelta: number;
 }
 
 function modifierMatches(m: SpellModifier, spell: SpellDef): boolean {
@@ -95,6 +96,7 @@ function foldModifiers(spell: SpellDef, modifiers: readonly SpellModifier[]): Sp
     dotDamageMult: 1,
     critPctDelta: 0,
     critMultDelta: 0,
+    coeffDelta: 0,
   };
   for (const m of modifiers) {
     if (!modifierMatches(m, spell)) continue;
@@ -104,6 +106,7 @@ function foldModifiers(spell: SpellDef, modifiers: readonly SpellModifier[]): Sp
     mods.dotDamageMult *= m.dotDamageMult ?? 1;
     mods.critPctDelta += m.critPctDelta ?? 0;
     mods.critMultDelta += m.critMultDelta ?? 0;
+    mods.coeffDelta += m.coeffDelta ?? 0;
   }
   return mods;
 }
@@ -502,7 +505,7 @@ export class Simulation {
       rng: this.rng,
       min: direct.min,
       max: direct.max,
-      coeff: direct.coeff,
+      coeff: direct.coeff + mods.coeffDelta,
       power: this.stats.power[spell.school],
       damageMult: mods.damageMult,
       targetMult: this.targetAuras.damageTakenMult(spell.school, this.nowMs),
@@ -512,7 +515,7 @@ export class Simulation {
     });
     this.damageTotal += amount;
     this.addLog({ type: 'damage', spellId: spell.id, amount, crit: outcome === 'crit' });
-    this.consumeDamageCharges(spell.school);
+    this.consumeDamageCharges(spell.school, false);
     return amount;
   }
 
@@ -596,7 +599,7 @@ export class Simulation {
           );
           this.damageTotal += amount;
           this.addLog({ type: 'tick', spellId: source.id, auraId: def.id, amount });
-          this.consumeDamageCharges(tick.school);
+          this.consumeDamageCharges(tick.school, true);
         }),
       );
     }
@@ -622,12 +625,14 @@ export class Simulation {
   /**
    * After one damage instance of `school` (a direct hit or a DoT tick) has been calculated:
    * every active target aura with `damageTakenMult.consumeChargeOnHit` for that school loses
-   * one charge; one that runs out is removed (`removeAura`, logged `aura-fade` now).
+   * one charge (unless the instance is `periodic` and the aura is `directOnly`); one that runs
+   * out is removed (`removeAura`, logged `aura-fade` now).
    */
-  private consumeDamageCharges(school: School): void {
+  private consumeDamageCharges(school: School, periodic: boolean): void {
     for (const auraId of Object.keys(this.targetAuras.views(this.nowMs))) {
       const mult = this.auraDef(auraId).damageTakenMult;
       if (!mult?.consumeChargeOnHit || !mult.schools.includes(school)) continue;
+      if (periodic && mult.directOnly) continue;
       this.targetAuras.consumeCharge(auraId, this.nowMs);
       if (!this.targetAuras.get(auraId, this.nowMs)) this.removeAura('target', auraId);
     }

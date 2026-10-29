@@ -105,3 +105,37 @@ describe('computeStats', () => {
     expect(withExtras).toEqual(base);
   });
 });
+
+describe('computeStats statMultipliers (racial and talent % stat effects)', () => {
+  it('intellect and spirit multipliers scale setup + extra before conversion', () => {
+    const multiplied = computeStats(
+      {
+        ...setupWith({ intellect: 300, spirit: 100, baseMana: 2000 }),
+        statMultipliers: { intellect: 1.05, spirit: 0.95 },
+      },
+      { intellect: 100, spirit: 100 },
+    );
+    // Same as 420 intellect and 190 spirit without multipliers.
+    const plain = computeStats(setupWith({ intellect: 420, spirit: 190, baseMana: 2000 }));
+    expect(multiplied.maxMana).toBeCloseTo(plain.maxMana, 9);
+    expect(multiplied.critPct).toBeCloseTo(plain.critPct, 9);
+    expect(multiplied.spiritRegenPerSec).toBeCloseTo(plain.spiritRegenPerSec, 9);
+  });
+
+  it('the maxMana multiplier scales the whole pool (base mana and intellect mana)', () => {
+    const plain = computeStats(setupWith({ intellect: 400, baseMana: 2000 }));
+    const multiplied = computeStats({
+      ...setupWith({ intellect: 400, baseMana: 2000 }),
+      statMultipliers: { maxMana: 1.03 },
+    });
+    expect(multiplied.maxMana).toBeCloseTo(plain.maxMana * 1.03, 9);
+    expect(multiplied.critPct).toBe(plain.critPct);
+  });
+
+  it('absent multipliers change nothing', () => {
+    const base = computeStats(setupWith({ intellect: 400, spirit: 100, baseMana: 2000 }));
+    expect(computeStats({ ...setupWith({ intellect: 400, spirit: 100, baseMana: 2000 }), statMultipliers: {} })).toEqual(
+      base,
+    );
+  });
+});
