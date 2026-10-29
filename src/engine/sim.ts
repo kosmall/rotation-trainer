@@ -13,6 +13,7 @@ import { activeSetBonuses } from './sets';
 import { computeStats } from './stats';
 import type {
   AuraDef,
+  AuraView,
   CastResult,
   CharacterSetup,
   DerivedStats,
@@ -266,12 +267,21 @@ export class Simulation {
       mana: this.mana,
       maxMana: this.stats.maxMana,
       cooldownRemainingMs,
-      targetAuras: this.targetAuras.views(this.nowMs),
-      selfAuras: this.selfAuras.views(this.nowMs),
+      targetAuras: this.visibleViews(this.targetAuras),
+      selfAuras: this.visibleViews(this.selfAuras),
       damageTotal: this.damageTotal,
       dps: this.nowMs > 0 ? this.damageTotal / (this.nowMs / 1000) : 0,
       queuedSpellId: this.queued?.spellId ?? null,
     };
+  }
+
+  /** The tracker's active auras at `nowMs`, minus those whose def is `hidden`. */
+  private visibleViews(tracker: AuraTracker): Record<string, AuraView> {
+    const views = tracker.views(this.nowMs);
+    for (const id of Object.keys(views)) {
+      if (this.auraDefs.get(id)?.hidden) delete views[id];
+    }
+    return views;
   }
 
   /** A copy of the combat log (entries copied too), oldest first. */

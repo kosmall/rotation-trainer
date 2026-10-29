@@ -148,6 +148,12 @@ export interface AuraDef {
   /** Applied while the aura is active on the player. */
   selfStatBonuses?: Partial<RawStats>;
   selfModifiers?: SpellModifier[];
+  /**
+   * Bookkeeping aura (for example a set proc's internal cooldown): left out of
+   * `SimSnapshot.selfAuras` / `targetAuras`. It is still applied, tracked (hook `hasSelfAura` /
+   * `hasTargetAura`), keeps any effect and is logged like any other aura.
+   */
+  hidden?: boolean;
 }
 
 export interface DirectEffect {
@@ -270,7 +276,9 @@ export interface SimSnapshot {
   mana: number;
   maxMana: number;
   cooldownRemainingMs: Record<string, number>;
+  /** Active target auras, without `hidden` ones. */
   targetAuras: Record<string, AuraView>;
+  /** Active self auras, without `hidden` ones. */
   selfAuras: Record<string, AuraView>;
   damageTotal: number;
   dps: number;
