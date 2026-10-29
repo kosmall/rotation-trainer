@@ -154,6 +154,14 @@ export interface AuraDef {
    * `hasTargetAura`), keeps any effect and is logged like any other aura.
    */
   hidden?: boolean;
+  /**
+   * Auras sharing a group are mutually exclusive on one unit (for example a warlock's curses:
+   * one per target). Applying an aura of a group removes every other live aura of that group on
+   * the same unit (target or self) first, through the normal removal (pending ticks and fade
+   * cancelled, `aura-fade` logged at that ms). Re-applying the same aura is a plain refresh. The
+   * same group on the target and on the player does not interact.
+   */
+  exclusiveGroup?: string;
 }
 
 export interface DirectEffect {

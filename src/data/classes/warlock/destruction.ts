@@ -275,10 +275,11 @@ const priority: PriorityStep[] = [
   {
     // APL group "Cast Curse": castWarlockAssignedCurse when the assigned curse is not active.
     // UNVERIFIED (choice): Curse of the Elements as the assigned curse (tbc-new defaults to
-    // Recklessness for raids); Curse of Doom's one tick at 60 s rarely fits a 60 s fight.
+    // Recklessness for raids). One curse per target (auras.ts exclusiveGroup 'curse'): Curse of
+    // Doom cast at the pull (its one tick lands at 60 s and counts) is the alternative choice.
     spellId: 'curse-of-the-elements',
     label: 'Curse of the Elements',
-    hint: 'Keep Curse of the Elements on the target: +10% fire and shadow damage taken.',
+    hint: 'Keep Curse of the Elements on the target: +10% fire and shadow damage taken. One curse per target: another curse replaces it.',
     when: (s) => s.targetAuras['curse-of-the-elements'] === undefined,
   },
   {

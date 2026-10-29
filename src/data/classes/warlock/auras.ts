@@ -6,6 +6,10 @@ import type { AuraDef } from '../../../engine/types';
 // Source unless noted: github.com/wowsims/tbc-new master @ 91f869a,
 // sim/warlock/spell_data_auto_gen.go (`Periodic: {Tick, Coef, TickLength, NumberOfTicks}`).
 // See docs/data-sources.md, section "Task 12a".
+//
+// Curses: in the game a warlock keeps one curse per target (casting another curse replaces the
+// current one), so the three curses share the exclusive group 'curse' (ruling R22): applying one
+// removes whichever other curse is on the target.
 
 export const warlockAuras: AuraDef[] = [
   {
@@ -34,6 +38,7 @@ export const warlockAuras: AuraDef[] = [
     name: 'Curse of Agony',
     icon: 'spell_shadow_curseofsargeras',
     durationMs: 24000,
+    exclusiveGroup: 'curse',
     tick: { intervalMs: 2000, total: 1356, coeffTotal: 1.2, school: 'shadow' },
   },
   {
@@ -43,6 +48,7 @@ export const warlockAuras: AuraDef[] = [
     name: 'Curse of Doom',
     icon: 'spell_shadow_auraofdarkness',
     durationMs: 60000,
+    exclusiveGroup: 'curse',
     tick: { intervalMs: 60000, total: 4200, coeffTotal: 2, school: 'shadow' },
   },
   {
@@ -53,6 +59,7 @@ export const warlockAuras: AuraDef[] = [
     name: 'Curse of the Elements',
     icon: 'spell_shadow_chilltouch',
     durationMs: 300000,
+    exclusiveGroup: 'curse',
     damageTakenMult: { schools: ['arcane', 'fire', 'frost', 'shadow'], mult: 1.1 },
   },
   {

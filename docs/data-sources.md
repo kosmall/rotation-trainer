@@ -155,7 +155,7 @@ Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fi
 | Rule | Source | Status |
 |---|---|---|
 | Curse first, assigned curse when not active | tbc-new `ui/specs/warlock/dps/apls/destruction.apl.json` group "Cast Curse"; wowsims/tbc `sim/warlock/rotations.go` | verified |
-| Curse of the Elements as the warlock's curse | tbc-new DefaultOptions assign Recklessness (raid choice); CoE chosen here as it raises the warlock's own fire and shadow damage; Curse of Doom's single tick at 60 s rarely fits a 60 s fight | UNVERIFIED (choice) |
+| Curse of the Elements as the warlock's curse | tbc-new DefaultOptions assign Recklessness (raid choice); CoE chosen here as it raises the warlock's own fire and shadow damage. Curse of Doom is a real alternative: cast at the pull, its single tick lands at exactly 60 s and counts (a tick at the fight end counts, ruling R6); the bot measured about the same DPS with Doom instead of CoE (1483 vs 1486, 20 seeds, window 400). Only one curse can be up (see "Curses: one per target" below) | UNVERIFIED (choice) |
 | Shadowburn only as a finisher (Soul Shard cost) | APL "Should Cast Shadow Burn" (`remainingTime <= spellCastTime(SB) + travel`) | verified (travel time and haste ignored) |
 | Immolate refresh | APL "Should Cast Immolate" | verified |
 | Immolate and Corruption rules are false while that same spell is being cast (`dotRefreshDue`, `s.cast?.spellId !== spellId`) | Spell-queue guard, not from the wowsims APL: with a queue window the bot or player could press the DoT again during its own cast and clip the first one, because the DoT is not on the target until the cast lands. wowsims evaluates its APL only when the player is free, so it never needs this. Added in Task 13; tested in `tests/data/destruction.test.ts` | deliberate deviation from the APL |
@@ -173,10 +173,16 @@ DoT uptime under this rule (ruling R19, measured by the Task 13 bot over seeds 1
 
 `tests/bot/bot.test.ts` asserts more than 90% over the second window for both DoTs, and more than 95% of the fight for Curse of the Elements. Keeping the DoTs up to the end would need a different rule (a data decision).
 
+### Curses: one per target (ruling R22)
+
+In the game a warlock keeps one curse per target: casting another curse replaces the current one (wowsims `DeactivateOtherCurses`). The engine models this with `AuraDef.exclusiveGroup`: applying an aura of a group first removes every other live aura of that group on the same unit (through the normal removal: pending ticks and fade cancelled, `aura-fade` logged at that ms). Re-applying the same aura is a plain refresh; the same group on the target and on the player does not interact. Curse of the Elements, Curse of Agony and Curse of Doom are all in the group `curse`.
+
+The action bar binds Curse of the Elements (key 4), Curse of Agony (key 9) and Curse of Doom (key 0), so the author can practise any of them, but must choose ONE: pressing another curse replaces the one on the target (a Curse of Doom replaced before 60 s never ticks; Curse of the Elements' x1.10 is gone the moment another curse lands). The priority and the bot use Curse of the Elements. Tested in `tests/engine/sim-exclusive.test.ts` and `tests/data/destruction.test.ts`.
+
 ### Open questions
 
 1. Conflagrate is not in the author's build. Ruling R17: unbound; SpellDef kept for stage 2b.
-2. Curses are not mutually exclusive in the engine (wowsims `DeactivateOtherCurses`): a player can stack Curse of the Elements with Curse of Doom or Agony. Needs an engine rule (e.g. an aura exclusivity group).
+2. Resolved (ruling R22): curses are mutually exclusive through `AuraDef.exclusiveGroup` (see "Curses: one per target" above).
 3. Which pet the author sacrifices (Succubus assumed, +15% shadow).
 4. Incinerate's bonus 111-128 base damage while Immolate is up (`incinerate.go`) needs conditional damage in `SpellDef`.
 5. Curse of the Elements' -88 resistances and Shadowburn's binary resist are not modeled (fixed level-based resist multiplier).

@@ -406,3 +406,66 @@ describe('destructionWarlock behaviour in the Simulation', () => {
     expect(infinite.casts[infinite.casts.length - 1]).toBe('shadowburn');
   });
 });
+
+describe('curses: one per target (AuraDef.exclusiveGroup, ruling R22)', () => {
+  const CURSES = ['curse-of-the-elements', 'curse-of-agony', 'curse-of-doom'];
+
+  it('the three curses share the group "curse"; no other warlock aura has a group', () => {
+    for (const a of warlockAuras) {
+      expect(a.exclusiveGroup, a.id).toBe(CURSES.includes(a.id) ? 'curse' : undefined);
+    }
+  });
+
+  /** Casts `spellId` once the GCD is over; returns its fight time. */
+  function castAfterGcd(sim: Simulation, spellId: string): number {
+    sim.advanceTo(sim.snapshot().gcdEndsAtMs);
+    expect(sim.cast(spellId), spellId).toEqual({ ok: true });
+    return sim.snapshot().nowMs;
+  }
+
+  const curseIdsOn = (sim: Simulation) => Object.keys(sim.snapshot().targetAuras).filter((id) => CURSES.includes(id));
+
+  it('Curse of Doom replaces Curse of the Elements, and Curse of the Elements replaces Doom (its tick never lands)', () => {
+    const sim = newSim({ infiniteMana: true });
+    castAfterGcd(sim, 'curse-of-the-elements');
+    const doomAt = castAfterGcd(sim, 'curse-of-doom');
+    expect(curseIdsOn(sim)).toEqual(['curse-of-doom']);
+    expect(sim.log().filter((e) => e.type === 'aura-fade')).toEqual([
+      { atMs: doomAt, type: 'aura-fade', auraId: 'curse-of-the-elements' },
+    ]);
+    const coeAt = castAfterGcd(sim, 'curse-of-the-elements');
+    expect(curseIdsOn(sim)).toEqual(['curse-of-the-elements']);
+    expect(sim.log().filter((e) => e.type === 'aura-fade' && e.atMs === coeAt)).toEqual([
+      { atMs: coeAt, type: 'aura-fade', auraId: 'curse-of-doom' },
+    ]);
+    sim.advanceTo(60000);
+    expect(sim.log().filter((e) => e.type === 'tick' && e.auraId === 'curse-of-doom')).toEqual([]);
+  });
+
+  it('Curse of Agony replaces either other curse; only one curse is ever on the target', () => {
+    const sim = newSim({ infiniteMana: true });
+    for (const id of ['curse-of-the-elements', 'curse-of-agony', 'curse-of-doom', 'curse-of-agony']) {
+      castAfterGcd(sim, id);
+      expect(curseIdsOn(sim)).toEqual([id]);
+    }
+  });
+
+  it("Curse of the Elements' x1.1 damage taken is gone once Curse of Doom replaces it", () => {
+    // Corruption ticks are deterministic (no crit, no roll): compare the first tick under CoE
+    // with the first tick after Doom replaced CoE.
+    const firstCorruptionTick = (curses: string[]) => {
+      const sim = newSim({ infiniteMana: true });
+      for (const id of curses) castAfterGcd(sim, id);
+      castAfterGcd(sim, 'corruption');
+      sim.advanceTo(20000);
+      const tick = sim.log().find((e) => e.type === 'tick' && e.auraId === 'corruption');
+      if (tick?.amount === undefined) throw new Error('no corruption tick');
+      return tick.amount;
+    };
+    const withCoe = firstCorruptionTick(['curse-of-the-elements']);
+    const replaced = firstCorruptionTick(['curse-of-the-elements', 'curse-of-doom']);
+    const none = firstCorruptionTick([]);
+    expect(replaced).toBe(none);
+    expect(withCoe / replaced).toBeCloseTo(1.1, 2);
+  });
+});

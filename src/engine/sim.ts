@@ -579,11 +579,20 @@ export class Simulation {
    * and fade, then reschedules them from now: no immediate tick, no double ticks. Ticks are
    * scheduled for target auras only. The fade event removes the aura through `removeAura`.
    * A self aura's stat bonuses and modifiers take effect at once (`syncSelfStats`).
+   * An aura with an `exclusiveGroup` first removes every other applied aura of that group on the
+   * same unit (`removeAura`: their pending events cancelled, `aura-fade` logged now).
    */
   private applyAura(on: 'target' | 'self', auraId: string, source: SpellDef): void {
     const def = this.auraDef(auraId);
     const tracker = on === 'target' ? this.targetAuras : this.selfAuras;
     const pending = on === 'target' ? this.targetAuraEvents : this.selfAuraEvents;
+    if (def.exclusiveGroup !== undefined) {
+      for (const otherId of [...pending.keys()]) {
+        if (otherId !== auraId && this.auraDef(otherId).exclusiveGroup === def.exclusiveGroup) {
+          this.removeAura(on, otherId);
+        }
+      }
+    }
     this.cancelAuraEvents(pending, auraId);
     tracker.apply(auraId, this.nowMs);
     this.addLog({ type: 'aura-apply', spellId: source.id, auraId });
