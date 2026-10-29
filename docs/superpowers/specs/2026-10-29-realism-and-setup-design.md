@@ -117,7 +117,7 @@ Nowe w silniku (każde z testem):
 
 - Wykluczanie: flask vs elixiry (battle/guardian), jedna pozycja jedzenia, buff z tej samej `exclusiveGroup`
   zastępuje poprzedni (istniejący `AuraDef.exclusiveGroup`).
-- **Improved Shadow Bolt od innych:** pole `isbFromOthers: boolean`. Włączone: debuff ×1,2 na obrażenia
+- **Improved Shadow Bolt od innych:** pozycja katalogu `isb-from-others`. Włączona: debuff ×1,2 na obrażenia
   shadow bezpośrednie jest aktywny przez całą walkę, nie sumuje się z własnym ISB od krytyków
   (obowiązuje jeden, nie dwa mnożniki). Uproszczenie względem wowsims (uptime procentowy), do przemyślenia
   w planie.
@@ -134,8 +134,10 @@ Nowe w silniku (każde z testem):
 
 - Panel (zwijany, nie zasłania paska akcji) z grupami: Buffy raid/party, Consumables, Debuffy celu,
   Cooldowny (checkbox + sekunda startu), Opcje warlocka, Rotacja (część B), Odległość od celu (A), Presety.
-- Model: `SetupConfig` (czysty obiekt, wersjonowany: `{ version: 1, enabledBuffs: string[], timed: {...},
-  rotation: RotationConfig, distanceYd: number, warlock: {...} }`).
+- Model: `SetupConfig` (czysty obiekt, wersjonowany): `{ version: 1; enabledBuffs: string[];
+  timed: Record<buffId, { startSec: number; durationSec: number }>; rotation: RotationConfig;
+  distanceYd: number; warlock: { armor: 'fel' | 'demon' | 'none'; sacrificeSuccubus: boolean } }`
+  (`isbFromOthers` jest zwykłym buffem z katalogu, nie polem osobnym).
 - `applySetup(spec, config): { spec: SpecData; simConfig: Partial<SimConfig> }` w `src/setup/`. Funkcja
   czysta: scala efekty włączonych buffów ze statami gearu i talentów, buduje aury zaplanowane, listę
   priorytetów i `distanceFromTarget`. Silnik nie zna katalogu buffów, tylko aury i ich efekty.
