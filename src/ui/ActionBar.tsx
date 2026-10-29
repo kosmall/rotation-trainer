@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { SpecData } from '../data/types';
 import type { CastResult, SimSnapshot, SpellDef } from '../engine/types';
 import { SCHOOL_COLORS, formatInt, initials, remainingText, secondsText } from './format';
+import { SpellIcon } from './SpellIcon';
 import { SLOT_KEYS } from './keys';
 
 export type RejectReason = Extract<CastResult, { ok: false }>['reason'];
@@ -95,6 +96,7 @@ function SpellSlot({ spell, hotkey, snapshot, gcdFraction, flash, onPress }: Spe
       <span className="slot-initials" aria-hidden="true">
         {initials(spell.name)}
       </span>
+      <SpellIcon icon={spell.icon} className="slot-icon" />
       {gcdFraction > 0 && (
         <span className="slot-gcd" aria-hidden="true" style={{ '--sweep': `${gcdFraction * 360}deg` } as CSSProperties} />
       )}

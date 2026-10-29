@@ -1,6 +1,7 @@
 import type { SpecData } from '../data/types';
 import type { AuraView } from '../engine/types';
 import { SCHOOL_COLORS, initials, remainingText } from './format';
+import { SpellIcon } from './SpellIcon';
 
 interface AuraListProps {
   spec: SpecData;
@@ -25,6 +26,7 @@ export function AuraList({ spec, auras, label }: AuraListProps) {
           <li key={view.auraId} className="aura" title={count === null ? name : `${name} (${count})`}>
             <span className="aura-icon" style={{ background: SCHOOL_COLORS[school] }}>
               {initials(name)}
+              {def && <SpellIcon icon={def.icon} className="aura-image" />}
               {count !== null && <span className="aura-count">{count}</span>}
             </span>
             <span className="aura-name">{name}</span>

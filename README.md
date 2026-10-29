@@ -20,7 +20,11 @@ npm test           # wszystkie testy (Vitest)
 npm run typecheck  # sprawdzenie typów (tsc)
 npm run build      # typecheck + build produkcyjny do dist/
 npm run preview    # podgląd builda z dist/: http://localhost:4173
+npm run icons      # (tylko po dodaniu czarów) pobiera ikony z Wowheada do public/icons/spells/
 ```
+
+Ikony czarów i aur są już w repo (`public/icons/spells/`), więc aplikacja działa offline. `npm run icons`
+sprawdza też nazwy ikon w danych względem Wowheada; potrzebuje sieci i działa tylko wtedy, gdy dodajesz nowe czary.
 
 ## Klawisze
 

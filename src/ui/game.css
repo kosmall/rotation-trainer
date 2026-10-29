@@ -219,10 +219,22 @@ kbd {
   color: #fff;
   font-weight: 700;
   font-size: 0.8rem;
+  overflow: hidden;
+}
+
+.aura-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  user-select: none;
 }
 
 .aura-count {
   position: absolute;
+  z-index: 1;
   right: 1px;
   bottom: 0;
   font-size: 0.75rem;
@@ -374,6 +386,17 @@ button.primary {
   font-weight: 700;
   font-size: 1rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.slot-icon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0; /* above the initials, below the GCD sweep, cooldown, key and flash overlays */
+  user-select: none;
+  pointer-events: none;
 }
 
 .slot-key {
