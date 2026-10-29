@@ -146,7 +146,7 @@ Multiplier stacking: each spell has at most one additive damage talent in this b
 | Backlash (proc part) | 3/3 | instant Shadow Bolt after being hit; the dummy never attacks (its +3% crit is modeled) |
 | Demonic Embrace (stamina part) | 5/5 | stamina/health not simulated |
 
-No Conflagrate talent in this build: the spell is defined (and bound to a key) per the stage 1 interface, but is not in the priority. Nightfall-style procs are not in the build either (and DoT ticks cannot trigger hooks).
+No Conflagrate talent in this build: the spell is defined in `spells.ts` (for the stage 2b talent editor) but is neither bound to a key (slot 8 is empty) nor in the priority (ruling R17). Nightfall-style procs are not in the build either (and DoT ticks cannot trigger hooks).
 
 ### Priority (shadow Destruction)
 
@@ -164,7 +164,7 @@ Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fi
 
 ### Open questions
 
-1. Conflagrate is not in the author's build but is defined and on the action bar (stage 1 interface). Remove it from `keybinds` or add a "not learned" flag?
+1. Conflagrate is not in the author's build. Ruling R17: unbound; SpellDef kept for stage 2b.
 2. Curses are not mutually exclusive in the engine (wowsims `DeactivateOtherCurses`): a player can stack Curse of the Elements with Curse of Doom or Agony. Needs an engine rule (e.g. an aura exclusivity group).
 3. Which pet the author sacrifices (Succubus assumed, +15% shadow).
 4. Incinerate's bonus 111-128 base damage while Immolate is up (`incinerate.go`) needs conditional damage in `SpellDef`.

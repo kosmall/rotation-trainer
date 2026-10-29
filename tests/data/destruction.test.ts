@@ -81,6 +81,15 @@ describe('destructionWarlock structure', () => {
     expect(new Set(bound).size).toBe(bound.length);
   });
 
+  it('conflagrate (no talent in the build, ruling R17) is in neither keybinds nor priority, but its SpellDef stays', () => {
+    expect(destructionWarlock.keybinds).not.toContain('conflagrate');
+    expect(destructionWarlock.priority.map((p) => p.spellId)).not.toContain('conflagrate');
+    expect(spellIds.has('conflagrate')).toBe(true);
+    expect(parseTalentString(destructionTalentString).trees[2]?.[17]).toBe(0); // Destruction #18: Conflagrate
+    // Slot positions stay stable: slot 8 (key "8", index 7) is left empty.
+    expect(destructionWarlock.keybinds[7]).toBe('');
+  });
+
   it('every priority step references a defined spell', () => {
     expect(destructionWarlock.priority.length).toBeGreaterThan(0);
     for (const step of destructionWarlock.priority) {

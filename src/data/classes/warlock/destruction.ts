@@ -294,7 +294,9 @@ export const destructionWarlock: SpecData = {
     'shadowburn',
     'life-tap',
     'incinerate',
-    'conflagrate',
+    // Slot 8 left empty (ruling R17): no Conflagrate talent in this build; its SpellDef stays
+    // in spells.ts for the stage 2b talent editor. Other slots keep their positions.
+    '',
     'curse-of-agony',
     'curse-of-doom',
     '',
