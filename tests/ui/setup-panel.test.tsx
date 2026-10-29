@@ -88,7 +88,7 @@ describe('SetupPanel', () => {
     expect(checkbox('Immolate').checked).toBe(true);
     expect(checkbox('Corruption').checked).toBe(true);
     expect(checkbox('Shadowburn finisher').checked).toBe(true);
-    expect(checkbox('Auto Life Tap threshold (Shadow Bolt cost)').checked).toBe(true);
+    expect(checkbox('Auto (Shadow Bolt cost)').checked).toBe(true);
     expect(lifeTapInput().disabled).toBe(true);
     expect(lifeTapInput().min).toBe('0');
     expect(distanceInput().value).toBe('28');
@@ -133,7 +133,7 @@ describe('SetupPanel', () => {
 
     fireEvent.change(curseSelect(), { target: { value: 'elements' } });
     expect(presetSelect().value).toBe('dot');
-    fireEvent.click(checkbox('Auto Life Tap threshold (Shadow Bolt cost)'));
+    fireEvent.click(checkbox('Auto (Shadow Bolt cost)'));
     expect(presetSelect().value).toBe('custom');
     expect(lifeTapInput().disabled).toBe(false);
     fireEvent.change(lifeTapInput(), { target: { value: '2000' } });
@@ -143,7 +143,7 @@ describe('SetupPanel', () => {
   it('the Life Tap threshold ignores NaN/empty and clamps negatives to 0', () => {
     const onRotation = vi.fn();
     render(<Harness onRotation={onRotation} onDistance={() => {}} />);
-    fireEvent.click(checkbox('Auto Life Tap threshold (Shadow Bolt cost)'));
+    fireEvent.click(checkbox('Auto (Shadow Bolt cost)'));
     const first = onRotation.mock.calls.at(-1)?.[0] as RotationConfig;
     expect(typeof first.lifeTapBelowMana).toBe('number');
     expect(first.lifeTapBelowMana).toBeGreaterThanOrEqual(0);
@@ -160,9 +160,9 @@ describe('SetupPanel', () => {
     }
 
     // Auto again, then off: the last number comes back.
-    fireEvent.click(checkbox('Auto Life Tap threshold (Shadow Bolt cost)'));
+    fireEvent.click(checkbox('Auto (Shadow Bolt cost)'));
     expect(onRotation.mock.calls.at(-1)?.[0].lifeTapBelowMana).toBe('auto');
-    fireEvent.click(checkbox('Auto Life Tap threshold (Shadow Bolt cost)'));
+    fireEvent.click(checkbox('Auto (Shadow Bolt cost)'));
     expect(onRotation.mock.calls.at(-1)?.[0].lifeTapBelowMana).toBe(1501);
   });
 
@@ -251,7 +251,8 @@ describe('SetupPanel in GameView', () => {
     const textarea = document.createElement('textarea');
     document.body.appendChild(textarea);
     try {
-      const targets = () => [distanceInput(), presetSelect(), checkbox('Immolate'), summary, textarea];
+      // Text-like fields own every key; toggles (summary, checkbox) own only Space (see the next test).
+      const targets = () => [distanceInput(), presetSelect(), textarea];
       for (const target of targets()) {
         fireEvent.keyDown(target, { key: '1' });
         expect(castBar()).toBeNull();
@@ -275,5 +276,21 @@ describe('SetupPanel in GameView', () => {
     } finally {
       textarea.remove();
     }
+  });
+
+  it('after clicking a summary or a checkbox the other hotkeys still work; only Space and Enter belong to them', () => {
+    render(<GameView spec={destructionWarlock} />);
+    const setupSummary = screen.getByText('Setup', { selector: 'summary' });
+    for (const toggle of [setupSummary, screen.getByText('Priority', { selector: 'summary' })]) {
+      fireEvent.keyDown(toggle, { key: ' ' });
+      fireEvent.keyDown(toggle, { key: 'Enter' });
+      expect(startOverlay()).not.toBeNull(); // Space did not start the fight
+    }
+    fireEvent.keyDown(checkbox('Immolate'), { key: ' ' });
+    expect(startOverlay()).not.toBeNull();
+
+    // A key that is not Space/Enter pressed with a toggle focused reaches the action bar.
+    fireEvent.keyDown(setupSummary, { key: '1' });
+    expect(castBar()).not.toBeNull();
   });
 });

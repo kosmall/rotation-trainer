@@ -165,7 +165,6 @@ export function SetupPanel({ rotation, distanceYd, onRotation, onDistance, disab
           <input
             type="checkbox"
             checked={autoLifeTap}
-            aria-label="Auto Life Tap threshold (Shadow Bolt cost)"
             onChange={(e) => {
               setLifeTapDraft(null);
               update({ lifeTapBelowMana: e.target.checked ? 'auto' : lastLifeTap });
@@ -193,7 +192,7 @@ export function SetupPanel({ rotation, distanceYd, onRotation, onDistance, disab
           />
         </div>
         <p className="hint">
-          The rotation changes the Priority list at once. A new distance applies from the next fight (press{' '}
+          The rotation changes the Priority list at once. A new distance applies to a fight that has not started, or from the next fight (press{' '}
           <kbd>R</kbd>); a fight already running keeps its distance.
         </p>
       </fieldset>

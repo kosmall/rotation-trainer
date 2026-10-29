@@ -19,11 +19,17 @@ import { useSimulation } from './useSimulation';
 /** How long a rejected press shows its reason on the slot. */
 const FLASH_MS = 700;
 
-/** Keys typed into these (the Setup panel's fields, a focused `<summary>`) are not hotkeys. */
-const TYPING_TARGETS = 'input, select, textarea, summary, [contenteditable]:not([contenteditable="false"])';
+/** Fields that take typed text or arrow keys: every key typed into them is theirs, never a hotkey. */
+const TEXT_TARGETS =
+  'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), select, textarea, [contenteditable]:not([contenteditable="false"])';
+/** Toggles (a `<summary>`, checkboxes, radios): only Space and Enter belong to them, the other hotkeys still work after a click. */
+const TOGGLE_TARGETS = 'summary, input[type="checkbox"], input[type="radio"]';
 
-function isTypingTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && target.matches(TYPING_TARGETS);
+function isHotkeyBlocked(event: KeyboardEvent): boolean {
+  const { target } = event;
+  if (!(target instanceof Element)) return false;
+  if (target.matches(TEXT_TARGETS)) return true;
+  return target.matches(TOGGLE_TARGETS) && (event.key === ' ' || event.key === 'Enter');
 }
 
 /**
@@ -76,7 +82,7 @@ export function GameView({ spec }: { spec: SpecData }) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return; // e.g. digits typed into the distance field
+      if (isHotkeyBlocked(event)) return; // e.g. digits typed into the distance field, Space on a focused <summary>
       const slot = keyToSlot(event.key);
       const handled = slot !== undefined || event.key === 'Escape' || event.key === ' ' || event.key === 'r' || event.key === 'R';
       if (!handled) return;
