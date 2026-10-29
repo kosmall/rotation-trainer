@@ -144,7 +144,7 @@ With no gear (12b adds it): maxMana = (2615 + 15 x 142.8 - 280) x 1.03 = 4611.3.
 
 ### Talents: `000000000000000000000-2050130133200100000000-555000512200013330050` (0/21/40)
 
-Order: tbc-new `ui/sim/talents/trees/warlock.json` `talents[].fieldName` (= `proto/warlock.proto` `WarlockTalents` 1-64). `parseTalentString` + `TALENT_ORDER` in `destruction.ts` read the ranks; every modeled effect is computed from its rank. Effects: tbc-new `sim/warlock/talents.go`.
+Order: tbc-new `ui/sim/talents/trees/warlock.json` `talents[].fieldName` (= `proto/warlock.proto` `WarlockTalents` 1-64). `parseTalentString` + `TALENT_ORDER` in `talents.ts` (in `destruction.ts` until stage 1.5 Part B) read the ranks; every modeled effect is computed from its rank. Effects: tbc-new `sim/warlock/talents.go`.
 
 | Talent | Rank | Effect in the trainer | Source | Status |
 |---|---|---|---|---|
@@ -183,7 +183,7 @@ No Conflagrate talent in this build: the spell is defined in `spells.ts` (for th
 
 ### Priority (shadow Destruction)
 
-Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fight time left <= Shadow Bolt cast time 2500 ms + its travel time 1400 ms at 28 yd = 3900 ms since Part A, unhasted talent values throughout) > Immolate (left <= its cast time 1500 ms and the fight outlasts cast + 15 s, and Immolate is neither being cast nor in flight) > Corruption (same rule, 2000 ms + 18 s) > Life Tap (mana < 399, Shadow Bolt's cost) > Shadow Bolt.
+The rules live in `src/data/classes/warlock/rotation.ts` (`buildPriority`, see "Part B: rotation configuration"); the spec's `priority` is the DoT preset at 28 yd. Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fight time left <= Shadow Bolt cast time 2500 ms + its travel time 1400 ms at 28 yd = 3900 ms since Part A, unhasted talent values throughout) > Immolate (left <= its cast time 1500 ms and the fight outlasts cast + 15 s, and Immolate is neither being cast nor in flight) > Corruption (same rule, 2000 ms + 18 s) > Life Tap (mana < 399, Shadow Bolt's cost) > Shadow Bolt.
 
 | Rule | Source | Status |
 |---|---|---|
@@ -210,7 +210,7 @@ DoT uptime under this rule (ruling R19, measured by the Task 13 bot over seeds 1
 
 In the game a warlock keeps one curse per target: casting another curse replaces the current one (wowsims `DeactivateOtherCurses`). The engine models this with `AuraDef.exclusiveGroup`: applying an aura of a group first removes every other live aura of that group on the same unit (through the normal removal: pending ticks and fade cancelled, `aura-fade` logged at that ms). Re-applying the same aura is a plain refresh; the same group on the target and on the player does not interact. Curse of the Elements, Curse of Agony and Curse of Doom are all in the group `curse`.
 
-The action bar binds Curse of the Elements (key 4), Curse of Agony (key 9) and Curse of Doom (key 0), so the author can practise any of them, but must choose ONE: pressing another curse replaces the one on the target (a Curse of Doom replaced before 60 s never ticks; Curse of the Elements' x1.10 is gone the moment another curse lands). The priority and the bot use Curse of the Elements. Tested in `tests/engine/sim-exclusive.test.ts` and `tests/data/destruction.test.ts`.
+The action bar binds Curse of the Elements (key 4), Curse of Agony (key 9) and Curse of Doom (key 0), so the author can practise any of them, but must choose ONE: pressing another curse replaces the one on the target (a Curse of Doom replaced before 60 s never ticks; Curse of the Elements' x1.10 is gone the moment another curse lands). The DoT preset (the spec's priority, and the bot by default) uses Curse of the Elements; Part B makes the curse configurable. Tested in `tests/engine/sim-exclusive.test.ts` and `tests/data/destruction.test.ts`.
 
 ### Open questions
 
@@ -366,7 +366,7 @@ Stage 1.5, Tasks 1-2. Files: `src/engine/travel.ts`, `src/engine/sim.ts` (Task 1
 | Incinerate flight at 28 yd | 1167 ms | 28 / 24 | derived |
 | Shadowburn finisher window | Shadow Bolt cast + travel = 2500 + 1400 = 3900 ms | tbc-new `ui/specs/warlock/dps/apls/destruction.apl.json` "Should Cast Shadow Burn": `remainingTime <= spellCastTime(27209) + spellTravelTime(27209)` | verified (unhasted cast time on purpose, Task 12b open question 3) |
 
-The engine default distance stays 0 (no travel) so engine fixtures are unaffected; the data layer passes 28 yd: `useSimulation` and the bot tests build every real-spec `Simulation` with `distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD`. Stage 1 data tests that check timings at cast end keep distance 0 explicitly. The finisher window uses the default distance until Task 3 makes `buildPriority` take the distance.
+The engine default distance stays 0 (no travel) so engine fixtures are unaffected; the data layer passes 28 yd: `useSimulation` and the bot tests build every real-spec `Simulation` with `distanceFromTarget: DEFAULT_DISTANCE_FROM_TARGET_YD`. Stage 1 data tests that check timings at cast end keep distance 0 explicitly. Since Part B `buildPriority(config, distanceYd)` computes the finisher window from its distance argument; the spec's `priority` uses 28 yd.
 
 ### Model
 
@@ -387,3 +387,23 @@ The difference is only visible when a buff or debuff starts or ends during a mis
 Only the end of the fight changes: a Shadow Bolt counts only if it lands by 60 s, so the finisher window grows from 2500 to 3900 ms and the expected DPS falls from 1484 to 1448 (-2.4%, 0.57 Shadow Bolts fewer; derivation in `tests/bot/bot.test.ts`). Measured over seeds 1-10: 1425 (window 400) and 1428 (window 0), stage 1: 1483 and 1487. In this 60 s fight the bot's timeline barely varies between seeds: it lands exactly 18 Shadow Bolts in every seed (stage 1: 19) because the finisher point always falls 2.9-3.6 s before the end, inside the widened window, so one whole bolt (about 63 DPS, -4.2%) is lost against stage 1; the estimate's 18.58 assumed a uniform finisher point. Travel itself changes almost nothing (0 yd with the 3900 ms window gives about the same DPS).
 
 Range: tbc-new gives Shadowburn (30546) `MaxRange: 20`, which even with Destructive Reach 2/2 is 24 yd, less than the 28 yd default distance, so a real player could not cast the finisher from that far. The engine has no range checks; a later task may consider it. The band stays +-12% around the re-derived value: [1274, 1622].
+
+## Part B: rotation configuration
+
+`src/data/classes/warlock/rotation.ts`: `buildPriority(config: RotationConfig, distanceYd)` is the only source of the priority list (the spec's `priority`, the UI's priority panel and the bot). It is pure: it reads only its arguments and the static data and returns new step objects. Keybinds do not change with the configuration. The talent build and its spell modifiers moved from `destruction.ts` to `talents.ts` (unchanged), so that `rotation.ts` can read the talent cast times without `destruction.ts` and `rotation.ts` importing each other.
+
+`RotationConfig`: `curse` (`elements`, `agony`, `doom` or `none`), `immolate`, `corruption`, `shadowburnFinisher` (booleans) and `lifeTapBelowMana` (a number >= 0, or `auto` = Shadow Bolt's cost after Cataclysm, 399; NaN or a negative number throws `RangeError`).
+
+Rules: the order is curse > Shadowburn (finisher) > Immolate > Corruption > Life Tap > Shadow Bolt, and disabled steps are left out (`curse: 'none'` has no curse step). Every rule is the one in "Priority (shadow Destruction)" above. The curse step is wanted while its own aura is not on the target. Another curse on the target does not count, because casting this one replaces it. Curse of Doom's 60 s cooldown makes the engine reject a second cast, so it needs no extra condition. A number for `lifeTapBelowMana` replaces Shadow Bolt's cost as the Life Tap threshold. `distanceYd` changes only the finisher window: Shadow Bolt's unhasted cast (2500 ms) + its flight (`projectileTravelMs`; 1400 ms at 28 yd, 0 at 0 yd or for a negative or non-finite distance).
+
+| Preset | Config | Source | Status |
+|---|---|---|---|
+| `dot`, "DoT rotation" | Curse of the Elements, Immolate, Corruption, Shadowburn finisher, Life Tap `auto` | the stage 1 list (tbc-new APL + Corruption from wowsims/tbc, see above) | as above (curse UNVERIFIED (choice), Corruption UNVERIFIED) |
+| `sb-spam`, "Shadow Bolt spam + curse" | Curse of Doom, no Immolate, no Corruption, Shadowburn finisher, Life Tap `auto` | the author's raid (spec Part B: curse on the pull, Shadow Bolt, Life Tap at low mana, Shadowburn at the end) | author's choice |
+
+Effect on the bot (`tests/data/rotation.test.ts`, seeds 1-10, 28 yd). The `dot` preset gives exactly the Task 2 means: 1425.18 (window 400) and 1428.34 (window 0). Measured for comparison (not asserted):
+- `sb-spam`: 1453 in both windows, with one Life Tap per fight.
+- The DoT list with Curse of Doom: 1417 / 1421.
+- `sb-spam` with Curse of the Elements: 1422.
+
+Ten seeds give the mean a standard deviation of about 41 DPS (Task 2), so these are indications only. Without DoTs, Curse of Doom's single tick at 60 s beats Curse of the Elements' x1.10 (1453 vs 1422). With the DoTs, which Curse of the Elements also raises, the two are about even (1417 vs 1425). Both presets keep the Shadowburn finisher, although Shadowburn's range (24 yd with Destructive Reach) is shorter than the 28 yd default and the engine has no range checks (see "Effect on the bot (stage 1.5 Task 2)").
