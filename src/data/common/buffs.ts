@@ -112,7 +112,7 @@ export const commonBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     wowheadId: 3738,
     group: 'party',
     description:
-      '+121 spell power: improved rank (101 + 20 from Improved Wrath of Air Totem, a shaman item bonus, Wowhead spell 37212; unimproved 101).',
+      '+121 spell power: improved rank (101 + 20 from Improved Wrath of Air Totem, the shaman Cyclone Regalia 2-piece (tbc-new sim/shaman/totems.go), Wowhead spell 37212; the improved value assumes the shaman wears it; unimproved 101).',
     // WrathOfAirTotemValue(improved) = WrathOfAirTotemBaseValue 101 + WrathOfAirTotemImprovedValue 20;
     // Wowhead TBC spell=3738 "increased by up to 101", spell=37212 "an additional 20 spell damage".
     source: `${BUFFS} WrathOfAirTotemAura (improved); https://www.wowhead.com/tbc/spell=37212`,
