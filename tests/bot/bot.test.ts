@@ -184,8 +184,11 @@ describe('runBot', () => {
    *   2 + 18 s left; the third is borderline near 40 s), take 2.5 = 4862; the finisher window
    *   (last Shadow Bolt decision point within 2500 ms of the end) about 1285 on average; mana:
    *   9429 max, no mp5 and spirit regen only outside the five-second rule (never while
-   *   chain-casting); spend CoE 260 + 3 x 422.75 + 2.5 x 370 + 489 + N x 399 exceeds 9429 for
-   *   N ~ 19.7, so 1 Life Tap (582 + 0.8 x 1300 = 1622 mana) = 1458.
+   *   chain-casting); the other spells cost CoE 260 + 3 x 422.75 + 2.5 x 370 + 489.25 = 2942.5,
+   *   leaving (9429 - 2942.5) / 399 = 16.3 Shadow Bolts' worth of mana. Without a tap the
+   *   timeline would hold 19.75 bolts (spend 10823); with one tap (582 + 0.8 x 1300 = 1622
+   *   mana, one GCD = 1458) it holds 19.15 (spend 2942.5 + 19.15 x 399 = 10583, short by
+   *   1154 < 1622), so 1 Life Tap.
    *   Shadow Bolts: (60000 - 1458 - 4374 - 4862 - 1285 - 1458) / 2431 = 19.15.
    * Total: 19.15 x 3780 + 3 x 2414 + 2.5 x 2903 + 2170 = 72387 + 7242 + 7258 + 2170 = 89057
    *   -> 1484 DPS. Band: +-12%, i.e. [1306, 1662]. The mean over 10 seeds must fall inside: crits,

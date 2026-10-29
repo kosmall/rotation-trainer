@@ -150,7 +150,7 @@ No Conflagrate talent in this build: the spell is defined in `spells.ts` (for th
 
 ### Priority (shadow Destruction)
 
-Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fight time left <= Shadow Bolt cast time 2500 ms) > Immolate (left <= its cast time 1500 ms and the fight outlasts cast + 15 s) > Corruption (same rule, 2000 ms + 18 s) > Life Tap (mana < 399, Shadow Bolt's cost) > Shadow Bolt.
+Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fight time left <= Shadow Bolt cast time 2500 ms) > Immolate (left <= its cast time 1500 ms and the fight outlasts cast + 15 s, and Immolate is not already being cast) > Corruption (same rule, 2000 ms + 18 s) > Life Tap (mana < 399, Shadow Bolt's cost) > Shadow Bolt.
 
 | Rule | Source | Status |
 |---|---|---|
@@ -158,9 +158,20 @@ Order: Curse of the Elements (when not on the target) > Shadowburn (finisher: fi
 | Curse of the Elements as the warlock's curse | tbc-new DefaultOptions assign Recklessness (raid choice); CoE chosen here as it raises the warlock's own fire and shadow damage; Curse of Doom's single tick at 60 s rarely fits a 60 s fight | UNVERIFIED (choice) |
 | Shadowburn only as a finisher (Soul Shard cost) | APL "Should Cast Shadow Burn" (`remainingTime <= spellCastTime(SB) + travel`) | verified (travel time and haste ignored) |
 | Immolate refresh | APL "Should Cast Immolate" | verified |
+| Immolate and Corruption rules are false while that same spell is being cast (`dotRefreshDue`, `s.cast?.spellId !== spellId`) | Spell-queue guard, not from the wowsims APL: with a queue window the bot or player could press the DoT again during its own cast and clip the first one, because the DoT is not on the target until the cast lands. wowsims evaluates its APL only when the player is free, so it never needs this. Added in Task 13; tested in `tests/data/destruction.test.ts` | deliberate deviation from the APL |
 | Corruption | wowsims/tbc `rotations.go` (`Rotation.Corruption && !CorruptionDot.IsActive()`); the tbc-new APL does not cast it; refresh rule copied from Immolate | UNVERIFIED |
 | Life Tap when Shadow Bolt is unaffordable | APL: Life Tap is the last action, cast only when nothing else can be | verified (threshold derived) |
 | Shadow Bolt filler | APL | verified |
+
+DoT uptime under this rule (ruling R19, measured by the Task 13 bot over seeds 1-10, `BOSS_TARGET`, 60 s). The verified refresh rule only recasts while the cast and a full DoT still fit in the remaining fight. So in a 60 s fight the last Immolate is not refreshed near 47 s, and the third Corruption near 40 s is borderline. The uptimes are:
+
+| Aura | Share of the whole fight | Share from the first application to the end of the last one |
+|---|---|---|
+| Immolate | about 75% | 97.4% |
+| Corruption | about 81% | 99.2% (window 400), 99.8% (window 0) |
+| Curse of the Elements | 99.8% | |
+
+`tests/bot/bot.test.ts` asserts more than 90% over the second window for both DoTs, and more than 95% of the fight for Curse of the Elements. Keeping the DoTs up to the end would need a different rule (a data decision).
 
 ### Open questions
 
