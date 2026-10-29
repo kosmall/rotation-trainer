@@ -7,7 +7,50 @@ import type {
   SpecHooks,
   SpellDef,
   SpellModifier,
+  StatMultipliers,
 } from '../engine/types';
+
+/**
+ * Where a buff comes from, as the setup panel groups it: raid, party and individual buffs follow
+ * wowsims' `RaidBuffs` / `PartyBuffs` / `IndividualBuffs` (proto/common.proto).
+ */
+export type BuffGroup = 'raid' | 'party' | 'individual' | 'consumable' | 'debuff' | 'item' | 'warlock';
+
+/**
+ * What an enabled buff does, in the engine's own primitives. `applySetup` (src/setup) merges the
+ * static parts into the derived spec: `statBonuses` are summed into the spec's flat bonuses
+ * (added to the raw stats before any multiplier), `statMultipliers` multiply the setup's
+ * (combineStatMultipliers: factor by factor), `modifiers` are appended to the spec's.
+ */
+export interface BuffEffect {
+  statBonuses?: Partial<RawStats>;
+  statMultipliers?: StatMultipliers;
+  modifiers?: SpellModifier[];
+  /** Debuff on the target for the whole fight (scheduled at 0). */
+  targetAura?: AuraDef;
+  /** Timed self buff (needs `BuffDef.timed`). */
+  selfAura?: AuraDef;
+  /** Helper auras (for example hidden internal cooldowns). */
+  auras?: AuraDef[];
+  hooks?: SpecHooks;
+}
+
+export interface BuffDef {
+  id: string;
+  name: string;
+  icon: string;
+  /** Wowhead (TBC) spell id: source of the icon file. */
+  wowheadId?: number;
+  group: BuffGroup;
+  /** Buffs of one group are mutually exclusive in a setup (flask, food, ...). */
+  exclusiveGroup?: string;
+  description: string;
+  /** Repo path/symbol or URL of the values, or 'UNVERIFIED' (with the reason in `description`). */
+  source: string;
+  effect: BuffEffect;
+  /** A cooldown-like buff: starts at a configurable second and lasts `durationSec`. */
+  timed?: { defaultStartSec: number; durationSec: number };
+}
 
 /**
  * One rule of a spec's priority list, as played by `runBot` (src/bot/bot.ts): the steps are tried
