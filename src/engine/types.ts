@@ -190,6 +190,12 @@ export interface SpellDef {
   requiresTargetAura?: string;
   consumesTargetAura?: string;
   gainMana?: { amount: number; coeff: number };
+  /**
+   * Missile speed in yd/s. With a positive speed and `SimConfig.distanceFromTarget` > 0 the spell
+   * resolves when the missile lands (`projectileTravelMs`), not at cast end. Absent or 0: no
+   * missile, resolves at cast end.
+   */
+  missileSpeed?: number;
 }
 
 export interface AuraView {
@@ -235,6 +241,12 @@ export interface SimConfig {
   infiniteMana?: boolean;
   /** Defaults to 0. */
   spellQueueWindowMs?: number;
+  /**
+   * Distance to the target in yards; defaults to 0 (no travel: every spell resolves at cast end).
+   * Missile spells (`SpellDef.missileSpeed`) land `projectileTravelMs(missileSpeed, distance)` ms
+   * after their cast ends.
+   */
+  distanceFromTarget?: number;
 }
 
 export type CastResult =
@@ -255,6 +267,8 @@ export type LogType =
   | 'cast-start'
   | 'cast-complete'
   | 'cast-cancel'
+  /** A missile landed: logged first at the impact ms, before its damage/miss/aura entries. */
+  | 'impact'
   | 'damage'
   | 'miss'
   | 'tick'
@@ -302,4 +316,9 @@ export interface SimSnapshot {
   damageTotal: number;
   dps: number;
   queuedSpellId: string | null;
+  /**
+   * Missiles launched (cast completed) that have not landed yet, sorted by `landsAtMs` (launch
+   * order on ties). Empty once the fight has ended: missiles still flying then never land.
+   */
+  inFlight: { spellId: string; landsAtMs: number }[];
 }

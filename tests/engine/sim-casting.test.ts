@@ -187,6 +187,8 @@ describe('Simulation cancelCast', () => {
       hasteUp: 0,
       dmgUp: 0,
       scaled: 0,
+      lob: 0,
+      slowdot: 0,
     });
     expect(after.gcdEndsAtMs).toBe(3000);
     expect(sim.log().at(-1)).toEqual({ atMs: 2500, type: 'cast-cancel', spellId: 'bolt' });

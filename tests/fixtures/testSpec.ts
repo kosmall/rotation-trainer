@@ -155,6 +155,36 @@ function testSpells(): SpellDef[] {
       canCrit: false,
       direct: { min: 0, max: 0, coeff: 1 },
     },
+    {
+      // Shadow Bolt-like missile: lands 1400 ms after cast end at 28 yd (no travel at distance 0).
+      id: 'lob',
+      name: 'Lob',
+      icon,
+      school: 'shadow',
+      manaCost: 0,
+      castTimeMs: 1000,
+      cooldownMs: 0,
+      onGcd: true,
+      canMiss: true,
+      canCrit: true,
+      direct: { min: 100, max: 100, coeff: 0 },
+      missileSpeed: 20,
+    },
+    {
+      // `dot` with a missile: dotAura is applied when the missile lands.
+      id: 'slowdot',
+      name: 'Slow Dot',
+      icon,
+      school: 'shadow',
+      manaCost: 30,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: true,
+      canMiss: true,
+      canCrit: false,
+      applyAura: { auraId: 'dotAura', on: 'target' },
+      missileSpeed: 20,
+    },
   ];
 }
 

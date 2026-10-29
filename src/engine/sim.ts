@@ -11,6 +11,7 @@ import { createRng } from './rng';
 import type { Rng } from './rng';
 import { activeSetBonuses } from './sets';
 import { computeStats } from './stats';
+import { projectileTravelMs } from './travel';
 import type {
   AuraDef,
   AuraView,
@@ -42,8 +43,8 @@ type CastRejection = Extract<CastResult, { ok: false }>['reason'];
 
 /**
  * A scheduled event: an action run when fight time reaches its `atMs`. Events at the same
- * time run in scheduling order. Cast completions, DoT ticks, aura expiry and mana regen
- * are scheduled through `Simulation.schedule`.
+ * time run in scheduling order. Cast completions, missile impacts, DoT ticks, aura expiry and
+ * mana regen are scheduled through `Simulation.schedule`.
  */
 type SimEvent = () => void;
 
@@ -63,6 +64,12 @@ interface ActiveCast {
 interface QueuedSpell {
   spellId: string;
   fireEventId: EventId;
+}
+
+/** A launched missile: its spell resolves at `landsAtMs` (the impact event). */
+interface Missile {
+  spellId: string;
+  landsAtMs: number;
 }
 
 /** The pending events of an active aura; cancelled when it is refreshed or consumed. */
@@ -146,6 +153,8 @@ export class Simulation {
   private statsAuraIds: string[] = [];
   private readonly infiniteMana: boolean;
   private readonly spellQueueWindowMs: number;
+  /** Yards to the target (0: no travel); with `SpellDef.missileSpeed` gives the travel time. */
+  private readonly distanceYd: number;
 
   private phase: SimSnapshot['phase'] = 'ready';
   private nowMs = 0;
@@ -158,6 +167,8 @@ export class Simulation {
   private lastManaSpendMs: number | null = null;
   private damageTotal = 0;
   private readonly logEvents: LogEvent[] = [];
+  /** Missiles in flight, in launch order; each removed by its impact, all dropped at the end. */
+  private inFlight: Missile[] = [];
 
   constructor(config: SimConfig) {
     const spec: SpecData = config.spec;
@@ -165,6 +176,7 @@ export class Simulation {
     this.durationMs = config.durationMs ?? DEFAULT_DURATION_MS;
     this.infiniteMana = config.infiniteMana ?? false;
     this.spellQueueWindowMs = config.spellQueueWindowMs ?? 0;
+    this.distanceYd = config.distanceFromTarget ?? 0;
     this.rng = createRng(config.seed);
 
     const sets = activeSetBonuses(spec.sets, spec.setup.setPieces);
@@ -278,6 +290,8 @@ export class Simulation {
       damageTotal: this.damageTotal,
       dps: this.nowMs > 0 ? this.damageTotal / (this.nowMs / 1000) : 0,
       queuedSpellId: this.queued?.spellId ?? null,
+      // Stable sort: missiles landing in the same ms keep their launch order.
+      inFlight: this.inFlight.map((m) => ({ ...m })).sort((a, b) => a.landsAtMs - b.landsAtMs),
     };
   }
 
@@ -318,12 +332,13 @@ export class Simulation {
   }
 
   /**
-   * Ends the fight. A cast still in progress is cut off and a queued spell is discarded without
-   * `queue-drop` (no event runs after the end).
+   * Ends the fight. A cast still in progress is cut off, a queued spell is discarded without
+   * `queue-drop` and missiles still in flight never land (no event runs after the end).
    */
   private endFight(): void {
     this.activeCast = null;
     this.queued = null;
+    this.inFlight = [];
     this.nowMs = this.durationMs;
     this.phase = 'ended';
   }
@@ -359,9 +374,9 @@ export class Simulation {
   /**
    * Press-time checks for a spell entering the queue, judged against the block end: the
    * cooldown must be ready at or before `blockEndMs`; the required target aura must be up now
-   * or be applied by the cast in progress (which ends by the block end; if it misses, the
-   * fire-time check drops the spell); the current mana must cover the cost. Order: cooldown,
-   * missing-aura, no-mana. Checks only; changes nothing.
+   * or be applied by the cast in progress (which ends by the block end; if it misses, or its
+   * missile has not landed by then, the fire-time check drops the spell); the current mana must
+   * cover the cost. Order: cooldown, missing-aura, no-mana. Checks only; changes nothing.
    */
   private queuePressRejection(spell: SpellDef, blockEndMs: number): CastRejection | null {
     if ((this.cooldownReadyAtMs.get(spell.id) ?? 0) > blockEndMs) return 'cooldown';
@@ -448,7 +463,8 @@ export class Simulation {
   /**
    * Cast end: `cost` (checked at cast start) is spent (a costly spell also starts the
    * five-second rule), the cooldown starts, a `gainMana` spell gives its mana, then the spell's
-   * effects resolve. Cancelled and cut-off casts never get here, so they spend nothing.
+   * effects resolve: at once, or when its missile lands (see `launchMissile`). Cancelled and
+   * cut-off casts never get here, so they spend nothing.
    */
   private completeCast(spell: SpellDef, cost: number): void {
     this.addLog({ type: 'cast-complete', spellId: spell.id });
@@ -461,13 +477,37 @@ export class Simulation {
       const amount = this.addMana(spell.gainMana.amount + spell.gainMana.coeff * this.stats.power[spell.school]);
       this.addLog({ type: 'mana', spellId: spell.id, amount });
     }
-    this.resolveSpell(spell);
+    const travelMs = projectileTravelMs(spell.missileSpeed, this.distanceYd);
+    if (travelMs > 0) this.launchMissile(spell, travelMs);
+    else this.resolveSpell(spell);
   }
 
   /**
-   * Rolls the hit table once per spell. On a hit or crit: direct damage, then the consumed
-   * target aura is removed, then the spell's aura is applied. A miss does none of these. Then,
-   * on every outcome, the hooks run (see `runHooks`).
+   * Schedules the spell's resolution (`resolveSpell`: hit roll, damage, consumption, aura
+   * application, hooks) `travelMs` from now, logged first as `impact`, and lists the missile in
+   * `inFlight` until then. `cancelCast` does not touch a launched missile; the end of the fight
+   * discards it (an impact at exactly `durationMs` still runs).
+   *
+   * Everything is computed at impact, with the stats, modifiers and target auras current then
+   * (design spec, Part A: "at impact: hit/crit roll, damage, aura, charges, hooks"). Note this
+   * differs from wowsims tbc-new, which rolls the outcome and computes the damage at cast end
+   * (`spell.CalcDamage` in e.g. warlock/shadowbolt.go) and only deals it at impact
+   * (`spell.WaitTravelTime` -> `DealDamage`, core/spell_result.go).
+   */
+  private launchMissile(spell: SpellDef, travelMs: number): void {
+    const missile: Missile = { spellId: spell.id, landsAtMs: this.nowMs + travelMs };
+    this.inFlight.push(missile);
+    this.schedule(missile.landsAtMs, () => {
+      this.inFlight = this.inFlight.filter((m) => m !== missile);
+      this.addLog({ type: 'impact', spellId: spell.id });
+      this.resolveSpell(spell);
+    });
+  }
+
+  /**
+   * Rolls the hit table once per spell (at cast end, or at impact for a missile). On a hit or
+   * crit: direct damage, then the consumed target aura is removed, then the spell's aura is
+   * applied. A miss does none of these. Then, on every outcome, the hooks run (see `runHooks`).
    */
   private resolveSpell(spell: SpellDef): void {
     const mods = this.modsFor(spell);
@@ -490,9 +530,10 @@ export class Simulation {
 
   /**
    * Calls `onSpellResolved` of the spec hooks, then of each active set bonus's hooks, once per
-   * completed spell (every outcome, including spells with no direct damage; `damage` is the
-   * direct damage dealt, 0 for none or a miss). They run after the spell's damage, consumption
-   * and aura application. Auras applied through the api are logged with this spell as source.
+   * completed spell, when it resolves (at cast end, or at impact for a missile; every outcome,
+   * including spells with no direct damage; `damage` is the direct damage dealt, 0 for none or
+   * a miss). They run after the spell's damage, consumption and aura application. Auras
+   * applied through the api are logged with this spell as source.
    * `api.roll()` draws from the simulation's seeded Rng, so it shifts every later draw, but
    * only when a hook calls it: hooks that never roll leave the draw order unchanged. The api
    * object is frozen.

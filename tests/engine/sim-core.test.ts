@@ -74,6 +74,8 @@ describe('Simulation lifecycle', () => {
         hasteUp: 0,
         dmgUp: 0,
         scaled: 0,
+        lob: 0,
+        slowdot: 0,
       },
       spells: {
         bolt: { manaCost: 50, castTimeMs: 2000 },
@@ -88,6 +90,8 @@ describe('Simulation lifecycle', () => {
         hasteUp: { manaCost: 0, castTimeMs: 0 },
         dmgUp: { manaCost: 0, castTimeMs: 0 },
         scaled: { manaCost: 0, castTimeMs: 0 },
+        lob: { manaCost: 0, castTimeMs: 1000 },
+        slowdot: { manaCost: 30, castTimeMs: 0 },
       },
       gcdMs: 1500,
       targetAuras: {},
@@ -95,6 +99,7 @@ describe('Simulation lifecycle', () => {
       damageTotal: 0,
       dps: 0,
       queuedSpellId: null,
+      inFlight: [],
     });
     expect(sim.log()).toEqual([]);
   });
