@@ -50,7 +50,7 @@ const totalDamage = () => amount(screen.getByLabelText('Total damage'));
 
 describe('GameView', () => {
   it('pressing "1" in the rendered GameView casts the spell bound to slot 0', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     expect(destructionWarlock.keybinds[0]).toBe('shadow-bolt');
     expect(castBar()).toBeNull();
 
@@ -69,7 +69,7 @@ describe('GameView', () => {
   });
 
   it('Esc during a cast removes the cast bar and logs cast-cancel', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     press('1');
     advance(500);
     expect(castBar()).not.toBeNull();
@@ -82,7 +82,7 @@ describe('GameView', () => {
   });
 
   it('Space before the fight hides the start overlay', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     expect(screen.getByText('Ready when you are')).toBeTruthy();
     expect(startOverlay()).not.toBeNull();
 
@@ -93,7 +93,7 @@ describe('GameView', () => {
   });
 
   it('after 60 s the end summary shows total damage and DPS; Reset starts over', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     press('1');
     advance(61000);
 
@@ -113,7 +113,7 @@ describe('GameView', () => {
 
   it('the live stats and the end summary both say what the DPS leaves out', () => {
     const note = 'No raid buffs, consumables or trinket effects — approximate (see docs/data-sources.md)';
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     expect(screen.getAllByText(note)).toHaveLength(1); // under the live stats, before the fight
     press('1');
     advance(61000);
@@ -123,7 +123,7 @@ describe('GameView', () => {
   });
 
   it('the live DPS and the summary DPS use one format (one decimal, thousands separators)', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     press('1');
     advance(61000);
     const texts = screen.getAllByLabelText('DPS').map((el) => el.textContent);
@@ -133,7 +133,7 @@ describe('GameView', () => {
   });
 
   it('R resets a running fight', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     press('1');
     advance(1000);
     press('r');
@@ -143,14 +143,14 @@ describe('GameView', () => {
   });
 
   it('key auto-repeat is ignored', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     press('1', { repeat: true });
     expect(castBar()).toBeNull();
     expect(startOverlay()).not.toBeNull();
   });
 
   it('the empty slot 8 does nothing', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     expect(destructionWarlock.keybinds[7]).toBe('');
     expect(screen.queryByRole('button', { name: /\(8\)$/ })).toBeNull();
     expect(screen.getByLabelText('Empty slot (8)')).toBeTruthy();
@@ -162,7 +162,7 @@ describe('GameView', () => {
   });
 
   it('a rejected press shows the reason on the slot', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     press('1');
     press('1'); // Shadow Bolt is still being cast, beyond the spell queue window
     const flash = screen.getByRole('status');
@@ -175,7 +175,7 @@ describe('GameView', () => {
   });
 
   it('an accepted press of a flashing slot clears its rejection flash', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     const castMs = freshSim().snapshot().spells['shadow-bolt']?.castTimeMs ?? 0;
     // Busy at 1800 (cast end beyond the queue window), queued at 2100 (within it).
     expect(castMs - 1800).toBeGreaterThan(SPELL_QUEUE_WINDOW_MS);
@@ -190,7 +190,7 @@ describe('GameView', () => {
   });
 
   it('the tooltip shows the effective (talented, hasted) cast time and cost', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     const { castTimeMs, manaCost } = freshSim().snapshot().spells['shadow-bolt'] ?? { castTimeMs: 0, manaCost: 0 };
     expect(castTimeMs).toBeLessThan(2500); // Bane and gear haste, from the 3000 ms base
     const title = screen.getByRole('button', { name: 'Shadow Bolt (1)' }).getAttribute('title') ?? '';
@@ -202,7 +202,7 @@ describe('GameView', () => {
   });
 
   it('clicking a slot casts its spell', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     fireEvent.click(screen.getByRole('button', { name: 'Immolate (2)' }));
     expect(castBar()?.textContent).toContain('Immolate');
   });

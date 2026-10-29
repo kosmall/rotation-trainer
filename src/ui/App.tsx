@@ -8,7 +8,7 @@ export function App() {
         <h1>TBC Rotation Trainer</h1>
         <span className="app-spec">{destructionWarlock.name}</span>
       </header>
-      <GameView spec={destructionWarlock} />
+      <GameView />
     </div>
   );
 }

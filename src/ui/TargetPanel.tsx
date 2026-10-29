@@ -7,10 +7,16 @@ interface AuraListProps {
   spec: SpecData;
   auras: Record<string, AuraView>;
   label: string;
+  /**
+   * Time left in the fight (`durationMs - nowMs`): the shown time left of an aura never exceeds
+   * it. A whole-fight raid debuff has a one-hour own duration (ruling S3) that the end of the
+   * fight cuts; it shows the time to the fight's end, not "60m".
+   */
+  fightRemainingMs?: number;
 }
 
-/** Aura chips: initials, name, stacks or charges, and time left. Nothing when no aura is up. */
-export function AuraList({ spec, auras, label }: AuraListProps) {
+/** Aura chips: icon (initials underneath), name, stacks or charges, and time left. Nothing when no aura is up. */
+export function AuraList({ spec, auras, label, fightRemainingMs = Infinity }: AuraListProps) {
   const views = Object.values(auras);
   if (views.length === 0) return null;
   return (
@@ -30,7 +36,7 @@ export function AuraList({ spec, auras, label }: AuraListProps) {
               {count !== null && <span className="aura-count">{count}</span>}
             </span>
             <span className="aura-name">{name}</span>
-            <span className="aura-time">{remainingText(view.remainingMs)}</span>
+            <span className="aura-time">{remainingText(Math.max(0, Math.min(view.remainingMs, fightRemainingMs)))}</span>
           </li>
         );
       })}
@@ -39,7 +45,15 @@ export function AuraList({ spec, auras, label }: AuraListProps) {
 }
 
 /** The target dummy: name, a health bar that never moves, and its debuffs. */
-export function TargetPanel({ spec, targetAuras }: { spec: SpecData; targetAuras: Record<string, AuraView> }) {
+export function TargetPanel({
+  spec,
+  targetAuras,
+  fightRemainingMs,
+}: {
+  spec: SpecData;
+  targetAuras: Record<string, AuraView>;
+  fightRemainingMs?: number;
+}) {
   return (
     <div className="target-panel">
       <div className="target-name">Raid Target Dummy</div>
@@ -55,7 +69,7 @@ export function TargetPanel({ spec, targetAuras }: { spec: SpecData; targetAuras
         <div className="bar-fill" style={{ width: '100%' }} />
         <span className="bar-text">100%</span>
       </div>
-      <AuraList spec={spec} auras={targetAuras} label="Target debuffs" />
+      <AuraList spec={spec} auras={targetAuras} label="Target debuffs" fightRemainingMs={fightRemainingMs} />
     </div>
   );
 }

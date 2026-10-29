@@ -43,7 +43,7 @@ describe('SpellIcon', () => {
 
 describe('action bar icons', () => {
   it('every bound slot shows its spell icon and the empty slot shows none', () => {
-    const { container } = render(<GameView spec={destructionWarlock} />);
+    const { container } = render(<GameView storage={null} />);
     const filled = destructionWarlock.keybinds.filter((id) => id !== '');
     expect(filled.length).toBeGreaterThan(0);
     for (const id of filled) {
@@ -56,7 +56,7 @@ describe('action bar icons', () => {
   });
 
   it('keeps the initials as the fallback when an icon file is missing', () => {
-    render(<GameView spec={destructionWarlock} />);
+    render(<GameView storage={null} />);
     const button = slotButton('Shadow Bolt');
     fireEvent.error(button.querySelector('img') as HTMLImageElement);
     expect(button.querySelector('img')).toBeNull();

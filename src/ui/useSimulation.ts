@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SPELL_QUEUE_WINDOW_MS } from '../data/common/ratings';
-import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
+import { BOSS_TARGET } from '../data/common/target';
 import type { SpecData } from '../data/types';
 import { Simulation } from '../engine/sim';
-import type { CastResult, SimSnapshot } from '../engine/types';
+import type { CastResult, ScheduledAura, SimSnapshot } from '../engine/types';
 
-export interface SimulationControls {
+export interface SimulationControls<S extends FightSetup = FightSetup> {
   snapshot: SimSnapshot;
+  /** The setup the current fight was built with (the spec its auras and spells come from). */
+  fight: S;
   cast(spellId: string): CastResult;
   cancel(): void;
   reset(): void;
@@ -21,19 +23,24 @@ function freshSeed(): number {
   return (Date.now() + Math.imul(seedCounter, 0x9e3779b9)) >>> 0;
 }
 
-export interface SimulationOptions {
-  /** Distance from the target in yards for the fights this hook builds (default 28, target.ts). */
-  distanceYd?: number;
+/**
+ * What a fight is built from: the spec and the fight settings the setup decides (`applySetup`'s
+ * result, src/setup/applySetup.ts). Callers may carry more (GameView adds the config).
+ */
+export interface FightSetup {
+  spec: SpecData;
+  sim: { scheduledAuras: readonly ScheduledAura[]; distanceFromTarget: number };
 }
 
-/** The fight as the bot tests build it: boss target, default spell queue window, the given distance. */
-function createSimulation(spec: SpecData, distanceYd: number): Simulation {
+/** The fight as the bot tests build it: boss target, default spell queue window, the setup's auras and distance. */
+function createSimulation(setup: FightSetup): Simulation {
   return new Simulation({
-    spec,
+    spec: setup.spec,
     target: BOSS_TARGET,
     seed: freshSeed(),
     spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
-    distanceFromTarget: distanceYd,
+    distanceFromTarget: setup.sim.distanceFromTarget,
+    scheduledAuras: setup.sim.scheduledAuras,
   });
 }
 
@@ -43,31 +50,38 @@ function createSimulation(spec: SpecData, distanceYd: number): Simulation {
  * frames; on return the next frame catches up with a single `advanceTo` (the engine runs the
  * skipped events in order). `reset()` replaces the Simulation with a fresh seed.
  *
- * `options.distanceYd` is read only when a Simulation is built (creation and `reset()`): a fight
- * that has started keeps its distance, the next one gets the new value. A fight that has not
- * started yet (phase 'ready') is rebuilt at once, so a distance set before the first press
- * applies to that fight.
+ * `setup` is read only when a Simulation is built (creation and `reset()`): a fight that has
+ * started (or ended) keeps the setup it was built with, and `fight` returns that one; the next
+ * fight gets the new setup. A fight that has not started yet (phase 'ready') is rebuilt at once
+ * when `setup` changes (a new object), so a setup changed before the first press applies to that
+ * fight. Pass a memoized object: every new object counts as a change.
  */
-export function useSimulation(spec: SpecData, options: SimulationOptions = {}): SimulationControls {
-  const distanceYd = options.distanceYd ?? DEFAULT_DISTANCE_FROM_TARGET_YD;
+export function useSimulation<S extends FightSetup>(setup: S): SimulationControls<S> {
   const simRef = useRef<Simulation | null>(null);
-  /** The distance the current Simulation was built with. */
-  const builtDistanceRef = useRef(distanceYd);
+  /** The setup the current Simulation was built with. */
+  const builtRef = useRef<S>(setup);
+  /** The latest setup passed in, read by `reset()` (kept current after every commit). */
+  const setupRef = useRef<S>(setup);
   if (simRef.current === null) {
-    simRef.current = createSimulation(spec, distanceYd);
-    builtDistanceRef.current = distanceYd;
+    simRef.current = createSimulation(setup);
+    builtRef.current = setup;
   }
+  const [fight, setFight] = useState<S>(setup);
   const [snapshot, setSnapshot] = useState<SimSnapshot>(() => (simRef.current as Simulation).snapshot());
   /** performance.now() at fight time 0, or null before the fight starts. */
   const startedAtRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
 
+  useLayoutEffect(() => {
+    setupRef.current = setup;
+  }, [setup]);
+
   const sim = useCallback((): Simulation => {
-    // Not reached after the first render; uses the last built distance so that a distance change
-    // does not recreate this callback (and every callback and effect that depends on it).
-    if (simRef.current === null) simRef.current = createSimulation(spec, builtDistanceRef.current);
+    // Not reached after the first render; uses the last built setup so that a setup change does
+    // not recreate this callback (and every callback and effect that depends on it).
+    if (simRef.current === null) simRef.current = createSimulation(builtRef.current);
     return simRef.current;
-  }, [spec]);
+  }, []);
 
   /** Moves fight time to the wall clock (clamped to [0, fight length]; never NaN or infinite). */
   const catchUp = useCallback(() => {
@@ -126,17 +140,19 @@ export function useSimulation(spec: SpecData, options: SimulationOptions = {}): 
   const reset = useCallback(() => {
     stopLoop();
     startedAtRef.current = null;
-    simRef.current = createSimulation(spec, distanceYd);
-    builtDistanceRef.current = distanceYd;
+    const next = setupRef.current;
+    simRef.current = createSimulation(next);
+    builtRef.current = next;
+    setFight(next);
     setSnapshot(simRef.current.snapshot());
-  }, [spec, distanceYd, stopLoop]);
+  }, [stopLoop]);
 
-  // A new distance rebuilds a fight that has not started; a started or ended fight keeps its own.
+  // A new setup rebuilds a fight that has not started; a started or ended fight keeps its own.
   useEffect(() => {
-    if (Object.is(builtDistanceRef.current, distanceYd)) return;
+    if (builtRef.current === setup) return;
     if (sim().snapshot().phase !== 'ready') return;
     reset();
-  }, [distanceYd, reset, sim]);
+  }, [setup, reset, sim]);
 
   // Resume the loop after a remount (StrictMode) and stop it on unmount.
   useEffect(() => {
@@ -144,5 +160,5 @@ export function useSimulation(spec: SpecData, options: SimulationOptions = {}): 
     return stopLoop;
   }, [ensureClock, stopLoop]);
 
-  return { snapshot, cast, cancel, reset, start };
+  return { snapshot, fight, cast, cancel, reset, start };
 }
