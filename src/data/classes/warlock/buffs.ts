@@ -4,7 +4,7 @@
 // the warlock's equipped items (see "Part C: cooldowns and item effects").
 
 import type { AuraDef } from '../../../engine/types';
-import { deepFreeze } from '../../common/buffs';
+import { deepFreeze, itemAction } from '../../common/buffs';
 import type { BuffDef } from '../../types';
 import { warlockAuras } from './auras';
 import type { WarlockOptions } from './destruction';
@@ -100,7 +100,9 @@ export const SACRIFICE_SUCCUBUS_OPTION: Readonly<WarlockOptionInfo> = Object.fre
 // Both items are in the default gear (destruction.ts `destructionEquipped`: 29370 trinket, 29305
 // ring) and their equip stats (Icon +43 spell damage; Band +25 int, +34 spell damage, +24 crit
 // rating) are already in the gear stats. These entries add ONLY the on-use / proc buff, so
-// nothing is counted twice. Values: wowsims/tbc-new @ 91f869a assets/database/db.json
+// nothing is counted twice. The Icon is an item action (pressed from the item row; stage 1.5
+// scheduled it at a configurable second: superseded, see docs/data-sources.md "Part D: item
+// actions"). Values: wowsims/tbc-new @ 91f869a assets/database/db.json
 // `itemEffects` of the items (read by sim/common/tbc/stat_bonus_cds_auto_gen.go and
 // stat_bonus_procs_auto_gen.go), cross-checked with Wowhead TBC tooltips; durations and the
 // internal cooldown are checkpoints of the author's Naj'entus log. Every aura here is its own
@@ -133,15 +135,25 @@ export const warlockItemBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     wowheadId: 35163,
     group: 'item',
     description:
-      "On use: +155 spell power for 20 s (author's log: 20 s). Its 2 min cooldown only matters for a second use, which a 60 s fight never needs, so it is one timed buff. Its equip +43 spell power is already in the gear.",
+      "On use (item bar): +155 spell power for 20 s (author's log: 20 s). 2 min cooldown; other on-use trinkets are blocked for 20 s. Its equip +43 spell power is already in the gear.",
     // db.json item 29370 itemEffects: buffId 35163 "Blessing of the Silver Crescent",
-    // effectDurationMs 20000, stats SpellDamage 155, onUse cooldownMs 120000 (shared trinket
-    // category 1141, 20 s); stat_bonus_cds_auto_gen.go NewSimpleStatActive(29370). Wowhead TBC
-    // spell=35163 "Increases damage and healing done by magical spells and effects by up to 155
-    // for 20 sec.", item=29370 "(2 Min Cooldown)".
+    // effectDurationMs 20000, stats SpellDamage 155, onUse { cooldownMs 120000, categoryId 1141,
+    // categoryCooldownMs 20000 } (the shared trinket category); stat_bonus_cds_auto_gen.go
+    // NewSimpleStatActive(29370). Wowhead TBC spell=35163 "Increases damage and healing done by
+    // magical spells and effects by up to 155 for 20 sec.", item=29370 "(2 Min Cooldown)".
     source:
       "wowsims/tbc-new sim/common/tbc/stat_bonus_cds_auto_gen.go NewSimpleStatActive(29370) + assets/database/db.json item 29370; https://www.wowhead.com/tbc/spell=35163; author's log",
     effect: {
+      // Used from the item row: applies the aura below; no `timed` (the player chooses when).
+      action: itemAction({
+        id: 'use-icon-of-the-silver-crescent',
+        name: 'Icon of the Silver Crescent',
+        icon: 'inv_trinket_naxxramas06',
+        wowheadId: 35163,
+        cooldownMs: 120000, // db.json onUse cooldownMs
+        sharedCooldown: { group: 'trinket', ms: 20000 }, // db.json onUse categoryId 1141, categoryCooldownMs
+        applyAura: { auraId: 'icon-of-the-silver-crescent', on: 'self' },
+      }),
       selfAura: {
         id: 'icon-of-the-silver-crescent',
         name: 'Blessing of the Silver Crescent',
@@ -151,7 +163,6 @@ export const warlockItemBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
         selfStatBonuses: { spellPower: 155 },
       },
     },
-    timed: { defaultStartSec: 0, durationSec: 20 },
   },
   {
     id: 'band-of-the-eternal-sage',

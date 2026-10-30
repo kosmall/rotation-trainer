@@ -14,10 +14,13 @@ import type { SetupConfig, SetupPresetId } from './types';
  *
  * What each entry rests on:
  * - Seen in the log: Moonkin Aura, Mana Spring Totem (20 mana per 2 s), Judgement of Wisdom (74 mana
- *   procs), Heroism from 6.4 s, Destruction Potion at 7.5 s, Icon of the Silver Crescent at 30.2 s
- *   (log: Blessing of the Silver Crescent), Band of the Eternal Sage (procs at 0.8 s and 69.5 s; a
- *   proc, so enabled, never scheduled); the rotation (Curse of Doom, Shadow Bolt, Life Tap,
- *   Shadowburn: the 'sb-spam' rotation preset) at 28 yd.
+ *   procs), Heroism from 6.4 s, Destruction Potion (log: used at 7.5 s) and Icon of the Silver
+ *   Crescent (log: Blessing of the Silver Crescent at 30.2 s), Band of the Eternal Sage (procs at
+ *   0.8 s and 69.5 s; a proc, so enabled, never scheduled); the rotation (Curse of Doom, Shadow
+ *   Bolt, Life Tap, Shadowburn: the 'sb-spam' rotation preset) at 28 yd. The potion and the Icon
+ *   are item actions (item bar Z X C V): when to use them is the player's choice (the bot uses
+ *   them while Heroism is up); stage 1.5 scheduled them at the log's 7.5 s and 30.2 s (superseded).
+ *   No Super Mana Potion or Dark Rune: the log shows neither.
  * - From the design spec's preset list, not measured: Improved Shadow Bolt from other warlocks
  *   (100% uptime assumed).
  * - GUESSED (the raid's exact buffs are unknown; the standard ones that reproduce the totals):
@@ -47,19 +50,16 @@ const RAID_LOG_SETUP: SetupConfig = {
     // Target debuffs.
     'judgement-of-wisdom', // author's log
     'isb-from-others', // design spec §4.3 preset list
-    // Timed cooldowns and items.
+    // Cooldowns and items.
     'heroism', // author's log
-    'destruction-potion', // author's log
-    'icon-of-the-silver-crescent', // author's log
+    'destruction-potion', // author's log (item action)
+    'icon-of-the-silver-crescent', // author's log (item action)
     'band-of-the-eternal-sage', // author's log (proc)
   ],
   timed: {
     ...structuredClone(DEFAULT_SETUP.timed),
-    // Starts: the author's log (Heroism 6.4 s, potion 7.5 s, Icon 30.2 s); durations: the catalog's
-    // (also the log's: 40 s, 15 s, 20 s).
+    // Start: the author's log (Heroism 6.4 s); duration: the catalog's (also the log's: 40 s).
     heroism: { startSec: 6.4, durationSec: 40 },
-    'destruction-potion': { startSec: 7.5, durationSec: 15 },
-    'icon-of-the-silver-crescent': { startSec: 30.2, durationSec: 20 },
   },
   rotation: { ...ROTATION_PRESETS['sb-spam'].config },
 };
@@ -80,7 +80,7 @@ export const SETUP_PRESETS: Readonly<Record<SetupPresetId, { name: string; descr
     'raid-log': {
       name: 'Raid as in my log',
       description:
-        "Approximate. From the Naj'entus log: Moonkin Aura, Mana Spring Totem, Judgement of Wisdom, Heroism at 6.4 s, Destruction Potion at 7.5 s, Icon at 30.2 s, Band of the Eternal Sage, the Shadow Bolt + Curse of Doom rotation. From the design spec: Improved Shadow Bolt from others. Guessed to match the log's intellect, spirit and Life Tap: Arcane Brilliance, Gift of the Wild, Blessing of Kings, Wrath of Air Totem, Flask of Pure Death, Blackened Basilisk, Superior Wizard Oil.",
+        "Approximate. From the Naj'entus log: Moonkin Aura, Mana Spring Totem, Judgement of Wisdom, Heroism at 6.4 s, Destruction Potion and Icon of the Silver Crescent on the item bar (the log used them at 7.5 s and 30.2 s: now your choice), Band of the Eternal Sage, the Shadow Bolt + Curse of Doom rotation. From the design spec: Improved Shadow Bolt from others. Guessed to match the log's intellect, spirit and Life Tap: Arcane Brilliance, Gift of the Wild, Blessing of Kings, Wrath of Air Totem, Flask of Pure Death, Blackened Basilisk, Superior Wizard Oil.",
       config: RAID_LOG_SETUP,
     },
   });

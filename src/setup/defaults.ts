@@ -10,10 +10,11 @@ import type { BuffDef } from '../data/types';
 import type { SetupConfig, TimedSetting } from './types';
 
 /**
- * Every buff the setup can enable, in a fixed order (also the order `applySetup` folds effects and
- * composes hooks in): raid/party/individual buffs, consumables, target debuffs, timed cooldowns
- * (src/data/common/buffs.ts), then the warlock's item effects (src/data/classes/warlock/buffs.ts).
- * The UI, the storage and the tests all use this list.
+ * Every buff the setup can enable, in a fixed order (also the order `applySetup` folds effects,
+ * composes hooks and fills the item row in): raid/party/individual buffs, consumables, target
+ * debuffs, cooldowns (Heroism, then the potion and rune item actions; src/data/common/buffs.ts),
+ * then the warlock's item effects (the Icon's item action, the Band; src/data/classes/warlock/
+ * buffs.ts). The UI, the storage and the tests all use this list.
  */
 export function buildSetupCatalog(): readonly BuffDef[] {
   return Object.freeze([...commonBuffs, ...consumables, ...debuffs, ...cooldowns, ...warlockItemBuffs]);
@@ -57,8 +58,9 @@ function defaultSetup(catalog: readonly BuffDef[]): SetupConfig {
 
 /**
  * The default setup (design spec §5, plan Global Constraints): no buffs, the DoT rotation, 28 yd,
- * Fel Armor and the Succubus sacrificed, every timed buff at its catalog start and duration. With
- * it `applySetup` reproduces the stage 1 spec and its bot results exactly. Deep-frozen.
+ * Fel Armor and the Succubus sacrificed, every timed buff (Heroism) at its catalog start and
+ * duration. With it `applySetup` reproduces the stage 1 spec (plus an empty item row) and its bot
+ * results exactly. Deep-frozen.
  */
 export const DEFAULT_SETUP: SetupConfig = deepFreeze(defaultSetup(SETUP_CATALOG));
 
@@ -164,7 +166,8 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  *   exclusive group, and for the `EXCLUDES` pairs (a flask vs the elixirs, both ways), the one
  *   later in the saved list wins.
  * - `timed`: one entry per timed catalog buff; `startSec` clamped to [0, 600], `durationSec` to
- *   [1, 600], a missing or non-number value takes the catalog default.
+ *   [1, 600], a missing or non-number value takes the catalog default. Entries of other ids are
+ *   dropped, e.g. a stage 1.5 config's Destruction Potion and Icon starts (item actions now).
  * - `distanceYd`: clamped to [0, 100]; NaN or not a number gives 28.
  * - `rotation` and `warlock`: each field checked against its type or union, else its default
  *   (curse 'elements', Life Tap 'auto' unless a finite number >= 0, Fel Armor, Succubus

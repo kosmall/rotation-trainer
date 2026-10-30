@@ -28,11 +28,21 @@ export interface BuffEffect {
   modifiers?: SpellModifier[];
   /** Debuff on the target for the whole fight (scheduled at 0). */
   targetAura?: AuraDef;
-  /** Timed self buff (needs `BuffDef.timed`). */
+  /**
+   * Self buff: scheduled by the fight when the entry is `timed`, applied by `action` when the entry
+   * has one (its `applyAura`), else held at 0 for its own duration.
+   */
   selfAura?: AuraDef;
   /** Helper auras (for example hidden internal cooldowns). */
   auras?: AuraDef[];
   hooks?: SpecHooks;
+  /**
+   * An item action (trinket, potion, rune; `SpellDef.item`): enabling the entry puts it on the
+   * item row (`SpecData.keybinds` slots `SPELL_SLOT_COUNT`.., catalog order) for the player and
+   * the bot to press; it is never scheduled. Its `applyAura` names the entry's `selfAura`, if any.
+   * An entry with an action has no `timed`.
+   */
+  action?: SpellDef;
 }
 
 export interface BuffDef {
@@ -84,7 +94,16 @@ export interface SpecData {
   sets: SetBonusDef[];
   setup: CharacterSetup;
   priority: PriorityStep[];
-  /** keybinds[i] is the spell id for action-bar slot i. */
+  /**
+   * keybinds[i] is the spell id for action-bar slot i ('' = empty): slots 0..SPELL_SLOT_COUNT-1 are
+   * the spell row (a spec's own keybinds stop there); `applySetup` adds the item row,
+   * ITEM_SLOT_COUNT slots after them, for the enabled item actions.
+   */
   keybinds: string[];
   hooks: SpecHooks;
 }
+
+/** Slots of the spell row (keys 1-9, 0, -, =): `SpecData.keybinds[0..11]`. */
+export const SPELL_SLOT_COUNT = 12;
+/** Slots of the item row (keys Z X C V): `SpecData.keybinds[12..15]` of an applied setup. */
+export const ITEM_SLOT_COUNT = 4;

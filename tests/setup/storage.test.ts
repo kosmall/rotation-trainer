@@ -229,7 +229,11 @@ describe('loadSetup / saveSetup', () => {
     expect(loaded).toEqual(normalizeSetup(stored, SETUP_CATALOG));
     expect(loaded.enabledBuffs).toEqual(['misery', 'heroism']);
     expect(loaded.timed.heroism).toEqual({ startSec: SETUP_LIMITS.startSec.min, durationSec: SETUP_LIMITS.durationSec.max });
-    expect(loaded.timed['icon-of-the-silver-crescent']).toEqual(DEFAULT_SETUP.timed['icon-of-the-silver-crescent']);
+    // The Icon is an item action since the item-actions feature: its stage 1.5 timed entry (here
+    // malformed) is dropped like an unknown id. A malformed entry of a timed buff gets the catalog
+    // default (tests/setup/applySetup.test.ts, normalizeSetup `timed`: heroism 'soon').
+    expect(Object.hasOwn(loaded.timed, 'icon-of-the-silver-crescent')).toBe(false);
+    expect(Object.keys(loaded.timed)).toEqual(Object.keys(DEFAULT_SETUP.timed));
     expect(Object.hasOwn(loaded.timed, 'no-such-buff')).toBe(false);
     expect(loaded.rotation).toEqual({ ...DEFAULT_SETUP.rotation, corruption: false });
     expect(loaded.distanceYd).toBe(DEFAULT_SETUP.distanceYd);

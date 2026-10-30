@@ -274,8 +274,10 @@ describe('SetupPanel', () => {
       expect(box.getAttribute('aria-describedby'), b.id).toBeTruthy();
       expect(document.getElementById(box.getAttribute('aria-describedby') as string)?.textContent).toBe(b.description);
     }
-    // Super Mana Potion and Dark Rune are intentionally not in the catalog.
-    expect(screen.queryByRole('checkbox', { name: /Super Mana Potion|Dark Rune/ })).toBeNull();
+    // Super Mana Potion and Dark Rune are in the catalog since the item actions (Consumables group).
+    for (const name of ['Super Mana Potion', 'Dark Rune']) {
+      expect(within(screen.getByRole('group', { name: 'Consumables' })).getByRole('checkbox', { name })).toBeTruthy();
+    }
 
     fireEvent.click(checkbox('Arcane Brilliance'));
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -383,9 +385,6 @@ describe('SetupPanel', () => {
     expect(activePreset()).toBe('Custom');
     fireEvent.click(checkbox('Misery'));
     expect(activePreset()).toBe('Raid as in my log');
-    // A start second of a buff that is not enabled does not change the match.
-    fireEvent.change(startInput('Destruction Potion'), { target: { value: '30' } });
-    expect(activePreset()).toBe('Raid as in my log');
     fireEvent.change(startInput('Heroism / Bloodlust'), { target: { value: '7' } });
     expect(activePreset()).toBe('Custom');
     fireEvent.change(distanceInput(), { target: { value: '20' } });
@@ -396,6 +395,10 @@ describe('SetupPanel', () => {
     expect(activePreset()).toBe('None');
     expect(checkbox('Arcane Brilliance').checked).toBe(false);
     expect(distanceInput().value).toBe('28');
+    // A start second of a buff that is not enabled does not change the match (Heroism is off in
+    // None; it is the only timed buff since the potion and the Icon became item actions).
+    fireEvent.change(startInput('Heroism / Bloodlust'), { target: { value: '30' } });
+    expect(activePreset()).toBe('None');
   });
 
   it('Reset to defaults restores DEFAULT_SETUP', () => {
@@ -443,7 +446,9 @@ describe('SetupPanel', () => {
     expect(checkbox(buff('moonkin-aura').name).checked).toBe(true);
     expect(checkbox(buff('band-of-the-eternal-sage').name).checked).toBe(true);
     expect(startInput(buff('heroism').name).value).toBe('6.4');
-    expect(startInput(buff('icon-of-the-silver-crescent').name).value).toBe('30.2');
+    // The Icon is an item action now: enabled, no start second.
+    expect(checkbox(buff('icon-of-the-silver-crescent').name).checked).toBe(true);
+    expect(screen.queryByRole('spinbutton', { name: `${buff('icon-of-the-silver-crescent').name} start (s)` })).toBeNull();
     expect(presetSelect().value).toBe('sb-spam');
 
     fireEvent.click(noneButton);

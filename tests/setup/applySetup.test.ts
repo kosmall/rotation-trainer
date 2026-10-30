@@ -113,11 +113,8 @@ describe('setup catalog, DEFAULT_SETUP and SETUP_PRESETS', () => {
     expect(DEFAULT_SETUP).toEqual({
       version: 1,
       enabledBuffs: [],
-      timed: {
-        heroism: { startSec: 0, durationSec: 40 },
-        'destruction-potion': { startSec: 0, durationSec: 15 },
-        'icon-of-the-silver-crescent': { startSec: 0, durationSec: 20 },
-      },
+      // Heroism is the only timed buff: the potion and the Icon are item actions (pressed).
+      timed: { heroism: { startSec: 0, durationSec: 40 } },
       rotation: ROTATION_PRESETS.dot.config,
       distanceYd: DEFAULT_DISTANCE_FROM_TARGET_YD,
       warlock: { armor: 'fel', sacrificeSuccubus: true },
@@ -293,6 +290,15 @@ describe('normalizeSetup', () => {
     expect(Object.keys(t({ misery: { startSec: 1, durationSec: 2 }, nope: { startSec: 1, durationSec: 2 } })).sort()).toEqual(
       Object.keys(DEFAULT_SETUP.timed).sort(),
     );
+    // A stored stage 1.5 config's entries for the potion and the Icon (timed then, item actions
+    // now) are dropped; Heroism's is kept.
+    expect(
+      t({
+        heroism: { startSec: 6.4, durationSec: 40 },
+        'destruction-potion': { startSec: 7.5, durationSec: 15 },
+        'icon-of-the-silver-crescent': { startSec: 30.2, durationSec: 20 },
+      }),
+    ).toEqual({ heroism: { startSec: 6.4, durationSec: 40 } });
   });
 
   it('builds only from the given catalog: another catalog gives other timed entries and ids', () => {
@@ -336,7 +342,8 @@ describe('applySetup', () => {
     spec.auras.forEach((a, i) => expect(a).toBe(destructionWarlock.auras[i]));
     expect(spec.modifiers).toEqual(destructionWarlock.modifiers);
     expect(spec.sets).toEqual(destructionWarlock.sets);
-    expect(spec.keybinds).toEqual(destructionWarlock.keybinds);
+    // The spell row unchanged; the item row (slots 12-15, Z X C V) empty: no item enabled.
+    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '']);
     expect(spec.hooks).toBe(destructionWarlock.hooks);
     expect(spec.priority.map((s) => s.spellId)).toEqual(destructionWarlock.priority.map((s) => s.spellId));
     expect(spec.priority.map((s) => [s.label, s.hint])).toEqual(destructionWarlock.priority.map((s) => [s.label, s.hint]));
@@ -426,35 +433,36 @@ describe('applySetup', () => {
     expect(sim.scheduledAuras).toEqual([{ auraId: 'heroism', on: 'self', atMs: 1005, durationMs: 30000 }]);
   });
 
-  it('a timed buff uses the configured start and duration', () => {
+  it('a timed buff uses the configured start and duration; an item action is never scheduled (a stale timed entry is ignored)', () => {
     const { spec, sim } = apply({
       enabledBuffs: ['icon-of-the-silver-crescent', 'heroism'],
+      // The Icon entry is what a stage 1.5 config held (normalizeSetup drops it; applySetup ignores it).
       timed: { ...DEFAULT_SETUP.timed, heroism: { startSec: 6.4, durationSec: 30 }, 'icon-of-the-silver-crescent': { startSec: 30.2, durationSec: 5 } },
     });
-    // Catalog order: Heroism (cooldowns) before the Icon (warlock items).
-    expect(sim.scheduledAuras).toEqual([
-      { auraId: 'heroism', on: 'self', atMs: 6400, durationMs: 30000 },
-      { auraId: 'icon-of-the-silver-crescent', on: 'self', atMs: 30200, durationMs: 5000 },
-    ]);
+    expect(sim.scheduledAuras).toEqual([{ auraId: 'heroism', on: 'self', atMs: 6400, durationMs: 30000 }]);
+    // Catalog order: Heroism (cooldowns) before the Icon (warlock items); the Icon's aura is there
+    // for its action.
     expect(spec.auras.slice(destructionWarlock.auras.length)).toEqual([
       catalogBuff('heroism').effect.selfAura,
       catalogBuff('icon-of-the-silver-crescent').effect.selfAura,
     ]);
     const fight = newSim({ spec, sim });
     expect(fight.cast('life-tap').ok).toBe(true); // starts the fight
+    fight.advanceTo(30200);
+    expect(fight.cast('use-icon-of-the-silver-crescent')).toEqual({ ok: true });
     fight.advanceTo(60000);
     const log = fight.log().filter((e) => e.type === 'aura-apply' || e.type === 'aura-fade');
     expect(log).toEqual([
       { atMs: 6400, type: 'aura-apply', auraId: 'heroism' },
-      { atMs: 30200, type: 'aura-apply', auraId: 'icon-of-the-silver-crescent' },
-      { atMs: 35200, type: 'aura-fade', auraId: 'icon-of-the-silver-crescent' },
+      { atMs: 30200, type: 'aura-apply', auraId: 'icon-of-the-silver-crescent', spellId: 'use-icon-of-the-silver-crescent' },
       { atMs: 36400, type: 'aura-fade', auraId: 'heroism' },
+      { atMs: 50200, type: 'aura-fade', auraId: 'icon-of-the-silver-crescent' },
     ]);
   });
 
   it('a timed buff without a config entry uses its catalog default', () => {
-    const { sim } = apply({ enabledBuffs: ['destruction-potion'], timed: {} });
-    expect(sim.scheduledAuras).toEqual([{ auraId: 'destruction-potion', on: 'self', atMs: 0, durationMs: 15000 }]);
+    const { sim } = apply({ enabledBuffs: ['heroism'], timed: {} });
+    expect(sim.scheduledAuras).toEqual([{ auraId: 'heroism', on: 'self', atMs: 0, durationMs: 40000 }]);
   });
 
   it('startSec above the fight length yields a scheduled aura the engine ignores (no crash)', () => {
@@ -574,6 +582,8 @@ describe('applySetup', () => {
     expect(applied.spec.modifiers).not.toBe(destructionWarlock.modifiers);
     expect(applied.spec.statBonuses).not.toBe(destructionWarlock.statBonuses);
     expect(applied.spec.priority).not.toBe(destructionWarlock.priority);
+    expect(applied.spec.spells).not.toBe(destructionWarlock.spells);
+    expect(applied.spec.keybinds).not.toBe(destructionWarlock.keybinds);
     // With every buff on, every aura id is unique and the Simulation knows every scheduled aura;
     // a whole bot fight runs.
     const ids = applied.spec.auras.map((a) => a.id);
@@ -662,7 +672,7 @@ describe('applySetup', () => {
     expect(plain.length).toBeGreaterThan(10);
   });
 
-  it('end to end: Band, Icon, Heroism, Destruction Potion and Judgement of Wisdom through applySetup in a scripted fight', () => {
+  it('end to end: Band, Icon, Heroism, Destruction Potion and Judgement of Wisdom through applySetup in a scripted fight (the potion and the Icon pressed from 1 s and 5 s)', () => {
     const enabledBuffs = [
       'band-of-the-eternal-sage',
       'icon-of-the-silver-crescent',
@@ -670,12 +680,12 @@ describe('applySetup', () => {
       'destruction-potion',
       'judgement-of-wisdom',
     ];
-    const timed = {
-      heroism: { startSec: 2, durationSec: 40 },
-      'destruction-potion': { startSec: 1, durationSec: 15 },
-      'icon-of-the-silver-crescent': { startSec: 5, durationSec: 20 },
-    };
+    const timed = { heroism: { startSec: 2, durationSec: 40 } };
     const applied = apply({ enabledBuffs, timed });
+    const items = [
+      { id: 'use-destruction-potion', fromMs: 1000 },
+      { id: 'use-icon-of-the-silver-crescent', fromMs: 5000 },
+    ];
     expect(applied.spec.hooks).not.toBe(destructionWarlock.hooks);
 
     let bandProcs = 0;
@@ -688,8 +698,13 @@ describe('applySetup', () => {
         distanceFromTarget: applied.sim.distanceFromTarget,
         scheduledAuras: applied.sim.scheduledAuras,
       });
-      // Script: Shadow Bolt whenever possible, Life Tap when it is rejected for mana.
+      // Script: each item once from its second (as soon as no cast is in progress), Shadow Bolt
+      // whenever possible, Life Tap when it is rejected for mana.
+      const used = new Set<string>();
       for (let s = sim.snapshot(); s.phase !== 'ended'; s = sim.snapshot()) {
+        for (const it of items) {
+          if (!used.has(it.id) && s.nowMs >= it.fromMs && sim.cast(it.id).ok) used.add(it.id);
+        }
         const r = sim.cast('shadow-bolt');
         if (!r.ok && r.reason === 'no-mana') sim.cast('life-tap');
         sim.advanceTo(s.nowMs + 10);
@@ -697,9 +712,12 @@ describe('applySetup', () => {
       const log = sim.log();
       const applies = (id: string) => log.filter((e) => e.type === 'aura-apply' && e.auraId === id && e.spellId === undefined);
       expect(applies('heroism').map((e) => e.atMs)).toEqual([2000]);
-      expect(applies('destruction-potion').map((e) => e.atMs)).toEqual([1000]);
-      expect(applies('icon-of-the-silver-crescent').map((e) => e.atMs)).toEqual([5000]);
       expect(applies('judgement-of-wisdom').map((e) => e.atMs)).toEqual([0]);
+      // The items: one use each, at the first moment no cast was in progress (the first bolt ends
+      // at 2431, the third, hasted, at 6180); the aura is applied by the action.
+      const itemApplies = (auraId: string) => log.filter((e) => e.type === 'aura-apply' && e.auraId === auraId);
+      expect(itemApplies('destruction-potion').map((e) => [e.atMs, e.spellId])).toEqual([[2440, 'use-destruction-potion']]);
+      expect(itemApplies('icon-of-the-silver-crescent').map((e) => [e.atMs, e.spellId])).toEqual([[6180, 'use-icon-of-the-silver-crescent']]);
 
       // Shadow Bolts started during Heroism (2 s to 42 s) take round(2500 / 1.337) = 1870 ms; outside, 2431.
       const starts = log.filter((e) => e.type === 'cast-start' && e.spellId === 'shadow-bolt');

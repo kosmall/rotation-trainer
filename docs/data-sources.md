@@ -10,8 +10,8 @@ The trainer's DPS is approximate: it scores the rotation, not the whole raid set
 Not in the number:
 
 - Raid buffs and consumables unless enabled in the setup (stage 1.5 Part C, all off by default): no party/raid buffs, flasks, elixirs, food, oils, potions, Heroism or debuffs in the default run. The "Raid as in my log" preset enables an approximation of the author's raid, several of whose buffs are guesses (see "Part C: setup rules and calibration").
-- Super Mana Potion and Dark Rune (mana the player uses at a moment of their choice) are not in the setup, and Improved Divine Spirit's spell power (10% of spirit) is not modelled (see "Part C: raid, party and individual buffs").
-- Item effects unless enabled in the setup: Icon of the Silver Crescent's on-use (+155 spell damage for 20 s) and Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown) are modelled since stage 1.5 Task 8 as optional setup entries, off by default (see "Part C: cooldowns and item effects"); Riding Crop has no combat effect.
+- Item actions unless enabled in the setup and used: since the item actions (see "Part D: item actions"), Icon of the Silver Crescent (+155 spell damage for 20 s), Destruction Potion, Super Mana Potion and Dark Rune are pressed from the item row (Z X C V) by the player or the bot; enabling them alone adds nothing. Dark Rune's health cost (600-1000) is not simulated, like Life Tap's. Improved Divine Spirit's spell power (10% of spirit) is not modelled (see "Part C: raid, party and individual buffs"). (Stage 1.5 left Super Mana Potion and Dark Rune out and scheduled the potion and the Icon at a set second: superseded.)
+- Item effects unless enabled in the setup: Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown) is modelled since stage 1.5 Task 8 as an optional setup entry, off by default (see "Part C: cooldowns and item effects"); Riding Crop has no combat effect.
 - Since stage 1.5 Part A, missile travel time IS modelled (Shadow Bolt lands 1400 ms after its cast at the default 28 yd); a bolt still in flight at the end does not count. See "Part A: projectile travel".
 - Life Tap's health cost (health is not simulated; only its mana gain is).
 - Incinerate's extra base damage while Immolate is on the target (Task 12a, open question 4; Incinerate is not in the priority).
@@ -474,6 +474,7 @@ Exclusivity: one entry per `exclusiveGroup` (flask, battle elixir, guardian elix
 Choice of entries: the spec named Supreme Power and Distilled Wisdom; Flask of Pure Death (the TBC warlock flask) was added because it is what a Shadow Bolt warlock would use. Elixirs and foods: the ones that change a simulated stat for a warlock.
 
 **Deviation from the design spec §4.2 (to be confirmed by the author): Super Mana Potion and Dark Rune are not modelled.** They are actions the player takes for an instant mana gain at a moment of their choice (potion and rune cooldowns), not passive or scheduled buffs; the setup has no player-used consumables (spec §4.3: no automatic use by the player). If wanted later they need a spell-like action, not a catalog buff.
+*Superseded by the item actions (2026-10-30): both are now catalog entries with an item action (`cooldowns` in `src/data/common/buffs.ts`), pressed from the item row; see "Part D: item actions".*
 
 ### Target debuffs from other raid members
 
@@ -512,6 +513,8 @@ Stage 1.5 Task 8. `src/data/common/buffs.ts` gains `cooldowns` (Heroism, Destruc
 
 A **timed** buff (`timed: { defaultStartSec, durationSec }` + `effect.selfAura`) is a self aura the fight applies at a configurable second for a configurable duration: Task 9's `applySetup` turns it into a `ScheduledAura` (`on: 'self'`, `atMs = startSec x 1000`, `durationMs = durationSec x 1000`) and appends the aura def to `spec.auras`. The aura's own `durationMs` equals the default duration. The player does not press them (spec §4.3). A start after the fight's end is ignored by the engine, and a duration running past the end is cut by it (Task 5).
 
+*Superseded in part by the item actions (2026-10-30): only Heroism is still timed. Destruction Potion and the Icon lost `timed` and `exclusiveGroup: 'potion'`; each has an `effect.action` (an item action pressed from the item row) that applies the same aura below, and `cooldowns` gained Super Mana Potion and Dark Rune. The table and the decisions below are the stage 1.5 record; the aura values in it still hold. See "Part D: item actions".*
+
 | Id | Group | Effect | Default start / duration | Source | Status |
 |---|---|---|---|---|---|
 | `heroism` ("Heroism / Bloodlust") | `raid` | `selfStatMultipliers: { haste: 1.3 }`: multiplies the rating haste factor, so with the gear's 45 haste rating x1.0285 x 1.3 = x1.337 (Shadow Bolt 2431 -> 1870 ms, GCD 1458 -> 1122 ms) | 0 s / 40 s | tbc-new `sim/core/buffs.go` `BloodlustAura` (`BloodlustDuration` 40 s, `multiplyCastSpeedEffect(aura, 1.3)`), `sim/core/unit.go` `TotalSpellHasteMultiplier` = `CastSpeedMultiplier x (1 + rating haste)`; Wowhead spell=32182 "spell haste by 30% ... Lasts 40 sec." (Bloodlust 2825 the same); author's log: Heroism 40 s, Shadow Bolt 1.86-1.89 s under it | verified |
@@ -520,9 +523,9 @@ A **timed** buff (`timed: { defaultStartSec, durationSec }` + `effect.selfAura`)
 | `band-of-the-eternal-sage` | `item` | proc (below): +95 spell power for 10 s, 10% chance, 60 s internal cooldown | not timed | db.json item 29305 `itemEffects`: buff 35084, `effectDurationMs 10000`, `SpellDamage 95`, `proc { icdMs 60000, procChance 0.1 }`; `sim/common/tbc/stat_bonus_procs_auto_gen.go` (29305: `CallbackOnCastComplete`, `ProcMaskSpellDamage`); `sim/core/aura_helpers.go` `AttachProcTriggerCallback` (ICD checked before the roll, started on a proc); Wowhead spell=35083 "(Proc chance: 10%, 1m cooldown)", spell=35084; author's log: 10 s buff, 60 s internal cooldown | verified |
 
 Decisions:
-- **Cooldowns are not modelled as cooldowns.** Heroism (10 min, plus Exhaustion), the potion (2 min shared potion cooldown) and the Icon (2 min, plus the 20 s shared trinket category) can each be used once in a 60 s fight, so each is one timed buff and its cooldown only matters for a re-use the fight never needs. The setup can still move or shorten them (Task 9: `startSec` 0-600, `durationSec` 1-600).
+- **Cooldowns are not modelled as cooldowns.** Heroism (10 min, plus Exhaustion), the potion (2 min shared potion cooldown) and the Icon (2 min, plus the 20 s shared trinket category) can each be used once in a 60 s fight, so each is one timed buff and its cooldown only matters for a re-use the fight never needs. The setup can still move or shorten them (Task 9: `startSec` 0-600, `durationSec` 1-600). *Superseded for the potion and the Icon: item actions with their own and shared cooldowns ("Part D: item actions"). Still true for Heroism.*
 - **Heroism** is one entry for Heroism (Alliance, the author's log) and Bloodlust (Horde): identical effect. The aura is not hidden; its haste goes through `computeStats` (Task 5 formula).
-- **Destruction Potion's crit** is a percentage modifier on every spell (as Moonkin Aura), identical to wowsims' 44.153846 crit rating (2.000%); it does not show in `critRating` or `computeStats(...).critPct`. `exclusiveGroup: 'potion'`: one potion per fight (the only potion in the catalog for now).
+- **Destruction Potion's crit** is a percentage modifier on every spell (as Moonkin Aura), identical to wowsims' 44.153846 crit rating (2.000%); it does not show in `critRating` or `computeStats(...).critPct`. `exclusiveGroup: 'potion'`: one potion per fight (the only potion in the catalog for now). *Superseded: no exclusive group; the shared 2 min `potion` cooldown with Super Mana Potion decides in the fight.*
 - **No double counting with the gear.** Both items are in the default gear (`destructionEquipped`: Icon 29370, Band 29305) and their equip stats are already in `setup.stats` (Icon +43 spell damage; Band +25 intellect, +34 spell damage, +24 crit rating; see "Items"). The catalog entries carry only the use / proc buff (+155, +95), no `statBonuses` (test).
 - **Band proc.** `effect.auras` holds two helper auras (Task 9 appends them to `spec.auras`): `band-of-the-eternal-sage` (10 s, +95 spell power, visible) and `band-of-the-eternal-sage-icd` (60 s, `hidden`). The hook (run after every resolved spell; DoT ticks never call hooks) returns for a miss or a spell not in `BAND_PROC_SPELL_IDS`, then returns while the ICD aura is up, and only then calls `api.roll()`; a roll under 0.1 applies the ICD aura, then the buff. So no random draw happens while the Band is on cooldown, and a setup without the Band never composes the hook and keeps every draw (and every stage 1 result) unchanged.
 - **Which spells proc the Band:** `BAND_PROC_SPELL_IDS` is derived from the warlock data: spells with a direct part or applying a DoT (Shadow Bolt, Immolate, Corruption, Curse of Agony, Curse of Doom, Conflagrate, Shadowburn, Incinerate). Life Tap and Curse of the Elements never roll: the tooltip says "offensive spells ... on hit", Life Tap does not target the enemy and Curse of the Elements deals no damage. Deviation from wowsims: there the proc rolls at cast end (`CallbackOnCastComplete`) for any `ProcMaskSpellDamage` cast, misses and Life Tap included (`lifetap.go` has `ProcMaskSpellDamage`); the trainer rolls when the spell lands (ruling S4) and only for a landed damaging spell, as the tooltip reads. A miss chance of about 1.5% (default gear, 15.54% hit against 17%) and few Life Taps in a 60 s fight make the difference small; it is mostly a different moment (impact instead of cast end) and RNG order.
@@ -535,12 +538,12 @@ Stage 1.5 Tasks 9-12. Files: `src/setup/{types,defaults,applySetup,storage,prese
 
 ### Setup config and `normalizeSetup` (`src/setup/defaults.ts`)
 
-`SetupConfig = { version: 1, enabledBuffs, timed, rotation, distanceYd, warlock }`. `SETUP_CATALOG` lists every buff in a fixed order: `commonBuffs`, `consumables`, `debuffs`, `cooldowns` (`src/data/common/buffs.ts`), then `warlockItemBuffs` (`src/data/classes/warlock/buffs.ts`). `DEFAULT_SETUP` has no buff enabled, the DoT rotation, 28 yd, Fel Armor and the Succubus sacrificed, and every timed buff at its catalog start and duration. With it `applySetup` reproduces the stage 1 spec and the Part B bot means exactly (golden test in `tests/setup/applySetup.test.ts`).
+`SetupConfig = { version: 1, enabledBuffs, timed, rotation, distanceYd, warlock }`. `SETUP_CATALOG` lists every buff in a fixed order: `commonBuffs`, `consumables`, `debuffs`, `cooldowns` (`src/data/common/buffs.ts`), then `warlockItemBuffs` (`src/data/classes/warlock/buffs.ts`). `DEFAULT_SETUP` has no buff enabled, the DoT rotation, 28 yd, Fel Armor and the Succubus sacrificed, and every timed buff at its catalog start and duration (since the item actions: Heroism only). With it `applySetup` reproduces the stage 1 spec (plus an empty item row in `keybinds`) and the Part B bot means exactly (golden test in `tests/setup/applySetup.test.ts`).
 
 `normalizeSetup(input, catalog)` turns untrusted data (storage, a preset, a UI edit) into a valid config. It never throws, never mutates `input`, reads own properties only, and a hostile getter or proxy gives the defaults.
 - A value that is not a plain object, or has a `version` other than 1, gives the defaults.
 - `enabledBuffs`: catalog ids only (non-strings, unknown ids and duplicates are dropped). In an exclusive group, and for the `EXCLUDES` pairs (a flask vs the battle and guardian elixirs, both ways), the buff later in the list wins.
-- `timed`: one entry per timed catalog buff, enabled or not. `startSec` is clamped to [0, 600] and `durationSec` to [1, 600] (`SETUP_LIMITS`); a missing or non-number value takes the catalog default.
+- `timed`: one entry per timed catalog buff, enabled or not. `startSec` is clamped to [0, 600] and `durationSec` to [1, 600] (`SETUP_LIMITS`); a missing or non-number value takes the catalog default. Entries for other ids are dropped: a stored stage 1.5 config's Destruction Potion and Icon starts disappear on load (item actions now), the buffs stay enabled.
 - `distanceYd` is clamped to [0, 100]; NaN or a non-number gives 28.
 - `rotation` and `warlock`: each field is checked against its type or union, else its default. `lifeTapBelowMana` is `auto` unless it is a finite number >= 0 (capped at 100000), so `buildPriority` never throws on it.
 
@@ -555,13 +558,14 @@ Stage 1.5 Tasks 9-12. Files: `src/setup/{types,defaults,applySetup,storage,prese
   - `modifiers` are appended.
   - `targetAura`, `selfAura` and helper `auras` are appended to `spec.auras`.
   - `hooks` run after the spec's own hook (`composeHooks`, in catalog order: Judgement of Wisdom before the Band).
+  - An item `action` (since the item actions) is appended to a new `spec.spells` and bound to the next free item slot (see "Part D: item actions"); its `selfAura` is not scheduled.
 - `neutralizeOwnAuras`: with the raid's Curse of the Elements, the own curse multiplies by 1; with `isb-from-others`, the own Shadow Vulnerability multiplies by 1 (rulings S1, S2). The own auras still show (the target panel marks them "(no extra effect)") and keep their curse slot and charges.
 - `scheduledAuras`:
   - Each `targetAura` is put on the target at 0 with no duration override. Its own 1 h duration is cut by the end of the fight (ruling S3).
   - Each timed `selfAura` is put on the player at `startSec x 1000` for `durationSec x 1000` ms.
-  - A `selfAura` without `timed` is put on at 0.
+  - A `selfAura` without `timed` (and without an item action) is put on at 0.
   - A start after the fight's end is kept; the engine ignores it.
-- `spec.priority = buildPriority(config.rotation, config.distanceYd)`; `distanceFromTarget = config.distanceYd`.
+- `spec.priority = buildPriority(config.rotation, config.distanceYd)`; `distanceFromTarget = config.distanceYd`. Since the item actions the item steps (`buildItemSteps`) come first, and `spec.keybinds` is always a new 16-slot array (see "Part D: item actions").
 
 ### Persistence (`src/setup/storage.ts`)
 
@@ -579,9 +583,9 @@ Stage 1.5 Tasks 9-12. Files: `src/setup/{types,defaults,applySetup,storage,prese
 - **Band of the Eternal Sage** rolls when a damaging spell lands, DoT applications included (Immolate, Corruption, Curse of Agony, Curse of Doom). It never rolls on misses, DoT ticks, Life Tap or Curse of the Elements. wowsims rolls at cast end.
 - **Impact-time evaluation (ruling S4):** a missile's hit, crit and damage use the buffs and debuffs at impact. A buff that starts or ends during the 1.4 s flight shows the difference (see "Known difference from wowsims (ruling S4)").
 - **No range checks:** the Shadowburn finisher is cast at 28 yd, although its range is 20 yd (24 yd with Destructive Reach; `SD` Shadowburn `MaxRange: 20`).
-- **Cooldowns are timed buffs:** each is used once, at its start second; no cooldown is tracked ("Part C: cooldowns and item effects").
+- **Cooldowns are timed buffs:** each is used once, at its start second; no cooldown is tracked ("Part C: cooldowns and item effects"). *Superseded for Destruction Potion and the Icon (item actions with real cooldowns, "Part D: item actions"); still true for Heroism.*
 - **Not modelled:**
-  - Super Mana Potion and Dark Rune: actions the player takes, not buffs.
+  - Super Mana Potion and Dark Rune: actions the player takes, not buffs. *Superseded: item actions ("Part D: item actions"); Dark Rune's health cost is still not modelled.*
   - Improved Divine Spirit's spell power.
 
 ### Calibration: the "Raid as in my log" preset (`SETUP_PRESETS['raid-log']`, Task 12)
@@ -593,7 +597,7 @@ The preset approximates the author's Naj'entus raid (Warcraft Logs, 2026-10). Th
 | Entry | Basis |
 |---|---|
 | Moonkin Aura, Mana Spring Totem, Judgement of Wisdom | seen in the log (Mana Spring 20 mana per 2 s, Judgement of Wisdom 74 mana per proc) |
-| Heroism from 6.4 s, Destruction Potion at 7.5 s, Icon of the Silver Crescent at 30.2 s | seen in the log (start seconds as timed settings; durations 40 / 15 / 20 s, as in the log and the catalog) |
+| Heroism from 6.4 s, Destruction Potion at 7.5 s, Icon of the Silver Crescent at 30.2 s | seen in the log (start seconds as timed settings; durations 40 / 15 / 20 s, as in the log and the catalog). *Since the item actions only Heroism is timed (6.4 s); the potion and the Icon are enabled as item actions and used by the player (the bot: while Heroism is up). The log's 7.5 s and 30.2 s are no longer in the preset.* |
 | Band of the Eternal Sage | seen in the log (procs at 0.8 s and 69.5 s). It is a proc, so it is enabled and never scheduled: its procs in the trainer are random. |
 | Rotation `sb-spam` (Curse of Doom, Shadow Bolt, Life Tap, Shadowburn finisher), 28 yd | the log (Part B; travel checkpoint, Part A) |
 | Improved Shadow Bolt from others | the design spec's preset list; not measured |
@@ -624,6 +628,47 @@ Warlock options: Fel Armor and the Succubus sacrificed (the defaults).
 The preset keeps the spell power right, because it matters far more for the damage. It leaves the intellect residual, which the gear difference (shown by the hit rating) can explain. The test allows 5% on intellect instead of the plan's 3% and says why.
 
 **Bot results** (seeds 1-10, 28 yd; not asserted, only "more than `none`"):
-- `raid-log`: 2305 DPS, with either queue window (400 or 0 ms).
+- `raid-log`: 2305 DPS, with either queue window (400 or 0 ms). *Stage 1.5 (potion at 7.5 s, Icon at 30.2 s scheduled). Since the item actions: 2294.1 with either window; the bot uses the potion and the Icon at the end of the cast in progress when Heroism starts (8.75-8.79 s), so the Icon's 20 s overlap Heroism (the log used it at 30.2 s) and the potion's start is a little later.*
 - `none`: 1425 (400 ms) / 1428 (0 ms).
 - `raid-log` with the DoT rotation instead: 2250 / 2227.
+
+## Part D: item actions
+
+Item actions and fight settings, Task 2 (2026-10-30; spec `docs/superpowers/specs/2026-10-30-item-actions-and-fight-settings-design.md`). The engine side (`SpellDef.item`, `sharedCooldown`, `gainManaRange`: no GCD, no cost, no hit roll, no hooks, no five-second rule) is Task 1 (`src/engine/sim.ts`). The data side: `BuffEffect.action` (`src/data/types.ts`), built with `itemAction` (`src/data/common/buffs.ts`).
+
+### The items
+
+| Catalog id | Action id | Effect | Own cooldown | Shared cooldown group | Source | Status |
+|---|---|---|---|---|---|---|
+| `icon-of-the-silver-crescent` (`warlockItemBuffs`, group `item`) | `use-icon-of-the-silver-crescent` | applies the Icon aura: +155 spell power for 20 s | 120 s | `trinket` 20 s | tbc-new `assets/database/db.json` item 29370 `itemEffects[0]`: `buffId 35163`, `effectDurationMs 20000`, stats 155, `onUse { cooldownMs 120000, categoryId 1141, categoryCooldownMs 20000 }`; Wowhead item=29370 "(2 Min Cooldown)", spell=35163; author's log: 20 s | verified |
+| `destruction-potion` (`cooldowns`, group `consumable`) | `use-destruction-potion` | applies the potion aura: +120 spell power and +2% crit (`critPctDelta`, as in stage 1.5) for 15 s | 120 s | `potion` 120 s | db.json consumable 22839: `categoryId 4`, `categoryCooldownDuration 120`, `buffDuration 15`; `sim/core/consumes.go` `makePotionActivationSpellInternal` (own CD 2 min, `SharedCD` on `GetPotionCD()` 2 min); Wowhead item=22839 "(2 Min Cooldown)" | verified |
+| `super-mana-potion` (`cooldowns`, group `consumable`) | `use-super-mana-potion` | 1800-3000 mana (`gainManaRange`) | 120 s | `potion` 120 s | db.json consumable 22832: `categoryId 4`, `categoryCooldownDuration 120`, effect 847151 (`spellEffects`: spell 28499, mana, `minEffectSize 1799`, `effectSpread 1201`); wowsims/tbc @ 3301fca `consumes.go` `makePotionActivation`: `1800 + rand x 1200` "Restores 1800 to 3000 mana. (2 Min Cooldown)"; Wowhead item=22832 "Restores 1800 to 3000 mana. (2 Min Cooldown)" | verified |
+| `dark-rune` (`cooldowns`, group `consumable`) | `use-dark-rune` | 900-1500 mana (`gainManaRange`); health cost not modelled | 120 s | `rune` 120 s | Wowhead item=20520 Dark Rune (use spell 27869) "Restores 900 to 1500 mana at the cost of 600 to 1000 life. (2 Min Cooldown)"; wowsims/tbc `consumes.go` `makeConjuredActivation` (item 20520: `900 + rand x 600`, conjured cooldown 2 min); tbc-new db.json lists only Demonic Rune 12662 (same tooltip on Wowhead): `categoryId 1153`, `categoryCooldownDuration 120`, effect 694074 (spell 16666, `minEffectSize 899`, `effectSpread 601`), `makeConjuredActivationSpellInternal` (`SharedCD` on the category 1153 timer, 2 min) | verified (Dark Rune's own category id: from Demonic Rune, see below) |
+
+- **Which rune.** The catalog models Dark Rune (item 20520, the rune a raid warlock uses), with the numbers from its Wowhead tooltip and old wowsims/tbc. tbc-new has only Demonic Rune (12662), whose effect, cooldown and category are the same; that its category 1153 also covers Dark Rune is taken from Demonic Rune (the game's runes share it; Wowhead's tooltip API does not give categories and its item pages were not reachable): the trainer has one rune, so this changes nothing. Category 1153 also holds Flame Cap (180 s; out of scope).
+- **Mana ranges.** wowsims draws a real number `min + rand x spread` (1799 + [0, 1201), 899 + [0, 601)); the trainer draws one integer in `min..max` inclusive (1800..3000, 900..1500), as the tooltips state. One Rng draw per use, only when used (Task 1), so a setup without these items keeps every draw unchanged. At full mana the gain is capped (logged 0).
+- **Shared groups.** Destruction Potion and Super Mana Potion share `potion` 120 s (category 4): one potion per 2 min, the in-fight choice between burst and mana the design spec wants; they are no longer in an exclusive group, both can be enabled. The Icon's `trinket` group (category 1141, 20 s) blocks other on-use trinkets (none in the catalog yet) for 20 s after its use. Dark Rune is alone in `rune`. A shared cooldown never shortens a longer one already running (Task 1).
+- **Own cooldowns.** All four 120 s (Wowhead "(2 Min Cooldown)"; for the potions also the group).
+- **No health cost.** Dark Rune's 600-1000 health, like Life Tap's, is not simulated: the trainer has no health.
+- **Icons.** Each action uses its entry's `icon` and `wowheadId` (the use spell): Icon `inv_trinket_naxxramas06` (35163; the trinket item's own icon is `inv_weapon_shortblade_23`), Destruction Potion `inv_potion_107` (28508), Dark Rune `inv_misc_rune_04` (27869; Wowhead also gives it for Demonic Rune's item; Dark Rune's item icon is `spell_shadow_sealofkings`). Super Mana Potion: `inv_potion_137` from its item (22832; db.json `itemIcons` and the Wowhead item tooltip), because its use spell 28499 "Restore Mana" has the placeholder `classic_temp` on Wowhead, so `npm run icons` (which checks spell ids) will report a mismatch for it until it can look up item icons. The files for `inv_potion_137` and `inv_misc_rune_04` are not committed yet (the UI falls back to the initials tile).
+- **School.** An action's `school` is `physical` (an item has no spell school; it only picks the slot's fallback colour). Item data also says `onGcd: false`, `castTimeMs: 0`, `manaCost: 0`, `canMiss: false`, `canCrit: false` (the engine enforces them anyway).
+
+### Setup (`applySetup`)
+
+- Each enabled entry with an `action`, in catalog order, is appended to a new `spec.spells` and bound to the next free slot of the **item row**: `spec.keybinds` is always a new array of `SPELL_SLOT_COUNT + ITEM_SLOT_COUNT` = 12 + 4 slots (`src/data/types.ts`); slots 12-15 are keys Z X C V (`ITEM_SLOT_KEYS`, `src/ui/keys.ts`; `keyToSlot` reads a single letter in either case). The shared `destructionWarlock.keybinds` keeps its 12 slots; with no item enabled slots 12-15 are ''. Catalog order gives Destruction Potion, Super Mana Potion, Dark Rune, then the Icon. The catalog has exactly 4 actions (test), so the row cannot overflow; `applySetup` throws a RangeError if a future catalog ever enabled more.
+- The entry's `selfAura` is appended to `spec.auras` (the action's `applyAura` names it) and is never scheduled; the entry has no `timed`. Heroism stays timed.
+- `spec.priority` = the item steps (`buildItemSteps`), then `buildPriority(...)`.
+
+### Priority steps (`src/data/classes/warlock/itemRules.ts`)
+
+`buildItemSteps(enabledActionIds, heroismEnabled)` (pure) gives one step per enabled action, in catalog order, at the START of the priority (items are off the GCD):
+- **Icon of the Silver Crescent, Destruction Potion:** while Heroism is up (`selfAuras.heroism`) when Heroism is enabled in the setup; otherwise always (at the pull, then whenever the cooldown allows). Both stack with Heroism; using them with it is the common raid practice. UNVERIFIED as optimal: it is guidance.
+- **Super Mana Potion:** when max mana - mana >= 3000; **Dark Rune:** when >= 1500. From old wowsims/tbc `consumes.go` `ShouldActivate` (it also subtracts 5 s of mana regen; the trainer leaves that out so the player can follow the rule). Both values are the item's largest gain, so no mana is wasted.
+- **The queue gate.** A step is wanted only when no cast is in progress, or nothing is queued yet, or its own item is the queued spell. Reason: a valid item press during a cast with a spell already queued would replace that spell in the one queue slot (Task 1 Decision 1), and the next spell would start late. With the gate the bot uses an item at once between casts (also during the GCD alone, where a queued spell keeps its slot), or queues it in the window before any spell, then it fires at the cast's end and the next spell starts at the bot's next step (10 ms later). A press the engine rejects (cooldown, `busy` outside the window) falls through to the rotation like any rejected step.
+- The rules are guidance for the bot and the Priority panel, reasonable rather than optimal: e.g. with Heroism enabled but scheduled after the fight's end the Icon and the potion are never used, and Super Mana Potion may take the shared potion cooldown before Heroism.
+
+### Effect on the bot (seeds 1-10, 28 yd, 60 s, real mana)
+
+- Default setup: unchanged (1425.1766666666667 with the 400 ms queue window, 1428.3350000000003 with 0; golden test).
+- DoT rotation with Heroism at 6.4 s: 1717.9 (400 ms) / 1676.8 (0 ms) without items; with Destruction Potion, Dark Rune and the Icon 1763.5 / 1784.3 (`tests/data/item-actions.test.ts` asserts only "more").
+- `raid-log`: 2294.1 (both windows), stage 1.5's scheduled items 2305.3 (see "Calibration").

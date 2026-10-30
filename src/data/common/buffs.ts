@@ -15,6 +15,7 @@
 // and the spec's own multipliers (Expansive Mind, Demonic Embrace, Fel Intellect) and flat bonus
 // (Fel Armor) are none of these buffs, so nothing here is counted twice.
 
+import type { SpellDef } from '../../engine/types';
 import { HIT_RATING_PER_PCT } from './ratings';
 import type { BuffDef } from '../types';
 
@@ -31,6 +32,18 @@ export function deepFreeze<T>(value: T): T {
 }
 
 const BUFFS = 'wowsims/tbc-new sim/core/buffs.go';
+
+/**
+ * The `SpellDef` of an item action (`BuffEffect.action`): instant, off the GCD, no mana cost, no
+ * hit or crit roll (`item: true`; the engine enforces all of it whatever the data says, but the UI
+ * and the bot read these fields). `school` is 'physical': an item has no spell school, and it only
+ * picks the slot's fallback colour. Also used by the warlock catalog (the Icon).
+ */
+export function itemAction(
+  p: Pick<SpellDef, 'id' | 'name' | 'icon' | 'wowheadId' | 'cooldownMs' | 'sharedCooldown' | 'applyAura' | 'gainManaRange'>,
+): SpellDef {
+  return { school: 'physical', manaCost: 0, castTimeMs: 0, onGcd: false, canMiss: false, canCrit: false, item: true, ...p };
+}
 
 export const commonBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
   // -------------------------------------------------------------------------
@@ -195,9 +208,9 @@ export const commonBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
 // icon the tooltip API confirms. See docs/data-sources.md, "Part C: consumables, debuffs and
 // warlock options".
 //
-// Not modelled (deviation from the design spec §4.2, to be confirmed by the author): Super Mana
-// Potion and Dark Rune. They are actions the player uses for an instant mana gain at a moment of
-// their choosing (sharing the potion / rune cooldowns), not passive or scheduled buffs.
+// Super Mana Potion and Dark Rune: stage 1.5 left them out (actions the player uses, not buffs;
+// superseded): since the item actions they are catalog entries with an item action, with the
+// Destruction Potion in `cooldowns` below.
 // ===========================================================================
 
 const CONSUMES = 'wowsims/tbc-new sim/core/consumes.go applyConsumeEffects + assets/database/db.json';
@@ -584,13 +597,25 @@ export const debuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
 ]);
 
 // ===========================================================================
-// Timed cooldowns (stage 1.5 Task 8): a self aura the fight applies at a configurable second for
-// a configurable duration (`timed`; applySetup schedules `effect.selfAura`, Task 9). The aura's
-// own `durationMs` is the default duration. The player does not press them (spec §4.3: no
-// automatic or manual use, a simulation of raid events). Item effects (Icon of the Silver
-// Crescent, Band of the Eternal Sage) are in src/data/classes/warlock/buffs.ts: they belong to the
-// warlock's equipped gear. See docs/data-sources.md, "Part C: cooldowns and item effects".
+// Cooldowns.
+// - Heroism (stage 1.5 Task 8): a timed self aura the fight applies at a configurable second for a
+//   configurable duration (`timed`; applySetup schedules `effect.selfAura`). The aura's own
+//   `durationMs` is the default duration. Another player's spell: nobody presses it.
+// - Item actions (item actions and fight settings, Task 2): Destruction Potion, Super Mana Potion
+//   and Dark Rune are `effect.action`s the player (or the bot) presses from the item row, with
+//   their own and shared cooldowns (wowsims "shared cooldown" categories). Stage 1.5 scheduled the
+//   potion at a configurable second and left the other two out (superseded). The Icon of the Silver
+//   Crescent, an item action too, is in src/data/classes/warlock/buffs.ts (the warlock's gear).
+//   Values: wowsims/tbc-new @ 91f869a assets/database/db.json `consumables` and `spellEffects`
+//   (read by sim/core/consumes.go makePotionActivationSpellInternal /
+//   makeConjuredActivationSpellInternal), old wowsims/tbc @ 3301fca sim/core/consumes.go
+//   (makePotionActivation, makeConjuredActivation: also the bot rules' mana thresholds), Wowhead TBC
+//   tooltips (nether.wowhead.com/tbc/tooltip/item/<id>, /spell/<id>). See docs/data-sources.md,
+//   "Part C: cooldowns and item effects" and "Part D: item actions".
 // ===========================================================================
+
+/** Cooldown group of the potions: db.json consumables 22832 / 22839 `categoryId` 4, 120 s. */
+const POTION_COOLDOWN = { group: 'potion', ms: 120000 } as const;
 
 export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
   {
@@ -624,16 +649,28 @@ export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     icon: 'inv_potion_107',
     wowheadId: 28508,
     group: 'consumable',
-    exclusiveGroup: 'potion',
+    // No exclusive group (stage 1.5 had 'potion'): it may be enabled together with Super Mana
+    // Potion; their shared cooldown makes the choice in the fight.
     description:
-      "+120 spell power and +2% spell crit for 15 s (author's log: 15 s). Potions share a 2 min cooldown, so once per fight.",
+      "On use (item bar): +120 spell power and +2% spell crit for 15 s (author's log: 15 s). 2 min cooldown, shared with Super Mana Potion: one potion per 2 min.",
     // db.json consumable 22839 (Potion): SpellDamage 120, SpellCritRating 44.153846 (= 2 x
-    // CRIT_RATING_PER_PCT 22.076923: exactly 2%), buffDuration 15, categoryCooldownDuration 120;
-    // consumes.go makePotionActivationSpellInternal -> NewTemporaryStatsAura(stats, BuffDuration).
+    // CRIT_RATING_PER_PCT 22.076923: exactly 2%), buffDuration 15, categoryId 4,
+    // categoryCooldownDuration 120; consumes.go makePotionActivationSpellInternal ->
+    // NewTemporaryStatsAura(stats, BuffDuration), CD 2 min (own) + SharedCD GetPotionCD 2 min.
     // Wowhead TBC spell=28508 / item=22839 "Increases spell critical chance by 2% and spell damage
     // by 120 for 15 sec. (2 Min Cooldown)".
     source: `${CONSUMES} (item 22839), makePotionActivationSpellInternal; https://www.wowhead.com/tbc/item=22839; author's log`,
     effect: {
+      // Used from the item row: applies the aura below; no `timed` (the player chooses when).
+      action: itemAction({
+        id: 'use-destruction-potion',
+        name: 'Destruction Potion',
+        icon: 'inv_potion_107',
+        wowheadId: 28508,
+        cooldownMs: 120000, // Wowhead "(2 Min Cooldown)"; consumes.go CD default 2 min
+        sharedCooldown: { ...POTION_COOLDOWN },
+        applyAura: { auraId: 'destruction-potion', on: 'self' },
+      }),
       selfAura: {
         id: 'destruction-potion',
         name: 'Destruction Potion',
@@ -646,6 +683,62 @@ export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
         selfModifiers: [{ critPctDelta: 2 }],
       },
     },
-    timed: { defaultStartSec: 0, durationSec: 15 },
+  },
+  {
+    id: 'super-mana-potion',
+    name: 'Super Mana Potion',
+    // Icon of the item (Wowhead TBC tooltip item=22832 and db.json itemIcons 22832: inv_potion_137).
+    // The use spell 28499 "Restore Mana" has no icon of its own on Wowhead ('classic_temp').
+    icon: 'inv_potion_137',
+    wowheadId: 28499,
+    group: 'consumable',
+    description:
+      'On use (item bar): restores 1800 to 3000 mana. 2 min cooldown, shared with Destruction Potion: one potion per 2 min.',
+    // db.json consumable 22832 (Potion): categoryId 4, categoryCooldownDuration 120, effect 847151
+    // (spellEffects: spellId 28499, ResourceGain mana, minEffectSize 1799, effectSpread 1201:
+    // wowsims gains min + rand x spread); wowsims/tbc consumes.go "Restores 1800 to 3000 mana.
+    // (2 Min Cooldown)": 1800 + rand x 1200. Wowhead TBC item=22832 "Restores 1800 to 3000 mana.
+    // (2 Min Cooldown)". The trainer draws an integer in 1800..3000.
+    source: `${CONSUMES} (item 22832, effect 847151); wowsims/tbc sim/core/consumes.go makePotionActivation; https://www.wowhead.com/tbc/item=22832`,
+    effect: {
+      action: itemAction({
+        id: 'use-super-mana-potion',
+        name: 'Super Mana Potion',
+        icon: 'inv_potion_137',
+        wowheadId: 28499,
+        cooldownMs: 120000, // Wowhead "(2 Min Cooldown)"
+        sharedCooldown: { ...POTION_COOLDOWN },
+        gainManaRange: { min: 1800, max: 3000 },
+      }),
+    },
+  },
+  {
+    id: 'dark-rune',
+    name: 'Dark Rune',
+    // Icon of the use spell (Wowhead TBC spell=27869 and Demonic Rune's item 12662: inv_misc_rune_04).
+    icon: 'inv_misc_rune_04',
+    wowheadId: 27869,
+    group: 'consumable',
+    description:
+      'On use (item bar): restores 900 to 1500 mana. 2 min cooldown (shared with Demonic Rune). Its cost of 600 to 1000 health is not simulated (the trainer has no health, as for Life Tap).',
+    // Wowhead TBC item=20520 Dark Rune "Restores 900 to 1500 mana at the cost of 600 to 1000 life.
+    // (2 Min Cooldown)" (use spell 27869). wowsims/tbc consumes.go makeConjuredActivation: item
+    // 20520, 900 + rand x 600, its own conjured cooldown 2 min. tbc-new db.json lists only Demonic
+    // Rune 12662 (the same tooltip on Wowhead): categoryId 1153, categoryCooldownDuration 120,
+    // effect 694074 (spellId 16666, mana, minEffectSize 899, effectSpread 601);
+    // makeConjuredActivationSpellInternal: SharedCD on the category timer 2 min. The trainer draws
+    // an integer in 900..1500. Category 1153 is shared with Flame Cap (out of scope).
+    source: `wowsims/tbc sim/core/consumes.go makeConjuredActivation (item 20520); ${CONSUMES} (Demonic Rune 12662, effect 694074); https://www.wowhead.com/tbc/item=20520`,
+    effect: {
+      action: itemAction({
+        id: 'use-dark-rune',
+        name: 'Dark Rune',
+        icon: 'inv_misc_rune_04',
+        wowheadId: 27869,
+        cooldownMs: 120000, // Wowhead "(2 Min Cooldown)"
+        sharedCooldown: { group: 'rune', ms: 120000 }, // category 1153, 120 s
+        gainManaRange: { min: 900, max: 1500 },
+      }),
+    },
   },
 ]);

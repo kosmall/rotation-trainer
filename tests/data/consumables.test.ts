@@ -192,7 +192,7 @@ describe('consumables and debuffs catalog', () => {
     expect(withFlask.power.fire - base.power.fire).toBe(70);
   });
 
-  it('Super Mana Potion and Dark Rune are not in the catalog (player-cast actions, documented deviation)', () => {
+  it('Super Mana Potion and Dark Rune are not static consumables (player-used item actions in `cooldowns` since the item actions: tests/data/item-actions.test.ts)', () => {
     const ids = ALL.map((b) => b.id);
     for (const id of ids) expect(id).not.toMatch(/mana-potion|dark-rune|demonic-rune/);
   });

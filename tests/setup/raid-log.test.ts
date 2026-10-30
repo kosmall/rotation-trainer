@@ -143,19 +143,20 @@ describe("the 'raid-log' preset (author's Naj'entus log)", () => {
     expect(p.hitRating - LOG.hitRating).toBe(19);
   });
 
-  it('Heroism, Destruction Potion and Icon start at 6.4 s, 7.5 s and 30.2 s in the preset\'s timed settings', () => {
-    expect(raidLog.timed.heroism).toEqual({ startSec: 6.4, durationSec: 40 });
-    expect(raidLog.timed['destruction-potion']).toEqual({ startSec: 7.5, durationSec: 15 });
-    expect(raidLog.timed['icon-of-the-silver-crescent']).toEqual({ startSec: 30.2, durationSec: 20 });
+  it('Heroism starts at 6.4 s in the preset\'s timed settings; Destruction Potion and Icon are item actions (no timed entries: when to use them is the player\'s choice)', () => {
+    expect(raidLog.timed).toEqual({ heroism: { startSec: 6.4, durationSec: 40 } });
     for (const id of ['heroism', 'destruction-potion', 'icon-of-the-silver-crescent']) {
       expect(raidLog.enabledBuffs).toContain(id);
     }
     const scheduled = apply(raidLog).sim.scheduledAuras.filter((s) => s.on === 'self');
-    expect(scheduled).toEqual([
-      { auraId: 'heroism', on: 'self', atMs: 6400, durationMs: 40000 },
-      { auraId: 'destruction-potion', on: 'self', atMs: 7500, durationMs: 15000 },
-      { auraId: 'icon-of-the-silver-crescent', on: 'self', atMs: 30200, durationMs: 20000 },
-    ]);
+    expect(scheduled).toEqual([{ auraId: 'heroism', on: 'self', atMs: 6400, durationMs: 40000 }]);
+    // The items are on the item row (catalog order) and in the priority (with Heroism up).
+    const { spec } = apply(raidLog);
+    expect(spec.keybinds.slice(12)).toEqual(['use-destruction-potion', 'use-icon-of-the-silver-crescent', '', '']);
+    expect(spec.priority.slice(0, 2).map((s) => s.spellId)).toEqual(['use-destruction-potion', 'use-icon-of-the-silver-crescent']);
+    // The log's mana items (Super Mana Potion, Dark Rune) are not in it: the log shows none.
+    expect(raidLog.enabledBuffs).not.toContain('super-mana-potion');
+    expect(raidLog.enabledBuffs).not.toContain('dark-rune');
     // The Band is a proc: enabled, never scheduled. The log's sources of mana and crit are on.
     for (const id of ['band-of-the-eternal-sage', 'mana-spring-totem', 'judgement-of-wisdom', 'moonkin-aura']) {
       expect(raidLog.enabledBuffs).toContain(id);
@@ -179,11 +180,16 @@ describe("the 'raid-log' preset (author's Naj'entus log)", () => {
     expect(a.durationMs).toBe(60000);
     expect(a.log).toEqual(b.log);
     expect(a.dps).toBe(b.dps);
-    // The timed buffs and the Band really happen in the fight.
+    // Heroism really happens in the fight, and the bot uses the potion and the Icon once each
+    // while it is up (the log: potion at 7.5 s, Icon at 30.2 s; the bot's rule is "with Heroism").
     const applied = (id: string) => a.log.filter((e) => e.type === 'aura-apply' && e.auraId === id).map((e) => e.atMs);
     expect(applied('heroism')).toEqual([6400]);
-    expect(applied('destruction-potion')).toEqual([7500]);
-    expect(applied('icon-of-the-silver-crescent')).toEqual([30200]);
+    for (const id of ['destruction-potion', 'icon-of-the-silver-crescent']) {
+      const at = applied(id);
+      expect(at, id).toHaveLength(1);
+      expect(at[0]!, id).toBeGreaterThanOrEqual(6400);
+      expect(at[0]!, id).toBeLessThan(6400 + 40000);
+    }
 
     const raidMean = mean(SEEDS.map((s) => botFight(raidLog, s).dps));
     const noneMean = mean(SEEDS.map((s) => botFight(none, s).dps));

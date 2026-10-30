@@ -45,13 +45,14 @@ function compose(...hooks: (SpecHooks | undefined)[]): SpecHooks {
 }
 
 /**
- * destructionWarlock with the buffs' self auras, helper auras and hooks added (the spec side of
- * what Task 9's applySetup does for an enabled timed or proc buff).
+ * destructionWarlock with the buffs' item actions, self auras, helper auras and hooks added (the
+ * spec side of what applySetup does for an enabled timed, item or proc buff).
  */
 function specWith(ids: string[], base: SpecData = destructionWarlock, extraHooks?: SpecHooks): SpecData {
   const extra = ids.map(buff);
   return {
     ...base,
+    spells: [...base.spells, ...extra.flatMap((b) => (b.effect.action ? [b.effect.action] : []))],
     auras: [
       ...base.auras,
       ...extra.flatMap((b) => (b.effect.selfAura ? [b.effect.selfAura] : [])),
@@ -89,6 +90,20 @@ function newSim(
   });
 }
 
+/** The use action's id of an item entry (`BuffEffect.action`). */
+function actionId(id: string): string {
+  const a = buff(id).effect.action;
+  if (!a) throw new Error(`${id} has no action`);
+  return a.id;
+}
+
+/** Advances to `atMs` and uses the item there (instant: no cast in progress afterwards). */
+function useAt(sim: Simulation, atMs: number, buffId: string): void {
+  sim.advanceTo(atMs);
+  expect(sim.cast(actionId(buffId)), `${buffId} at ${atMs}`).toEqual({ ok: true });
+  expect(sim.snapshot().cast).toBeNull();
+}
+
 /** Advances to `atMs` and starts `spellId` there; returns the cast's length in ms. */
 function castAt(sim: Simulation, atMs: number, spellId: string): number {
   sim.advanceTo(atMs);
@@ -118,7 +133,7 @@ describe('timed cooldowns and item effects: catalog', () => {
   it('ids, groups, timed defaults and effect values (wowsims / Wowhead / author log)', () => {
     const ids = ALL.map((b) => b.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(cooldowns.map((b) => b.id)).toEqual(['heroism', 'destruction-potion']);
+    expect(cooldowns.map((b) => b.id)).toEqual(['heroism', 'destruction-potion', 'super-mana-potion', 'dark-rune']);
     expect(warlockItemBuffs.map((b) => b.id)).toEqual(['icon-of-the-silver-crescent', 'band-of-the-eternal-sage']);
     for (const b of NEW) {
       expect(b.id).toMatch(/^[a-z0-9-]+$/);
@@ -130,19 +145,27 @@ describe('timed cooldowns and item effects: catalog', () => {
     }
     expect(buff('heroism').group).toBe('raid');
     expect(buff('destruction-potion').group).toBe('consumable');
+    expect(buff('super-mana-potion').group).toBe('consumable');
+    expect(buff('dark-rune').group).toBe('consumable');
     expect(buff('icon-of-the-silver-crescent').group).toBe('item');
     expect(buff('band-of-the-eternal-sage').group).toBe('item');
 
-    // Timed: selfAura + timed, the aura's own duration equals the default duration.
-    const timed: [string, number, number][] = [
-      ['heroism', 0, 40],
-      ['destruction-potion', 0, 15],
-      ['icon-of-the-silver-crescent', 0, 20],
+    // Timed: selfAura + timed, the aura's own duration equals the default duration. Only Heroism
+    // (another player's spell); the potion and the Icon are item actions since the item-actions
+    // feature (no `timed`, the action applies the same aura; tests/data/item-actions.test.ts).
+    expect(buff('heroism').timed).toEqual({ defaultStartSec: 0, durationSec: 40 });
+    const auraDurations: [string, number][] = [
+      ['heroism', 40],
+      ['destruction-potion', 15],
+      ['icon-of-the-silver-crescent', 20],
     ];
-    for (const [id, start, dur] of timed) {
-      expect(buff(id).timed, id).toEqual({ defaultStartSec: start, durationSec: dur });
+    for (const [id, dur] of auraDurations) {
       expect(selfAuraOf(id).durationMs, id).toBe(dur * 1000);
       expect(selfAuraOf(id).id, id).toBe(id);
+    }
+    for (const id of ['destruction-potion', 'icon-of-the-silver-crescent']) {
+      expect(buff(id).timed, id).toBeUndefined();
+      expect(buff(id).effect.action?.applyAura, id).toEqual({ auraId: id, on: 'self' });
     }
     expect(selfAuraOf('heroism').selfStatMultipliers).toEqual({ haste: 1.3 });
     expect(selfAuraOf('destruction-potion').selfStatBonuses).toEqual({ spellPower: 120 });
@@ -168,6 +191,10 @@ describe('timed cooldowns and item effects: catalog', () => {
     const specAuras = new Set<AuraDef>(destructionWarlock.auras);
     for (const b of NEW) {
       expect(Object.isFrozen(b) && Object.isFrozen(b.effect), b.id).toBe(true);
+      if (b.effect.action) {
+        expect(Object.isFrozen(b.effect.action), b.id).toBe(true);
+        expect(destructionWarlock.spells.some((x) => x.id === b.effect.action!.id), b.id).toBe(false);
+      }
       for (const a of [b.effect.selfAura, ...(b.effect.auras ?? [])]) {
         if (!a) continue;
         expect(Object.isFrozen(a), a.id).toBe(true);
@@ -220,10 +247,12 @@ describe('timed cooldowns in the engine', () => {
     ]);
   });
 
-  it('Destruction Potion lasts 15000 ms from its start', () => {
+  it('Destruction Potion lasts 15000 ms from its use', () => {
     for (const startSec of [0, 7.5, 30]) {
-      const sim = newSim(specWith(['destruction-potion']), [scheduled('destruction-potion', startSec)]);
+      const sim = newSim(specWith(['destruction-potion']));
+      if (startSec === 0) useAt(sim, 0, 'destruction-potion'); // starts the fight (R13)
       castAt(sim, 0, 'shadow-bolt');
+      if (startSec > 0) useAt(sim, startSec * 1000, 'destruction-potion');
       sim.advanceTo(60000);
       expect(auraLog(sim, 'destruction-potion'), `start ${startSec}`).toEqual([
         { atMs: startSec * 1000, type: 'aura-apply' },
@@ -255,7 +284,8 @@ describe('timed cooldowns in the engine', () => {
       for (const on of [true, false]) {
         const sim = newSim(
           specWith(on ? ['destruction-potion'] : []),
-          on ? [scheduled('destruction-potion', 0, 600)] : [],
+          // The aura itself held for the whole fight (the engine's scheduled path): its crit only.
+          on ? [{ auraId: 'destruction-potion', on: 'self', atMs: 0, durationMs: 600000 }] : [],
           { seed, durationMs: 100000 },
         );
         let t = 0;
@@ -280,13 +310,18 @@ describe('timed cooldowns in the engine', () => {
     const power = computeStats(destructionWarlock.setup, destructionWarlock.statBonuses).power.shadow;
 
     // Icon used at 5 s for its 20 s: bolts landing at 2431 (before), 12431 (during), 32431 (after).
-    const run = (spec: SpecData, scheduledAuras: ScheduledAura[] = []) => {
-      const sim = newSim(spec, scheduledAuras, { seed: 3 });
-      for (const t of [0, 10000, 30000]) castAt(sim, t, 'shadow-bolt');
+    const run = (spec: SpecData, useIconAtMs?: number) => {
+      const sim = newSim(spec, [], { seed: 3 });
+      for (const t of [0, 10000, 30000]) {
+        if (useIconAtMs !== undefined && useIconAtMs < t && sim.snapshot().nowMs <= useIconAtMs) {
+          useAt(sim, useIconAtMs, 'icon-of-the-silver-crescent');
+        }
+        castAt(sim, t, 'shadow-bolt');
+      }
       sim.advanceTo(40000);
       return { sim, dmg: damages(sim, 'shadow-bolt') };
     };
-    const withIcon = run(specWith(['icon-of-the-silver-crescent']), [scheduled('icon-of-the-silver-crescent', 5)]);
+    const withIcon = run(specWith(['icon-of-the-silver-crescent']), 5000);
     const base = run(destructionWarlock);
     const permanent = run({
       ...destructionWarlock,
@@ -310,8 +345,12 @@ describe('timed cooldowns in the engine', () => {
   });
 
   it('a timed buff scheduled after the fight end never applies', () => {
+    // Heroism is the only timed buff; the potion's and the Icon's auras still go through the same
+    // engine path when scheduled directly (the item-actions feature presses them instead).
+    const late = (id: string, startSec: number): ScheduledAura =>
+      buff(id).timed ? scheduled(id, startSec) : { auraId: selfAuraOf(id).id, on: 'self', atMs: startSec * 1000 };
     for (const id of ['heroism', 'destruction-potion', 'icon-of-the-silver-crescent']) {
-      const sim = newSim(specWith([id]), [scheduled(id, 60.001), scheduled(id, 600)]);
+      const sim = newSim(specWith([id]), [late(id, 60.001), late(id, 600)]);
       castAt(sim, 0, 'shadow-bolt');
       expect(castAt(sim, 50000, 'shadow-bolt'), id).toBe(2431);
       sim.advanceTo(60000);
@@ -325,13 +364,11 @@ describe('timed cooldowns in the engine', () => {
     expect(auraLog(sim, 'heroism')).toEqual([{ atMs: 50000, type: 'aura-apply' }]);
   });
 
-  it('timed buffs with a custom start/duration from the config are honoured', () => {
-    const sim = newSim(specWith(['heroism', 'icon-of-the-silver-crescent']), [
-      scheduled('heroism', 0, 10),
-      scheduled('icon-of-the-silver-crescent', 30, 5),
-    ]);
+  it('timed buffs with a custom start/duration from the config are honoured; an item aura lasts its own duration from the use', () => {
+    const sim = newSim(specWith(['heroism', 'icon-of-the-silver-crescent']), [scheduled('heroism', 0, 10)]);
     expect(castAt(sim, 0, 'shadow-bolt')).toBe(1870);
     expect(castAt(sim, 12000, 'shadow-bolt')).toBe(2431);
+    useAt(sim, 30000, 'icon-of-the-silver-crescent');
     sim.advanceTo(60000);
     expect(auraLog(sim, 'heroism')).toEqual([
       { atMs: 0, type: 'aura-apply' },
@@ -339,7 +376,7 @@ describe('timed cooldowns in the engine', () => {
     ]);
     expect(auraLog(sim, 'icon-of-the-silver-crescent')).toEqual([
       { atMs: 30000, type: 'aura-apply' },
-      { atMs: 35000, type: 'aura-fade' },
+      { atMs: 50000, type: 'aura-fade' },
     ]);
   });
 });
