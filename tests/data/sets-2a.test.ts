@@ -19,11 +19,17 @@ import {
   warlockSetAuras,
   warlockSets,
 } from '../../src/data/classes/warlock/sets';
-import { BOSS_TARGET } from '../../src/data/common/target';
+import { GEAR_PRESETS } from '../../src/data/classes/warlock/gearPresets';
+import { buildPriority, dotExtraTicksForSpec, ROTATION_PRESETS } from '../../src/data/classes/warlock/rotation';
+import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
+import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
 import { itemDbSync } from '../../src/data/items/dbSync';
 import { activeSetBonuses } from '../../src/engine/sets';
 import { Simulation } from '../../src/engine/sim';
-import type { EquippedItem, HitOutcome, SetBonusDef } from '../../src/engine/types';
+import type { EquippedItem, HitOutcome, LogEvent, SetBonusDef } from '../../src/engine/types';
+import type { SpecData } from '../../src/data/types';
+import { applySetup } from '../../src/setup/applySetup';
+import { DEFAULT_SETUP, SETUP_CATALOG } from '../../src/setup/defaults';
 import { normalizeGear } from '../../src/setup/gear';
 
 const db = itemDbSync();
@@ -113,7 +119,7 @@ describe('set bonus data', () => {
     expect(destructionWarlock.auras).toBe(warlockAuras);
     // The T4 gear: the Voidheart, Spellstrike and Shadow's Embrace pieces; the auras of the worn sets' procs.
     const t4 = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS, normalizeGear(wowsimsSets.t4!.items, db), db);
-    expect(t4.sets.map((b) => b.name)).toEqual(['Voidheart Raiment (2)', 'Spellstrike Infusion (2)']);
+    expect(t4.sets.map((b) => b.name)).toEqual(['Voidheart Raiment (2)', 'Voidheart Raiment (4)', 'Spellstrike Infusion (2)']);
     expect(t4.auras.map((a) => a.id)).toEqual([
       ...warlockAuras.map((a) => a.id),
       VOIDHEART_SHADOW_AURA_ID,
@@ -188,7 +194,8 @@ describe('modelled set bonuses: values and thresholds', () => {
   it('the T4 gear procs Flameshadow in a bot fight, and without the 2pc it never does', () => {
     const gear = normalizeGear(wowsimsSets.t4!.items, db);
     const spec = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS, gear, db);
-    expect(activeSetBonuses(spec.sets, spec.setup.setPieces).map((b) => b.name)).toEqual(['Voidheart Raiment (2)']);
+    // Task 6: the 4pc (DoT extra tick) is modelled too.
+    expect(activeSetBonuses(spec.sets, spec.setup.setPieces).map((b) => b.name)).toEqual(['Voidheart Raiment (2)', 'Voidheart Raiment (4)']);
     const procs = (s: typeof spec) =>
       [1, 2, 3, 4, 5].reduce((n, seed) => {
         const sim = new Simulation({ spec: s, target: BOSS_TARGET, seed });
@@ -201,10 +208,10 @@ describe('modelled set bonuses: values and thresholds', () => {
 });
 
 describe('unmodelled set bonuses', () => {
-  it('lists Voidheart 4pc, Corruptor 2pc/4pc, Wrath of Spellfire 3pc, Shadow\'s Embrace 3pc and Oblivion 2pc/4pc with a reason', () => {
+  it('lists Corruptor 2pc/4pc, Wrath of Spellfire 3pc, Shadow\'s Embrace 3pc and Oblivion 2pc/4pc with a reason (Voidheart 4pc is modelled since Task 6)', () => {
     const keys = UNMODELLED_SETS.map((u) => `${u.setId}:${u.pieces}`);
+    expect(keys).not.toContain('voidheart-raiment:4');
     for (const k of [
-      'voidheart-raiment:4',
       'corruptor-raiment:2',
       'corruptor-raiment:4',
       'wrath-of-spellfire:3',
@@ -217,5 +224,131 @@ describe('unmodelled set bonuses', () => {
     // Nothing is both modelled and unmodelled.
     const modelled = new Set(WARLOCK_SET_BONUSES.map((b) => `${b.setId}:${b.pieces}`));
     for (const k of keys) expect(modelled.has(k), k).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Voidheart Raiment 4pc (Task 6): one more tick of Corruption and Immolate
+// ---------------------------------------------------------------------------
+
+const SEEDS_5 = [1, 2, 3, 4, 5];
+const t4Preset = GEAR_PRESETS.find((p) => p.id === 't4')!;
+
+/**
+ * Bot mean DPS over seeds 1-5 (window 400, DEFAULT_SETUP plus the preset's gear through
+ * applySetup) measured at 309e263, before Task 6. Only the T4 preset wears 4 Voidheart pieces, so
+ * every other preset must keep these exactly.
+ */
+const PRE_TASK_6_MEAN_DPS: Record<string, number> = {
+  preraid: 998.8133333333335,
+  t4: 1060.9366666666665,
+  t5: 1243.2966666666666,
+  t6: 1539.8966666666668,
+  za: 1515.7633333333335,
+  swp: 1817.1333333333337,
+  'fire-preraid': 889.3033333333333,
+  'fire-t4': 939.14,
+  author: 1374.6633333333334,
+};
+
+/** A preset's fight as the UI builds it (applySetup); `pieces` overrides the Voidheart piece count. */
+function presetFight(gear: readonly unknown[], pieces?: number) {
+  const config = { ...structuredClone(DEFAULT_SETUP), gear: normalizeGear(structuredClone(gear) as never, db) };
+  const buildSpec = (w: typeof DEFAULT_WARLOCK_OPTIONS, g?: (EquippedItem | null)[]): SpecData => {
+    const s = buildDestructionWarlock(w, g, db);
+    return pieces === undefined ? s : { ...s, setup: { ...s.setup, setPieces: { ...s.setup.setPieces, 'voidheart-raiment': pieces } } };
+  };
+  const { spec, sim } = applySetup({ buildSpec, catalog: SETUP_CATALOG, config });
+  const run = (seed: number) => {
+    const s = new Simulation({
+      spec,
+      target: BOSS_TARGET,
+      seed,
+      spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
+      infiniteMana: false,
+      distanceFromTarget: sim.distanceFromTarget,
+      scheduledAuras: sim.scheduledAuras,
+      durationMs: sim.durationMs,
+    });
+    return { dps: runBot(s, spec.priority).dps, log: s.log() };
+  };
+  return { spec, run, meanDps: () => SEEDS_5.reduce((a, seed) => a + run(seed).dps, 0) / SEEDS_5.length };
+}
+
+/** Per application of `auraId` (by its spell): the ticks it dealt and how it ended. */
+function applications(log: readonly LogEvent[], auraId: string) {
+  const out: { atMs: number; ticks: number; fadeAtMs?: number }[] = [];
+  for (const e of log) {
+    if (e.auraId !== auraId) continue;
+    if (e.type === 'aura-apply') out.push({ atMs: e.atMs, ticks: 0 });
+    else if (e.type === 'tick') out.at(-1)!.ticks++;
+    else if (e.type === 'aura-fade') out.at(-1)!.fadeAtMs = e.atMs;
+  }
+  return out;
+}
+
+describe('Voidheart Raiment 4pc (Task 6)', () => {
+  it('is modelled: one more tick of Corruption and Immolate (wowsims SpellMod_DotNumberOfTicks_Flat +1, Wowhead spell 37380); 4 pieces give the modifier, 3 do not', () => {
+    const v4 = bonus('voidheart-raiment', 4);
+    expect(v4.modifiers).toEqual([{ spellIds: ['corruption', 'immolate'], dotExtraTicks: 1 }]);
+    expect(v4.description).toBe('Increases the duration of your Corruption and Immolate abilities by 3 sec.');
+    // The 3 s per tick of both DoTs (auras.ts; Wowhead "every 3 seconds").
+    for (const id of ['corruption', 'immolate']) expect(warlockAuras.find((a) => a.id === id)?.tick?.intervalMs).toBe(3000);
+    const t4 = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS, normalizeGear(t4Preset.gear as never, db), db);
+    expect(t4.setup.setPieces['voidheart-raiment']).toBe(4);
+    expect(t4.sets.map((b) => b.name)).toEqual(['Voidheart Raiment (2)', 'Voidheart Raiment (4)', 'Spellstrike Infusion (2)']);
+    expect(activeSetBonuses(t4.sets, t4.setup.setPieces)).toContain(v4);
+    expect(activeSetBonuses(t4.sets, { 'voidheart-raiment': 3 })).not.toContain(v4);
+    expect(dotExtraTicksForSpec(t4)).toEqual({ corruption: 1, immolate: 1 });
+    expect(dotExtraTicksForSpec({ ...t4, setup: { ...t4.setup, setPieces: { 'voidheart-raiment': 3 } } })).toEqual({});
+    // The spec's own priority (buildDestructionWarlock) already uses the extended durations.
+    const base = new Simulation({ spec: t4, target: BOSS_TARGET, seed: 1 }).snapshot();
+    const snaps = [20000, 22999, 23000, 16500, 19499, 19500].map((remainingMs) => ({
+      ...base,
+      phase: 'running' as const,
+      nowMs: base.durationMs - remainingMs,
+    }));
+    const answers = (p: typeof t4.priority) => p.map((s) => snaps.map((x) => (s.when ? s.when(x) : true)));
+    expect(answers(t4.priority)).toEqual(
+      answers(buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD, { corruption: 1, immolate: 1 })),
+    );
+    expect(answers(t4.priority)).not.toEqual(answers(destructionWarlock.priority));
+    // applySetup (the UI's path) passes the extension to buildPriority too; with 3 pieces it does not.
+    const dots = (p: typeof t4.priority) => p.filter((x) => x.spellId === 'corruption' || x.spellId === 'immolate');
+    expect(answers(dots(presetFight(t4Preset.gear).spec.priority))).toEqual(answers(dots(t4.priority)));
+    expect(answers(dots(presetFight(t4Preset.gear, 3).spec.priority))).toEqual(answers(dots(destructionWarlock.priority)));
+  });
+
+  it('T4 preset bot fight: Corruption ticks 7 times and Immolate 6 per full cast (21 s / 18 s), instead of 6 and 5 with 3 pieces; more damage', () => {
+    const four = presetFight(t4Preset.gear);
+    const three = presetFight(t4Preset.gear, 3);
+    for (const [fight, corruption, immolate] of [
+      [four, { ticks: 7, ms: 21000 }, { ticks: 6, ms: 18000 }],
+      [three, { ticks: 6, ms: 18000 }, { ticks: 5, ms: 15000 }],
+    ] as const) {
+      const logs = SEEDS_5.map((seed) => fight.run(seed).log);
+      for (const [auraId, want] of [
+        ['corruption', corruption],
+        ['immolate', immolate],
+      ] as const) {
+        const apps = logs.flatMap((log) => applications(log, auraId));
+        const full = apps.filter((a) => a.fadeAtMs !== undefined);
+        expect(full.length, auraId).toBeGreaterThan(0);
+        for (const a of full) expect([a.ticks, a.fadeAtMs! - a.atMs], `${auraId} at ${a.atMs}`).toEqual([want.ticks, want.ms]);
+        expect(Math.max(...apps.map((a) => a.ticks)), auraId).toBe(want.ticks);
+      }
+    }
+    // With 3 pieces the fight is the one before Task 6, exactly; the 4pc deals more.
+    expect(three.meanDps()).toBe(PRE_TASK_6_MEAN_DPS.t4);
+    expect(four.meanDps()).toBeGreaterThan(three.meanDps());
+  });
+
+  it('every other preset (none wears 4 Voidheart pieces) keeps its bot DPS exactly', () => {
+    for (const p of GEAR_PRESETS) {
+      if (p.id === 't4') continue;
+      const fight = presetFight(p.gear);
+      expect(dotExtraTicksForSpec(fight.spec), p.id).toEqual({});
+      expect(fight.meanDps(), p.id).toBe(PRE_TASK_6_MEAN_DPS[p.id]);
+    }
   });
 });

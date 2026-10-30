@@ -4,7 +4,7 @@ import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../common/target';
 import type { SpecData } from '../../types';
 import { warlockAuras } from './auras';
 import { enchants, gems, items, metaGemModifiers } from './items';
-import { ROTATION_PRESETS, buildPriority } from './rotation';
+import { ROTATION_PRESETS, buildPriority, dotExtraTicksForSpec } from './rotation';
 import { setBonusesFor } from './sets';
 import { warlockSpells } from './spells';
 import { demonicSacrificeModifiers, talentModifiers, talentRank as r } from './talents';
@@ -194,6 +194,8 @@ const destructionHooks: SpecData['hooks'] = {
  * - `sets` are the modelled bonuses of the sets the gear wears (`setBonusesFor`: `warlockSets`
  *   for the author's gear) and `auras` the spell auras (`warlockAuras`, shared) plus the self
  *   auras of those bonuses' procs (a new array only when there are some).
+ * - `priority`: the DoT preset at the default distance; when the gear extends a DoT
+ *   (`dotExtraTicksForSpec`, Voidheart 4pc) a fresh build whose refresh rules count it.
  */
 export function buildDestructionWarlock(
   options: WarlockOptions,
@@ -209,6 +211,13 @@ export function buildDestructionWarlock(
   // The bonuses of the worn sets (the author's gear: `warlockSets`) and the auras their hooks apply.
   const sets = setBonusesFor(setup.setPieces);
   const setAuras = sets.flatMap((b) => b.auras ?? []);
+  // A gear that extends the DoTs (Voidheart 4pc) needs refresh rules counting the longer DoTs;
+  // every other build shares the default steps.
+  const dotExtraTicks = dotExtraTicksForSpec({ modifiers, setup, sets });
+  const priority =
+    Object.keys(dotExtraTicks).length > 0
+      ? buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD, dotExtraTicks)
+      : [...defaultPriority];
   return {
     id: 'destruction-warlock',
     name: 'Destruction Warlock',
@@ -219,7 +228,7 @@ export function buildDestructionWarlock(
     sets,
     // buildSetup does not carry statMultipliers: Expansive Mind etc. then scale the gear's stats too.
     setup: { ...setup, statMultipliers: destructionStatMultipliers },
-    priority: [...defaultPriority],
+    priority,
     // Action bar slots 1-9, 0, -, =.
     keybinds: [
       'shadow-bolt',

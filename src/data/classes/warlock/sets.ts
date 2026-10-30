@@ -182,6 +182,22 @@ export const WARLOCK_SET_BONUSES: readonly GearSetBonus[] = [
     auras: [setAura(VOIDHEART_SHADOW_AURA_ID), setAura(VOIDHEART_FIRE_AURA_ID)],
   },
   {
+    // T4 4pc (items.go ItemSetVoidheartRaiment bonus 4, "Improved Corruption and Immolate" 37380):
+    // SpellModConfig{Kind: SpellMod_DotNumberOfTicks_Flat, IntValue: 1, ClassMask:
+    // WarlockSpellCorruption | WarlockSpellImmolateDot}: one more tick of each DoT. Both tick every
+    // 3 s (auras.ts; Wowhead TBC spell=27216 "150 Shadow damage every 3 seconds", spell=27215 "123
+    // Fire damage every 3 seconds"), so +3 s = +1 tick: Corruption 18 -> 21 s (7 ticks), Immolate
+    // 15 -> 18 s (6 ticks). wowsims snapshots a fixed base per tick (corruption.go / immolate.go
+    // `dot.Snapshot(target, TickBaseDamage)`) with a per-tick coefficient, so the extra tick is a
+    // full tick (+1/6 Corruption, +1/5 Immolate DoT damage per full cast), as the engine's
+    // `dotExtraTicks` does. Tooltip: Wowhead TBC spell=37380.
+    setId: 'voidheart-raiment',
+    name: 'Voidheart Raiment (4)',
+    pieces: 4,
+    description: 'Increases the duration of your Corruption and Immolate abilities by 3 sec.',
+    modifiers: [{ spellIds: ['corruption', 'immolate'], dotExtraTicks: 1 }],
+  },
+  {
     // Dungeon set 3 (items_sets.go ItemSetManaEtchedRegalia ID 658, bonus 2, spell 37607):
     // AttachStatBuff(SpellHitRating, 35).
     setId: 'mana-etched-regalia',
@@ -278,15 +294,6 @@ const ITEMS_SETS_GO = 'wowsims/tbc-new sim/common/tbc/items_sets.go';
  * `warlockSets` is listed as "not reviewed".
  */
 export const UNMODELLED_SETS: readonly UnmodelledSetBonus[] = [
-  {
-    setId: 'voidheart-raiment',
-    name: 'Voidheart Raiment (4)',
-    pieces: 4,
-    description: 'Increases the duration of your Corruption and Immolate abilities by 3 sec.',
-    reason:
-      'One more tick of Corruption and Immolate (wowsims SpellMod_DotNumberOfTicks_Flat +1). The engine has no DoT duration modifier, and the rotation reads the DoT durations from the aura data: Corruption and Immolate keep 18 s and 15 s, so this gear deals somewhat less DoT damage than in the game.',
-    source: `${ITEMS_GO} ItemSetVoidheartRaiment bonus 4 (37380); https://www.wowhead.com/tbc/item-set=645`,
-  },
   {
     setId: 'corruptor-raiment',
     name: 'Corruptor Raiment (2)',

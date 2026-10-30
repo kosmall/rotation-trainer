@@ -4,12 +4,13 @@ import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import {
   ROTATION_PRESETS,
   buildPriority,
+  dotExtraTicksForSpec,
   type CurseChoice,
   type RotationConfig,
 } from '../../src/data/classes/warlock/rotation';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
 import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
-import type { PriorityStep } from '../../src/data/types';
+import type { PriorityStep, SpecData } from '../../src/data/types';
 import { Simulation } from '../../src/engine/sim';
 import { projectileTravelMs } from '../../src/engine/travel';
 import type { LogEvent, SimSnapshot } from '../../src/engine/types';
@@ -334,5 +335,55 @@ describe('rotation presets and buildPriority', () => {
     expect(windowMs(far)).toBe(2500 + travel);
     // Odd distances give no travel rather than a broken window.
     for (const bad of [-5, Number.NaN]) expect(windowMs(buildPriority(DOT, bad))).toBe(2500);
+  });
+
+  it('dotExtraTicks (Voidheart 4pc): the refresh rule needs cast time + the extended DoT; without it (or empty) the list is the Task 2 one', () => {
+    // No map, an empty map and zeros: the same labels, hints and answers as the Task 2 list.
+    const snaps = sampleSnapshots();
+    const plain = buildPriority(DOT, DEFAULT_DISTANCE_FROM_TARGET_YD);
+    for (const extra of [{}, { corruption: 0, immolate: 0 }]) {
+      const p = buildPriority(DOT, DEFAULT_DISTANCE_FROM_TARGET_YD, extra);
+      expect(view(p)).toEqual(TASK_2_PRIORITY);
+      expect(behaviour(p, snaps)).toEqual(behaviour(plain, snaps));
+    }
+    const ext = buildPriority(DOT, DEFAULT_DISTANCE_FROM_TARGET_YD, { corruption: 1, immolate: 1 });
+    /** The shortest remaining fight time (ms) at which the step's rule is true (no DoT on the target). */
+    const threshold = (p: PriorityStep[], spellId: string) => {
+      const when = rule(p, spellId);
+      let ms = 0;
+      while (!when(snap({ remainingMs: ms }))) ms += 1;
+      return ms;
+    };
+    // Corruption: cast 2000 + 18000 (6 x 3 s) -> 2000 + 21000 (7 x 3 s, auras.ts interval 3000).
+    expect(threshold(plain, 'corruption')).toBe(20000);
+    expect(threshold(ext, 'corruption')).toBe(23000);
+    // Immolate: cast 1500 (Bane) + 15000 (5 x 3 s) -> 1500 + 18000 (6 x 3 s).
+    expect(threshold(plain, 'immolate')).toBe(16500);
+    expect(threshold(ext, 'immolate')).toBe(19500);
+    // Only the named spell: Immolate's extension leaves Corruption's rule alone.
+    expect(threshold(buildPriority(DOT, DEFAULT_DISTANCE_FROM_TARGET_YD, { immolate: 1 }), 'corruption')).toBe(20000);
+    // The refresh-due part (remaining DoT <= cast time) is unchanged; the hint names the longer DoT.
+    expect(rule(ext, 'corruption')(snap({ remainingMs: 40000 }))).toBe(true);
+    expect(rule(ext, 'corruption')(snap({ remainingMs: 40000, targetAuras: ['corruption'] }))).toBe(false);
+    expect(ext.find((s) => s.spellId === 'corruption')?.hint).toBe(
+      'Keep Corruption ticking while a full 21 s DoT still fits in the fight.',
+    );
+    expect(view(ext).filter(([id]) => id !== 'corruption')).toEqual(TASK_2_PRIORITY.filter(([id]) => id !== 'corruption'));
+  });
+
+  it('dotExtraTicksForSpec: the per-spell extra ticks of the spec, its gear modifiers and its active set bonuses; empty for the stage 1 spec', () => {
+    expect(dotExtraTicksForSpec(destructionWarlock)).toEqual({});
+    const withMods = (modifiers: SpecData['modifiers']) => ({ ...destructionWarlock, modifiers: [...destructionWarlock.modifiers, ...modifiers] });
+    expect(dotExtraTicksForSpec(withMods([{ spellIds: ['corruption', 'immolate'], dotExtraTicks: 1 }]))).toEqual({
+      corruption: 1,
+      immolate: 1,
+    });
+    expect(dotExtraTicksForSpec(withMods([{ schools: ['fire'], dotExtraTicks: 2 }]))).toEqual({ immolate: 2 });
+    expect(dotExtraTicksForSpec(withMods([{ spellIds: ['shadow-bolt'], dotExtraTicks: 1 }]))).toEqual({});
+    // A set bonus counts only when active.
+    const set = { setId: 'x', name: 'X (4)', pieces: 4, description: '', modifiers: [{ spellIds: ['corruption'], dotExtraTicks: 1 }] };
+    const worn = (n: number) => ({ ...destructionWarlock, sets: [set], setup: { ...destructionWarlock.setup, setPieces: { x: n } } });
+    expect(dotExtraTicksForSpec(worn(4))).toEqual({ corruption: 1 });
+    expect(dotExtraTicksForSpec(worn(3))).toEqual({});
   });
 });

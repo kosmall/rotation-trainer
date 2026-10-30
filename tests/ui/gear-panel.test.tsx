@@ -505,7 +505,7 @@ describe('Gear panel', () => {
     expect(gearPanel().querySelectorAll('[data-slot]')).toHaveLength(17);
   });
 
-  it('set bonuses list unmodelled bonuses with their real piece counts (Voidheart 4/4)', async () => {
+  it('set bonuses list every bonus with its real piece counts (Voidheart 4/4, its 4-piece modelled and active since Task 6) and unmodelled ones', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
     fireEvent.click(presetButton('T4'));
@@ -514,7 +514,10 @@ describe('Gear panel', () => {
     const four = within(sets)
       .getAllByRole('listitem')
       .find((li) => li.textContent?.includes('4-piece') && li.closest('.set')?.textContent?.includes('Voidheart'));
-    expect(four?.textContent).toContain('Not modelled');
+    // Task 6: Voidheart 4pc (one more DoT tick) is modelled: active, no longer 'Not modelled'.
+    expect(four?.textContent).toContain('Active');
+    expect(four?.textContent).not.toContain('Not modelled');
+    expect(four?.getAttribute('data-active')).toBe('true');
     // T5: Corruptor has no modelled bonus but is worn: listed too.
     fireEvent.click(presetButton('T5'));
     expect(within(screen.getByRole('region', { name: 'Set bonuses' })).getByText('Corruptor Raiment 2/4')).toBeTruthy();

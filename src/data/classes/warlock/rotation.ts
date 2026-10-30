@@ -1,6 +1,7 @@
+import { activeSetBonuses } from '../../../engine/sets';
 import { projectileTravelMs } from '../../../engine/travel';
-import type { SimSnapshot } from '../../../engine/types';
-import type { PriorityStep } from '../../types';
+import type { SimSnapshot, SpellModifier } from '../../../engine/types';
+import type { PriorityStep, SpecData } from '../../types';
 import { warlockAuras } from './auras';
 import { warlockSpells } from './spells';
 import { talentModifiers, talentRank } from './talents';
@@ -84,10 +85,61 @@ function talentCastTimeMs(id: string): number {
   return ms;
 }
 
-function auraDurationMs(id: string): number {
+function auraDef(id: string) {
   const a = warlockAuras.find((x) => x.id === id);
   if (!a) throw new Error(`unknown warlock aura ${id}`);
-  return a.durationMs;
+  return a;
+}
+
+function auraDurationMs(id: string): number {
+  return auraDef(id).durationMs;
+}
+
+/**
+ * Extra DoT ticks per spell id (`SpellModifier.dotExtraTicks`, e.g. Voidheart Raiment 4pc:
+ * `{ corruption: 1, immolate: 1 }`). A spell absent (or 0) keeps its DoT's base duration.
+ */
+export type DotExtraTicks = Readonly<Partial<Record<string, number>>>;
+
+/** The warlock spells that apply a ticking target aura (Immolate, Corruption, the curses with ticks). */
+const DOT_SPELLS = warlockSpells.filter((s) => s.applyAura?.on === 'target' && auraDef(s.applyAura.auraId).tick);
+
+/**
+ * The extra DoT ticks the engine will give each DoT spell of `spec` at application, from the
+ * spec's modifiers, its gear's (`setup.modifiers`, meta gems) and its active set bonuses' (the
+ * same list the Simulation folds before any self aura), with the engine's rule: matching
+ * modifiers summed, kept when positive and finite, floored. Self auras carrying the modifier
+ * (none in the data) are not seen: the priority is built before the fight. Only non-zero entries;
+ * `{}` for every spec without such a modifier.
+ */
+export function dotExtraTicksForSpec(spec: Pick<SpecData, 'modifiers' | 'setup' | 'sets'>): Record<string, number> {
+  const modifiers: SpellModifier[] = [
+    ...spec.modifiers,
+    ...spec.setup.modifiers,
+    ...activeSetBonuses(spec.sets, spec.setup.setPieces).flatMap((b) => b.modifiers ?? []),
+  ];
+  const out: Record<string, number> = {};
+  for (const spell of DOT_SPELLS) {
+    let sum = 0;
+    for (const m of modifiers) {
+      if ((m.spellIds === undefined || m.spellIds.includes(spell.id)) && (m.schools === undefined || m.schools.includes(spell.school))) {
+        sum += m.dotExtraTicks ?? 0;
+      }
+    }
+    const ticks = Number.isFinite(sum) && sum > 0 ? Math.floor(sum) : 0;
+    if (ticks > 0) out[spell.id] = ticks;
+  }
+  return out;
+}
+
+/**
+ * The DoT's duration with `extraTicks` more ticks, by the engine's rule (+ extra x tick interval;
+ * a non-positive or non-finite count adds nothing, a fraction is floored).
+ */
+function dotDurationMs(auraId: string, extraTicks: number): number {
+  const a = auraDef(auraId);
+  const n = Number.isFinite(extraTicks) && extraTicks > 0 ? Math.floor(extraTicks) : 0;
+  return n > 0 && a.tick ? a.durationMs + n * a.tick.intervalMs : a.durationMs;
 }
 
 const SHADOW_BOLT_CAST_MS = talentCastTimeMs('shadow-bolt'); // 2500
@@ -100,7 +152,7 @@ const targetAuraMs = (s: SimSnapshot, id: string) => s.targetAuras[id]?.remainin
 /**
  * tbc-new ui/specs/warlock/dps/apls/destruction.apl.json "Should Cast Immolate": refresh when
  * the DoT's remaining time <= the spell's cast time and the fight lasts at least cast time +
- * DoT duration longer. Reused for Corruption (UNVERIFIED: the tbc-new APL does not cast it).
+ * DoT duration longer (`durationMs`: with Voidheart 4pc the extended one). Reused for Corruption (UNVERIFIED: the tbc-new APL does not cast it).
  * Not while that spell is already being cast, nor while it is in flight (Part A: a missile
  * spell applies its DoT at impact): the snapshot does not show the DoT until the spell lands,
  * and a press then (or during the cast, with the spell queue window) would start a second,
@@ -109,9 +161,8 @@ const targetAuraMs = (s: SimSnapshot, id: string) => s.targetAuras[id]?.remainin
  * guard only matters for a DoT that flies (tested with a hypothetical missile Immolate).
  * Independent of the distance: the in-flight list already reflects it.
  */
-function dotRefreshDue(spellId: string, auraId: string) {
+function dotRefreshDue(spellId: string, auraId: string, durationMs: number) {
   const castMs = talentCastTimeMs(spellId);
-  const durationMs = auraDurationMs(auraId);
   return (s: SimSnapshot) =>
     s.cast?.spellId !== spellId &&
     !s.inFlight.some((f) => f.spellId === spellId) &&
@@ -168,8 +219,11 @@ const CURSE_STEPS: Record<Exclude<CurseChoice, 'none'>, { spellId: string; auraI
  * finisher, Immolate, Shadow Bolt, Life Tap when nothing else can be cast) plus Corruption from
  * old wowsims/tbc sim/warlock/rotations.go (`Rotation.Corruption && !CorruptionDot.IsActive()`,
  * before the main spell). Conflagrate is not listed: the author's build has no Conflagrate talent.
+ * `dotExtraTicks` (per spell id, `dotExtraTicksForSpec` of the fight's spec): the Immolate and
+ * Corruption refresh rules count the DoT's extended duration (the fight must outlast cast time +
+ * DoT); absent or empty, the list is the one without it, rule for rule.
  */
-export function buildPriority(config: RotationConfig, distanceYd: number): PriorityStep[] {
+export function buildPriority(config: RotationConfig, distanceYd: number, dotExtraTicks: DotExtraTicks = {}): PriorityStep[] {
   const { lifeTapBelowMana } = config;
   if (typeof lifeTapBelowMana === 'number' && !(lifeTapBelowMana >= 0)) {
     throw new RangeError(`lifeTapBelowMana must be 'auto' or a number >= 0, got ${lifeTapBelowMana}`);
@@ -203,17 +257,18 @@ export function buildPriority(config: RotationConfig, distanceYd: number): Prior
       spellId: 'immolate',
       label: 'Immolate',
       hint: 'Refresh Immolate when it has less than its cast time left and the fight outlasts the new DoT.',
-      when: dotRefreshDue('immolate', 'immolate'),
+      when: dotRefreshDue('immolate', 'immolate', dotDurationMs('immolate', dotExtraTicks.immolate ?? 0)),
     });
   }
 
   if (config.corruption) {
     // UNVERIFIED: wowsims/tbc rotations.go option; tbc-new's Destruction APL does not cast it.
+    const durationMs = dotDurationMs('corruption', dotExtraTicks.corruption ?? 0);
     steps.push({
       spellId: 'corruption',
       label: 'Corruption',
-      hint: 'Keep Corruption ticking while a full 18 s DoT still fits in the fight.',
-      when: dotRefreshDue('corruption', 'corruption'),
+      hint: `Keep Corruption ticking while a full ${durationMs / 1000} s DoT still fits in the fight.`,
+      when: dotRefreshDue('corruption', 'corruption', durationMs),
     });
   }
 

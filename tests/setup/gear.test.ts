@@ -443,8 +443,12 @@ describe('describeGear', () => {
     // Trinkets with on-use effects other than the Icon are listed.
     expect(d.unmodelledEffects.length).toBeGreaterThan(0);
 
+    // Voidheart 4pc is modelled since Task 6 (one more DoT tick): no longer listed for the T4 gear;
+    // T5's Corruptor bonuses still are.
     const t4 = normalizeGear(wowsimsSets.t4!.items, db);
-    expect(describeGear(t4, db).unmodelledSets.some((s) => s.startsWith('Voidheart Raiment (4)'))).toBe(true);
+    expect(describeGear(t4, db).unmodelledSets.some((s) => s.startsWith('Voidheart Raiment'))).toBe(false);
+    const t5 = normalizeGear(wowsimsSets.t5!.items, db);
+    expect(describeGear(t5, db).unmodelledSets.some((s) => s.startsWith('Corruptor Raiment (2)'))).toBe(true);
 
     // Powerful Earthstorm Diamond (25896, needs 3 blue) with the author's 2 blue: inactive.
     const earthstorm = normalizeGear(withSlot('head', { id: 31051, gems: [25896, 32218] }), db);

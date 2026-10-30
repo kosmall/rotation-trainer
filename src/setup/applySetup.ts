@@ -5,7 +5,7 @@
 
 import { neutralizeOwnAuras } from '../data/classes/warlock/buffs';
 import { buildItemSteps } from '../data/classes/warlock/itemRules';
-import { buildPriority } from '../data/classes/warlock/rotation';
+import { buildPriority, dotExtraTicksForSpec } from '../data/classes/warlock/rotation';
 import { ITEM_SLOT_COUNT, SPELL_SLOT_COUNT } from '../data/types';
 import type {
   AuraDef,
@@ -77,7 +77,10 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  * - `spec.keybinds`: always a new array of SPELL_SLOT_COUNT + ITEM_SLOT_COUNT slots (`withItemRow`;
  *   the item row is '' when no item is enabled). The shared spec keeps its 12.
  * - `spec.priority = [...buildItemSteps(enabled action ids, Heroism's end in ms or null),
- *   ...buildPriority(config.rotation, config.distanceYd)]` (no item: the rotation alone). Heroism's
+ *   ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)]` (no item: the rotation
+ *   alone), where `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included:
+ *   e.g. Voidheart 4pc gives `{ corruption: 1, immolate: 1 }`, so the DoT refresh rules count the
+ *   longer DoTs; `{}` otherwise, the list unchanged). Heroism's
  *   end is its scheduled start + duration; null when Heroism is disabled or starts at or after
  *   the fight's end (it never comes up, so the item rules treat it as not enabled);
  *   `distanceFromTarget = config.distanceYd`; `durationMs = config.fightDurationSec x 1000`.
@@ -140,6 +143,9 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
   // Heroism that never comes up in this fight (starts at or after its end: the engine ignores it)
   // counts as not enabled for the item rules, so the Icon and the potion do not wait forever.
   const heroismEndMs = heroism !== undefined && heroism.atMs < durationMs ? heroism.endMs : null;
+  // The DoT refresh rules must know a DoT the gear extends (Voidheart 4pc): the extra ticks of the
+  // spec as the Simulation will fold them (its modifiers, the buffs', the gear's, the active sets').
+  const dotExtraTicks = dotExtraTicksForSpec({ modifiers, setup: base.setup, sets: base.sets });
 
   return {
     spec: {
@@ -150,7 +156,7 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
       statBonuses,
       setup: { ...base.setup, ...(statMultipliers !== undefined && { statMultipliers }) },
       keybinds: withItemRow(base.keybinds, actionIds),
-      priority: [...buildItemSteps(actionIds, heroismEndMs), ...buildPriority(config.rotation, config.distanceYd)],
+      priority: [...buildItemSteps(actionIds, heroismEndMs), ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)],
       hooks: buffHooks.length > 0 ? composeHooks(base.hooks, ...buffHooks) : base.hooks,
     },
     sim: { scheduledAuras, distanceFromTarget: config.distanceYd, durationMs },
