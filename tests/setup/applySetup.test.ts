@@ -118,6 +118,7 @@ describe('setup catalog, DEFAULT_SETUP and SETUP_PRESETS', () => {
       rotation: ROTATION_PRESETS.dot.config,
       distanceYd: DEFAULT_DISTANCE_FROM_TARGET_YD,
       warlock: { armor: 'fel', sacrificeSuccubus: true },
+      fightDurationSec: 60,
     });
     expect(DEFAULT_SETUP.rotation).not.toBe(ROTATION_PRESETS.dot.config);
     expect(Object.isFrozen(DEFAULT_SETUP)).toBe(true);
@@ -347,7 +348,7 @@ describe('applySetup', () => {
     expect(spec.hooks).toBe(destructionWarlock.hooks);
     expect(spec.priority.map((s) => s.spellId)).toEqual(destructionWarlock.priority.map((s) => s.spellId));
     expect(spec.priority.map((s) => [s.label, s.hint])).toEqual(destructionWarlock.priority.map((s) => [s.label, s.hint]));
-    expect(sim).toEqual({ scheduledAuras: [], distanceFromTarget: 28 });
+    expect(sim).toEqual({ scheduledAuras: [], distanceFromTarget: 28, durationMs: 60000 });
 
     for (const w of [SPELL_QUEUE_WINDOW_MS, 0]) {
       const dps = SEEDS.map(
@@ -361,6 +362,7 @@ describe('applySetup', () => {
               infiniteMana: false,
               distanceFromTarget: sim.distanceFromTarget,
               scheduledAuras: sim.scheduledAuras,
+              durationMs: sim.durationMs,
             }),
             spec.priority,
           ).dps,

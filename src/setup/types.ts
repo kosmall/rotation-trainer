@@ -24,6 +24,11 @@ export interface SetupConfig {
   /** Distance to the target in yards (missile travel time and the Shadowburn finisher window). */
   distanceYd: number;
   warlock: WarlockOptions;
+  /**
+   * Fight length in whole seconds, 10-600 (`SETUP_LIMITS.fightDurationSec`), default 60. A stored
+   * config saved before the field existed gets 60 (`normalizeSetup`; no version bump).
+   */
+  fightDurationSec: number;
 }
 
 export type SetupPresetId = 'none' | 'raid-log';
@@ -38,6 +43,6 @@ export interface ApplySetupInput {
 
 export interface AppliedSetup {
   spec: SpecData;
-  /** The `SimConfig` fields the setup decides. */
-  sim: { scheduledAuras: ScheduledAura[]; distanceFromTarget: number };
+  /** The `SimConfig` fields the setup decides (`durationMs` = `fightDurationSec` x 1000). */
+  sim: { scheduledAuras: ScheduledAura[]; distanceFromTarget: number; durationMs: number };
 }

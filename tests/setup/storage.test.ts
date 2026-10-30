@@ -63,6 +63,7 @@ function customConfig(): SetupConfig {
     rotation: { curse: 'agony', immolate: false, corruption: true, shadowburnFinisher: false, lifeTapBelowMana: 1500 },
     distanceYd: 20,
     warlock: { armor: 'demon', sacrificeSuccubus: false },
+    fightDurationSec: 90,
   };
 }
 

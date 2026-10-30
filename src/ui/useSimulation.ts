@@ -29,10 +29,10 @@ function freshSeed(): number {
  */
 export interface FightSetup {
   spec: SpecData;
-  sim: { scheduledAuras: readonly ScheduledAura[]; distanceFromTarget: number };
+  sim: { scheduledAuras: readonly ScheduledAura[]; distanceFromTarget: number; durationMs: number };
 }
 
-/** The fight as the bot tests build it: boss target, default spell queue window, the setup's auras and distance. */
+/** The fight as the bot tests build it: boss target, default spell queue window, the setup's auras, distance and fight length. */
 function createSimulation(setup: FightSetup): Simulation {
   return new Simulation({
     spec: setup.spec,
@@ -41,6 +41,7 @@ function createSimulation(setup: FightSetup): Simulation {
     spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
     distanceFromTarget: setup.sim.distanceFromTarget,
     scheduledAuras: setup.sim.scheduledAuras,
+    durationMs: setup.sim.durationMs,
   });
 }
 

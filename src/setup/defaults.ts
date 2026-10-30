@@ -29,7 +29,11 @@ export const SETUP_LIMITS = Object.freeze({
   startSec: Object.freeze({ min: 0, max: 600 }),
   durationSec: Object.freeze({ min: 1, max: 600 }),
   lifeTapBelowMana: Object.freeze({ min: 0, max: 100000 }),
+  fightDurationSec: Object.freeze({ min: 10, max: 600 }),
 });
+
+/** The default fight length in seconds (the stage 1 fight; the engine's own default too). */
+export const DEFAULT_FIGHT_DURATION_SEC = 60;
 
 const CURSES: readonly CurseChoice[] = ['elements', 'agony', 'doom', 'none'];
 const ARMORS: readonly WarlockOptions['armor'][] = ['fel', 'demon', 'none'];
@@ -53,14 +57,15 @@ function defaultSetup(catalog: readonly BuffDef[]): SetupConfig {
     rotation: { ...DEFAULT_ROTATION },
     distanceYd: DEFAULT_DISTANCE_FROM_TARGET_YD,
     warlock: { ...DEFAULT_WARLOCK_OPTIONS },
+    fightDurationSec: DEFAULT_FIGHT_DURATION_SEC,
   };
 }
 
 /**
  * The default setup (design spec §5, plan Global Constraints): no buffs, the DoT rotation, 28 yd,
  * Fel Armor and the Succubus sacrificed, every timed buff (Heroism) at its catalog start and
- * duration. With it `applySetup` reproduces the stage 1 spec (plus an empty item row) and its bot
- * results exactly. Deep-frozen.
+ * duration, a 60 s fight. With it `applySetup` reproduces the stage 1 spec (plus an empty item
+ * row) and its bot results exactly. Deep-frozen.
  */
 export const DEFAULT_SETUP: SetupConfig = deepFreeze(defaultSetup(SETUP_CATALOG));
 
@@ -79,6 +84,17 @@ const own = (o: Rec, key: string): unknown => (Object.hasOwn(o, key) ? o[key] : 
 function clampNumber(v: unknown, range: { min: number; max: number }, fallback: number): number {
   if (typeof v !== 'number' || Number.isNaN(v)) return fallback;
   return Math.min(range.max, Math.max(range.min, v));
+}
+
+/**
+ * The fight length: a finite number clamped to [10, 600] and rounded to whole seconds; anything
+ * else (a string, NaN, ±Infinity, missing) gives 60. Unlike `clampNumber`, ±Infinity is not
+ * clamped: it is no length the player chose.
+ */
+function normalizeFightDuration(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return DEFAULT_FIGHT_DURATION_SEC;
+  const { min, max } = SETUP_LIMITS.fightDurationSec;
+  return Math.round(Math.min(max, Math.max(min, v)));
 }
 
 /** Two buffs that cannot be enabled together: same exclusive group, or groups `EXCLUDES` pairs. */
@@ -169,6 +185,8 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  *   [1, 600], a missing or non-number value takes the catalog default. Entries of other ids are
  *   dropped, e.g. a stage 1.5 config's Destruction Potion and Icon starts (item actions now).
  * - `distanceYd`: clamped to [0, 100]; NaN or not a number gives 28.
+ * - `fightDurationSec`: clamped to [10, 600] and rounded to whole seconds; missing (a config
+ *   saved before the field existed), not a number, NaN or ±Infinity gives 60.
  * - `rotation` and `warlock`: each field checked against its type or union, else its default
  *   (curse 'elements', Life Tap 'auto' unless a finite number >= 0, Fel Armor, Succubus
  *   sacrificed).
@@ -183,6 +201,7 @@ export function normalizeSetup(input: unknown, catalog: readonly BuffDef[]): Set
       rotation: normalizeRotation(own(input, 'rotation')),
       distanceYd: clampNumber(own(input, 'distanceYd'), SETUP_LIMITS.distanceYd, DEFAULT_DISTANCE_FROM_TARGET_YD),
       warlock: normalizeWarlock(own(input, 'warlock')),
+      fightDurationSec: normalizeFightDuration(own(input, 'fightDurationSec')),
     };
   } catch {
     // A hostile getter or proxy: nothing of it is trusted.

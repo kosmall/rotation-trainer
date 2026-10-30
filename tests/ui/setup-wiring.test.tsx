@@ -361,3 +361,102 @@ describe('Target debuffs: own aura under the raid one', () => {
     expect(chipNames()).toEqual(['Shadow Vulnerability']);
   });
 });
+
+describe('Fight length (item actions and fight settings, Task 3)', () => {
+  /** A stored setup (the Fight section of the panel comes in Task 4) as GameView loads it at mount. */
+  const storedSetup = (p: Partial<SetupConfig>) =>
+    memoryStorage({ [SETUP_STORAGE_KEY]: JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...p }) }).storage;
+  const elapsed = () => screen.getByLabelText('Elapsed').textContent;
+  const digits = (label: string, root: HTMLElement = document.body) =>
+    Number(within(root).getByLabelText(label).textContent?.replace(/[^0-9.]/g, ''));
+
+  it('a 30 s fight: the label reads "/ 30s", the fight ends at 30 s and the summary DPS uses 30 s', () => {
+    render(<GameView storage={storedSetup({ fightDurationSec: 30 })} />);
+    expect(elapsed()).toBe('0.0 / 30s');
+    press('1');
+    advance(10_000);
+    expect(elapsed()).toBe('10.0 / 30s');
+    advance(19_000);
+    expect(screen.queryByRole('region', { name: 'Fight summary' })).toBeNull();
+    advance(2_000);
+    const summary = screen.getByRole('region', { name: 'Fight summary' });
+    expect(within(summary).getByLabelText('Duration').textContent).toBe('30.0 s');
+    expect(elapsed()).toBe('30.0 / 30s');
+    const damage = digits('Total damage', summary);
+    expect(damage).toBeGreaterThan(0);
+    expect(digits('DPS', summary)).toBeCloseTo(damage / 30, 0);
+  });
+
+  it('a 30 s fight with Heroism at 10 s: a Shadow Bolt started at 12 s is hasted', () => {
+    render(
+      <GameView
+        storage={storedSetup({
+          fightDurationSec: 30,
+          enabledBuffs: ['heroism'],
+          timed: { heroism: { startSec: 10, durationSec: 40 } },
+        })}
+      />,
+    );
+    press('1'); // 0: unhasted bolt, 2431 ms
+    advance(2_500);
+    expect(castBar()).toBeNull();
+    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+    advance(9_500); // 12 s
+    expect(auraChip('Buffs', 'Heroism')).toBeDefined();
+    press('1');
+    advance(1_840);
+    expect(castBar()).not.toBeNull();
+    advance(60); // past 1870 ms, long before 2431 ms
+    expect(castBar()).toBeNull();
+  });
+
+  it('a 30 s fight with Heroism at 45 s: it never applies, and the panel warns against the chosen length', () => {
+    render(
+      <GameView
+        storage={storedSetup({
+          fightDurationSec: 30,
+          enabledBuffs: ['heroism'],
+          timed: { heroism: { startSec: 45, durationSec: 40 } },
+        })}
+      />,
+    );
+    expect(screen.getByText('Starts after the fight ends (30 s): no effect.')).toBeTruthy();
+    press('1');
+    advance(26_000);
+    press('1'); // 26 s: still unhasted
+    advance(1_900);
+    expect(castBar()).not.toBeNull();
+    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+    advance(3_000);
+    expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
+    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+  });
+
+  it('a 120 s fight: runs past 60 s, mana regen ticks and a second Life Tap work, ends at 120 s', () => {
+    render(<GameView storage={storedSetup({ fightDurationSec: 120 })} />);
+    expect(elapsed()).toBe('0.0 / 120s');
+    const mana = () => Number(screen.getByRole('progressbar', { name: 'Mana' }).getAttribute('aria-valuenow'));
+    press('1');
+    advance(61_000);
+    expect(screen.queryByRole('region', { name: 'Fight summary' })).toBeNull();
+    expect(elapsed()).toBe('61.0 / 120s');
+    press('1'); // a Shadow Bolt spends mana
+    advance(2_500);
+    const afterBolt = mana();
+    advance(10_000); // regen ticks (spirit regen back after the five-second rule)
+    expect(mana()).toBeGreaterThan(afterBolt);
+    const beforeTap = mana();
+    press('6'); // Life Tap
+    expect(mana()).toBeGreaterThan(beforeTap);
+    advance(30_000); // 103.5 s: full again
+    press('1');
+    advance(2_500); // 106 s: the bolt spent mana
+    const beforeSecondTap = mana();
+    press('6');
+    expect(mana()).toBeGreaterThan(beforeSecondTap);
+    advance(20_000);
+    const summary = screen.getByRole('region', { name: 'Fight summary' });
+    expect(within(summary).getByLabelText('Duration').textContent).toBe('120.0 s');
+    expect(elapsed()).toBe('120.0 / 120s');
+  });
+});

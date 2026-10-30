@@ -331,11 +331,11 @@ describe('item actions: bot rules (buildItemSteps)', () => {
   it('buildItemSteps is pure, follows the given order, ignores unknown ids, and has a rule for every catalog action', () => {
     const all = SETUP_CATALOG.flatMap((b) => (b.effect.action ? [b.effect.action.id] : []));
     expect(Object.keys(ITEM_RULES).sort()).toEqual([...all].sort());
-    expect(buildItemSteps(all, true).map((s) => s.spellId)).toEqual(all);
-    expect(buildItemSteps([ICON, 'no-such-item', DARK_RUNE], false).map((s) => s.spellId)).toEqual([ICON, DARK_RUNE]);
-    expect(buildItemSteps([], true)).toEqual([]);
-    const a = buildItemSteps(all, false);
-    const b = buildItemSteps(all, false);
+    expect(buildItemSteps(all, 46400).map((s) => s.spellId)).toEqual(all);
+    expect(buildItemSteps([ICON, 'no-such-item', DARK_RUNE], null).map((s) => s.spellId)).toEqual([ICON, DARK_RUNE]);
+    expect(buildItemSteps([], 46400)).toEqual([]);
+    const a = buildItemSteps(all, null);
+    const b = buildItemSteps(all, null);
     a.forEach((step, i) => expect(step).not.toBe(b[i]));
     for (const step of a) {
       expect(step.label.length, step.spellId).toBeGreaterThan(0);
@@ -343,7 +343,7 @@ describe('item actions: bot rules (buildItemSteps)', () => {
       expect(step.when, step.spellId).toBeTypeOf('function');
     }
     // The hints say when (Heroism or the pull).
-    const icon = (h: boolean) => buildItemSteps([ICON], h)[0]!;
+    const icon = (h: boolean) => buildItemSteps([ICON], h ? 46400 : null)[0]!;
     expect(icon(true).hint).toMatch(/Heroism/);
     expect(icon(false).hint).toMatch(/pull/);
   });
@@ -351,7 +351,7 @@ describe('item actions: bot rules (buildItemSteps)', () => {
   it('the rules: Icon and Destruction Potion with Heroism up (or always without Heroism), Super Mana Potion at 3000 missing mana, Dark Rune at 1500', () => {
     const s = baseSnapshot();
     const heroism = { auraId: 'heroism', stacks: 1, charges: 0, remainingMs: 30000 };
-    const when = (id: string, h: boolean, snap: SimSnapshot) => buildItemSteps([id], h)[0]!.when!(snap);
+    const when = (id: string, h: boolean, snap: SimSnapshot) => buildItemSteps([id], h ? 46400 : null)[0]!.when!(snap);
     for (const id of [ICON, DESTRUCTION]) {
       expect(when(id, true, s), id).toBe(false);
       expect(when(id, true, { ...s, selfAuras: { ...s.selfAuras, heroism } }), id).toBe(true);

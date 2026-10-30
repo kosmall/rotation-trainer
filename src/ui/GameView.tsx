@@ -165,7 +165,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
           config={config}
           presets={SETUP_PRESETS}
           onChange={changeConfig}
-          fightLengthSec={snapshot.durationMs / 1000}
+          fightLengthSec={config.fightDurationSec}
           pending={pending}
           fightEnded={snapshot.phase === 'ended'}
         />

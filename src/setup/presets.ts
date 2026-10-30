@@ -28,6 +28,8 @@ import type { SetupConfig, SetupPresetId } from './types';
  *   Wrath of Air Totem, Flask of Pure Death, Blackened Basilisk and Superior Wizard Oil (+266
  *   shadow power together, for the Life Tap; Superior rather than Brilliant oil because Brilliant's
  *   +14 crit rating would overshoot the header's 361).
+ * - Fight length: the default 60 s (`fightDurationSec`, inherited from DEFAULT_SETUP; the log's
+ *   fight was longer, its Life Taps at 63 s and 99 s): the calibrated numbers are 60 s ones.
  * - Left out on purpose: Prayer of Spirit (spirit 222.6, far over 191), Totem of Wrath (no sign of
  *   it; Shadow Bolt crit at the pull is already 37.9%), Blessing of Wisdom, Misery, Shadow Weaving,
  *   the raid's Curse of the Elements and Inspiring Presence (nothing in the log shows them).

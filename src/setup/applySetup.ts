@@ -35,7 +35,7 @@ export function composeHooks(...hooks: readonly SpecHooks[]): SpecHooks {
   };
 }
 
-/** The catalog id of Heroism / Bloodlust: the item rules wait for it when it is enabled. */
+/** The catalog id of Heroism / Bloodlust: the item rules wait for it when the fight has it. */
 const HEROISM_BUFF_ID = 'heroism';
 
 /**
@@ -76,9 +76,11 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   end is kept: the engine ignores it.
  * - `spec.keybinds`: always a new array of SPELL_SLOT_COUNT + ITEM_SLOT_COUNT slots (`withItemRow`;
  *   the item row is '' when no item is enabled). The shared spec keeps its 12.
- * - `spec.priority = [...buildItemSteps(enabled action ids, Heroism enabled),
- *   ...buildPriority(config.rotation, config.distanceYd)]` (no item: the rotation alone);
- *   `distanceFromTarget = config.distanceYd`.
+ * - `spec.priority = [...buildItemSteps(enabled action ids, Heroism's end in ms or null),
+ *   ...buildPriority(config.rotation, config.distanceYd)]` (no item: the rotation alone). Heroism's
+ *   end is its scheduled start + duration; null when Heroism is disabled or starts at or after
+ *   the fight's end (it never comes up, so the item rules treat it as not enabled);
+ *   `distanceFromTarget = config.distanceYd`; `durationMs = config.fightDurationSec x 1000`.
  * Expects a normalized config (`normalizeSetup`): buildPriority throws on an invalid Life Tap
  * threshold.
  */
@@ -94,6 +96,9 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
   const buffHooks: SpecHooks[] = [];
   const scheduledAuras: ScheduledAura[] = [];
   const actions: SpellDef[] = [];
+  const durationMs = Math.round(config.fightDurationSec * 1000);
+  /** When Heroism is scheduled (start and end, ms), if enabled. */
+  let heroism: { atMs: number; endMs: number } | undefined;
 
   for (const b of enabled) {
     const e = b.effect;
@@ -113,12 +118,10 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
         // An item's aura is applied when the item is used (its action), never scheduled.
       } else if (b.timed) {
         const t = config.timed[b.id] ?? { startSec: b.timed.defaultStartSec, durationSec: b.timed.durationSec };
-        scheduledAuras.push({
-          auraId: e.selfAura.id,
-          on: 'self',
-          atMs: Math.round(t.startSec * 1000),
-          durationMs: Math.round(t.durationSec * 1000),
-        });
+        const atMs = Math.round(t.startSec * 1000);
+        const lastsMs = Math.round(t.durationSec * 1000);
+        scheduledAuras.push({ auraId: e.selfAura.id, on: 'self', atMs, durationMs: lastsMs });
+        if (b.id === HEROISM_BUFF_ID) heroism = { atMs, endMs: atMs + lastsMs };
       } else {
         scheduledAuras.push({ auraId: e.selfAura.id, on: 'self', atMs: 0 });
       }
@@ -134,7 +137,9 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
       : undefined;
 
   const actionIds = actions.map((a) => a.id);
-  const heroismEnabled = enabled.some((b) => b.id === HEROISM_BUFF_ID);
+  // Heroism that never comes up in this fight (starts at or after its end: the engine ignores it)
+  // counts as not enabled for the item rules, so the Icon and the potion do not wait forever.
+  const heroismEndMs = heroism !== undefined && heroism.atMs < durationMs ? heroism.endMs : null;
 
   return {
     spec: {
@@ -145,9 +150,9 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
       statBonuses,
       setup: { ...base.setup, ...(statMultipliers !== undefined && { statMultipliers }) },
       keybinds: withItemRow(base.keybinds, actionIds),
-      priority: [...buildItemSteps(actionIds, heroismEnabled), ...buildPriority(config.rotation, config.distanceYd)],
+      priority: [...buildItemSteps(actionIds, heroismEndMs), ...buildPriority(config.rotation, config.distanceYd)],
       hooks: buffHooks.length > 0 ? composeHooks(base.hooks, ...buffHooks) : base.hooks,
     },
-    sim: { scheduledAuras, distanceFromTarget: config.distanceYd },
+    sim: { scheduledAuras, distanceFromTarget: config.distanceYd, durationMs },
   };
 }
