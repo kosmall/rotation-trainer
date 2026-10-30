@@ -68,6 +68,22 @@ function auraChip(listLabel: string, name: string): HTMLElement | undefined {
     .find((li) => li.querySelector('.aura-name')?.textContent === name);
 }
 
+const HEROISM = 'Heroism / Bloodlust';
+const buffsPanel = () => screen.getByRole('region', { name: 'Your buffs' });
+/** An entry of the "Your buffs" panel's active list (it replaced the small "Buffs" chip list) by its visible name. */
+function selfBuff(name: string): HTMLElement | undefined {
+  const list = within(buffsPanel()).queryByRole('list', { name: 'Active buffs' });
+  if (!list) return undefined;
+  return within(list)
+    .queryAllByRole('listitem')
+    .find((li) => li.querySelector('.buff-name')?.textContent === name);
+}
+/** The texts of the panel's "Upcoming" entries ([] when the list is not shown). */
+function upcomingTexts(): string[] {
+  const list = within(buffsPanel()).queryByRole('list', { name: 'Upcoming buffs' });
+  return list ? within(list).getAllByRole('listitem').map((li) => li.querySelector('.buff-upcoming-text')?.textContent ?? '') : [];
+}
+
 /** "27.34%" -> 27.34 */
 const statValue = (label: string) => Number((screen.getByLabelText(label).textContent ?? '').replace(/[^0-9.]/g, ''));
 
@@ -141,14 +157,14 @@ describe('Setup wiring', () => {
 
     advance(1500); // 2000: a hasted bolt (1870) would be done
     expect(castBar()).not.toBeNull();
-    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+    expect(selfBuff(HEROISM)).toBeUndefined();
     advance(500); // 2500
     expect(castBar()).toBeNull();
 
     press('r');
     expect(screen.queryByText(/applies from the next fight/i)).toBeNull();
     press('1');
-    expect(auraChip('Buffs', 'Heroism')).toBeDefined();
+    expect(selfBuff(HEROISM)).toBeDefined();
     // Frames come every 16 ms (fake requestAnimationFrame), so the checks keep a frame's margin.
     advance(1840);
     expect(castBar()).not.toBeNull();
@@ -259,9 +275,9 @@ describe('Setup wiring', () => {
     const misery = auraChip('Target debuffs', 'Misery');
     expect(misery?.querySelector('img')?.getAttribute('src')).toContain('/icons/spells/spell_shadow_misery.jpg');
     expect(misery?.querySelector('.aura-time')?.textContent).toBe('60s'); // 59.9 s left in the fight
-    const heroism = auraChip('Buffs', 'Heroism');
+    const heroism = selfBuff(HEROISM);
     expect(heroism?.querySelector('img')?.getAttribute('src')).toContain('/icons/spells/ability_shaman_heroism.jpg');
-    expect(heroism?.querySelector('.aura-time')?.textContent).toBe('40s');
+    expect(heroism?.querySelector('.buff-time')?.textContent).toBe('40s');
 
     advance(30000); // 30.1 s: 29.9 s of the fight left
     expect(auraChip('Target debuffs', 'Misery')?.querySelector('.aura-time')?.textContent).toBe('30s');
@@ -400,9 +416,9 @@ describe('Fight length (item actions and fight settings, Task 3)', () => {
     press('1'); // 0: unhasted bolt, 2431 ms
     advance(2_500);
     expect(castBar()).toBeNull();
-    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+    expect(selfBuff(HEROISM)).toBeUndefined();
     advance(9_500); // 12 s
-    expect(auraChip('Buffs', 'Heroism')).toBeDefined();
+    expect(selfBuff(HEROISM)).toBeDefined();
     press('1');
     advance(1_840);
     expect(castBar()).not.toBeNull();
@@ -426,10 +442,10 @@ describe('Fight length (item actions and fight settings, Task 3)', () => {
     press('1'); // 26 s: still unhasted
     advance(1_900);
     expect(castBar()).not.toBeNull();
-    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+    expect(selfBuff(HEROISM)).toBeUndefined();
     advance(3_000);
     expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
-    expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+    expect(selfBuff(HEROISM)).toBeUndefined();
   });
 
   it('changing the length in the panel applies to a not-started fight at once and after R to a running one; it is saved', () => {
@@ -499,5 +515,211 @@ describe('Fight length (item actions and fight settings, Task 3)', () => {
     const summary = screen.getByRole('region', { name: 'Fight summary' });
     expect(within(summary).getByLabelText('Duration').textContent).toBe('120.0 s');
     expect(elapsed()).toBe('120.0 / 120s');
+  });
+});
+
+describe('Your buffs panel in the game view (player buffs panel, Task 2)', () => {
+  /** A stored setup, as GameView loads it at mount. */
+  const storedSetup = (p: Partial<SetupConfig>) =>
+    memoryStorage({ [SETUP_STORAGE_KEY]: JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...p }) }).storage;
+  const heroismAt = (startSec: number) => ({ heroism: { startSec, durationSec: 40 } });
+  const fightMs = () => Math.round(Number((screen.getByLabelText('Elapsed').textContent ?? '').split(' / ')[0]) * 1000);
+  const barWidth = (li: HTMLElement | undefined) =>
+    Number.parseFloat((li?.querySelector('.buff-bar-fill') as HTMLElement | null)?.style.width ?? 'NaN');
+  const activeNames = () =>
+    [...buffsPanel().querySelectorAll('.buffs-active .buff-name')].map((el) => el.textContent ?? '');
+  const setupSummary = () => within(buffsPanel()).queryByText(/^Setup buffs \(\d+\)$/);
+
+  it('Heroism enabled at 6 s: before the start the panel lists it as upcoming "at 6.0 s"; at 3 s of fight it says "in 3.0 s"; at 6 s it moves to active with about 40 s left and a bar near 100%; at 46 s it is gone', () => {
+    render(<GameView storage={storedSetup({ enabledBuffs: ['heroism'], timed: heroismAt(6) })} />);
+    expect(upcomingTexts()).toEqual([`${HEROISM} at 6.0 s`]);
+    expect(within(buffsPanel()).getByText('No active buffs')).toBeTruthy();
+
+    press(' ');
+    advance(3000);
+    expect(upcomingTexts()).toEqual([`${HEROISM} in 3.0 s`]);
+    expect(selfBuff(HEROISM)).toBeUndefined();
+
+    // Frame by frame (1 ms steps) around the start: never both lists, never neither.
+    advance(2900);
+    let firstActive: HTMLElement | undefined;
+    for (let t = 0; t < 200; t++) {
+      advance(1);
+      const up = upcomingTexts().length === 1;
+      const active = selfBuff(HEROISM);
+      expect(up !== (active !== undefined), `at ${fightMs()} ms`).toBe(true);
+      if (active && !firstActive) {
+        firstActive = active;
+        expect(fightMs()).toBeGreaterThanOrEqual(6000);
+        expect(active.getAttribute('aria-label')).toBe(`${HEROISM}, 40 seconds left`);
+        expect(active.querySelector('.buff-time')?.textContent).toBe('40s');
+        expect(barWidth(active)).toBeGreaterThanOrEqual(99);
+      }
+      if (!active) expect(fightMs()).toBeLessThanOrEqual(6000); // the label rounds to 0.1 s
+    }
+    expect(firstActive).toBeDefined();
+    expect(upcomingTexts()).toEqual([]);
+
+    advance(20_000); // about 26.1 s: 19.9 s left of 40, the bar about half
+    const half = barWidth(selfBuff(HEROISM));
+    expect(half).toBeGreaterThan(45);
+    expect(half).toBeLessThan(55);
+    advance(19_700); // about 45.8 s: expiring
+    expect(selfBuff(HEROISM)?.classList.contains('buff-expiring')).toBe(true);
+    advance(300); // about 46.1 s
+    expect(selfBuff(HEROISM)).toBeUndefined();
+    expect(upcomingTexts()).toEqual([]);
+  });
+
+  it('Heroism at 0: upcoming "at 0.0 s" before the start, active from the first frame of the fight', () => {
+    render(<GameView storage={storedSetup({ enabledBuffs: ['heroism'], timed: heroismAt(0) })} />);
+    expect(upcomingTexts()).toEqual([`${HEROISM} at 0.0 s`]);
+    expect(selfBuff(HEROISM)).toBeUndefined();
+    press(' ');
+    expect(upcomingTexts()).toEqual([]);
+    expect(selfBuff(HEROISM)?.getAttribute('aria-label')).toBe(`${HEROISM}, 40 seconds left`);
+  });
+
+  it('item auras appear after use: using Icon from the item bar shows its aura with 20 s counting down; Destruction Potion 15 s', () => {
+    render(<GameView storage={storedSetup({ enabledBuffs: ['destruction-potion', 'icon-of-the-silver-crescent'] })} />);
+    const DP = 'Destruction Potion';
+    const ICON = 'Icon of the Silver Crescent';
+    expect(within(buffsPanel()).getByText('No active buffs')).toBeTruthy();
+    press('z'); // starts the fight
+    expect(selfBuff(DP)?.getAttribute('aria-label')).toBe(`${DP}, 15 seconds left`);
+    advance(2000);
+    press('x');
+    expect(selfBuff(ICON)?.getAttribute('aria-label')).toBe(`${ICON}, 20 seconds left`);
+    expect(selfBuff(ICON)?.querySelector('.buff-time')?.textContent).toBe('20s');
+    expect(selfBuff(ICON)?.querySelector('img')?.getAttribute('src')).toContain('inv_trinket_naxxramas06');
+    expect(activeNames()).toEqual([DP, ICON]); // first used first
+
+    advance(8000); // 10 s: the potion has 5 s left, the Icon 12 s
+    expect(selfBuff(DP)?.querySelector('.buff-time')?.textContent).toBe('5.0s');
+    expect(selfBuff(ICON)?.getAttribute('aria-label')).toBe(`${ICON}, 12 seconds left`);
+    advance(1000); // 11 s: below 5 s, the potion pulses
+    expect(selfBuff(DP)?.classList.contains('buff-expiring')).toBe(true);
+    expect(selfBuff(ICON)?.classList.contains('buff-expiring')).toBe(false);
+    expect(barWidth(selfBuff(DP))).toBeLessThan(30);
+    advance(4100); // 15.1 s: the potion is gone, the Icon has about 6.9 s
+    expect(selfBuff(DP)).toBeUndefined();
+    expect(selfBuff(ICON)?.querySelector('.buff-time')?.textContent).toMatch(/^[67]\.\ds$/);
+    advance(7000); // 22.1 s
+    expect(selfBuff(ICON)).toBeUndefined();
+  });
+
+  it('Band proc (seeded) shows its +95 aura for 10 s when it procs and its hidden ICD aura is never shown', () => {
+    render(<GameView storage={storedSetup({ enabledBuffs: ['band-of-the-eternal-sage'] })} />);
+    const BAND = 'Band of the Eternal Sage';
+    const noIcd = () => expect(buffsPanel().textContent ?? '').not.toMatch(/internal cooldown/i);
+    noIcd();
+    // A 10% roll per landed spell: up to five fights of twelve Shadow Bolts (each fight has its
+    // own seed), stopping at the first proc. The test checks every 200 ms.
+    let procAt: number | null = null;
+    for (let fight = 0; fight < 5 && procAt === null; fight++) {
+      if (fight > 0) press('r');
+      for (let bolt = 0; bolt < 12 && procAt === null; bolt++) {
+        press('1');
+        for (let step = 0; step < 13 && procAt === null; step++) {
+          advance(200);
+          noIcd();
+          expect(activeNames().every((n) => n === BAND)).toBe(true);
+          const band = selfBuff(BAND);
+          if (band) {
+            procAt = fightMs();
+            expect(band.getAttribute('aria-label')).toBe(`${BAND}, 10 seconds left`);
+            expect(band.getAttribute('title')).toContain('+95 spell power');
+            expect(barWidth(band)).toBeGreaterThanOrEqual(99);
+          }
+        }
+      }
+    }
+    expect(procAt, 'a seeded fight procs the Band').not.toBeNull();
+    advance(9500); // seen at most 200 ms after the proc: still up
+    expect(selfBuff(BAND)).toBeDefined();
+    advance(600); // more than 10 s after the proc
+    expect(selfBuff(BAND)).toBeUndefined();
+    expect(activeNames()).toEqual([]);
+    noIcd(); // the 60 s internal cooldown is running, unseen
+  }, 30_000); // up to a few fights of real-time frames
+
+  it('permanent setup buffs section counts the enabled stat-only buffs; toggling a buff updates it for a not-started fight and not for a running one (pending note rules)', () => {
+    render(<GameView storage={null} />);
+    expect(setupSummary()).toBeNull(); // none enabled: no section
+    fireEvent.click(checkbox('Arcane Brilliance'));
+    expect(setupSummary()?.textContent).toBe('Setup buffs (1)');
+    // Timed, item and target buffs are not "setup buffs".
+    for (const name of [HEROISM, 'Misery', 'Destruction Potion', 'Band of the Eternal Sage']) fireEvent.click(checkbox(name));
+    expect(setupSummary()?.textContent).toBe('Setup buffs (1)');
+    fireEvent.click(checkbox('Blessing of Kings'));
+    expect(setupSummary()?.textContent).toBe('Setup buffs (2)');
+    const details = setupSummary()?.closest('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(
+      within(details)
+        .getAllByRole('listitem')
+        .map((li) => li.getAttribute('aria-label')),
+    ).toEqual(['Arcane Brilliance', 'Blessing of Kings']);
+
+    press('1');
+    advance(500);
+    fireEvent.click(checkbox('Gift of the Wild')); // for the next fight
+    advance(100); // new snapshots: the panel still shows the running fight's setup
+    expect(document.querySelector('.setup-pending')?.textContent).toMatch(/^The running fight keeps its setup/);
+    expect(setupSummary()?.textContent).toBe('Setup buffs (2)'); // not 3
+    fireEvent.click(checkbox('Divine Spirit (Prayer of Spirit)'));
+    advance(100);
+    expect(setupSummary()?.textContent).toBe('Setup buffs (2)'); // not 4
+    fireEvent.click(checkbox('Divine Spirit (Prayer of Spirit)'));
+    fireEvent.click(checkbox('Arcane Brilliance'));
+    press('r');
+    expect(setupSummary()?.textContent).toBe('Setup buffs (2)'); // Gift of the Wild and Blessing of Kings
+    expect(
+      within(setupSummary()?.closest('details') as HTMLElement)
+        .getAllByRole('listitem')
+        .map((li) => li.getAttribute('aria-label')),
+    ).toEqual(['Gift of the Wild', 'Blessing of Kings']);
+  });
+
+  it("fight length 30 s: upcoming at 45 s is not shown; an active aura's time left never exceeds the fight's remaining time", () => {
+    render(<GameView storage={storedSetup({ fightDurationSec: 30, enabledBuffs: ['heroism'], timed: heroismAt(45) })} />);
+    expect(upcomingTexts()).toEqual([]);
+    press(' ');
+    advance(1000);
+    expect(upcomingTexts()).toEqual([]);
+    expect(selfBuff(HEROISM)).toBeUndefined();
+    cleanup();
+
+    // Heroism at 10 s in a 30 s fight: 40 s of its own, cut to the 20 s the fight has left.
+    render(<GameView storage={storedSetup({ fightDurationSec: 30, enabledBuffs: ['heroism'], timed: heroismAt(10) })} />);
+    expect(upcomingTexts()).toEqual([`${HEROISM} at 10.0 s`]);
+    press(' ');
+    advance(10_100);
+    for (let i = 0; i < 40; i++) {
+      const heroism = selfBuff(HEROISM);
+      const left = Number(/, (\d+) seconds? left$/.exec(heroism?.getAttribute('aria-label') ?? '')?.[1]);
+      expect(left, `at ${fightMs()} ms`).toBeLessThanOrEqual(Math.ceil((30_000 - fightMs() + 50) / 1000));
+      advance(487);
+    }
+    expect(fightMs()).toBeGreaterThan(29_000);
+    expect(selfBuff(HEROISM)?.classList.contains('buff-expiring')).toBe(true); // the fight's end is near, not the aura's
+    advance(1_000); // ended: the summary shows, the panel holds no upcoming entry
+    expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
+    expect(upcomingTexts()).toEqual([]);
+  });
+
+  it('the panel follows the running fight, not the pending setup: Heroism enabled mid-fight is neither upcoming nor active until R', () => {
+    render(<GameView storage={storedSetup({ fightDurationSec: 30 })} />);
+    press('1');
+    advance(500);
+    fireEvent.click(checkbox(HEROISM));
+    fireEvent.change(spin('Heroism / Bloodlust start (s)'), { target: { value: '5' } });
+    advance(100);
+    expect(upcomingTexts()).toEqual([]); // the next fight's, not this one's
+    advance(5000);
+    expect(upcomingTexts()).toEqual([]);
+    expect(selfBuff(HEROISM)).toBeUndefined();
+    press('r');
+    expect(upcomingTexts()).toEqual([`${HEROISM} at 5.0 s`]);
   });
 });

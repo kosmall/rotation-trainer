@@ -687,7 +687,7 @@ Item actions and fight settings, Tasks 2-5 (2026-10-30; spec `docs/superpowers/s
 
 - A second row "Items" (`role="group"`, `aria-label="Item bar"`) under the spell row with only the bound item slots, keys Z X C V (`ITEM_SLOT_KEYS`; either case; never while typing in a text-like field, rulings S5). No item enabled: no row. Slots are as large as spell slots (same 12-column grid, 6 on phones).
 - The enabled actions fill Z X C V in catalog order (Destruction Potion, Super Mana Potion, Dark Rune, Icon); the Setup panel shows "Item bar: Z" (etc.) under each enabled item, computed by the same rule as `applySetup` (a UI test pins them together).
-- Tooltip: the name, "Item · off the GCD" and the catalog description. Cooldown text: the larger of own and shared cooldown, "2m" from 100 s, else seconds (ruling F-3: a 4-character "118s" overflowed a slot). The item's buff shows in the Buffs list (e.g. "Destruction Potion 15s", "Blessing of the Silver Crescent 20s").
+- Tooltip: the name, "Item · off the GCD" and the catalog description. Cooldown text: the larger of own and shared cooldown, "2m" from 100 s, else seconds (ruling F-3: a 4-character "118s" overflowed a slot). The item's buff shows in the "Your buffs" panel under the item's name (e.g. "Destruction Potion 15s", "Icon of the Silver Crescent 20s"; see "Player buffs panel (UI)").
 - The Setup panel lists the item actions (the potions and the rune moved from Consumables) and the Band in "Items and cooldowns"; Heroism moved to the "Fight" group.
 
 ### Fight length (Tasks 3-4)
@@ -697,6 +697,16 @@ Item actions and fight settings, Tasks 2-5 (2026-10-30; spec `docs/superpowers/s
 - Everything reads the fight's `durationMs`: the regen ticks (scheduled for the whole fight), scheduled auras (a start at or after the end is ignored, a duration past the end is cut), the "Time" label and the end summary, the aura time shown (clamped to the fight's end, ruling S3), the DoT refresh and Shadowburn finisher rules (remaining fight time) and the item rules (Heroism's end).
 - Long fights: Curse of Doom only while at least 60 s remain (Part B, superseded note); Heroism's 10 min cooldown allows one use in any fight up to 600 s, so it stays one timed buff; the Icon and the potions are used again whenever their 120 s cooldowns allow (with Heroism: after it). A 600 s bot fight runs in about 0.4 s. The "Raid as in my log" calibration stays a 60 s one (the preset inherits 60 s).
 - Determinism (final review, Task 5): the same setup and seed give byte-identical logs twice, and a replay of the bot's presses gives the same log and snapshot with one jump per press and with 70 ms or 7 ms steps (all four items and Heroism at 15 s, fights of 45 s and 137 s); the default setup's golden bot means are unchanged (1425.1766666666667 / 1428.3350000000003).
+
+### Player buffs panel (UI)
+
+UI only: no engine, data or setup change, no new game number. Plan `docs/superpowers/plans/2026-10-30-player-buffs-panel.md`, spec `docs/superpowers/specs/2026-10-30-player-buffs-panel-design.md`.
+
+- "Your buffs" (`src/ui/PlayerBuffsPanel.tsx`, view model `src/ui/buffsView.ts`) replaces the small "Buffs" chip list; it sits in the player box under the action bar and the item row, so the bars never move while buffs come and go. The target debuff list is unchanged.
+- Sources, all from the running (or ended) fight, never the pending setup: active = `snapshot.selfAuras` (hidden auras such as the Band's internal cooldown are never in it); upcoming = the fight's own `AppliedSetup.sim.scheduledAuras` (`on: 'self'`, kept by the engine's rule: floored, at least 0, not after the fight's end), `atMs > nowMs` while running, every planned entry before the start (the ready snapshot does not hold the at-0 auras yet), none after the end; setup buffs = the fight's enabled catalog entries with no `timed`, `action`, `selfAura`, `targetAura`, helper `auras` or `hooks` (stat-only: raid, party and individual buffs, flasks, elixirs, food, oils).
+- Names: the catalog entry's name when the aura comes from one (so the Icon's aura reads "Icon of the Silver Crescent", Heroism "Heroism / Bloodlust"), else the aura's name. Time left is clamped to the fight's end; one decimal below 10 s ("4.3s", rounded up), else `remainingText`; the label reads "Name, N seconds left" (whole seconds rounded up). Expiring below 5 s: bold warn-coloured time, warn bar and a pulsing icon (no pulse under `prefers-reduced-motion`, none after the end).
+- The bar's total is the largest time left seen since the aura was (re)applied (`nextTotals`; the engine does not report an application's full duration). An aura that applied between two frames starts its bar up to one frame (~16 ms, at most 100 ms on a slow frame) short of full; a refresh shorter than the time still left would not restart the bar (no such refresh in the data).
+- Rebuilt once per snapshot (`useMemo` on the snapshot and the fight): no timer or interval of its own (a UI test checks `vi.getTimerCount`).
 
 ### Known simplifications (item actions and fight settings)
 

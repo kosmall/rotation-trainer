@@ -52,15 +52,16 @@ function storedSetup(p: Partial<SetupConfig>): SetupStorage {
   };
 }
 
-/** The chip of a self aura (the "Buffs" list) by its visible name. */
+/** The entry of a self aura in the "Your buffs" panel (which replaced the small "Buffs" chip list) by its visible name. */
 function buffChip(name: string): HTMLElement | undefined {
-  const list = screen.queryByRole('list', { name: 'Buffs' });
+  const panel = screen.getByRole('region', { name: 'Your buffs' });
+  const list = within(panel).queryByRole('list', { name: 'Active buffs' });
   if (!list) return undefined;
   return within(list)
     .queryAllByRole('listitem')
-    .find((li) => li.querySelector('.aura-name')?.textContent === name);
+    .find((li) => li.querySelector('.buff-name')?.textContent === name);
 }
-const chipTime = (name: string) => buffChip(name)?.querySelector('.aura-time')?.textContent ?? null;
+const chipTime = (name: string) => buffChip(name)?.querySelector('.buff-time')?.textContent ?? null;
 
 const DP = 'Destruction Potion';
 const SMP = 'Super Mana Potion';
@@ -116,7 +117,7 @@ describe('Item bar', () => {
     const icon = itemButton(ICON);
     expect(fireEvent.mouseDown(icon)).toBe(false); // default prevented
     fireEvent.click(icon);
-    expect(chipTime('Blessing of the Silver Crescent')).toBe('20s');
+    expect(chipTime(ICON)).toBe('20s'); // the panel names an item's aura after its item
   });
 
   it('uppercase Z works', () => {
@@ -204,7 +205,7 @@ describe('Item actions in the fight', () => {
     expect(withPotion).toBeGreaterThan(without);
     expect(chipTime(DP)).toBe('11s');
     advance(10_900); // 14.9 s
-    expect(chipTime(DP)).toBe('1s');
+    expect(chipTime(DP)).toBe('0.2s'); // the panel: one decimal below 10 s (the last frame, 14.896 s, leaves 104 ms)
     advance(200); // 15.1 s
     expect(buffChip(DP)).toBeUndefined();
   });

@@ -18,6 +18,9 @@ Destruction Potion, Super Mana Potion, Dark Rune) na osobnym pasku **Items** pod
 `Z` `X` `C` `V`, z prawdziwymi i dzielonymi cooldownami. W panelu Setup grupa **Fight**: długość
 walki (10-600 s, domyślnie 60) i sekunda startu Heroism/Bloodlust.
 
+**Panel buffów gracza:** okienko **Your buffs** pod paskiem akcji pokazuje aktywne buffy z
+pozostałym czasem, nadchodzący Heroism i stałe buffy z setupu.
+
 ## Uruchomienie
 
 Wymaga Node.js (z npm).
@@ -80,11 +83,34 @@ myszą, tak jak czarów.
   kosztuje many. Nie da się go użyć w trakcie rzucania czaru: poza oknem kolejki slot pokazuje
   „Busy”, w ostatnich 400 ms casta przedmiot trafia do kolejki i działa tuż po końcu casta. Używaj
   go między castami.
-- Buffy z przedmiotów widać na liście buffów (np. „Destruction Potion 15s”, „Blessing of the
+- Buffy z przedmiotów widać w panelu **Your buffs** (np. „Destruction Potion 15s”, „Icon of the
   Silver Crescent 20s”). Bot też używa przedmiotów (reguły w panelu Priority): Icon i Destruction
   Potion w trakcie Heroismu, a po nim przy każdym gotowym cooldownie (bez Heroismu: od początku
   walki i przy każdym gotowym cooldownie), Super Mana
   Potion przy braku co najmniej 3000 many, Dark Rune przy 1500. To wskazówki, nie optimum.
+
+## Panel „Your buffs”
+
+Pod paskiem akcji (i paskiem Items) jest okienko **Your buffs** z buffami Twojej postaci w
+trwającej walce. Ma trzy części:
+
+1. **Aktywne:** każda aura na postaci (Heroism/Bloodlust, Destruction Potion, Icon of the Silver
+   Crescent, proc Band of the Eternal Sage) z ikoną, nazwą, liczbą stacków lub ładunków,
+   pozostałym czasem i paskiem. Poniżej 10 s czas ma jedno miejsce po przecinku („4.3s”). W
+   ostatnich 5 s czas jest pogrubiony i czerwony, a ikona pulsuje (bez pulsowania, gdy system ma
+   włączone ograniczenie animacji). Czas nigdy nie wychodzi poza koniec walki. Ukryty
+   wewnętrzny cooldown Banda nie jest pokazywany. Gdy nic nie działa: „No active buffs”.
+2. **Upcoming:** aury zaplanowane w ustawieniach walki, które jeszcze nie weszły (Heroism o
+   ustawionej sekundzie): przed startem „at 8.0 s”, w trakcie walki odliczanie „in 4.9 s”. W
+   chwili wejścia aura przechodzi do aktywnych. Start po końcu walki nie jest pokazywany.
+3. **Setup buffs (N):** zwinięta lista ikon stałych buffów z setupu (buffy rajdowe i grupowe,
+   flaski, eliksiry, jedzenie, olejki); nazwa i opis w podpowiedzi. Debuffy celu, Heroism,
+   przedmioty i Band nie są tu liczone.
+
+Panel pokazuje setup **trwającej** walki (jak notka w panelu Setup): zmiany widać od razu tylko
+przed startem, a w trwającej walce dopiero po `R`. Kliknięcie „Setup buffs” nie blokuje klawiszy:
+`Spacja` i `Enter` zwijają i rozwijają listę, pozostałe klawisze działają jak zwykle. Czytnik
+ekranu czyta każdy wpis jako „Nazwa, N seconds left”.
 
 ## Panel Setup
 
@@ -174,6 +200,8 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 - Przedmioty i ustawienia walki: specyfikacja
   `docs/superpowers/specs/2026-10-30-item-actions-and-fight-settings-design.md`, plan
   `docs/superpowers/plans/2026-10-30-item-actions-and-fight-settings.md`
+- Panel buffów gracza: specyfikacja `docs/superpowers/specs/2026-10-30-player-buffs-panel-design.md`,
+  plan `docs/superpowers/plans/2026-10-30-player-buffs-panel.md`
 - Źródło każdej liczby (wowsims, Wowhead), założenia i otwarte pytania: `docs/data-sources.md`
 - Decyzje projektowe (kolejka czarów): `docs/decisions/`
 
@@ -185,5 +213,5 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/data` | dane gry: współczynniki, cel, katalog buffów, Destruction Warlock (czary, aury, talenty, przedmioty, zestawy, rotacja) |
 | `src/setup` | setup walki: domyślne ustawienia i ich walidacja, presety, zapis w `localStorage`, zamiana setupu na dane walki |
 | `src/bot` | bot grający listę priorytetów (punkt odniesienia DPS) |
-| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel Setup, podsumowanie walki |
+| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup, podsumowanie walki |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `ui` oraz `smoke.test.ts` |

@@ -18,9 +18,11 @@ import { formatDps, formatInt, secondsText } from './format';
 import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
+import { buildBuffViews } from './buffsView';
+import { PlayerBuffsPanel, useAuraTotals } from './PlayerBuffsPanel';
 import { activePresetName, SetupPanel } from './SetupPanel';
 import { StartOverlay } from './StartOverlay';
-import { AuraList, TargetPanel } from './TargetPanel';
+import { TargetPanel } from './TargetPanel';
 import { useSimulation } from './useSimulation';
 
 /** How long a rejected press shows its reason on the slot. */
@@ -128,6 +130,24 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
 
   const fightRemainingMs = Math.max(0, snapshot.durationMs - snapshot.nowMs);
 
+  // "Your buffs": the running (or ended) fight's own auras, scheduled auras and enabled buffs,
+  // never the pending setup. Rebuilt once per snapshot (one per animation frame), no timer of its own.
+  const buffViews = useMemo(
+    () =>
+      buildBuffViews({
+        selfAuras: snapshot.selfAuras,
+        spec: fight.spec,
+        catalog: SETUP_CATALOG,
+        scheduled: fight.sim.scheduledAuras,
+        enabledBuffIds: fight.config.enabledBuffs,
+        nowMs: snapshot.nowMs,
+        phase: snapshot.phase,
+        fightDurationMs: snapshot.durationMs,
+      }),
+    [snapshot, fight],
+  );
+  const buffTotals = useAuraTotals(buffViews.active);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -158,10 +178,17 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
           )}
         </section>
         <div className="player">
-          <AuraList spec={spec} auras={snapshot.selfAuras} label="Buffs" fightRemainingMs={fightRemainingMs} />
           <CastBar spec={spec} snapshot={snapshot} />
           <ManaBar snapshot={snapshot} />
           <ActionBar spec={spec} snapshot={snapshot} flash={flash} onPress={pressSlot} descriptions={ITEM_DESCRIPTIONS} />
+          {/* Below the bars, so they never move while buffs come and go. */}
+          <PlayerBuffsPanel
+            active={buffViews.active}
+            upcoming={buffViews.upcoming}
+            permanent={buffViews.permanent}
+            totals={buffTotals}
+            phase={snapshot.phase}
+          />
         </div>
       </main>
       <aside className="game-side">

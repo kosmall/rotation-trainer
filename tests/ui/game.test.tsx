@@ -5,6 +5,10 @@ import { warlockSets } from '../../src/data/classes/warlock/sets';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
 import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
 import { Simulation } from '../../src/engine/sim';
+import { DEFAULT_SETUP } from '../../src/setup/defaults';
+import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
+import type { SetupStorage } from '../../src/setup/storage';
+import type { SetupConfig } from '../../src/setup/types';
 import { ActionBar } from '../../src/ui/ActionBar';
 import { GameView } from '../../src/ui/GameView';
 import { SetBonusList } from '../../src/ui/SetBonusList';
@@ -264,5 +268,80 @@ describe('SetBonusList', () => {
   it('shows each bonus description', () => {
     render(<SetBonusList sets={warlockSets} setPieces={destructionWarlock.setup.setPieces} />);
     for (const bonus of warlockSets) expect(screen.getByText(bonus.description)).toBeTruthy();
+  });
+});
+
+describe('GameView: the "Your buffs" panel', () => {
+  /** A stored setup, as GameView loads it at mount. */
+  function storedSetup(p: Partial<SetupConfig>): SetupStorage {
+    const map = new Map([[SETUP_STORAGE_KEY, JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...p })]]);
+    return {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+    };
+  }
+  const panel = () => screen.getByRole('region', { name: 'Your buffs' });
+  const activeLabels = () =>
+    within(panel())
+      .queryAllByRole('listitem')
+      .filter((li) => li.classList.contains('buff'))
+      .map((li) => li.getAttribute('aria-label'));
+
+  it('replaces the small "Buffs" list; the target debuff list stays', () => {
+    render(<GameView storage={storedSetup({ enabledBuffs: ['heroism', 'misery'] })} />);
+    press('1');
+    advance(100);
+    expect(screen.queryByRole('list', { name: 'Buffs' })).toBeNull();
+    expect(activeLabels()).toEqual(['Heroism / Bloodlust, 40 seconds left']);
+    expect(screen.getByRole('list', { name: 'Target debuffs' })).toBeTruthy();
+    // The panel sits in the player's area, after the action bar: the bars never move while buffs come and go.
+    const player = document.querySelector('.player') as HTMLElement;
+    expect(player.contains(panel())).toBe(true);
+    const bar = screen.getByRole('toolbar', { name: 'Action bar' });
+    expect(bar.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('no extra timers: advancing fake timers does not create intervals (vi.getTimerCount unchanged)', () => {
+    render(
+      <GameView
+        storage={storedSetup({
+          enabledBuffs: ['heroism', 'destruction-potion', 'arcane-brilliance'],
+          timed: { heroism: { startSec: 3, durationSec: 40 } },
+        })}
+      />,
+    );
+    press('z'); // the potion: an active entry with a bar; Heroism upcoming
+    advance(100);
+    const count = vi.getTimerCount(); // the animation frame loop only
+    expect(count).toBe(1);
+    for (let i = 0; i < 40; i++) {
+      advance(250); // through Heroism's start and the potion's last 5 s (pulse)
+      expect(vi.getTimerCount(), `after ${(i + 1) * 250} ms`).toBe(count);
+    }
+    expect(activeLabels()).toContain('Heroism / Bloodlust, 33 seconds left'); // 3 s + 40 s, at 10.1 s
+  });
+
+  it("keys still work after clicking the 'Setup buffs' summary (S5: Space and Enter are its own; 1, Z and R act)", () => {
+    render(<GameView storage={storedSetup({ enabledBuffs: ['arcane-brilliance', 'destruction-potion'] })} />);
+    const summary = within(panel()).getByText('Setup buffs (1)');
+    const details = summary.closest('details') as HTMLDetailsElement;
+    fireEvent.click(summary);
+    expect(details.open).toBe(true);
+    summary.focus();
+    fireEvent.keyDown(summary, { key: ' ' });
+    fireEvent.keyDown(summary, { key: 'Enter' });
+    expect(startOverlay()).not.toBeNull(); // they toggle the section, not the fight
+
+    fireEvent.keyDown(summary, { key: 'z' }); // the item row: starts the fight
+    expect(startOverlay()).toBeNull();
+    expect(activeLabels()).toEqual(['Destruction Potion, 15 seconds left']);
+    fireEvent.keyDown(summary, { key: '1' });
+    expect(castBar()?.textContent).toContain('Shadow Bolt');
+    advance(500);
+    fireEvent.keyDown(summary, { key: 'r' });
+    expect(startOverlay()).not.toBeNull();
+    expect(activeLabels()).toEqual([]);
+    expect(within(panel()).getByText('No active buffs')).toBeTruthy();
   });
 });
