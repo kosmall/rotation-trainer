@@ -9,8 +9,9 @@
 //
 // Idempotent: present files are kept. Exits 0 only when every expected icon is present (and the
 // item icons stay within ITEM_ICON_BUDGET_BYTES).
-// For every spell and aura of the spec, every buff of the setup catalog (the buff, the auras it
-// applies, its item action) and the warlock options, each with a `wowheadId`, it asks Wowhead's
+// For every spell and aura of the spec, the self auras of the set bonus procs (`warlockSetAuras`:
+// a gear wearing those sets adds them to the spec), every buff of the setup catalog (the buff, the
+// auras it applies, its item action) and the warlock options, each with a `wowheadId`, it asks Wowhead's
 // tooltip API for the real icon name, compares it with the `icon` in the data (a mismatch is reported and exits 1: fix the
 // data, the script never edits source files) and downloads the JPG from Wowhead's CDN.
 // Icons are Blizzard artwork served by Wowhead: this is for the author's personal use.
@@ -21,6 +22,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { destructionWarlock } from '../src/data/classes/warlock/destruction.ts';
 import { SACRIFICE_SUCCUBUS_OPTION, WARLOCK_ARMOR_OPTIONS } from '../src/data/classes/warlock/buffs.ts';
+import { warlockSetAuras } from '../src/data/classes/warlock/sets.ts';
 import { SETUP_CATALOG } from '../src/setup/defaults.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,6 +57,7 @@ const byId = new Map();
 for (const [kind, defs] of [
   ['spell', destructionWarlock.spells],
   ['aura', destructionWarlock.auras],
+  ['set aura', warlockSetAuras],
   ['buff', SETUP_CATALOG],
   ['buff aura', buffAuras],
   ['item action', itemActions],
