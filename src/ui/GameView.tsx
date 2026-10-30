@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildDestructionWarlock } from '../data/classes/warlock/destruction';
-import type { WarlockOptions } from '../data/classes/warlock/destruction';
+import { AUTHOR_GEAR_TABLES, buildDestructionWarlock } from '../data/classes/warlock/destruction';
+import type { GearTables, WarlockOptions } from '../data/classes/warlock/destruction';
+import { offeredGearPresets } from '../data/classes/warlock/gearPresets';
+import { UNMODELLED_SETS } from '../data/classes/warlock/sets';
+import { loadItemDb } from '../data/items/db';
+import type { ItemDb } from '../data/items/types';
 import type { SpecData } from '../data/types';
 import { activeSetBonuses } from '../engine/sets';
 import { computeStats } from '../engine/stats';
-import type { RawStats, SimSnapshot, SpellDef, SpellModifier } from '../engine/types';
+import type { EquippedItem, RawStats, SimSnapshot, SpellDef, SpellModifier } from '../engine/types';
 import { applySetup } from '../setup/applySetup';
 import { normalizeSetup, SETUP_CATALOG } from '../setup/defaults';
+import { gearNeedsDb, setupGear } from '../setup/gear';
 import { SETUP_PRESETS } from '../setup/presets';
 import { browserStorage, loadSetup, saveSetup } from '../setup/storage';
 import type { SetupStorage } from '../setup/storage';
@@ -15,6 +20,8 @@ import { ActionBar, REJECT_LABELS } from './ActionBar';
 import type { SlotFlash } from './ActionBar';
 import { CastBar } from './CastBar';
 import { formatDps, formatInt, secondsText } from './format';
+import { CUSTOM_GEAR_NAME, GearPanel, type GearDbStatus } from './GearPanel';
+import { itemBuffNotes, matchingPreset } from './gearView';
 import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
@@ -48,12 +55,42 @@ function isHotkeyBlocked(event: KeyboardEvent): boolean {
 
 /** The next fight's setup: the config it comes from plus `applySetup`'s spec and fight settings. */
 interface NextFight extends AppliedSetup {
+  /**
+   * The config the fight is built from: the setup's, except that a gear the embedded author tables
+   * cannot build (`gearNeedsDb`) is left out (the author's gear) until the item database has loaded.
+   */
   config: SetupConfig;
 }
 
+/** The gear presets the Gear panel offers (the author's gear first, then by phase). */
+const GEAR_PRESETS_OFFERED = offeredGearPresets();
+
+/** The gear's preset name ("My gear (export)", "T6", ...) or "Custom". */
+const gearName = (config: SetupConfig): string =>
+  matchingPreset(setupGear(config), GEAR_PRESETS_OFFERED)?.name ?? CUSTOM_GEAR_NAME;
+
+/** The config without its gear (the author's gear). */
+function withoutGear(config: SetupConfig): SetupConfig {
+  const { gear: _gear, gearPresetId: _id, ...rest } = config;
+  return rest;
+}
+
+/** An item's name from the database, or the embedded author tables before it has loaded. */
+function itemNameIn(db: ItemDb | null): (id: number) => string {
+  return (id) => (db && Object.hasOwn(db.items, id) ? db.items[id]!.name : (AUTHOR_GEAR_TABLES.items[id]?.name ?? `item ${id}`));
+}
+
 export interface GameViewProps {
-  /** Builds the spec for the warlock options (default: the Destruction Warlock). */
-  buildSpec?: (warlock: WarlockOptions) => SpecData;
+  /**
+   * Builds the spec for the warlock options and gear (default: the Destruction Warlock). `db` is
+   * the item database once it has loaded, passed for a config that has a gear.
+   */
+  buildSpec?: (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], db?: GearTables) => SpecData;
+  /**
+   * Loads the item database (default `loadItemDb`, a lazy chunk). Asked for when the Gear panel is
+   * first opened or when the stored gear needs it; tests inject a resolved database here.
+   */
+  loadDb?: () => Promise<ItemDb>;
   /**
    * Where the setup is loaded from and saved to (read once, at mount); default the browser's
    * localStorage. `null`: kept in memory only. A storage that throws behaves like `null`
@@ -69,26 +106,89 @@ export interface GameViewProps {
  * takes it at once, a running or ended one keeps its own until R (useSimulation). The Priority
  * list and the stats at the pull follow the setup at once.
  */
-export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameViewProps) {
+export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb = loadItemDb }: GameViewProps) {
   const [store] = useState<SetupStorage | null>(() => (storage === undefined ? browserStorage() : storage));
   const [config, setConfig] = useState<SetupConfig>(() => loadSetup(store, SETUP_CATALOG));
+  const [itemDb, setItemDb] = useState<{ status: GearDbStatus; db: ItemDb | null }>({ status: 'idle', db: null });
+  const dbRef = useRef<ItemDb | null>(null);
+  const dbStatusRef = useRef<GearDbStatus>('idle');
+
+  /**
+   * Loads the item database once, then checks the setup's gear against it. After a failure only
+   * Retry (`retry`) asks again (the loader then tries again); opening the panel does not.
+   */
+  const loadItems = useCallback((retry: boolean) => {
+    const status = dbStatusRef.current;
+    if (status === 'loading' || status === 'ready' || (status === 'error' && !retry)) return;
+    dbStatusRef.current = 'loading';
+    setItemDb({ status: 'loading', db: null });
+    let pending: Promise<ItemDb>;
+    try {
+      pending = loadDb();
+    } catch (error) {
+      pending = Promise.reject(error);
+    }
+    pending.then(
+      (db) => {
+        dbStatusRef.current = 'ready';
+        dbRef.current = db;
+        setItemDb({ status: 'ready', db });
+        // The stored gear was checked for its shape only: now its ids (unknown or misfit entries dropped).
+        // Not saved: loading never writes; the next edit saves the checked config.
+        setConfig((c) => {
+          const checked = normalizeSetup(c, SETUP_CATALOG, db);
+          return JSON.stringify(checked) === JSON.stringify(c) ? c : checked;
+        });
+      },
+      () => {
+        dbStatusRef.current = 'error';
+        setItemDb({ status: 'error', db: null });
+      },
+    );
+  }, [loadDb]);
+  const requestDb = useCallback(() => loadItems(false), [loadItems]);
+  const retryDb = useCallback(() => loadItems(true), [loadItems]);
+
+  // A stored gear the embedded author tables cannot build: load the database at once.
+  const storedNeedsDb = config.gear !== undefined && gearNeedsDb(config.gear);
+  useEffect(() => {
+    if (storedNeedsDb) requestDb();
+  }, [storedNeedsDb, requestDb]);
+
   const changeConfig = useCallback(
     (edited: SetupConfig) => {
-      const next = normalizeSetup(edited, SETUP_CATALOG);
+      const next = normalizeSetup(edited, SETUP_CATALOG, dbRef.current ?? undefined);
       setConfig(next);
       saveSetup(store, next, SETUP_CATALOG); // false (full, private mode): kept in memory only
     },
     [store],
   );
-  const nextFight = useMemo<NextFight>(
-    () => ({ config, ...applySetup({ buildSpec, catalog: SETUP_CATALOG, config }) }),
-    [buildSpec, config],
+  const changeGear = useCallback(
+    (gear: (EquippedItem | null)[], presetId?: string) => {
+      const { gearPresetId: _old, ...rest } = config;
+      changeConfig(presetId === undefined ? { ...rest, gear } : { ...rest, gear, gearPresetId: presetId });
+    },
+    [changeConfig, config],
   );
+  const db = itemDb.db;
+  const nextFight = useMemo<NextFight>(() => {
+    // Never build a gear the author tables do not know without the database: buildSetup would skip
+    // the unknown ids silently (a wrong DPS). Until it loads, the author's gear.
+    const fightConfig = config.gear !== undefined && db === null && gearNeedsDb(config.gear) ? withoutGear(config) : config;
+    const build = (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[]) =>
+      gear === undefined || db === null ? buildSpec(warlock, gear) : buildSpec(warlock, gear, db);
+    return { config: fightConfig, ...applySetup({ buildSpec: build, catalog: SETUP_CATALOG, config: fightConfig }) };
+  }, [buildSpec, config, db]);
   const { snapshot, fight, cast, cancel, reset, start } = useSimulation(nextFight);
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
   const priority = nextFight.spec.priority;
   const fightPreset = useMemo(() => activePresetName(fight.config, SETUP_PRESETS, SETUP_CATALOG), [fight.config]);
+  const fightGear = useMemo(() => gearName(fight.config), [fight.config]);
+  const gearBuffNotes = useMemo(
+    () => itemBuffNotes(setupGear(config), config.enabledBuffs, SETUP_CATALOG, itemNameIn(db)),
+    [config, db],
+  );
   // The edit differs from what the running (or ended) fight uses; toggling a buff on and off again does not count.
   const pending = snapshot.phase !== 'ready' && JSON.stringify(fight.config) !== JSON.stringify(config);
   const [flash, setFlash] = useState<SlotFlash | null>(null);
@@ -169,12 +269,18 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
   return (
     <div className="game">
       <main className="game-main">
-        <FightStats snapshot={snapshot} config={fight.config} presetName={fightPreset} />
+        <FightStats snapshot={snapshot} config={fight.config} presetName={fightPreset} gearName={fightGear} />
         <section className="arena">
           <TargetPanel spec={spec} targetAuras={snapshot.targetAuras} fightRemainingMs={fightRemainingMs} />
           {snapshot.phase === 'ready' && <StartOverlay onStart={start} />}
           {snapshot.phase === 'ended' && (
-            <EndSummary snapshot={snapshot} config={fight.config} presetName={fightPreset} onReset={doReset} />
+            <EndSummary
+              snapshot={snapshot}
+              config={fight.config}
+              presetName={fightPreset}
+              gearName={fightGear}
+              onReset={doReset}
+            />
           )}
         </section>
         <div className="player">
@@ -200,8 +306,21 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
           pending={pending}
           fightEnded={snapshot.phase === 'ended'}
         />
+        <GearPanel
+          gear={setupGear(config)}
+          presets={GEAR_PRESETS_OFFERED}
+          db={db}
+          status={itemDb.status}
+          onChange={changeGear}
+          onOpen={requestDb}
+          onRetry={retryDb}
+          pending={pending}
+          fightEnded={snapshot.phase === 'ended'}
+          warnings={gearBuffNotes.warnings}
+          hints={gearBuffNotes.hints}
+        />
         <CharacterStats spec={nextFight.spec} />
-        <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} />
+        <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} unmodelled={UNMODELLED_SETS} />
         <details className="panel priority">
           <summary>Priority</summary>
           <ol>
@@ -223,11 +342,12 @@ const DPS_NOTE_NO_BUFFS = 'No raid buffs, consumables or trinket effects — app
 const DPS_NOTE_WITH_BUFFS =
   'Includes the enabled buffs; trinket/proc effects not selected are excluded — approximate (see docs/data-sources.md)';
 
-/** The fight's setup name and what its DPS leaves out (depends on whether any buff is enabled). */
-function DpsNote({ config, presetName }: { config: SetupConfig; presetName: string }) {
+/** The fight's setup and gear names and what its DPS leaves out (depends on whether any buff is enabled). */
+function DpsNote({ config, presetName, gearName }: { config: SetupConfig; presetName: string; gearName: string }) {
   return (
     <p className="dps-note">
       <span className="setup-tag">Setup: {presetName}</span>
+      <span className="setup-tag">Gear: {gearName}</span>
       <span>{config.enabledBuffs.length === 0 ? DPS_NOTE_NO_BUFFS : DPS_NOTE_WITH_BUFFS}</span>
     </p>
   );
@@ -237,9 +357,10 @@ interface FightInfoProps {
   snapshot: SimSnapshot;
   config: SetupConfig;
   presetName: string;
+  gearName: string;
 }
 
-function FightStats({ snapshot, config, presetName }: FightInfoProps) {
+function FightStats({ snapshot, config, presetName, gearName }: FightInfoProps) {
   return (
     <div>
       <dl className="fight-stats">
@@ -258,12 +379,12 @@ function FightStats({ snapshot, config, presetName }: FightInfoProps) {
           </dd>
         </div>
       </dl>
-      <DpsNote config={config} presetName={presetName} />
+      <DpsNote config={config} presetName={presetName} gearName={gearName} />
     </div>
   );
 }
 
-function EndSummary({ snapshot, config, presetName, onReset }: FightInfoProps & { onReset(): void }) {
+function EndSummary({ snapshot, config, presetName, gearName, onReset }: FightInfoProps & { onReset(): void }) {
   return (
     <div className="overlay">
       <section className="overlay-card" role="region" aria-label="Fight summary">
@@ -276,7 +397,7 @@ function EndSummary({ snapshot, config, presetName, onReset }: FightInfoProps & 
           <dt>Duration</dt>
           <dd aria-label="Duration">{secondsText(snapshot.nowMs)} s</dd>
         </dl>
-        <DpsNote config={config} presetName={presetName} />
+        <DpsNote config={config} presetName={presetName} gearName={gearName} />
         <button
           type="button"
           className="primary"

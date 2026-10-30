@@ -1117,3 +1117,487 @@ button.primary {
     animation: none;
   }
 }
+
+/* Set bonuses that exist in the game but are not modelled. */
+.bonus.unmodelled .bonus-state {
+  background: transparent;
+  border: 1px dashed var(--muted);
+}
+
+/* Gear panel (collapsed by default, under the Setup panel; it reuses the Setup panel's styles). */
+.gear {
+  /* Socket colours (gem pips and the colour dots of the gem picker). */
+  --socket-red: #c0392b;
+  --socket-yellow: #d4a017;
+  --socket-blue: #2e6fd1;
+  --socket-orange: #e07b1f;
+  --socket-purple: #8e44ad;
+  --socket-green: #2e8b57;
+  --socket-meta: #8a8790;
+}
+
+.gear-summary-name {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.gear button,
+.picker button {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.gear button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.gear button:focus-visible,
+.gear textarea:focus-visible,
+.picker button:focus-visible,
+.picker input:focus-visible,
+.picker select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.gear-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gear-slot {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon label actions'
+    'icon body actions';
+  column-gap: 6px;
+  padding: 5px 0;
+  border-top: 1px solid var(--panel-border);
+  min-width: 0;
+}
+
+.gear-slot-label {
+  grid-area: label;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.gear-slot > .gear-icon {
+  grid-area: icon;
+  align-self: start;
+  margin-top: 2px;
+}
+
+.gear-slot-body {
+  grid-area: body;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gear-slot-actions {
+  grid-area: actions;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-self: start;
+}
+
+.gear-slot-actions button {
+  font-size: 0.72rem;
+  padding: 1px 5px;
+}
+
+.gear-item-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gear-item-stats {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.gear-icon {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--buff-tile);
+}
+
+.gear-icon-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+
+.marker {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--track);
+  white-space: nowrap;
+}
+
+.marker-current {
+  color: #fff;
+  background: var(--accent);
+}
+
+.gear-sockets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.gear .gem-pip {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--socket-meta);
+  background: var(--track);
+  overflow: hidden;
+}
+
+.gem-pip-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gear .gem-pip.socket-red,
+.gem-dot.socket-red {
+  border-color: var(--socket-red);
+}
+.gear .gem-pip.socket-yellow,
+.gem-dot.socket-yellow {
+  border-color: var(--socket-yellow);
+}
+.gear .gem-pip.socket-blue,
+.gem-dot.socket-blue {
+  border-color: var(--socket-blue);
+}
+.gem-dot.socket-orange {
+  border-color: var(--socket-orange);
+}
+.gem-dot.socket-purple {
+  border-color: var(--socket-purple);
+}
+.gem-dot.socket-green {
+  border-color: var(--socket-green);
+}
+.gear .gem-pip.socket-meta,
+.gem-dot.socket-meta {
+  border-color: var(--socket-meta);
+  border-radius: 4px;
+}
+.gem-dot.socket-prismatic {
+  border-color: var(--text);
+}
+
+.gem-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 5px solid var(--socket-meta);
+  vertical-align: middle;
+}
+
+.gear-socket-bonus {
+  font-size: 0.72rem;
+  color: var(--text);
+}
+
+.gear-socket-bonus-off {
+  color: var(--muted);
+}
+
+.gear .gear-enchant {
+  align-self: flex-start;
+  max-width: 100%;
+  text-align: left;
+  font-size: 0.72rem;
+  padding: 1px 5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.gear-meta {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.gear-meta-off {
+  padding: 4px 6px;
+  border-left: 3px solid var(--warn);
+  background: var(--track);
+}
+
+.gear-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gear-warnings {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gear-note,
+.gear-error {
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border-left: 3px solid var(--cast);
+  background: var(--track);
+}
+
+.gear-error {
+  border-left-color: var(--warn);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.gear-error p {
+  margin: 0;
+}
+
+.gear-textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.gear-report {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.gear-report p {
+  margin: 0;
+}
+
+.gear-report-error {
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.gear .setup-group-body > button {
+  align-self: flex-start;
+}
+
+/* Item, gem and enchant picker: a modal list over the page. */
+.picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.picker {
+  width: min(640px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.85rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.picker-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.picker-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.picker-filters input[type='search'] {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.picker-filters input[type='search'],
+.picker-filters select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.picker-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.picker-toggle input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.picker-message {
+  margin: 0;
+  padding: 4px 6px;
+  border-left: 3px solid var(--warn);
+  background: var(--track);
+  font-weight: 600;
+}
+
+.picker-count {
+  margin: 0;
+}
+
+.picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.picker .picker-option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  text-align: left;
+  padding: 4px 6px;
+}
+
+.picker .picker-none {
+  display: block;
+  font-weight: 600;
+}
+
+.picker .picker-current {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.picker-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.picker-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.picker-stats {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.picker-markers {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+
+.picker-markers .marker {
+  margin-left: 0;
+}
+
+.picker-markers:empty {
+  display: none;
+}
+
+/* Beside the fight, the slot list scrolls on its own: "Stats at the pull" stays near the presets. */
+@media (min-width: 801px) {
+  .gear-slots {
+    max-height: 560px;
+    overflow-y: auto;
+    padding-right: 4px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+}

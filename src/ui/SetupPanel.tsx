@@ -42,6 +42,14 @@ export type SetupPresets = Readonly<
   Record<SetupPresetId, { readonly name: string; readonly description?: string; readonly config: SetupConfig }>
 >;
 
+/** The config's gear fields, only those it has (absent stays absent: the author's gear). */
+function gearOf(config: SetupConfig): Pick<SetupConfig, 'gear' | 'gearPresetId'> {
+  const out: Pick<SetupConfig, 'gear' | 'gearPresetId'> = {};
+  if (config.gear !== undefined) out.gear = config.gear;
+  if (config.gearPresetId !== undefined) out.gearPresetId = config.gearPresetId;
+  return out;
+}
+
 /** The rotation preset whose values `rotation` has, or 'custom'. */
 function rotationPresetOf(rotation: RotationConfig): RotationPresetId | 'custom' {
   const keys = Object.keys(ROTATION_PRESETS.dot.config) as (keyof RotationConfig)[];
@@ -259,8 +267,8 @@ export interface SetupPanelProps {
  * the "Fight" group (fight length; Heroism / Bloodlust with its start second and duration, warned
  * when it starts at or after the end), one collapsible group per kind of buff (raid and party,
  * consumables, target debuffs, items used from the item bar and item procs), the warlock options,
- * the rotation and the distance from the target. Presets keep the chosen fight length; "Reset to
- * defaults" resets it too. Fully controlled: it shows `config` and passes every edit to
+ * the rotation and the distance from the target. Presets keep the chosen fight length and the
+ * gear (the Gear panel's); "Reset to defaults" resets both too (the author's gear). Fully controlled: it shows `config` and passes every edit to
  * `onChange` as a new config normalized for `catalog` (exclusive buffs resolved, the later one
  * wins; numbers clamped), so `applySetup` and `buildPriority` always get a valid config. Number
  * inputs keep a typed text only while focused.
@@ -372,7 +380,8 @@ export function SetupPanel({
                 aria-pressed={presetName === p.name}
                 onClick={(e) => {
                   e.currentTarget.blur(); // keep Space/R for the fight
-                  emit({ ...p.config, fightDurationSec: config.fightDurationSec }); // ruling F-2
+                  // Ruling F-2: a preset keeps the chosen fight length; it keeps the gear too (the Gear panel sets it).
+                  emit({ ...p.config, fightDurationSec: config.fightDurationSec, ...gearOf(config) });
                 }}
               >
                 {p.name}

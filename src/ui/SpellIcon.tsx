@@ -6,11 +6,21 @@ export function iconUrl(icon: string): string {
 }
 
 /**
- * The spell or aura icon, laid over the initials tile by CSS. If the file is missing the image
- * removes itself, so the tile (school colour + initials) underneath stays as the fallback.
+ * Where `npm run icons` stores an item, gem or enchant icon (public/icons/items/, the item
+ * database's `icon` names; served under the app base path).
  */
-export function SpellIcon({ icon, className }: { icon: string; className: string }) {
-  const [failedIcon, setFailedIcon] = useState<string | null>(null);
-  if (failedIcon === icon) return null;
-  return <img className={className} src={iconUrl(icon)} alt="" draggable={false} onError={() => setFailedIcon(icon)} />;
+export function itemIconUrl(icon: string): string {
+  return `${import.meta.env.BASE_URL}icons/items/${icon}.jpg`;
+}
+
+/**
+ * The spell or aura icon (`kind` 'item': an item, gem or enchant icon), laid over the initials
+ * tile by CSS. If the file is missing the image removes itself, so the tile (school colour +
+ * initials) underneath stays as the fallback.
+ */
+export function SpellIcon({ icon, className, kind = 'spell' }: { icon: string; className: string; kind?: 'spell' | 'item' }) {
+  const src = kind === 'item' ? itemIconUrl(icon) : iconUrl(icon);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (failedSrc === src) return null;
+  return <img className={className} src={src} alt="" draggable={false} onError={() => setFailedSrc(src)} />;
 }
