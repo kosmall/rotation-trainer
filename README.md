@@ -167,7 +167,8 @@ Zwijany panel **Gear** (pod panelem Setup) ustawia ekwipunek następnej walki. B
 (1730 przedmiotów, 214 gemów, 128 enchantów z wowsims) ładuje się dopiero przy pierwszym otwarciu
 panelu albo od razu po starcie, jeśli zapisany ekwipunek jej potrzebuje. Do tego czasu walka używa
 Twojego ekwipunku z eksportu („My gear”), nigdy niepełnego zestawu. Gdy ładowanie się nie uda,
-panel pokazuje błąd i przycisk „Retry”; jeśli to nie pomoże, przeładuj stronę (setup jest zapisany).
+panel pokazuje błąd i przycisk „Reload the page” (przeglądarka nie pobierze ponownie raz nieudanego
+modułu, więc pomaga tylko przeładowanie strony; setup jest zapisany).
 
 - **Presety:** „My gear (export)” (ekwipunek autora, domyślny), „Pre-Raid”, „T4”, „T5”, „T6”,
   „Zul'Aman” i „Sunwell Plateau” (zestawy BIS z wowsims). Wciśnięty jest preset, który dokładnie

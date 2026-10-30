@@ -324,6 +324,9 @@ describe('Gear panel', () => {
     });
     expect(writeText).toHaveBeenCalledWith(out.value);
     expect(gearPanel().textContent).toContain('Copied');
+    // A changed gear means a changed export: the old status goes.
+    fireEvent.click(presetButton('T6'));
+    expect(gearPanel().textContent).not.toContain('Copied');
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
     await act(async () => {
       fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Copy' }));
@@ -432,24 +435,58 @@ describe('Gear panel', () => {
     expect(statText('Shadow power')).toBe('1,300');
   });
 
-  it('a database that fails to load shows an error with Retry; the fight keeps the default gear', async () => {
-    let fail = true;
-    const flaky = vi.fn(() => (fail ? Promise.reject(new Error('chunk failed')) : Promise.resolve(db)));
+  it('a database that fails to load shows an error with Reload the page; the fight keeps the default gear', async () => {
+    const failing = vi.fn(() => Promise.reject(new Error('chunk failed')));
+    const reload = vi.fn();
     const { storage } = memoryStorage(withGear(structuredClone(T6.gear), { gearPresetId: 't6' }));
-    render(<GameView storage={storage} loadDb={flaky} />);
+    render(<GameView storage={storage} loadDb={failing} onReload={reload} />);
     await flush();
-    expect(flaky).toHaveBeenCalledTimes(1); // the stored gear needs the database: loaded at mount
+    expect(failing).toHaveBeenCalledTimes(1); // the stored gear needs the database: loaded at mount
     expect(statText('Shadow power')).toBe('1,300');
     expect(gearTag()).toBe('Gear: My gear (export)');
     await openGear();
-    expect(within(gearPanel()).getByRole('alert').textContent).toMatch(/could not load/i);
-    fail = false;
-    fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Retry' }));
+    // Opening the panel does not ask again: a browser keeps a failed import() (and after a
+    // redeploy the old chunk is gone), only a reload helps; the setup is saved.
+    expect(failing).toHaveBeenCalledTimes(1);
+    const alert = within(gearPanel()).getByRole('alert');
+    expect(alert.textContent).toMatch(/could not load/i);
+    expect(alert.textContent).toMatch(/setup is saved/i);
+    expect(within(gearPanel()).queryByRole('button', { name: 'Retry' })).toBeNull();
+    fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Reload the page' }));
+    expect(reload).toHaveBeenCalledTimes(1);
     await flush();
-    expect(flaky).toHaveBeenCalledTimes(2);
-    expect(activeGear()).toBe('T6');
-    expect(statText('Shadow power')).toBe('1,350');
-    expect(gearTag()).toBe('Gear: T6'); // the fight had not started: it takes the gear at once
+    // Nothing else changes: the error stays, the fight keeps the default gear.
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(within(gearPanel()).getByRole('alert').textContent).toMatch(/could not load/i);
+    expect(statText('Shadow power')).toBe('1,300');
+    expect(gearTag()).toBe('Gear: My gear (export)');
+  });
+
+  it('keys pressed inside the open picker never reach the fight; Escape still closes it', async () => {
+    render(<GameView storage={null} loadDb={loadDb} />);
+    await openGear();
+    fireEvent.click(within(slotRow('head')).getByRole('button', { name: 'Change Head' }));
+    const voidheart = option('Voidheart Crown');
+    voidheart.focus();
+    for (const key of ['1', 'z', 'Z', 'r', ' ', 'Enter', '=']) {
+      fireEvent.keyDown(voidheart, { key });
+      expect(startOverlay(), key).not.toBeNull(); // nothing started the fight
+    }
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
+
+    press('1'); // outside the picker the hotkeys work
+    advance(500);
+    expect(castBar()?.textContent).toContain('Shadow Bolt');
+    fireEvent.click(within(slotRow('head')).getByRole('button', { name: 'Change Head' }));
+    const closeButton = within(dialog()).getByRole('button', { name: 'Close' });
+    for (const key of ['r', 'R', '2', 'x']) {
+      fireEvent.keyDown(closeButton, { key });
+      expect(startOverlay(), key).toBeNull(); // not reset
+      expect(castBar()?.textContent, key).toContain('Shadow Bolt'); // no other cast
+    }
+    fireEvent.keyDown(closeButton, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(castBar()?.textContent).toContain('Shadow Bolt'); // Escape closed the list, it did not cancel the cast
   });
 
   it('shows a loading state until the database arrives; the default gear needs no database', async () => {

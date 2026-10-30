@@ -45,11 +45,13 @@ const TEXT_TARGETS =
   'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), select, textarea, [contenteditable]:not([contenteditable="false"])';
 /** Toggles (a `<summary>`, checkboxes, radios, buttons): only Space and Enter belong to them, the other hotkeys still work after a click. */
 const TOGGLE_TARGETS = 'summary, button, input[type="checkbox"], input[type="radio"]';
+/** An open modal (the Gear panel's item picker): every key pressed inside it is its own. */
+const MODAL = '[aria-modal="true"]';
 
 function isHotkeyBlocked(event: KeyboardEvent): boolean {
   const { target } = event;
   if (!(target instanceof Element)) return false;
-  if (target.matches(TEXT_TARGETS)) return true;
+  if (target.matches(TEXT_TARGETS) || target.closest(MODAL) !== null) return true;
   return target.matches(TOGGLE_TARGETS) && (event.key === ' ' || event.key === 'Enter');
 }
 
@@ -60,6 +62,15 @@ interface NextFight extends AppliedSetup {
    * cannot build (`gearNeedsDb`) is left out (the author's gear) until the item database has loaded.
    */
   config: SetupConfig;
+}
+
+/** Reloads the page (never throws: a sandboxed frame may refuse it). */
+function reloadPage(): void {
+  try {
+    window.location.reload();
+  } catch {
+    // Nothing else to do: the error message says to reload.
+  }
 }
 
 /** The gear presets the Gear panel offers (the author's gear first, then by phase). */
@@ -92,6 +103,11 @@ export interface GameViewProps {
    */
   loadDb?: () => Promise<ItemDb>;
   /**
+   * Reloads the page (default `window.location.reload()`): the only way back after the database
+   * failed to load (a browser keeps a failed `import()`; after a redeploy the old chunk is gone).
+   */
+  onReload?: () => void;
+  /**
    * Where the setup is loaded from and saved to (read once, at mount); default the browser's
    * localStorage. `null`: kept in memory only. A storage that throws behaves like `null`
    * (storage.ts never throws).
@@ -106,7 +122,7 @@ export interface GameViewProps {
  * takes it at once, a running or ended one keeps its own until R (useSimulation). The Priority
  * list and the stats at the pull follow the setup at once.
  */
-export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb = loadItemDb }: GameViewProps) {
+export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb = loadItemDb, onReload = reloadPage }: GameViewProps) {
   const [store] = useState<SetupStorage | null>(() => (storage === undefined ? browserStorage() : storage));
   const [config, setConfig] = useState<SetupConfig>(() => loadSetup(store, SETUP_CATALOG));
   const [itemDb, setItemDb] = useState<{ status: GearDbStatus; db: ItemDb | null }>({ status: 'idle', db: null });
@@ -114,12 +130,12 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
   const dbStatusRef = useRef<GearDbStatus>('idle');
 
   /**
-   * Loads the item database once, then checks the setup's gear against it. After a failure only
-   * Retry (`retry`) asks again (the loader then tries again); opening the panel does not.
+   * Loads the item database once, then checks the setup's gear against it. A failure is final for
+   * this page: a browser keeps a failed `import()` in its module map (and after a redeploy the old
+   * chunk is gone), so the panel offers a page reload instead of a retry; the setup is saved.
    */
-  const loadItems = useCallback((retry: boolean) => {
-    const status = dbStatusRef.current;
-    if (status === 'loading' || status === 'ready' || (status === 'error' && !retry)) return;
+  const requestDb = useCallback(() => {
+    if (dbStatusRef.current !== 'idle') return;
     dbStatusRef.current = 'loading';
     setItemDb({ status: 'loading', db: null });
     let pending: Promise<ItemDb>;
@@ -146,8 +162,6 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
       },
     );
   }, [loadDb]);
-  const requestDb = useCallback(() => loadItems(false), [loadItems]);
-  const retryDb = useCallback(() => loadItems(true), [loadItems]);
 
   // A stored gear the embedded author tables cannot build: load the database at once.
   const storedNeedsDb = config.gear !== undefined && gearNeedsDb(config.gear);
@@ -313,7 +327,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
           status={itemDb.status}
           onChange={changeGear}
           onOpen={requestDb}
-          onRetry={retryDb}
+          onReload={onReload}
           pending={pending}
           fightEnded={snapshot.phase === 'ended'}
           warnings={gearBuffNotes.warnings}

@@ -1601,3 +1601,29 @@ button.primary {
     border-bottom: 1px solid var(--panel-border);
   }
 }
+
+/* Touch screens and narrow windows: tap targets of at least 32 px (WCAG 2.5.8 asks for 24). */
+@media (pointer: coarse), (max-width: 700px) {
+  .gear .gem-pip {
+    width: 32px;
+    height: 32px;
+  }
+
+  .gear .gear-slot-actions button,
+  .gear .gear-enchant,
+  .gear .gear-error button,
+  .gear .setup-group-body > button,
+  .setup-preset-buttons button,
+  .picker .picker-close {
+    min-height: 32px;
+    min-width: 32px;
+  }
+
+  .gear .gear-slot-actions {
+    gap: 4px;
+  }
+
+  .gear-slot {
+    padding: 6px 0;
+  }
+}

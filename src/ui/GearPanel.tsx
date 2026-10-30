@@ -29,7 +29,7 @@ import { SpellIcon } from './SpellIcon';
 /** The name shown when the gear matches no preset. */
 export const CUSTOM_GEAR_NAME = 'Custom';
 
-/** Where the item database stands: not asked for yet, loading, loaded, failed (Retry). */
+/** Where the item database stands: not asked for yet, loading, loaded, failed (Reload the page). */
 export type GearDbStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface GearPanelProps {
@@ -48,8 +48,8 @@ export interface GearPanelProps {
   status?: GearDbStatus;
   /** The panel was opened (the caller loads the database). */
   onOpen?(): void;
-  /** Load the database again after a failure. */
-  onRetry?(): void;
+  /** Reload the page after the database failed to load (the setup is saved). */
+  onReload?(): void;
   /** The running fight was built with another setup: the new gear applies after R. */
   pending?: boolean;
   fightEnded?: boolean;
@@ -134,7 +134,7 @@ function Section({ title, children, open }: { title: string; children: ReactNode
  * Export in the wowsims formats. Fully controlled: every edit goes through `normalizeGear` and an
  * edit `normalizeGear` would undo (a second unique item or gem, an off hand next to a staff) is
  * refused with a message. Opening it asks for the item database (`onOpen`); until it has loaded
- * the panel shows a loading state (or the error and Retry).
+ * the panel shows a loading state (or the error and "Reload the page").
  */
 export function GearPanel({
   gear,
@@ -144,7 +144,7 @@ export function GearPanel({
   disabled = false,
   status = db ? 'ready' : 'idle',
   onOpen,
-  onRetry,
+  onReload,
   pending = false,
   fightEnded = false,
   warnings = [],
@@ -182,11 +182,11 @@ export function GearPanel({
           status === 'error' ? (
             <div className="gear-error" role="alert">
               <p>
-                Could not load the item database. The fight uses the default gear (My gear) until it loads. Retry, or reload
-                the page (the setup is saved).
+                Could not load the item database. The fight uses the default gear (My gear). Reload the page to try again: the
+                setup is saved.
               </p>
-              <button type="button" onClick={onRetry}>
-                Retry
+              <button type="button" onClick={onReload}>
+                Reload the page
               </button>
             </div>
           ) : status === 'loading' ? (
@@ -643,7 +643,9 @@ function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void 
 /** Export: the gear as a wowsims gear file, with Copy (clipboard, or the text selected). */
 function ExportSection({ gear }: { gear: readonly (EquippedItem | null)[] }) {
   const text = useMemo(() => exportWowSimsGear(gear), [gear]);
-  const [copied, setCopied] = useState<string | null>(null);
+  // The status goes with the text it was about: a changed gear (a new text) clears it.
+  const [copied, setCopiedFor] = useState<{ text: string; message: string } | null>(null);
+  const setCopied = (message: string) => setCopiedFor({ text, message });
   const area = useRef<HTMLTextAreaElement>(null);
   const copy = async () => {
     try {
@@ -675,7 +677,7 @@ function ExportSection({ gear }: { gear: readonly (EquippedItem | null)[] }) {
       >
         Copy
       </button>
-      {copied && <p role="status">{copied}</p>}
+      {copied && copied.text === text && <p role="status">{copied.message}</p>}
     </Section>
   );
 }
