@@ -727,7 +727,7 @@ Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/
 
 - Source: github.com/wowsims/tbc-new `master` @ `91f869a`, `assets/database/db.json` (8253 items, 214 gems, 144 enchant entries). wowsims is **MIT licensed** (`LICENSE` in the repo); the generated file records its source in its `source` field.
 - Generator: `npm run db:build -- <path to a tbc-new clone>` (`scripts/build-item-db.mjs`). It only reads JSON from the clone (`assets/database/db.json`, `ui/specs/warlock/dps/gear_sets/*.gear.json`) and `.git/HEAD` for the commit id, and never runs its code. Output: `src/data/items/db.json` (committed; one record per line) and `tests/fixtures/wowsims-warlock-gear-sets.json` (a copy of the 9 wowsims warlock gear sets: preraid, t4, t5, t6, za, swp, destro_fire_preraid, destro_fire_t4, blank). The output is deterministic (a second run is byte-identical).
-- Size: 358 173 bytes raw, about 57 KB gzip. `tests/data/item-db.test.ts` caps `JSON.stringify(db).length` at 1 500 000.
+- Size: 359 521 bytes raw, about 57 KB gzip. `tests/data/item-db.test.ts` caps `JSON.stringify(db).length` at 540 000 (about 1.5x the real size).
 - Loading: `loadItemDb()` (`src/data/items/db.ts`) imports the JSON with a dynamic `import()`, so Vite emits it as its own chunk (`db-*.js`, 356 kB, 56 kB gzip, measured with a probe build that references the loader from `main.tsx`; the main chunk grew 1.6 kB for the loader and Vite's preload helper). `itemDbSync()` (`src/data/items/dbSync.ts`, tests and scripts only) imports it statically; app code must not import `dbSync.ts`, or the database lands in the main chunk.
 
 ### Mapping (verified)
@@ -748,11 +748,13 @@ Enums from tbc-new `proto/common.proto`, checked by hand on Voidheart Crown 2896
 
 Dropped (not modelled): stamina 2, healing 4 (equal to or above spell damage on caster items), arcane/frost/holy/nature damage, spell penetration 15, physical and tank stats, armor 31/32, resistances, health/mana 33/34.
 
-- Item stats: `scalingOptions["0"].stats` (every item has only the `"0"` entry). Socket bonus: the 42-entry `socketBonus` array. Gem and enchant stats: their 42-entry `stats` arrays.
+- Item stats: `scalingOptions["0"].stats` (every item has only the `"0"` entry). Socket bonus: the 42-entry `socketBonus` array. Gem and enchant stats: their 42-entry `stats` arrays. Negative values are kept (zeros dropped): the only kept item with one is Kreeg's Mug 18425 (Intellect -10, Spirit 15); no gem, enchant or socket bonus has a negative modelled stat. A negative stat alone never makes an item relevant (the filter needs a positive modelled stat).
 - Sockets and gem colours: proto `GemColor` (1 meta, 2 red, 3 blue, 4 yellow, 5 green, 6 orange, 7 purple, 8 prismatic); `gemSockets` only uses 1-4.
 - Slot (proto `ItemType` 1-14): head, neck, shoulder, back, chest, wrist, hands, waist, legs, feet; rings and trinkets have ONE logical slot `finger` / `trinket` (pickers offer them for finger1/finger2 and trinket1/trinket2: `itemsForSlot(db, slotKey)`, `logicalSlot`); wands `ranged`. Weapons: held-in-off-hand items (`weaponType` 5) `offHand`; staves (`handType` 4) `mainHand` with `twoHand: true` (they also take the off hand: gear validation must clear the off hand, Task 2); main-hand and one-hand daggers and swords `mainHand` (a Warlock cannot dual wield, so never the off hand).
 - Sets: `setId` = slug of `setName` (e.g. "Malefic Raiment" -> `malefic-raiment`, the stage 1 `SetBonusDef.setId`); the generator fails if two wowsims set ids share a slug. 52 sets in the database.
 - `unique: true` from db.json `unique` (`limitCategory`, e.g. the Band of the Eternal ... rings' shared category, is not kept).
+- `faction` from db.json `factionRestriction` (proto/ui.proto `FactionRestriction`: 1 Alliance only -> `'alliance'`, 2 Horde only -> `'horde'`; checked on Stormcaller 29155 = 2, Horde only, and Blade of the Archmage 29153 = 1). Kept items: 18 Alliance only, 1 Horde only (Stormcaller, kept by reference). db.json also marks Ashtongue Talisman of Shadows 32493 Alliance only (data as given).
+- `requiredProfession` (items, gems, enchants) from db.json, as the proto/common.proto `Profession` id: 1 Alchemy, 3 Enchanting, 4 Engineering, 7 Jewelcrafting, 11 Tailoring are the ones present. Kept items: 29 (16 Tailoring, 6 Engineering, 4 Jewelcrafting, 3 Alchemy); gems: 7 (Jewelcrafting: 33131 Crimson Sun, 33133 Don Julio's Heart, 33134, 33135, 33140, 33143, 33144); enchants: 4 (Enchanting: the ring enchants 2928, 2929, 2930, 2931). The trainer does not check professions (the author has Enchanting and Jewelcrafting).
 - `effects`: one short text per wowsims `itemEffects` entry, built from its structured fields only (buff name without the `(spell id)` suffix, modelled stats, stacks, duration, on-use cooldown): "On use: ..." (`onUse`), "Proc: ..." (`proc`/`stackProc`), else "Equip: ...". Unnamed effects read "spell <id>" (e.g. The Lightning Capacitor "Proc: spell 37657"). Effects implemented only in wowsims Go code (meta gem bonuses, set bonuses) are not in db.json. 148 items carry effects; the trainer models none of them except through setup entries (Icon of the Silver Crescent, Band of the Eternal Sage).
 
 ### Filters and counts (items: 1730 kept of 8253)
@@ -761,7 +763,7 @@ Warlock equippability is wowsims' `canEquipItem` (`ui/sim/proto/items.ts`) with 
 
 | Dropped | Count | Rule |
 |---|---|---|
-| armour heavier than cloth | 2496 | `armorType` > 1 (neck, back, rings, trinkets have 0) |
+| armour heavier than cloth | 2496 | `armorType` > 1 (necks, rings and trinkets have type 0, backs are all cloth, type 1) |
 | class allowlist excludes Warlock | 1777 | `classAllowlist` set and without class 9 |
 | no modelled stat | 928 | none of the stats above in the item's or its effects' stats, and not an effect-only item of item level >= 90 |
 | weapon type | 646 | axe, fist, mace, polearm, shield, unknown |

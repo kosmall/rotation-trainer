@@ -68,7 +68,9 @@ const HAND = { mainHand: 1, oneHand: 2, offHand: 3, twoHand: 4 }; // HandType
 const WEAPON = { dagger: 2, offHand: 5, shield: 7, staff: 8, sword: 9 }; // WeaponType
 const RANGED_WAND = 5; // RangedWeaponType.RangedWeaponTypeWand
 const ENCHANT_TYPE = { twoHand: 1, shield: 2, staff: 4, offHand: 5 }; // EnchantType
-const FACTION_HORDE_ONLY = 2; // proto/ui.proto FactionRestriction.FACTION_RESTRICTION_HORDE_ONLY
+// proto/ui.proto FactionRestriction: 1 FACTION_RESTRICTION_ALLIANCE_ONLY, 2 FACTION_RESTRICTION_HORDE_ONLY.
+const FACTION = { 1: 'alliance', 2: 'horde' };
+const FACTION_HORDE_ONLY = 2;
 
 // Warlock capabilities: tbc-new sim/core/character_constants.go (ClassArmorTypeCapabilities,
 // ClassWeaponTypeCapabilities, ClassRangedWeaponTypeCapabilities) = ui/sim/player/classes/
@@ -120,11 +122,14 @@ function statsOf(source) {
   const entries = Array.isArray(source) ? source.map((v, i) => [i, v]) : Object.entries(source);
   for (const [index, value] of entries) {
     const key = STAT_KEYS[index];
-    if (key && typeof value === 'number' && value > 0) out[key] = value;
+    // Negative values are real (e.g. Kreeg's Mug: Intellect -10) and kept; zeros are dropped.
+    if (key && typeof value === 'number' && value !== 0) out[key] = value;
   }
   return Object.fromEntries(STAT_ORDER.filter((k) => out[k] !== undefined).map((k) => [k, out[k]]));
 }
 const isEmpty = (stats) => Object.keys(stats).length === 0;
+/** At least one modelled stat with a positive value (a negative stat alone makes no item relevant). */
+const hasGain = (stats) => Object.values(stats).some((v) => v > 0);
 
 function slug(name) {
   return name.toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -240,8 +245,8 @@ for (const item of source.items) {
   const effectStats = (item.itemEffects ?? []).map((e) => statsOf(e.scalingOptions?.['0']?.stats));
   const hasAnyStat = Object.keys(scaling.stats ?? {}).length > 0 || (item.itemEffects ?? []).some((e) => e.scalingOptions?.['0']?.stats);
   const relevant =
-    !isEmpty(stats) ||
-    effectStats.some((s) => !isEmpty(s)) ||
+    hasGain(stats) ||
+    effectStats.some(hasGain) ||
     (!hasAnyStat && effects.length > 0 && (scaling.ilvl ?? 0) >= EFFECT_ONLY_MIN_ILVL);
 
   let reason = null;
@@ -271,6 +276,8 @@ for (const item of source.items) {
     record.setName = item.setName;
   }
   if (item.unique) record.unique = true;
+  if (item.factionRestriction) record.faction = FACTION[item.factionRestriction] ?? fail(`item ${item.id}: faction ${item.factionRestriction}`);
+  if (item.requiredProfession) record.requiredProfession = item.requiredProfession;
   // Order the keys like the test fixtures: slot info, then optional fields.
   const { twoHand, ...rest } = record;
   const ordered = { ...rest, ...(twoHand ? { twoHand } : {}) };
@@ -294,6 +301,7 @@ for (const gem of source.gems) {
     else fail(`meta gem ${gem.id} ${gem.name}: no requirement in META_REQUIRES / META_COMPARE`);
   }
   if (gem.unique) record.unique = true;
+  if (gem.requiredProfession) record.requiredProfession = gem.requiredProfession;
   gems[gem.id] = record;
 }
 for (const id of refGems) if (!gems[id]) fail(`referenced gem ${id} missing from the source database`);
@@ -321,6 +329,7 @@ for (const enchant of source.enchants) {
   const known = enchants[enchant.effectId];
   if (known) {
     if (JSON.stringify(known.stats) !== JSON.stringify(stats)) fail(`enchant ${enchant.effectId}: duplicates with different stats`);
+    if (known.requiredProfession !== enchant.requiredProfession) fail(`enchant ${enchant.effectId}: duplicates with different professions`);
     if (known.name !== enchant.name) known.name = `${known.name} / ${enchant.name}`;
     const extra = slots.filter((s) => s !== known.slot && !(known.extraSlots ?? []).includes(s));
     if (extra.length) known.extraSlots = [...(known.extraSlots ?? []), ...extra];
@@ -331,6 +340,7 @@ for (const enchant of source.enchants) {
   const extraSlots = [...new Set(slots.slice(1))].filter((s) => s !== slots[0]);
   if (extraSlots.length) record.extraSlots = extraSlots;
   if (twoHandOnly) record.twoHandOnly = true;
+  if (enchant.requiredProfession) record.requiredProfession = enchant.requiredProfession;
   enchants[enchant.effectId] = record;
 }
 for (const id of refEnchants) if (!enchants[id]) fail(`referenced enchant ${id} missing from the source database`);

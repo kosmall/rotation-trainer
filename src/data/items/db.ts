@@ -59,9 +59,16 @@ let pending: Promise<ItemDb> | undefined;
 
 /**
  * Loads the item database (src/data/items/db.json) as a separate lazy chunk; later calls return
- * the same promise. The data is shared: callers must not mutate it.
+ * the same promise. A failed load is not kept: the next call tries again. The data is shared:
+ * callers must not mutate it.
  */
 export function loadItemDb(): Promise<ItemDb> {
-  pending ??= import('./db.json').then((m) => m.default as unknown as ItemDb);
+  pending ??= import('./db.json').then(
+    (m) => m.default as unknown as ItemDb,
+    (error: unknown) => {
+      pending = undefined;
+      throw error;
+    },
+  );
   return pending;
 }

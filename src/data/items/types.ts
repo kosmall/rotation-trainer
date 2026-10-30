@@ -42,6 +42,10 @@ export interface ItemRecord extends ItemDef {
   setName?: string;
   /** Unique (one per character). */
   unique?: boolean;
+  /** Faction-only item (db.json `factionRestriction`: 1 Alliance, 2 Horde). */
+  faction?: 'alliance' | 'horde';
+  /** Profession needed to equip it (proto/common.proto `Profession` id, e.g. 11 Tailoring). */
+  requiredProfession?: number;
   /** Staff: occupies the main hand and leaves the off hand empty. */
   twoHand?: boolean;
   /**
@@ -55,6 +59,8 @@ export interface GemRecord extends GemDef {
   icon: string;
   phase: number;
   unique?: boolean;
+  /** Profession needed to use the gem (proto `Profession` id: 7 Jewelcrafting). */
+  requiredProfession?: number;
   /**
    * Meta gems whose requirement compares two colours ("more blue gems than yellow gems"), which
    * `metaRequires` (minimum counts) cannot express. Not evaluated by the stage 1 `buildSetup`.
@@ -70,6 +76,8 @@ export interface EnchantRecord extends EnchantDef {
   extraSlots?: ItemSlot[];
   /** 2H weapon enchants: staves only. */
   twoHandOnly?: boolean;
+  /** Profession needed (proto `Profession` id: 3 Enchanting, the ring enchants). */
+  requiredProfession?: number;
 }
 
 export interface ItemDb {

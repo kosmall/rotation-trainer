@@ -27,8 +27,11 @@ const MODELLED_STATS: readonly (keyof RawStats)[] = [
   'mp5',
 ];
 
-/** Upper bound of `JSON.stringify(db).length` (the committed file is about the same size). */
-const DB_JSON_MAX_CHARS = 1_500_000;
+/**
+ * Upper bound of `JSON.stringify(db).length`: about 1.5x the generated size (the committed file is
+ * 359 521 bytes, the stringified data about the same), so a filter change that bloats it fails here.
+ */
+const DB_JSON_MAX_CHARS = 540_000;
 
 /**
  * Differences between the hand-written stage 1 tables (src/data/classes/warlock/items.ts, from the
@@ -59,7 +62,8 @@ describe('item database (generated from wowsims tbc-new)', () => {
       expect(item.phase, `item ${key} phase`).toBeLessThanOrEqual(5);
       for (const [stat, value] of Object.entries(item.stats)) {
         expect(MODELLED_STATS, `item ${key} stat`).toContain(stat);
-        expect(value, `item ${key} ${stat}`).toBeGreaterThan(0);
+        // Negative stats are kept (e.g. Kreeg's Mug: Intellect -10); zero is never stored.
+        expect(value, `item ${key} ${stat}`).not.toBe(0);
       }
       const hasStats = Object.keys(item.stats).length > 0;
       const flagged = (item.effects?.length ?? 0) > 0;
@@ -108,6 +112,31 @@ describe('item database (generated from wowsims tbc-new)', () => {
       unique: true,
       effects: ['Proc: Band of the Eternal Sage (+95 spell damage, 10 s)'],
     });
+  });
+
+  it("keeps negative stats: Kreeg's Mug (18425) has Intellect -10", () => {
+    // db.json 18425: stats {2: 12 stamina, 3: -10 intellect, 16: 15 spirit}; held in the off hand.
+    expect(db.items[18425]).toMatchObject({ slot: 'offHand', stats: { intellect: -10, spirit: 15 } });
+  });
+
+  it('faction and required profession are carried from db.json', () => {
+    // factionRestriction (proto/ui.proto FactionRestriction): 1 Alliance only, 2 Horde only.
+    expect(db.items[29155]).toMatchObject({ name: 'Stormcaller', faction: 'horde' });
+    expect(db.items[29153]).toMatchObject({ name: 'Blade of the Archmage', faction: 'alliance' });
+    // requiredProfession (proto/common.proto Profession): 3 Enchanting, 7 Jewelcrafting.
+    expect(db.gems[33131]).toMatchObject({ name: 'Crimson Sun', requiredProfession: 7 });
+    expect(db.enchants[2928]).toMatchObject({ name: 'Enchant Ring - Spellpower', requiredProfession: 3 });
+    const items = Object.values(db.items);
+    expect(items.filter((i) => i.faction === 'horde')).toHaveLength(1);
+    expect(items.filter((i) => i.faction === 'alliance')).toHaveLength(18);
+    expect(items.filter((i) => i.requiredProfession !== undefined)).toHaveLength(29);
+    expect(Object.values(db.gems).filter((g) => g.requiredProfession !== undefined)).toHaveLength(7);
+    expect(Object.values(db.enchants).filter((e) => e.requiredProfession !== undefined)).toHaveLength(4);
+    const records = [...items, ...Object.values(db.gems), ...Object.values(db.enchants)];
+    for (const r of records) {
+      if ('faction' in r) expect(['alliance', 'horde']).toContain(r.faction);
+      if (r.requiredProfession !== undefined) expect(r.requiredProfession).toBeGreaterThan(0);
+    }
   });
 
   it("the author's 17 items, their gems and enchants equal the stage 1 tables (or are allowlisted)", () => {
