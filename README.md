@@ -21,6 +21,11 @@ walki (10-600 s, domyślnie 60) i sekunda startu Heroism/Bloodlust.
 **Panel buffów gracza:** okienko **Your buffs** pod paskiem akcji pokazuje aktywne buffy z
 pozostałym czasem, nadchodzący Heroism i stałe buffy z setupu.
 
+**Etap 2a (gear):** panel **Gear** z bazą przedmiotów, gemów i enchantów z wowsims, presetami BIS
+na każdą fazę (Pre-Raid, T4, T5, T6, Zul'Aman, Sunwell Plateau) oraz importem z addonu
+WowSimsExporter i eksportem do formatu wowsims. Domyślny ekwipunek to nadal Twój eksport, z tymi
+samymi wynikami co w etapie 1.
+
 ## Uruchomienie
 
 Wymaga Node.js (z npm).
@@ -32,7 +37,8 @@ npm test           # wszystkie testy (Vitest)
 npm run typecheck  # sprawdzenie typów (tsc)
 npm run build      # typecheck + build produkcyjny do dist/
 npm run preview    # podgląd builda z dist/: http://localhost:4173
-npm run icons      # (tylko po dodaniu czarów, buffów lub przedmiotów) pobiera ikony z Wowheada do public/icons/spells/
+npm run icons      # (tylko po dodaniu czarów, buffów lub przedmiotów) pobiera ikony do public/icons/spells/ i public/icons/items/
+npm run db:build -- <katalog klonu wowsims/tbc-new>  # odtwarza bazę przedmiotów src/data/items/db.json
 ```
 
 Ikony czarów, aur, buffów, debuffów, przedmiotów i opcji warlocka są już w repo
@@ -40,8 +46,13 @@ Ikony czarów, aur, buffów, debuffów, przedmiotów i opcji warlocka są już w
 postaci oraz cały katalog panelu Setup (buffy, debuffy, consumables, cooldowny, efekty przedmiotów
 i ich aury, akcje przedmiotów z paska Items). Sprawdza też nazwy ikon w danych względem Wowheada.
 Ikonę Super Mana Potion bierze z przedmiotu (22832), bo jej czar ma na Wowheadzie tylko ikonę
-zastępczą. Potrzebuje sieci i trzeba go uruchomić tylko po dodaniu nowych czarów, buffów lub
-przedmiotów.
+zastępczą. Pobiera też ikony wszystkich przedmiotów, gemów i enchantów z bazy (697 plików w
+`public/icons/items/`). Potrzebuje sieci i trzeba go uruchomić tylko po dodaniu nowych czarów,
+buffów lub przedmiotów.
+
+`npm run db:build` czyta tylko pliki JSON z lokalnego klonu wowsims/tbc-new (licencja MIT) i nie
+uruchamia jego kodu; wynik (`src/data/items/db.json`) jest w repo, więc zwykle nie trzeba go
+uruchamiać.
 
 ## Klawisze
 
@@ -212,7 +223,9 @@ Pisanie w polach wyszukiwania, importu i eksportu nie uruchamia skrótów klawis
 - DoT-y (Immolate, Corruption, klątwy) z odświeżaniem bez podwójnych ticków; jedna klątwa na cel
 - Improved Shadow Bolt (debuff +20% shadow, 4 ładunki)
 - mana, regeneracja co 2 s, zasada pięciu sekund, Life Tap
-- Malefic Raiment 4pc (+6% Shadow Bolt i Incinerate)
+- Malefic Raiment 4pc (+6% Shadow Bolt i Incinerate), Voidheart Raiment 2pc i 4pc (proc +135
+  shadow/fire, Corruption i Immolate o jeden tick dłużej), Mana-Etched Regalia, Spellstrike
+  Infusion i inne bonusy setów z presetów (lista w `docs/data-sources.md`, „Part E: gear”)
 - ekwipunek: przedmioty, klejnoty, bonusy za gniazda, enchanty, meta gem (z wymaganiem kolorów),
   bonusy setów z bazy wowsims (część niezamodelowana, oznaczona w panelu Gear)
 - talenty (Bane, Cataclysm, Devastation, Ruin, Emberstorm, Shadow and Flame, Demonic Sacrifice,
@@ -230,7 +243,9 @@ Pisanie w polach wyszukiwania, importu i eksportu nie uruchamia skrótów klawis
 Wynik jest przybliżony. Buffy rajdowe, consumables i proc Band of the Eternal Sage liczą się
 tylko wtedy, gdy włączysz je w panelu Setup (domyślnie wyłączone); przedmioty z paska Items
 dopiero wtedy, gdy ich użyjesz. Nigdy nie są liczone: koszt zdrowia Life Tap i Dark Rune (trener nie
-modeluje zdrowia), bonus Incinerate przy Immolate, redukcja odporności z Curse of the Elements. Nie ma też
+modeluje zdrowia), bonus Incinerate przy Immolate, redukcja odporności z Curse of the Elements,
+efekty on-use i proc przedmiotów poza Icon of the Silver Crescent i Band of the Eternal Sage oraz
+część bonusów setów (np. Corruptor Raiment, Wrath of Spellfire; panel Gear wypisuje te, które nosisz). Nie ma też
 sprawdzania zasięgu: Shadowburn działa z 28 yd. Domyślne założenia, zmienialne w Warlock options:
 poświęcony Succubus (+15% shadow) i Fel Armor (+130 spell power) przez całą walkę. Pełna lista:
 sekcja „What the DPS excludes” w `docs/data-sources.md`.
@@ -247,6 +262,9 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
   `docs/superpowers/plans/2026-10-30-item-actions-and-fight-settings.md`
 - Panel buffów gracza: specyfikacja `docs/superpowers/specs/2026-10-30-player-buffs-panel-design.md`,
   plan `docs/superpowers/plans/2026-10-30-player-buffs-panel.md`
+- Etap 2a (gear): specyfikacja `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`, plan
+  `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`; źródła, filtry, presety, import i
+  uproszczenia: `docs/data-sources.md`, „Part E: gear”
 - Źródło każdej liczby (wowsims, Wowhead), założenia i otwarte pytania: `docs/data-sources.md`
 - Decyzje projektowe (kolejka czarów): `docs/decisions/`
 
@@ -255,8 +273,8 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | Katalog | Zawartość |
 |---|---|
 | `src/engine` | deterministyczna symulacja walki (bez Reacta): czas, zdarzenia, czary, aury, mana, statystyki, ekwipunek |
-| `src/data` | dane gry: współczynniki, cel, katalog buffów, Destruction Warlock (czary, aury, talenty, przedmioty, zestawy, rotacja) |
-| `src/setup` | setup walki: domyślne ustawienia i ich walidacja, presety, zapis w `localStorage`, zamiana setupu na dane walki |
+| `src/data` | dane gry: współczynniki, cel, katalog buffów, Destruction Warlock (czary, aury, talenty, przedmioty, zestawy, presety gearu, rotacja), baza przedmiotów (`src/data/items`) |
+| `src/setup` | setup walki: domyślne ustawienia i ich walidacja, presety, zapis w `localStorage`, zamiana setupu na dane walki, walidacja gearu, import i eksport wowsims |
 | `src/bot` | bot grający listę priorytetów (punkt odniesienia DPS) |
-| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup, podsumowanie walki |
+| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup, panel Gear, podsumowanie walki |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `ui` oraz `smoke.test.ts` |

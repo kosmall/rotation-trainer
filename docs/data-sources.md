@@ -11,6 +11,7 @@ Not in the number:
 
 - Raid buffs and consumables unless enabled in the setup (stage 1.5 Part C, all off by default): no party/raid buffs, flasks, elixirs, food, oils, potions, Heroism or debuffs in the default run. The "Raid as in my log" preset enables an approximation of the author's raid, several of whose buffs are guesses (see "Part C: setup rules and calibration").
 - Item actions unless enabled in the setup and used: since the item actions (see "Part D: item actions"), Icon of the Silver Crescent (+155 spell damage for 20 s), Destruction Potion, Super Mana Potion and Dark Rune are pressed from the item row (Z X C V) by the player or the bot; enabling them alone adds nothing. Dark Rune's health cost (600-1000) is not simulated, like Life Tap's. Improved Divine Spirit's spell power (10% of spirit) is not modelled (see "Part C: raid, party and individual buffs"). (Stage 1.5 left Super Mana Potion and Dark Rune out and scheduled the potion and the Icon at a set second: superseded.)
+- Gear effects the trainer does not model (stage 2a, see "Part E: gear"): on-use and proc effects of items other than the Icon and the Band (e.g. The Lightning Capacitor, Quagmirran's Eye, Sextant of Unstable Currents), meta gem effects other than Chaotic Skyfire's crit damage, and the set bonuses in `UNMODELLED_SETS` (Corruptor Raiment 2pc and 4pc, Wrath of Spellfire 3pc and others). The Gear panel lists the ones the worn gear has.
 - Item effects unless enabled in the setup: Band of the Eternal Sage's proc (+95 spell damage for 10 s, 10% chance, 60 s internal cooldown) is modelled since stage 1.5 Task 8 as an optional setup entry, off by default (see "Part C: cooldowns and item effects"); Riding Crop has no combat effect.
 - Since stage 1.5 Part A, missile travel time IS modelled (Shadow Bolt lands 1400 ms after its cast at the default 28 yd); a bolt still in flight at the end does not count. See "Part A: projectile travel".
 - Life Tap's health cost (health is not simulated; only its mana gain is).
@@ -721,14 +722,19 @@ UI only: no engine, data or setup change, no new game number. Plan `docs/superpo
 
 ## Part E: gear
 
-Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database. Task 2: gear in the setup, socket and meta gem rules, set bonuses. Task 3: gear presets, WowSimsExporter import and wowsims gear export.
+Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database. Task 2: gear in the setup, socket and meta gem rules, set bonuses. Task 3: gear presets, WowSimsExporter import and wowsims gear export. Task 4: the Gear panel. Task 6: Voidheart Raiment 4pc (DoT extra ticks). Task 5: this summary and the final review. In short:
+
+- Data: wowsims tbc-new (MIT), filtered to what a warlock can wear; Spirit is stat index **16** (not 4).
+- Rules: meta gems need their colour requirement and fit only meta sockets; unique items and gems, ring limit categories, a staff empties the off hand; untrusted gear (storage, import) is normalized, never trusted.
+- Not modelled: item on-use/proc effects other than the Icon and the Band; Corruptor 2pc and 4pc, Wrath of Spellfire 3pc and the other bonuses listed below.
+- The default gear (the author's export) gives the stage 1 numbers exactly: bot means 1425.1766666666667 (queue window 400) and 1428.3350000000003 (0).
 
 ### Item database (`src/data/items/db.json`)
 
 - Source: github.com/wowsims/tbc-new `master` @ `91f869a`, `assets/database/db.json` (8253 items, 214 gems, 144 enchant entries). wowsims is **MIT licensed** (`LICENSE` in the repo); the generated file records its source in its `source` field.
 - Generator: `npm run db:build -- <path to a tbc-new clone>` (`scripts/build-item-db.mjs`). It only reads JSON from the clone (`assets/database/db.json`, `ui/specs/warlock/dps/gear_sets/*.gear.json`) and `.git/HEAD` for the commit id, and never runs its code. Output: `src/data/items/db.json` (committed; one record per line) and `tests/fixtures/wowsims-warlock-gear-sets.json` (a copy of the 9 wowsims warlock gear sets: preraid, t4, t5, t6, za, swp, destro_fire_preraid, destro_fire_t4, blank). The output is deterministic (a second run is byte-identical).
 - Size: 359 521 bytes raw, about 57 KB gzip. `tests/data/item-db.test.ts` caps `JSON.stringify(db).length` at 540 000 (about 1.5x the real size).
-- Loading: `loadItemDb()` (`src/data/items/db.ts`) imports the JSON with a dynamic `import()`, so Vite emits it as its own chunk (`db-*.js`, 356 kB, 56 kB gzip, measured with a probe build that references the loader from `main.tsx`; the main chunk grew 1.6 kB for the loader and Vite's preload helper). `itemDbSync()` (`src/data/items/dbSync.ts`, tests and scripts only) imports it statically; app code must not import `dbSync.ts`, or the database lands in the main chunk.
+- Loading: `loadItemDb()` (`src/data/items/db.ts`) imports the JSON with a dynamic `import()`, so Vite emits it as its own chunk (`db-*.js`: 357.50 kB, 56.63 kB gzip in the final build; see "Bundle" below). `itemDbSync()` (`src/data/items/dbSync.ts`, tests and scripts only) imports it statically; app code must not import `dbSync.ts`, or the database lands in the main chunk.
 
 ### Mapping (verified)
 
@@ -898,3 +904,61 @@ Not reviewed: the other 38 sets of the database (PvP sets, vanilla tiers, healer
 - Profession warnings. When the export lists professions, an item, gem or enchant whose `requiredProfession` is not among them gets a warning ("Don Julio's Heart needs Jewelcrafting"). The proto `Profession` names come from tbc-new `ui/sim/proto/names.ts`. Without a professions list (the gear.json shape) nothing is assumed.
 - Other warnings come from `describeGear` (Horde-only items). An inactive meta gem also gets a warning. Each warning appears once.
 - Export: `exportWowSimsGear(gear)` writes the exact layout of the wowsims gear files: tabs, one entry per line, `{}` for an empty slot, `enchant` and `gems` only when set, and 0 for an empty socket before a filled one. The `t6` preset exports to the content of tbc-new's `t6.gear.json`. Export then import gives back the same gear for the author's gear and every preset.
+
+### Derived stats per preset (Task 5)
+
+Default warlock options (Fel Armor, Succubus sacrificed), no buffs, the default setup otherwise. "Before set bonuses" is `computeStats(spec.setup, spec.statBonuses)`: gear, talents and multipliers, with no set bonus `statBonuses` (the Task 3 ledger table). "With set bonuses" is what the Gear panel's "Stats at the pull" shows: it adds the active set bonuses' `statBonuses` too. The only offered preset where they differ is Pre-Raid, whose Mana-Etched Regalia 2pc adds 35 spell hit rating: **10.30% before, 13.08% with** (35 rating / 12.615 per 1% = +2.77%). Crit is `computeStats`' crit, without the talent crit modifiers the panel's "Spell crit" adds. The bot mean DPS is over seeds 1-10, queue window 400, 28 yd, 60 s, real mana: the default setup (no buffs) and "Raid as in my log".
+
+| Preset | Int | Spirit | Shadow power | Crit % | Hit % before / with set bonuses | Haste % | Max mana | Bot DPS: default / raid |
+|---|---|---|---|---|---|---|---|---|
+| My gear (export) | 433 | 145 | 1300 | 22.60 | 15.54 / 15.54 | 2.85 | 9429 | 1425.18 / 2294.11 |
+| Pre-Raid | 313 | 145 | 1130 | 12.73 | 10.30 / **13.08** | 0 | 7483 | 1047.55 / 1766.92 |
+| T4 | 424 | 145 | 1163 | 14.74 | 13.00 / 13.00 | 0 | 9283 | 1125.44 / 1812.24 |
+| T5 | 414 | 145 | 1222 | 22.86 | 13.16 / 13.16 | 0 | 9121 | 1253.31 / 1961.86 |
+| T6 | 447 | 163 | 1350 | 21.11 | 14.43 / 14.43 | 11.22 | 9657 | 1573.14 / 2407.21 |
+| Zul'Aman | 462 | 163 | 1367 | 20.66 | 13.55 / 13.55 | 11.22 | 9900 | 1577.02 / 2418.93 |
+| Sunwell Plateau | 526 | 145 | 1381 | 19.85 | 13.40 / 13.40 | 37.03 | 10938 | 1872.98 / 2967.72 |
+
+The final Playwright smoke (Task 5) read the same shadow power, hit, haste and max mana from "Stats at the pull" for each preset, at desktop and phone width. T4's DPS includes Voidheart 4pc (Task 6). The DPS column is informational: no test pins it except the author's gear (golden) and the Task 6 table in `tests/data/sets-2a.test.ts`.
+
+### Meta gems, unique items and limit categories (summary)
+
+- A meta gem fits only a meta socket, and a meta socket takes only a meta gem; a prismatic gem fits and matches every coloured socket (`gemFitsSocket`, `socketMatches`, `src/engine/gear.ts`).
+- A meta gem is active only while its requirement holds: the `metaRequires` minimums (14 metas) or the `metaCompare` rule "strictly more gems of colour A than of colour B" (4 metas: 25897, 25895 more red than blue; 25893, 32640 more blue than yellow). The colours counted are those of every socketed non-meta gem (orange, purple and green count for both of their colours). An inactive meta gives no stats and no effect, but still fills its socket for the socket bonus. The Gear panel's "Meta gem" line says which meta is worn, whether it is active and what it needs.
+- Only Chaotic Skyfire Diamond's effect beyond its stats (+3% critical damage) is modelled; any other active meta gem's effect is listed as not modelled.
+- `unique` items and gems: a second copy anywhere in the gear (both ring slots, both trinket slots, any socket) is dropped by `normalizeGear`; the Gear panel refuses the pick with a message instead.
+- Ring limit categories (`RING_LIMIT_CATEGORIES`): at most one ring of each of 475 Signet Ring of the Bronze Dragonflight, 495 Violet Signet and 497 Band of Eternity.
+
+### Gear panel (Task 4): loading and filters
+
+- **When the database loads.** The default gear (the author's) is embedded in the main chunk (`items.ts`, `AUTHOR_GEAR_TABLES`), so the first paint and a fight with it never wait for the database. The `db-*.js` chunk is requested (once) when the Gear panel is first opened, or at start when the stored setup has a gear the embedded tables cannot build (`gearNeedsDb`). Until it has loaded, the next fight uses the author's gear, never a gear with unknown ids (`buildSetup` would skip them silently and give a wrong DPS); the DPS note names the fight's gear ("Gear: …"). When it has loaded, the stored gear is checked by `normalizeGear`; loading never writes to storage, and the next edit saves the checked config.
+- **A failed load.** The panel shows "Could not load the item database…" and a **Reload the page** button, not a retry. A browser keeps a failed dynamic `import()` in its module map, so a second `import()` of the same chunk fails again without a request. After a redeploy the old chunk name no longer exists either. Only a page reload can help. The setup is saved, so nothing is lost.
+- **Hidden in the pickers.** The 114 gems and 84 enchants with no modelled stat (strength, agility, stamina, defence, threat and similar) are not offered. A gem or enchant already worn stays listed. The 26 effect-only items (no modelled stat, only an `effects` text, e.g. The Lightning Capacitor) are hidden behind "Show items with only an unmodelled effect". Items are sorted newest phase first, with an "Up to phase N" filter. Gems that match the socket's colour come first, with a "Matches the socket" filter. Markers: "Horde only" or "Alliance only", the required profession, "Effect not modelled" (or "Effect: Setup panel" for the Icon and the Band); gems also "Unique".
+
+### Bundle (Task 5)
+
+`npm run build`:
+
+| Chunk | Before stage 2a (de95e40) | After (final) |
+|---|---|---|
+| main `index-*.js` | 308.97 kB (95.68 kB gzip) | 357.09 kB (111.00 kB gzip) |
+| `db-*.js` (item database, lazy) | - | 357.50 kB (56.63 kB gzip) |
+
+The main chunk grew about 48 kB (15 kB gzip): the embedded presets, the importer, the set bonuses and the setup's gear rules (about 6 kB by the end of Task 3: 315.11 kB), then the Gear panel and the item picker (Task 4). Measured by building both commits with the same Vite version. Lazy-loading `GearPanel` would move about 22 kB out of it (an optional follow-up). Icons: 697 item, gem and enchant icons, 1 250 183 bytes in `public/icons/items/` (budget 6 000 000).
+
+### Known simplifications (stage 2a)
+
+- **Feet enchant name.** The author's Feet enchant shows the merged name "Enchant Bracer - Fortitude / Enchant Boots - Fortitude", with no modelled stat. Effect id 2649 is listed twice in db.json, once per slot, and the generator merges duplicate effect ids into one record (see "Filters and counts"). Stamina is not modelled, so the number is unaffected.
+- **Faction and professions are only flagged.** Horde-only items (Stormcaller) are kept and warned about, and Alliance-only items are fine for the Gnome. Profession-only items, gems and enchants are never checked against the character; the importer warns only when the export lists professions.
+- **Item buffs are not coupled to the gear.** The Icon of the Silver Crescent and Band of the Eternal Sage setup entries count when enabled in Setup, whether or not the item is worn. The Gear panel warns when one is enabled but the item is not worn. A worn Icon or Band adds nothing until its setup entry is enabled.
+- **Item effects.** On-use and proc effects of items are not modelled, except the Icon and the Band (above). Of the 148 items with an `effects` text, every one but those two is marked "Effect not modelled" in the picker, and the worn ones are listed in the Gear notes.
+- **Set bonuses.** See "Set bonuses (Task 2)": Corruptor Raiment 2pc (no pet) and 4pc (needs an engine change to a running DoT), Wrath of Spellfire 3pc (no stat-to-stat conversion; Fire presets only, not offered) and the others in that table are listed, not modelled. Spellstrike and Mana-Etched use slightly different miss rules (a known, negligible inconsistency: the trainer skips misses for Spellstrike's "land", wowsims has no outcome filter).
+- **Talents and race.** The import's `talents` are not applied (stage 2b), and its race is only checked (warning for a race other than Gnome).
+- **Setup presets keep the gear.** Choosing a Setup preset ("None", "Raid as in my log") keeps the player's gear, like the fight length (ruling F-2). "Reset to defaults" restores the author's gear.
+
+### Optional follow-ups
+
+- Lazy-load `GearPanel` (`React.lazy`) to cut the main chunk by about 22 kB.
+- Wrath of Spellfire 3pc (+7% of Intellect as spell damage): a `spellPowerPerIntellect`-style stat dependency in `computeStats`. It only matters for the Fire presets.
+- Corruptor Raiment 4pc: each landed Shadow Bolt (Incinerate) raises the running Corruption (Immolate) tick damage by 10%. This needs an engine operation on a DoT already on the target.
+- Stage 2b: apply the import's `talents` string (talent presets and editor).

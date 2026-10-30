@@ -145,7 +145,9 @@ Jeden spec, osobny plan implementacji i commit na etap:
    Gear to stała lista ID itemów z małej tabeli (staty, przynależność do setu); liczba części
    setu jest wyliczana z itemów, nie wpisywana ręcznie. Talenty: stały build.
    2a. Pełna baza itemów, zestawy BIS na każdą fazę i import gearu z addonu WowSimsExporter
-   po ID itemów (zakładka Gear).
+   po ID itemów (zakładka Gear). **Zrobione** (panel Gear): specyfikacja
+   `2026-10-30-gear-stage-2a-design.md`, plan `../plans/2026-10-30-gear-stage-2a.md`; dane,
+   reguły i uproszczenia w `docs/data-sources.md`, „Part E: gear”.
    2b. Gotowe „najlepsze talenty" na fazę i edytor drzewka talentów (zakładka Talents).
    2c. Keybindy konfigurowalne. (Raid buffy, consumables, zapis w `localStorage` i konfigurowalna
    rotacja zostały przeniesione do etapu 1.5: `2026-10-29-realism-and-setup-design.md`,
