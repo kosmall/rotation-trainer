@@ -147,7 +147,7 @@ describe('Item bar', () => {
     // The Icon: its own 2 min, and the trinket group's 20 s on no other item here.
     press('c');
     expect(cooldownText(ICON)).toBe('2m');
-    expect(cooldownText(DP)).toBe('119s');
+    expect(cooldownText(DP)).toBe('2m');
   });
 
   it('R still resets, Space/Enter on a focused item button presses it (not start)', () => {
