@@ -180,7 +180,7 @@ function parse(text: unknown, db: ItemDb): ImportResult {
   }
   let root: unknown;
   try {
-    root = JSON.parse(text);
+    root = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text); // a copied file may start with a BOM
   } catch {
     return failed(['The text is not valid JSON: paste the whole export.']);
   }
@@ -204,7 +204,7 @@ function parse(text: unknown, db: ItemDb): ImportResult {
 
   if (race !== undefined && race.toLowerCase() !== TRAINER_RACE) {
     warnings.push(
-      `The export is of a ${race}; the trainer's character is a Gnome (its base stats and racial bonuses), so the stats can differ from the game.`,
+      `The export's race is ${race}; the trainer's character is a Gnome (its base stats and racial bonuses), so the stats can differ from the game.`,
     );
   }
   if (cls !== undefined && cls.toLowerCase() !== TRAINER_CLASS) {
@@ -230,7 +230,13 @@ function parse(text: unknown, db: ItemDb): ImportResult {
   if (malformed > 0) warnings.push(`${malformed} malformed ${malformed === 1 ? 'entry was' : 'entries were'} skipped.`);
 
   // Placement.
-  const byOrder = entries.length === ITEM_SLOTS.length;
+  // A full-length list is placed by position (the addon's order) as long as every known item fits
+  // the slot it sits in; otherwise (a list in another order) every item goes by its own slot.
+  const fitsSlot = (e: RawEntry | null, i: number) => {
+    if (e === null || !has(db.items, e.id)) return true;
+    return db.items[e.id]!.slot === logicalSlot(ITEM_SLOTS[i]!);
+  };
+  const byOrder = entries.length === ITEM_SLOTS.length && entries.every(fitsSlot);
   const placed: (RawEntry | null)[] = ITEM_SLOTS.map(() => null);
   if (byOrder) {
     entries.forEach((e, i) => (placed[i] = e));

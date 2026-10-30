@@ -186,6 +186,30 @@ describe('parseWowSimsExport', () => {
     expect(big.warnings.join('\n')).toMatch(/200000 characters/);
   });
 
+  it('a leading BOM is ignored, the size cap is exact, and a shuffled full list is placed by slot', () => {
+    const raw = JSON.stringify(authorExport);
+    const plain = parseWowSimsExport(raw, db);
+    expect(plain.ok).toBe(true);
+    const bom = parseWowSimsExport(`\ufeff${raw}`, db);
+    expect(bom.ok).toBe(true);
+    expect(bom.gear).toEqual(plain.gear);
+
+    // Exactly the cap parses; one more character is rejected.
+    const base = '{"items":[]}';
+    const atCap = base.slice(0, -1) + ' '.repeat(IMPORT_MAX_CHARS - base.length) + '}';
+    expect(atCap.length).toBe(IMPORT_MAX_CHARS);
+    expect(parseWowSimsExport(atCap, db).warnings.join('\n')).not.toMatch(/characters; a gear export/);
+    expect(parseWowSimsExport(`${atCap} `, db).warnings.join('\n')).toMatch(/200000 characters/);
+
+    // The same 17 items in reverse order land in the same slots as the real export.
+    const reversed = JSON.stringify({ items: [...authorExport.gear.items].reverse() });
+    const shuffled = parseWowSimsExport(reversed, db);
+    expect(shuffled.ok).toBe(true);
+    expect(shuffled.gear.filter((g) => g !== null)).toHaveLength(plain.gear.filter((g) => g !== null).length);
+    expect(shuffled.gear[slot('head')]).toEqual(plain.gear[slot('head')]);
+    expect(shuffled.gear[slot('neck')]).toEqual(plain.gear[slot('neck')]);
+  });
+
   it('slot placement fallback by DB slot for a short list', () => {
     // Rings and trinkets fill finger1/2 and trinket1/2 in order; the rest by their slot,
     // whatever the order of the list.
@@ -240,14 +264,15 @@ describe('parseWowSimsExport', () => {
     expect(many.warnings).toEqual(['Only the first 64 of 100 entries were read.', 'Hood of the Malefic: no free head slot; not equipped.']);
   });
 
-  it('17 entries are placed by order; an item in the wrong slot is left empty with a warning', () => {
+  it('17 entries are placed by order while every known item fits its position; a list in another order goes by slot', () => {
     const items = structuredClone(authorExport.gear.items) as RawEntry[];
-    [items[0], items[1]] = [items[1]!, items[0]!]; // head <-> neck
+    [items[0], items[1]] = [items[1]!, items[0]!]; // head <-> neck: not the addon's order
     const r = parseWowSimsExport(JSON.stringify({ items }), db);
     expect(r.ok).toBe(true);
-    expect(r.gear[0]).toBeNull();
-    expect(r.gear[1]).toBeNull();
-    expect(r.warnings.join('\n')).toMatch(/Hood of the Malefic.*not a neck item/);
+    // Placed by the items' own slots, so nothing is lost (wowsims reads a list in any order too).
+    expect(r.gear[slot('head')]).toEqual(DEFAULT_GEAR[slot('head')]);
+    expect(r.gear[slot('neck')]).toEqual(DEFAULT_GEAR[slot('neck')]);
+    expect(r.warnings.join('\n')).not.toMatch(/not a/);
     // Null entries (the addon's empty slots) keep their position.
     const withNull = structuredClone(authorExport.gear.items) as (RawEntry | null)[];
     withNull[slot('neck')] = null;
