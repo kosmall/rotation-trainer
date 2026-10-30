@@ -41,7 +41,7 @@
 - Produces on `SpellDef` (all optional): `item?: true`; `sharedCooldown?: { group: string; ms: number }`; `gainManaRange?: { min: number; max: number }` (integers, `min <= max`; one `rng` draw per use: `min + floor(rng() * (max - min + 1))`, then `addMana`; logged `mana` with the action's `spellId`, amount = actual gain). Item actions have `onGcd: false`, `castTimeMs: 0`, `manaCost: 0` in data; the engine enforces: no GCD, no `canMiss`/`canCrit` roll (resolution: cost, cooldowns, mana gain, `applyAura` self aura applied, nothing else), no `runHooks`, no `lastManaSpendMs` update, no missile.
 - Shared cooldown: on use, every spell with `sharedCooldown.group === used.group` (including the used one) gets `readyAt = max(existingReadyAt, now + ms)`; the used spell then also gets its own `cooldownMs`. `snapshot.cooldownRemainingMs[id]` already reports the larger of both.
 - `cast(id)` on an item: same rejection order as other spells (`busy`, `cooldown`, aura/mana checks not applicable), same spell-queue window rule (blocked by the active cast only, not by the GCD since `onGcd` is false).
-- Log: `cast-complete` with `spellId`, then `aura-apply` (if any aura), `mana` (if mana); no `cast-start`.
+- Log: `cast-complete` with `spellId`, then `mana` (if mana), `aura-apply` (if any aura); no `cast-start`.
 
 - [ ] **Step 1: Write the failing tests** (`tests/engine/sim-items.test.ts`)
   - `an item action is instant, off the GCD and does not start the GCD` (cast a spell, press the item during its GCD: accepted at once; item then a GCD spell: the GCD runs from the spell only).

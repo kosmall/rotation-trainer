@@ -377,11 +377,20 @@ describe('Simulation: item actions', () => {
       { sharedCooldown: { group: 'potion', ms: -1 } },
       { sharedCooldown: { group: 'potion', ms: Number.NaN } },
       { sharedCooldown: { group: 'potion', ms: 1.5 } },
+      { requiresTargetAura: 'someDebuff' },
+      { consumesTargetAura: 'someDebuff' },
+      { direct: { min: 1, max: 2, coeff: 0 } },
     ];
     for (const patch of bad) {
       expect(() => newSim({ spec: patched({ manaPot: patch }) })).toThrow(RangeError);
     }
     // min === max is valid (a fixed amount, still one draw).
     expect(() => newSim({ spec: patched({ manaPot: { gainManaRange: { min: 0, max: 0 } } }) })).not.toThrow();
+  });
+
+  it("an own cooldown shorter than the group's never shortens the group cooldown on the used item itself", () => {
+    const sim = newSim({ spec: patched({ burstPot: { cooldownMs: 60000 } }), durationMs: 300000 });
+    expect(sim.cast('burstPot')).toEqual({ ok: true });
+    expect(sim.snapshot().cooldownRemainingMs['burstPot']).toBe(120000); // the 120 s potion group
   });
 });

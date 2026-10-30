@@ -117,6 +117,9 @@ function validateSpell(spell: SpellDef): void {
       `${spell.id}: sharedCooldown.ms must be a non-negative integer, got ${spell.sharedCooldown.ms}`,
     );
   }
+  if (spell.item && (spell.requiresTargetAura || spell.consumesTargetAura || spell.direct)) {
+    throw new RangeError(`${spell.id}: an item action cannot require or consume a target aura or deal direct damage`);
+  }
   const range = spell.gainManaRange;
   if (range && !(isWholeMs(range.min) && isWholeMs(range.max) && range.min <= range.max)) {
     throw new RangeError(
