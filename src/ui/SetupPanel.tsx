@@ -34,7 +34,9 @@ const CURSES: { id: CurseChoice; name: string }[] = [
 const ARMORS = Object.keys(WARLOCK_ARMOR_OPTIONS) as WarlockOptions['armor'][];
 const ROTATION_PRESET_IDS = Object.keys(ROTATION_PRESETS) as RotationPresetId[];
 
-export type SetupPresets = Readonly<Record<SetupPresetId, { readonly name: string; readonly config: SetupConfig }>>;
+export type SetupPresets = Readonly<
+  Record<SetupPresetId, { readonly name: string; readonly description?: string; readonly config: SetupConfig }>
+>;
 
 /** The rotation preset whose values `rotation` has, or 'custom'. */
 function rotationPresetOf(rotation: RotationConfig): RotationPresetId | 'custom' {
@@ -284,6 +286,7 @@ export function SetupPanel({
   const updateWarlock = (patch: Partial<WarlockOptions>) => emit({ ...config, warlock: { ...config.warlock, ...patch } });
 
   const presetName = activePresetName(config, presets, catalog);
+  const presetDescription = Object.values(presets).find((p) => p.name === presetName)?.description;
   const rotationPreset = rotationPresetOf(config.rotation);
   const autoLifeTap = lifeTap === 'auto';
   const warlockBuffs = catalog.filter((b) => groupOf(b) === 'warlock');
@@ -341,11 +344,13 @@ export function SetupPanel({
               {presetName}
             </span>
           </p>
+          {presetDescription && <p className="hint setup-preset-description">{presetDescription}</p>}
           <div className="setup-preset-buttons">
             {Object.entries(presets).map(([presetId, p]) => (
               <button
                 key={presetId}
                 type="button"
+                title={p.description}
                 aria-pressed={presetName === p.name}
                 onClick={(e) => {
                   e.currentTarget.blur(); // keep Space/R for the fight

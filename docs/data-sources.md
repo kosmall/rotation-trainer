@@ -190,7 +190,7 @@ The rules live in `src/data/classes/warlock/rotation.ts` (`buildPriority`, see "
 | Rule | Source | Status |
 |---|---|---|
 | Curse first, assigned curse when not active | tbc-new `ui/specs/warlock/dps/apls/destruction.apl.json` group "Cast Curse"; wowsims/tbc `sim/warlock/rotations.go` | verified |
-| Curse of the Elements as the warlock's curse | tbc-new DefaultOptions assign Recklessness (raid choice); CoE chosen here as it raises the warlock's own fire and shadow damage. Curse of Doom is a real alternative: cast at the pull, its single tick lands at exactly 60 s and counts (a tick at the fight end counts, ruling R6); the bot measured about the same DPS with Doom instead of CoE (1483 vs 1486, 20 seeds, window 400). Only one curse can be up (see "Curses: one per target" below) | UNVERIFIED (choice) |
+| Curse of the Elements as the warlock's curse | tbc-new DefaultOptions assign Recklessness (raid choice); CoE chosen here as it raises the warlock's own fire and shadow damage. Curse of Doom is a real alternative: cast at the pull, its single tick lands at exactly 60 s and counts (a tick at the fight end counts, ruling R6); the bot measured about the same DPS with Doom instead of CoE (1483 vs 1486, 20 seeds, window 400; a stage 1 measurement taken before travel time, see Part A for the current numbers). Only one curse can be up (see "Curses: one per target" below) | UNVERIFIED (choice) |
 | Shadowburn only as a finisher (Soul Shard cost) | APL "Should Cast Shadow Burn" (`remainingTime <= spellCastTime(SB) + travel`) | verified (travel included since Part A: 2500 + 1400 ms at the default 28 yd; unhasted 2500 ms on purpose, see Task 12b open question 3) |
 | Immolate refresh | APL "Should Cast Immolate" | verified |
 | Immolate and Corruption rules are false while that same spell is being cast (`dotRefreshDue`, `s.cast?.spellId !== spellId`) or in flight (`!s.inFlight.some(f => f.spellId === spellId)`, Part A) | Spell-queue guard, not from the wowsims APL: with a queue window the bot or player could press the DoT again during its own cast and clip the first one, because the DoT is not on the target until the cast lands. wowsims evaluates its APL only when the player is free, so it never needs this. Added in Task 13; the in-flight part in stage 1.5 Task 2 (the real Immolate and Corruption have no missile, so it only matters for a DoT that flies; tested with a hypothetical missile Immolate/Corruption); tested in `tests/data/destruction.test.ts` and `tests/bot/bot.test.ts` | deliberate deviation from the APL |
@@ -607,14 +607,14 @@ Warlock options: Fel Armor and the Succubus sacrificed (the defaults).
 
 | Checkpoint | Log | `none` | `raid-log` | Residual and reason |
 |---|---|---|---|---|
-| Intellect | 593 | 454.65 | 567.1 = (433 + 40 + 18) x 1.05 x 1.1 | -4.4% (26 intellect, about 0.3% crit and 390 mana): see below |
+| Intellect | 593 | 454.65 | 567.1 = (433 + 40 + 18) x 1.05 x 1.1 | -4.4% (26 intellect, about 0.3% crit and 400 mana): see below |
 | Spirit | 191 | 137.75 | 191.2 = (145 + 18 + 20) x 0.95 x 1.1 | +0.1% |
 | Crit rating | 361 | 339 | 359 = 339 + Moonkin idol 20 | -2. The raid's druid wore the idol, or the gear differs by 22 rating and there was no idol; the log cannot tell. |
 | Hit rating | 177 | 196 | 196 | The export's gear has 19 more (15.54% vs 14.03% hit), so the gear is not the raid's. The trainer misses about 1.5 points less often than the log. |
 | Haste rating | 45 | 45 | 45 | exact |
 | Shadow power (from Life Tap) | about 1592 (1856 = 582 + 0.8 x 1592.5; 1855 gives 1591.25) | 1300 | 1566 = 1117 + 53 + Fel Armor 130 + Wrath of Air 121 + Pure Death 80 + Basilisk 23 + oil 42 | -26.5 |
 | Life Tap | 1856, 1855 | 1622 | 1834.8 | -1.1% |
-| Shadow Bolt crit at the pull | 37.8% (the design spec's figure from the log) | 30.60% | 37.88% = 24.88 + Moonkin 5 + Backlash 3 + Devastation 5 | Matches. The log figure's definition is not recorded; over about 40 Shadow Bolts it carries about +-8 points of noise anyway. The Destruction Potion adds 2% from 7.5 to 22.5 s. |
+| Shadow Bolt crit at the pull | 37.8% (the design spec's figure from the log) | 30.60% | 37.88% = 24.88 + Moonkin 5 + Backlash 3 + Devastation 5 | Matches. Only the observed Shadow Bolt crit rate fits the header ratings (as a sheet crit, 361 rating + 593 Int + Moonkin gives only about 30%; the design spec's "symulacja: 22,6%" was the sheet crit without talents). Over about 40 Shadow Bolts it carries about +-8 points of noise anyway. The Destruction Potion adds 2% from 7.5 to 22.5 s. |
 
 **Why intellect is 26 short.** An exhaustive search covered every combination of the catalog's intellect, spirit and spell power entries, normalized: 3168 distinct setups. None meets intellect within 3%, spirit within 3% and Life Tap within 2% together.
 - The only intellect consumables, Flask of Distilled Wisdom and Elixir of Draenic Wisdom, exclude every flask.

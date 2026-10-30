@@ -41,7 +41,7 @@ const LOG = { intellect: 593, spirit: 191, critRating: 361, hasteRating: 45, hit
  * together with the log's Life Tap: the only two intellect consumables (Flask of Distilled Wisdom,
  * Elixir of Draenic Wisdom) exclude every flask, and without Flask of Pure Death (or Supreme
  * Power) Life Tap stays under 1815 (-2.2%). The preset keeps the spell power right (it matters far
- * more for the damage) and leaves 26 intellect (-4.4%, about 0.3% crit and 390 mana) unexplained:
+ * more for the damage) and leaves 26 intellect (-4.4%, about 0.3% crit and 400 mana) unexplained:
  * the export's gear is not the raid's gear (hit rating 196 vs 177 proves at least one item or gem
  * differs). An exhaustive search of the catalog's intellect, spirit and spell power entries is in
  * the Task 12 report.

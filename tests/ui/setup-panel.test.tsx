@@ -60,7 +60,7 @@ function priorityLabels(): string[] {
     .map((li) => li.querySelector('strong')?.textContent ?? '');
 }
 
-type Presets = Readonly<Record<SetupPresetId, { name: string; config: SetupConfig }>>;
+type Presets = Readonly<Record<SetupPresetId, { name: string; description?: string; config: SetupConfig }>>;
 
 /**
  * SetupPanel with its own config state, as GameView holds it; the spy sees every config passed
@@ -363,16 +363,18 @@ describe('SetupPanel', () => {
     };
     const presets: Presets = {
       none: { name: 'None', config: structuredClone(DEFAULT_SETUP) },
-      'raid-log': { name: 'Raid as in my log', config: raid },
+      'raid-log': { name: 'Raid as in my log', description: 'Approximate. Guessed: Arcane Brilliance.', config: raid },
     };
     const onChange = vi.fn();
     render(<Harness onChange={onChange} presets={presets} />);
     expect(activePreset()).toBe('None');
+    expect(screen.queryByText(/Guessed: Arcane Brilliance/)).toBeNull(); // None has no description
 
     fireEvent.click(screen.getByRole('button', { name: 'Raid as in my log' }));
     expect(last(onChange)).toEqual(raid);
     expect(last(onChange)).not.toBe(raid); // a copy: the preset is never edited
     expect(activePreset()).toBe('Raid as in my log');
+    expect(screen.getByText(/Guessed: Arcane Brilliance/)).toBeTruthy(); // the preset states what is a guess
     expect(checkbox('Arcane Brilliance').checked).toBe(true);
     expect(checkbox('Heroism / Bloodlust').checked).toBe(true);
     expect(startInput('Heroism / Bloodlust').value).toBe('6');

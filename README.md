@@ -68,8 +68,8 @@ Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następn
     działa tylko jeden.
   - Target debuffs: debuffy celu od innych graczy. Curse of the Elements i Improved Shadow Bolt
     od raidu nie sumują się z Twoimi.
-  - Items and cooldowns: Heroism, Destruction Potion, Icon, Band. Dla każdego ustawiasz sekundę
-    startu i czas trwania.
+  - Items and cooldowns: Heroism, Destruction Potion, Icon, Band. Dla Heroism, Destruction Potion
+    i Icon ustawiasz sekundę startu i czas trwania; Band to proc (losowany w walce), bez startu.
   - Warlock options: Fel Armor albo Demon Armor, poświęcony Succubus.
 - **Rotacja:** presety rotacji „DoT rotation” (domyślna) i „Shadow Bolt spam + curse” (jak w
   logu). Do tego klątwa, Immolate, Corruption, Shadowburn na koniec walki i próg many dla Life
