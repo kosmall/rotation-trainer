@@ -4,8 +4,8 @@
 //        npm run icons -- --force (re-downloads all)
 //
 // For every spell and aura of the spec, every buff of the setup catalog (the buff, the auras it
-// applies and the warlock options), each with a `wowheadId`, it asks Wowhead's tooltip API for the real icon
-// name, compares it with the `icon` in the data (a mismatch is reported and exits 1: fix the
+// applies, its item action) and the warlock options, each with a `wowheadId`, it asks Wowhead's
+// tooltip API for the real icon name, compares it with the `icon` in the data (a mismatch is reported and exits 1: fix the
 // data, the script never edits source files) and downloads the JPG from Wowhead's CDN.
 // Icons are Blizzard artwork served by Wowhead: this is for the author's personal use.
 // Run it with tsx (it imports the TypeScript data directly).
@@ -20,14 +20,24 @@ import { SETUP_CATALOG } from '../src/setup/defaults.ts';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'icons', 'spells');
 const force = process.argv.includes('--force');
-const TOOLTIP = (id) => `https://nether.wowhead.com/tbc/tooltip/spell/${id}?dataEnv=5&locale=0`;
+const TOOLTIP = (kind, id) => `https://nether.wowhead.com/tbc/tooltip/${kind}/${id}?dataEnv=5&locale=0`;
 const CDN = (icon) => `https://wow.zamimg.com/images/wow/icons/large/${icon}.jpg`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Wowhead's "no icon" placeholder: never a real icon, never saved. */
+const PLACEHOLDER_ICON = 'classic_temp';
+/**
+ * Use spells whose Wowhead spell tooltip has only the placeholder icon: the icon comes from the
+ * item's tooltip instead (spell id -> item id). Super Mana Potion: spell 28499 "Restore Mana" ->
+ * item 22832 (inv_potion_137).
+ */
+const ICON_FROM_ITEM = new Map([[28499, 22832]]);
 
 // The setup catalog's buffs and the auras they apply (debuffs, timed buffs, item procs).
 const buffAuras = SETUP_CATALOG.flatMap((b) =>
   [b.effect.targetAura, b.effect.selfAura, ...(b.effect.auras ?? [])].filter((a) => a !== undefined),
 );
+// The item actions of the catalog (item bar); usually the same wowheadId as their buff.
+const itemActions = SETUP_CATALOG.flatMap((b) => (b.effect.action ? [b.effect.action] : []));
 // Warlock options with an icon ('No armor' has none).
 const warlockOptions = [
   ...Object.entries(WARLOCK_ARMOR_OPTIONS).map(([id, o]) => ({ ...o, id: `armor-${id}` })),
@@ -41,6 +51,7 @@ for (const [kind, defs] of [
   ['aura', destructionWarlock.auras],
   ['buff', SETUP_CATALOG],
   ['buff aura', buffAuras],
+  ['item action', itemActions],
   ['warlock option', warlockOptions],
 ]) {
   for (const def of defs) {
@@ -60,15 +71,21 @@ let problems = process.exitCode === 1 ? 1 : 0;
 
 for (const { wowheadId, claims } of byId.values()) {
   const label = claims.map((c) => `${c.kind} ${c.id}`).join(', ');
+  const itemId = ICON_FROM_ITEM.get(wowheadId);
+  const source = itemId === undefined ? `spell ${wowheadId}` : `spell ${wowheadId} via item ${itemId}`;
   try {
-    const res = await fetch(TOOLTIP(wowheadId), { headers: { 'user-agent': 'rotation-trainer personal icon fetch' } });
+    const url = itemId === undefined ? TOOLTIP('spell', wowheadId) : TOOLTIP('item', itemId);
+    const res = await fetch(url, { headers: { 'user-agent': 'rotation-trainer personal icon fetch' } });
     if (!res.ok) throw new Error(`tooltip API HTTP ${res.status}`);
     const real = (await res.json()).icon;
     if (typeof real !== 'string' || !/^[a-z0-9_]+$/.test(real)) throw new Error(`unexpected icon name ${JSON.stringify(real)}`);
+    if (real === PLACEHOLDER_ICON) {
+      throw new Error(`Wowhead has only the placeholder icon "${PLACEHOLDER_ICON}": add the item id to ICON_FROM_ITEM`);
+    }
 
     for (const claim of claims) {
       if (claim.icon !== real) {
-        console.error(`MISMATCH ${claim.kind} ${claim.id} (spell ${wowheadId}): data says "${claim.icon}", Wowhead says "${real}"`);
+        console.error(`MISMATCH ${claim.kind} ${claim.id} (${source}): data says "${claim.icon}", Wowhead says "${real}"`);
         problems++;
       }
     }
@@ -86,7 +103,7 @@ for (const { wowheadId, claims } of byId.values()) {
       console.log(`saved ${real}.jpg (${label}) ${bytes.length} bytes`);
     }
   } catch (error) {
-    console.error(`FAIL  ${label} (spell ${wowheadId}): ${error.message}`);
+    console.error(`FAIL  ${label} (${source}): ${error.message}`);
     problems++;
   }
   await sleep(200); // be polite to the CDN
