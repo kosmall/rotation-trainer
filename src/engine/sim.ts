@@ -105,6 +105,31 @@ function planScheduledAuras(entries: readonly ScheduledAura[], fightMs: number):
   return planned;
 }
 
+/**
+ * Throws a RangeError for invalid `sharedCooldown` / `gainManaRange` data (a data error, not
+ * clamped): `ms`, `min` and `max` must be non-negative integers (so not NaN or infinite), and
+ * `min <= max`.
+ */
+function validateSpell(spell: SpellDef): void {
+  const isWholeMs = (n: number) => Number.isInteger(n) && n >= 0;
+  if (spell.sharedCooldown && !isWholeMs(spell.sharedCooldown.ms)) {
+    throw new RangeError(
+      `${spell.id}: sharedCooldown.ms must be a non-negative integer, got ${spell.sharedCooldown.ms}`,
+    );
+  }
+  const range = spell.gainManaRange;
+  if (range && !(isWholeMs(range.min) && isWholeMs(range.max) && range.min <= range.max)) {
+    throw new RangeError(
+      `${spell.id}: gainManaRange needs non-negative integers with min <= max, got ${range.min}..${range.max}`,
+    );
+  }
+}
+
+/** Whether `spell` triggers (and waits for) the GCD: never for an item action. */
+function usesGcd(spell: SpellDef): boolean {
+  return spell.onGcd && !spell.item;
+}
+
 /** The pending events of an active aura; cancelled when it is refreshed or consumed. */
 interface AuraEvents {
   tickEventIds: EventId[];
@@ -218,7 +243,10 @@ export class Simulation {
     this.setup = spec.setup;
     this.baseStatBonuses = [spec.statBonuses, ...sets.map((s) => s.statBonuses ?? {})];
     this.baseModifiers = [...spec.modifiers, ...spec.setup.modifiers, ...sets.flatMap((s) => s.modifiers ?? [])];
-    for (const spell of spec.spells) this.spells.set(spell.id, spell);
+    for (const spell of spec.spells) {
+      validateSpell(spell);
+      this.spells.set(spell.id, spell);
+    }
     for (const aura of spec.auras) this.auraDefs.set(aura.id, aura);
     // Every scheduled aura id must be known (a data error otherwise), checked here and not when
     // the entry would apply mid-fight.
@@ -281,6 +309,10 @@ export class Simulation {
    * `queuePressRejection`); otherwise that reason is returned and nothing changes (an already
    * queued spell stays). A valid press replaces the queued spell (`queue-drop`, reason
    * `replaced`). Outside the window the plain rejection order applies.
+   *
+   * An item action (`SpellDef.item`) follows the same rules as an off-GCD instant: the GCD never
+   * blocks it, a cast in progress does (`busy`, or queued within the window, sharing the one
+   * queue slot with spells), and an accepted use in `ready` starts the fight like a cast.
    *
    * In `ready` the checks see the state before `start()` applies the scheduled auras at 0 (a
    * rejected cast must leave the fight unstarted, R13); an accepted cast starts after them, so
@@ -407,7 +439,7 @@ export class Simulation {
   private castRejection(spell: SpellDef): CastRejection | null {
     if (this.activeCast) return 'busy';
     if (this.cooldownRemaining(spell.id) > 0) return 'cooldown';
-    if (spell.onGcd && this.nowMs < this.gcdEndsAtMs) return 'gcd';
+    if (usesGcd(spell) && this.nowMs < this.gcdEndsAtMs) return 'gcd';
     if (spell.requiresTargetAura && !this.targetAuras.get(spell.requiresTargetAura, this.nowMs)) {
       return 'missing-aura';
     }
@@ -417,11 +449,12 @@ export class Simulation {
 
   /**
    * When the busy/gcd block on `spell` ends: the later of the active cast's end and, for an
-   * on-GCD spell, the GCD end (a cast shorter than the GCD still leaves the GCD running).
+   * on-GCD spell, the GCD end (a cast shorter than the GCD still leaves the GCD running). An
+   * item action is never on the GCD: only a cast in progress blocks it.
    */
   private blockEndMs(spell: SpellDef): number {
     const castEndMs = this.activeCast?.endMs ?? 0;
-    return spell.onGcd ? Math.max(castEndMs, this.gcdEndsAtMs) : castEndMs;
+    return usesGcd(spell) ? Math.max(castEndMs, this.gcdEndsAtMs) : castEndMs;
   }
 
   /**
@@ -491,10 +524,11 @@ export class Simulation {
   /**
    * Starts the GCD now; completes at once (instant) or schedules the completion at cast end.
    * GCD length, cast time and mana cost are fixed here from the current stats and modifiers:
-   * a self aura that changes during the cast does not change them.
+   * a self aura that changes during the cast does not change them. An item action starts no
+   * GCD and is always instant (see `castTimeMs`).
    */
   private startCast(spell: SpellDef): void {
-    if (spell.onGcd) this.gcdEndsAtMs = this.nowMs + this.gcdMs();
+    if (usesGcd(spell)) this.gcdEndsAtMs = this.nowMs + this.gcdMs();
     const castMs = this.castTimeMs(spell);
     const manaCost = this.manaCost(spell);
     if (castMs === 0) {
@@ -515,9 +549,11 @@ export class Simulation {
 
   /**
    * Cast end: `cost` (checked at cast start) is spent (a costly spell also starts the
-   * five-second rule), the cooldown starts, a `gainMana` spell gives its mana, then the spell's
-   * effects resolve: at once, or when its missile lands (see `launchMissile`). Cancelled and
-   * cut-off casts never get here, so they spend nothing.
+   * five-second rule), the cooldowns start (`startCooldowns`), a `gainMana` spell gives its
+   * mana, a `gainManaRange` spell draws and gives its mana, then the spell's effects resolve:
+   * at once, or when its missile lands (see `launchMissile`). An item action (cost always 0)
+   * resolves here instead: only its `applyAura`, with no roll, damage, missile or hooks.
+   * Cancelled and cut-off casts never get here, so they spend nothing.
    */
   private completeCast(spell: SpellDef, cost: number): void {
     this.addLog({ type: 'cast-complete', spellId: spell.id });
@@ -525,14 +561,44 @@ export class Simulation {
       this.mana = Math.max(0, this.mana - cost);
       this.lastManaSpendMs = this.nowMs;
     }
-    if (spell.cooldownMs > 0) this.cooldownReadyAtMs.set(spell.id, this.nowMs + spell.cooldownMs);
+    this.startCooldowns(spell);
     if (spell.gainMana) {
       const amount = this.addMana(spell.gainMana.amount + spell.gainMana.coeff * this.stats.power[spell.school]);
       this.addLog({ type: 'mana', spellId: spell.id, amount });
     }
+    if (spell.gainManaRange) {
+      // The only Rng draw of a gainManaRange spell, made only when it is used.
+      const { min, max } = spell.gainManaRange;
+      const amount = this.addMana(min + Math.floor(this.rng.next() * (max - min + 1)));
+      this.addLog({ type: 'mana', spellId: spell.id, amount });
+    }
+    if (spell.item) {
+      if (spell.applyAura) this.applyAura(spell.applyAura.on, spell.applyAura.auraId, spell);
+      return;
+    }
     const travelMs = projectileTravelMs(spell.missileSpeed, this.distanceYd);
     if (travelMs > 0) this.launchMissile(spell, travelMs);
     else this.resolveSpell(spell);
+  }
+
+  /**
+   * Starts the spell's cooldowns at completion: first its `sharedCooldown` on every spell of
+   * the same group (this one included), then its own `cooldownMs`. Each only ever pushes a
+   * ready time later (`extendCooldown`), so a longer cooldown already running is kept and
+   * `cooldownRemainingMs` reports the larger of the own and the shared one.
+   */
+  private startCooldowns(spell: SpellDef): void {
+    const shared = spell.sharedCooldown;
+    if (shared) {
+      for (const other of this.spells.values()) {
+        if (other.sharedCooldown?.group === shared.group) this.extendCooldown(other.id, this.nowMs + shared.ms);
+      }
+    }
+    if (spell.cooldownMs > 0) this.extendCooldown(spell.id, this.nowMs + spell.cooldownMs);
+  }
+
+  private extendCooldown(spellId: string, readyAtMs: number): void {
+    if (readyAtMs > (this.cooldownReadyAtMs.get(spellId) ?? 0)) this.cooldownReadyAtMs.set(spellId, readyAtMs);
   }
 
   /**
@@ -639,9 +705,12 @@ export class Simulation {
   // Mana
   // -------------------------------------------------------------------------
 
-  /** The cost checked and stored at cast start (spent at completion); 0 with infiniteMana. */
+  /**
+   * The cost checked and stored at cast start (spent at completion); 0 with infiniteMana and
+   * for an item action.
+   */
   private manaCost(spell: SpellDef): number {
-    if (this.infiniteMana) return 0;
+    if (this.infiniteMana || spell.item) return 0;
     return spell.manaCost * this.modsFor(spell).manaCostMult;
   }
 
@@ -845,8 +914,9 @@ export class Simulation {
   // Helpers
   // -------------------------------------------------------------------------
 
-  /** `max(0, round((base + castTimeMsDelta) / (1 + haste)))`; 0 means instant. */
+  /** `max(0, round((base + castTimeMsDelta) / (1 + haste)))`; 0 means instant (always for an item action). */
   private castTimeMs(spell: SpellDef): number {
+    if (spell.item) return 0;
     const baseMs = spell.castTimeMs + this.modsFor(spell).castTimeMsDelta;
     return Math.max(0, Math.round(baseMs / (1 + this.stats.hastePct / 100)));
   }

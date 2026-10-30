@@ -211,6 +211,32 @@ export interface SpellDef {
    * missile, resolves at cast end.
    */
   missileSpeed?: number;
+  /**
+   * An item action (trinket, potion, rune): used instantly, whatever the data says. The engine
+   * treats it as off the GCD, with no cast time and no mana cost (`snapshot().spells` reports
+   * 0 and 0), so it never starts the GCD or the five-second rule. Its use logs `cast-complete`
+   * (no `cast-start`), spends nothing, starts its own and shared cooldowns, gives its mana
+   * (`gainMana`, `gainManaRange`), then applies `applyAura`; nothing else: no hit or crit roll,
+   * no damage, no aura consumption, no missile, no hooks. Rejections (`busy`, `cooldown`) and
+   * the spell queue work as for any off-GCD spell: only a cast in progress blocks it.
+   */
+  item?: true;
+  /**
+   * A cooldown shared by every spell of `group` (wowsims "shared cooldown" categories, e.g.
+   * trinkets or potions): on completion, each spell whose `sharedCooldown.group` matches
+   * (including this one) becomes ready no earlier than now + `ms` (whole ms, >= 0). A longer
+   * cooldown already running is never shortened; the spell's own `cooldownMs` also applies.
+   * Invalid `ms` throws a RangeError when the Simulation is built.
+   */
+  sharedCooldown?: { group: string; ms: number };
+  /**
+   * A random mana gain at completion: one draw of the simulation's Rng, uniform over the
+   * integers `min..max` (both included): `min + floor(rng() * (max - min + 1))`, added like
+   * `gainMana` (capped at max mana) and logged as `mana` with this spell's id and the actual
+   * gain. Drawn only when the spell is used. `min`/`max` must be non-negative integers with
+   * `min <= max`, or the Simulation constructor throws a RangeError.
+   */
+  gainManaRange?: { min: number; max: number };
 }
 
 export interface AuraView {

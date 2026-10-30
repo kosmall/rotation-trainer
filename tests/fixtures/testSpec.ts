@@ -262,6 +262,83 @@ export function pumpProcHooks(): SpecHooks {
   };
 }
 
+/** An item action (`item: true`): free, instant, off the GCD, never misses or crits. */
+function itemAction(id: string, patch: Partial<SpellDef>): SpellDef {
+  return {
+    id,
+    name: id,
+    icon,
+    school: 'physical',
+    manaCost: 0,
+    castTimeMs: 0,
+    cooldownMs: 0,
+    onGcd: false,
+    canMiss: false,
+    canCrit: false,
+    item: true,
+    ...patch,
+  };
+}
+
+/**
+ * Item actions (not in the default fixture; see `makeItemTestSpec`):
+ * - `trinketA`: 120 s own cooldown, 20 s `trinket` group, applies `trinketBuff` (+100 spell power, 20 s);
+ * - `trinketB`: 60 s own cooldown, 20 s `trinket` group, applies `trinketBuffB` (+50 spell power, 15 s);
+ * - `manaPot`: `potion` group 120 s, gives 100-400 mana (one Rng draw);
+ * - `burstPot`: `potion` group 120 s, applies `potionBuff` (+40 spell power, 15 s);
+ * plus `sink`, a normal spell (not an item) that costs 600 mana, instant, off the GCD, no Rng draw.
+ */
+export function itemSpells(): SpellDef[] {
+  return [
+    itemAction('trinketA', {
+      cooldownMs: 120000,
+      sharedCooldown: { group: 'trinket', ms: 20000 },
+      applyAura: { auraId: 'trinketBuff', on: 'self' },
+    }),
+    itemAction('trinketB', {
+      cooldownMs: 60000,
+      sharedCooldown: { group: 'trinket', ms: 20000 },
+      applyAura: { auraId: 'trinketBuffB', on: 'self' },
+    }),
+    itemAction('manaPot', { sharedCooldown: { group: 'potion', ms: 120000 }, gainManaRange: { min: 100, max: 400 } }),
+    itemAction('burstPot', {
+      sharedCooldown: { group: 'potion', ms: 120000 },
+      applyAura: { auraId: 'potionBuff', on: 'self' },
+    }),
+    {
+      id: 'sink',
+      name: 'Sink',
+      icon,
+      school: 'shadow',
+      manaCost: 600,
+      castTimeMs: 0,
+      cooldownMs: 0,
+      onGcd: false,
+      canMiss: false,
+      canCrit: false,
+    },
+  ];
+}
+
+/** The self auras the item fixture actions apply. */
+export function itemAuras(): AuraDef[] {
+  return [
+    { id: 'trinketBuff', name: 'Trinket Buff', icon, durationMs: 20000, selfStatBonuses: { spellPower: 100 } },
+    { id: 'trinketBuffB', name: 'Trinket Buff B', icon, durationMs: 15000, selfStatBonuses: { spellPower: 50 } },
+    { id: 'potionBuff', name: 'Potion Buff', icon, durationMs: 15000, selfStatBonuses: { spellPower: 40 } },
+  ];
+}
+
+/** The default fixture plus the item actions and their auras (`overrides` as in `makeTestSpec`). */
+export function makeItemTestSpec(overrides: Partial<SpecData> = {}): SpecData {
+  const base = makeTestSpec();
+  return makeTestSpec({
+    spells: [...base.spells, ...itemSpells()],
+    auras: [...base.auras, ...itemAuras()],
+    ...overrides,
+  });
+}
+
 /**
  * A complete SpecData with deterministic spells. Every field can be replaced via `overrides`
  * (shallow: an overridden field replaces the default entirely). Each call returns fresh objects.
