@@ -161,6 +161,49 @@ nową zaczynasz klawiszem `R`. Ustawienia zapisują się w `localStorage` przegl
 `rotation-trainer:setup:v1`. Uszkodzone lub stare dane są poprawiane albo zastępowane domyślnymi.
 Jeśli przeglądarka nie pozwala zapisać, ustawienia działają do zamknięcia karty.
 
+## Panel Gear
+
+Zwijany panel **Gear** (pod panelem Setup) ustawia ekwipunek następnej walki. Baza przedmiotów
+(1730 przedmiotów, 214 gemów, 128 enchantów z wowsims) ładuje się dopiero przy pierwszym otwarciu
+panelu albo od razu po starcie, jeśli zapisany ekwipunek jej potrzebuje. Do tego czasu walka używa
+Twojego ekwipunku z eksportu („My gear”), nigdy niepełnego zestawu. Gdy ładowanie się nie uda,
+panel pokazuje błąd i przycisk „Retry”; jeśli to nie pomoże, przeładuj stronę (setup jest zapisany).
+
+- **Presety:** „My gear (export)” (ekwipunek autora, domyślny), „Pre-Raid”, „T4”, „T5”, „T6”,
+  „Zul'Aman” i „Sunwell Plateau” (zestawy BIS z wowsims). Wciśnięty jest preset, który dokładnie
+  pasuje do ekwipunku; po każdej zmianie slotu widać „Custom”. Pod przyciskami jest notatka presetu
+  (np. Stormcaller zamieniony na Blade of the Archmage, bo postać to Gnome). Presety zmieniają tylko
+  ekwipunek. Presety panelu Setup („None”, „Raid as in my log”) **zachowują** ekwipunek, a
+  „Reset to defaults” przywraca też „My gear”.
+- **Sloty:** 17 slotów z ikoną, nazwą, statystykami, gniazdami (kolorowe kółka z ikoną gemu),
+  bonusem za gniazda (aktywny albo nieaktywny, gdy kolory nie pasują) i enchantem. „Change”
+  otwiera listę przedmiotów slotu: wyszukiwanie po nazwie, filtr fazy („Up to phase N”), sortowanie
+  od najnowszej fazy, znaczniki „Horde only”, profesji i „Effect not modelled”. Przedmioty, które
+  mają tylko niezamodelowany efekt, są ukryte za przełącznikiem. Drugi unikalny przedmiot (np. ten
+  sam pierścień w obu slotach) jest odrzucany z komunikatem. Staff zajmuje obie ręce. „Clear”
+  opróżnia slot.
+- **Gemy i enchanty:** kliknięcie gniazda otwiera listę gemów (meta tylko w gnieździe meta; filtr
+  koloru, „Matches the socket” dla bonusu), kliknięcie enchantu listę enchantów pasujących do slotu.
+  Gemy i enchanty bez statystyk, które trener liczy, są ukryte. Linia „Meta gem” mówi, czy wymaganie
+  meta gemu jest spełnione (nieaktywny meta gem nic nie daje).
+- **Uwagi:** efekty przedmiotów i bonusy setów, których trener nie modeluje, wymagane profesje,
+  przedmioty hordy oraz ostrzeżenie, gdy Icon of the Silver Crescent albo Band of the Eternal Sage
+  jest włączony w Setup, a przedmiotu nie nosisz (efekt i tak się liczy). Panel „Set bonuses”
+  pokazuje też bonusy niezamodelowane (np. Voidheart Raiment 4/4, 4-piece „Not modelled”).
+- **Import z WowSimsExporter:**
+  1. W grze wpisz `/wse export` (addon WowSimsExporter): okno pokaże zaznaczony tekst, skopiuj go `Ctrl+C`.
+  2. W panelu Gear rozwiń „Import” i wklej tekst (albo plik `*.gear.json` z wowsims).
+  3. Przeczytaj raport: ile slotów wypełniono, ostrzeżenia, nieznane ID przedmiotów, gemów i
+     enchantów. Talenty z eksportu nie są stosowane (etap 2b).
+  4. Kliknij „Apply import”. Przycisk działa tylko, gdy coś da się założyć.
+- **Eksport:** „Export” pokazuje ekwipunek jako plik gear wowsims (ID przedmiotów); „Copy” kopiuje
+  go do schowka (albo zaznacza tekst do skopiowania `Ctrl+C`).
+
+Ekwipunek zapisuje się razem z setupem. Zmiana działa od następnej walki: walka, która się nie
+zaczęła, bierze ją od razu, trwająca zachowuje swój ekwipunek do `R` (panel to pokazuje, a notka pod
+DPS podaje „Gear: …” walki). „Stats at the pull” pokazuje statystyki z nowym ekwipunkiem od razu.
+Pisanie w polach wyszukiwania, importu i eksportu nie uruchamia skrótów klawiszowych.
+
 ## Co jest modelowane
 
 - GCD i czasy rzucania skrócone przez haste, kolejka czarów 400 ms (UNVERIFIED: wartość z
@@ -169,7 +212,8 @@ Jeśli przeglądarka nie pozwala zapisać, ustawienia działają do zamknięcia 
 - Improved Shadow Bolt (debuff +20% shadow, 4 ładunki)
 - mana, regeneracja co 2 s, zasada pięciu sekund, Life Tap
 - Malefic Raiment 4pc (+6% Shadow Bolt i Incinerate)
-- ekwipunek: przedmioty, klejnoty, bonusy za gniazda, enchanty, meta gem
+- ekwipunek: przedmioty, klejnoty, bonusy za gniazda, enchanty, meta gem (z wymaganiem kolorów),
+  bonusy setów z bazy wowsims (część niezamodelowana, oznaczona w panelu Gear)
 - talenty (Bane, Cataclysm, Devastation, Ruin, Emberstorm, Shadow and Flame, Demonic Sacrifice,
   Backlash i inne; pełna lista w `docs/data-sources.md`)
 - czas lotu Shadow Bolta i Incinerate (od odległości od celu); pocisk, który nie doleci przed
