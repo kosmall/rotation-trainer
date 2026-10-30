@@ -55,6 +55,29 @@ export function itemsForSlot(db: ItemDb, key: SlotKey): ItemRecord[] {
     .sort((a, b) => a.phase - b.phase || a.name.localeCompare(b.name) || a.id - b.id);
 }
 
+/**
+ * proto/common.proto `Profession` names by id (the item database's `requiredProfession`): wowsims
+ * tbc-new @ 91f869a proto/common.proto. The one table for the importer's profession warnings
+ * (src/setup/wowsimsGear.ts) and the Gear panel's markers (src/ui/gearView.ts).
+ */
+export const PROFESSION_NAMES: Readonly<Record<number, string>> = Object.freeze({
+  1: 'Alchemy',
+  2: 'Blacksmithing',
+  3: 'Enchanting',
+  4: 'Engineering',
+  5: 'Herbalism',
+  6: 'Inscription',
+  7: 'Jewelcrafting',
+  8: 'Leatherworking',
+  9: 'Mining',
+  10: 'Skinning',
+  11: 'Tailoring',
+});
+
+/** A profession's name ("profession <id>" for an id the table does not know). */
+export const professionName = (id: number): string =>
+  Object.hasOwn(PROFESSION_NAMES, id) ? PROFESSION_NAMES[id]! : `profession ${id}`;
+
 let pending: Promise<ItemDb> | undefined;
 
 /**

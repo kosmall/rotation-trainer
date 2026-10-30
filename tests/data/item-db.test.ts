@@ -6,7 +6,7 @@ import {
   gems as authorGems,
   items as authorItems,
 } from '../../src/data/classes/warlock/items';
-import { ITEM_SLOTS, LOGICAL_SLOTS, itemsForSlot, loadItemDb, logicalSlot } from '../../src/data/items/db';
+import { ITEM_SLOTS, LOGICAL_SLOTS, PROFESSION_NAMES, itemsForSlot, loadItemDb, logicalSlot, professionName } from '../../src/data/items/db';
 import { itemDbSync } from '../../src/data/items/dbSync';
 import type { ItemDb, ItemSlot } from '../../src/data/items/types';
 import type { RawStats } from '../../src/engine/types';
@@ -308,6 +308,19 @@ describe('item database (generated from wowsims tbc-new)', () => {
       .flatMap((records) => Object.values(records).map((r) => r.icon))
       .filter((icon) => !files.has(icon));
     expect([...new Set(missing)]).toEqual([]);
+  });
+
+  it('PROFESSION_NAMES (one table for the importer and the Gear panel) names every requiredProfession of the database', () => {
+    const ids = new Set<number>();
+    for (const r of [...Object.values(db.items), ...Object.values(db.gems), ...Object.values(db.enchants)]) {
+      if (r.requiredProfession !== undefined) ids.add(r.requiredProfession);
+    }
+    expect([...ids].sort((a, b) => a - b)).toEqual([1, 3, 4, 7, 11]);
+    for (const id of ids) expect(Object.hasOwn(PROFESSION_NAMES, id)).toBe(true);
+    expect(professionName(7)).toBe('Jewelcrafting');
+    expect(professionName(11)).toBe('Tailoring');
+    expect(professionName(99)).toBe('profession 99');
+    expect(Object.isFrozen(PROFESSION_NAMES)).toBe(true);
   });
 
   it('loadItemDb resolves to the same data as itemDbSync', async () => {

@@ -13,7 +13,7 @@
 //   `exportWowSimsGear` writes): `{ items: [...] }`, `{}` for an empty slot.
 // An item entry is `{ id, enchant?, gems? }`; a gem 0 (or null) is an empty socket.
 
-import { ITEM_SLOTS, logicalSlot } from '../data/items/db';
+import { ITEM_SLOTS, logicalSlot, PROFESSION_NAMES } from '../data/items/db';
 import type { ItemDb } from '../data/items/types';
 import { gemFitsSocket } from '../engine/gear';
 import type { EquippedItem } from '../engine/types';
@@ -42,21 +42,6 @@ export interface ImportResult {
   /** Readable problems: unknown ids, misfits, race/class/level, professions, faction, inactive meta. */
   warnings: string[];
 }
-
-/** proto/common.proto `Profession` (the item database's `requiredProfession`). */
-const PROFESSION_NAMES: Readonly<Record<number, string>> = {
-  1: 'Alchemy',
-  2: 'Blacksmithing',
-  3: 'Enchanting',
-  4: 'Engineering',
-  5: 'Herbalism',
-  6: 'Inscription',
-  7: 'Jewelcrafting',
-  8: 'Leatherworking',
-  9: 'Mining',
-  10: 'Skinning',
-  11: 'Tailoring',
-};
 
 /** The trainer's character: level 70 Gnome warlock (destruction.ts base stats). */
 const TRAINER_RACE = 'gnome';

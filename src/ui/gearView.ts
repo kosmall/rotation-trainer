@@ -4,7 +4,7 @@
 
 import type { GearPreset } from '../data/classes/warlock/gearPresets';
 import { MODELLED_ITEM_EFFECTS, metaGemModifiers } from '../data/classes/warlock/items';
-import { ITEM_SLOTS } from '../data/items/db';
+import { ITEM_SLOTS, professionName } from '../data/items/db';
 import type { EnchantRecord, GemRecord, ItemDb, ItemRecord, SlotKey } from '../data/items/types';
 import type { BuffDef } from '../data/types';
 import { countGemColor, gemFitsSocket, metaRequirementMet, type MetaColorCounts } from '../engine/gear';
@@ -86,25 +86,8 @@ export function matchingPreset(gear: GearList, presets: readonly GearPreset[]): 
   return presets.find((p) => sameGear(p.gear, gear));
 }
 
-/**
- * proto/common.proto `Profession` ids (the item database's `requiredProfession`): wowsims
- * tbc-new @ 91f869a proto/common.proto (the same names as src/setup/wowsimsGear.ts).
- */
-const PROFESSION_NAMES: Readonly<Record<number, string>> = {
-  1: 'Alchemy',
-  2: 'Blacksmithing',
-  3: 'Enchanting',
-  4: 'Engineering',
-  5: 'Herbalism',
-  6: 'Inscription',
-  7: 'Jewelcrafting',
-  8: 'Leatherworking',
-  9: 'Mining',
-  10: 'Skinning',
-  11: 'Tailoring',
-};
-
-export const professionName = (id: number): string => PROFESSION_NAMES[id] ?? `profession ${id}`;
+/** A profession's name (src/data/items/db.ts, shared with the importer). */
+export { professionName };
 
 /** The item has an effect the trainer does not model (the Icon and the Band are modelled by the setup). */
 export const hasUnmodelledEffect = (item: ItemRecord): boolean =>
