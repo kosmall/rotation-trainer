@@ -17,6 +17,10 @@
 //   5 green, 6 orange, 7 purple, 8 prismatic).
 // - slot: proto `ItemType` (+ `handType` / `weaponType` for weapons), see slotOf().
 // - set: `setId` = slug of `setName` (e.g. 'malefic-raiment'), the stage 1 `SetBonusDef.setId`.
+// - item effects (`itemEffects`): a plain on-use or proc stat buff whose stats the trainer models
+//   becomes a structured `useEffects` / `procEffects` entry; every other effect stays one line of
+//   `effects` text (see structuredEffect() and docs/data-sources.md, Part F). Proc triggers come
+//   from the Go registrations, copied by hand into PROC_TRIGGERS (Go source, not data).
 
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -104,6 +108,41 @@ const META_COMPARE = {
   32640: { more: 'blue', than: 'yellow' },
 };
 
+// Item effects (Part F). A buff is structured only if every one of its stats is modelled, except
+// healing power (StatHealingPower 4): wowsims lists the "damage and healing" buffs (e.g. Icon of the
+// Silver Crescent: {4: 155, 5: 155}) with both, and healing does nothing for a warlock's DPS.
+const IGNORED_EFFECT_STATS = new Set(['4']);
+
+// Proc triggers, copied by hand from wowsims tbc-new @ 91f869a (Go source, not data):
+// sim/common/tbc/stat_bonus_procs_auto_gen.go (NewProcStatBonusEffectWithVariants: Callback,
+// ProcMask, Outcome, and the tooltip line above each call), sim/common/tbc/items_trinkets.go and
+// sim/warlock/items.go (hand-written effects). Mapping to the trainer's triggers (Part F):
+// - CallbackOnSpellHitDealt + OutcomeCrit (spell damage)        -> 'crit'
+// - CallbackOnSpellHitDealt + OutcomeLanded (spell damage)      -> 'hit'
+// - CallbackOnCastComplete + ProcMaskSpellDamage (OutcomeEmpty) -> 'hit' when the tooltip says the
+//   spell must land or hit (the stage F Band rule: rolled on a landed damaging spell), else 'cast'
+// - anything else (heals only, periodic damage, a resisted spell, a kill, melee) -> null (text).
+// Every proc buff with modelled stats must have an entry here (the build fails otherwise), and
+// every entry must be used (a stale entry fails too).
+const PROC_TRIGGERS = {
+  21190: { trigger: 'hit', why: 'Wrath of Cenarius: OnCastComplete, ProcMaskSpellDamage; "when your harmful spells land"' },
+  24122: { trigger: 'cast', why: 'Coronet of Verdant Flame: OnCastComplete, ProcMaskSpellDamage; "Chance on successful spellcast"' },
+  24123: { trigger: 'cast', why: 'Circlet of Arcane Might: OnCastComplete, ProcMaskSpellDamage; "chance on successful spellcast"' },
+  27683: { trigger: 'cast', why: 'Quagmirran\'s Eye: OnCastComplete, ProcMaskSpellDamage; "Your harmful spells have a chance"' },
+  28190: { trigger: null, why: 'Scarab of the Infinite Cycle: OnHealDealt, ProcMaskSpellHealing (heals only)' },
+  28418: { trigger: 'crit', why: 'Shiffar\'s Nexus-Horn: OnSpellHitDealt | OnHealDealt, OutcomeCrit; "Chance on spell critical hit"' },
+  28578: { trigger: 'cast', why: 'Masquerade Gown: OnCastComplete, ProcMaskSpellDamage; "Chance on spell cast"' },
+  28602: { trigger: 'hit', why: 'Robe of the Elder Scribes: OnCastComplete, ProcMaskSpellDamage; "when your harmful spells land"' },
+  28789: { trigger: null, why: 'Eye of Magtheridon (items_trinkets.go): OnSpellHitDealt, OutcomeMiss (a resisted spell)' },
+  29305: { trigger: 'hit', why: 'Band of the Eternal Sage: OnCastComplete, ProcMaskSpellDamage; "Your offensive spells have a chance on hit"' },
+  29309: { trigger: 'hit', why: 'Band of the Eternal Restorer: OnSpellHitDealt | OnHealDealt, OutcomeLanded' },
+  30626: { trigger: 'crit', why: 'Sextant of Unstable Currents: OnSpellHitDealt | OnHealDealt, OutcomeCrit; "Your spell critical strikes"' },
+  31336: { trigger: 'cast', why: 'Blade of Wizardry: OnCastComplete, ProcMaskSpellDamage; "Your harmful spells have a chance"' },
+  32493: { trigger: null, why: 'Ashtongue Talisman of Shadows (sim/warlock/items.go): OnPeriodicDamageDealt, Corruption ticks' },
+  32496: { trigger: 'cast', why: 'Memento of Tyrande: OnCastComplete, ProcMaskSpellDamage | ProcMaskSpellHealing; "Each time you cast a spell"' },
+  32771: { trigger: null, why: 'Airman\'s Ribbon of Gallantry: on a killing blow; CallbackEmpty (not implemented in wowsims)' },
+};
+
 /** Effect-only items (no stat anywhere) are kept from this item level up (see Part E). */
 const EFFECT_ONLY_MIN_ILVL = 90;
 const MAX_PHASE = 5;
@@ -140,18 +179,74 @@ function formatMs(ms) {
   return `${ms / 1000} s`;
 }
 
+/** A buff name without its "(spell id)" suffix ('' when there is none). */
+const buffNameOf = (effect) => (effect.buffName ?? '').trim().replace(/\s*\(\d+\)$/, '').trim();
+
 /** Short readable text of one wowsims item effect; structured fields only, no text parsing. */
 function effectText(effect) {
   const raw = (effect.buffName ?? '').trim();
   const idMatch = raw.match(/\((\d+)\)$/);
-  const name = raw.replace(/\s*\(\d+\)$/, '').trim() || (idMatch ? `spell ${idMatch[1]}` : 'unnamed effect');
+  const name = buffNameOf(effect) || (idMatch ? `spell ${idMatch[1]}` : 'unnamed effect');
   const stats = statsOf(effect.scalingOptions?.['0']?.stats);
   const parts = Object.entries(stats).map(([k, v]) => `+${v} ${STAT_LABEL[k]}`);
-  if (effect.maxCumulativeStacks) parts.push(`up to ${effect.maxCumulativeStacks} stacks`);
+  const stacks = effect.maxCumulativeStacks || effect.stackingAura?.maxCumulativeStacks;
+  if (stacks) parts.push(`up to ${stacks} stacks`);
   if (effect.effectDurationMs > 0) parts.push(formatMs(effect.effectDurationMs));
   if (effect.onUse?.cooldownMs > 0) parts.push(`${formatMs(effect.onUse.cooldownMs)} cooldown`);
   const kind = effect.onUse ? 'On use' : effect.proc || effect.stackProc ? 'Proc' : 'Equip';
   return `${kind}: ${name}${parts.length ? ` (${parts.join(', ')})` : ''}`;
+}
+
+/**
+ * The modelled stats of an effect's buff, or null when the buff is not a plain modelled stat buff:
+ * no stats, a stat the trainer does not model (other than healing power, IGNORED_EFFECT_STATS), or
+ * a non-positive value.
+ */
+function effectStatsOf(effect) {
+  const raw = effect.scalingOptions?.['0']?.stats;
+  if (!raw) return null;
+  for (const [index, value] of Object.entries(raw)) {
+    if (value === 0 || IGNORED_EFFECT_STATS.has(index)) continue;
+    if (!STAT_KEYS[index] || !(value > 0)) return null;
+  }
+  const stats = statsOf(raw);
+  return isEmpty(stats) ? null : stats;
+}
+
+const usedProcTriggers = new Set();
+
+/**
+ * One wowsims item effect as a structured on-use or proc stat buff ({ kind, value }), or null when
+ * it stays text: stacking buffs (stacks, a stacking aura or a stack proc), buffs without a positive
+ * duration or without a modelled stat, on-use effects without a cooldown, procs without a chance
+ * (or a PPM rate), and procs whose trigger is not one of the trainer's (PROC_TRIGGERS: null).
+ */
+function structuredEffect(item, effect) {
+  if (effect.maxCumulativeStacks || effect.stackingAura || effect.stackProc) return null;
+  const stats = effectStatsOf(effect);
+  const buffName = buffNameOf(effect);
+  const durationMs = effect.effectDurationMs;
+  if (!stats || !buffName || !(effect.buffId > 0) || !(durationMs > 0) || !Number.isInteger(durationMs)) return null;
+  const head = { buffName, buffId: effect.buffId, stats, durationMs };
+  if (effect.onUse) {
+    const { cooldownMs, categoryId, categoryCooldownMs } = effect.onUse;
+    if (!(cooldownMs > 0) || !Number.isInteger(cooldownMs)) return null;
+    const value = { ...head, cooldownMs };
+    // wowsims sim/common/shared/shared_utils.go sharedCooldown: no category id -> no shared cooldown
+    // (even with a categoryCooldownMs); a non-positive category cooldown -> the buff's duration.
+    if (categoryId > 0) value.group = { id: categoryId, ms: categoryCooldownMs > 0 ? categoryCooldownMs : durationMs };
+    return { kind: 'use', value };
+  }
+  if (effect.proc) {
+    const { procChance, icdMs = 0, ppm } = effect.proc;
+    if (ppm || !(procChance > 0 && procChance <= 1) || !(icdMs >= 0) || !Number.isInteger(icdMs)) return null;
+    const entry = PROC_TRIGGERS[item.id];
+    if (entry === undefined) fail(`proc item ${item.id} ${item.name} (${buffName}): no trigger in PROC_TRIGGERS; read its Go registration`);
+    usedProcTriggers.add(String(item.id));
+    if (entry.trigger === null) return null;
+    return { kind: 'proc', value: { ...head, chance: procChance, icdMs, trigger: entry.trigger } };
+  }
+  return null;
 }
 
 /** Why a Warlock cannot equip the item (wowsims ui/sim/proto/items.ts canEquipItem), or null. */
@@ -241,13 +336,13 @@ for (const item of source.items) {
   const scaling = item.scalingOptions?.['0'] ?? {};
   const stats = statsOf(scaling.stats);
   const socketBonus = statsOf(item.socketBonus);
-  const effects = (item.itemEffects ?? []).map(effectText);
+  const effectCount = (item.itemEffects ?? []).length;
   const effectStats = (item.itemEffects ?? []).map((e) => statsOf(e.scalingOptions?.['0']?.stats));
   const hasAnyStat = Object.keys(scaling.stats ?? {}).length > 0 || (item.itemEffects ?? []).some((e) => e.scalingOptions?.['0']?.stats);
   const relevant =
     hasGain(stats) ||
     effectStats.some(hasGain) ||
-    (!hasAnyStat && effects.length > 0 && (scaling.ilvl ?? 0) >= EFFECT_ONLY_MIN_ILVL);
+    (!hasAnyStat && effectCount > 0 && (scaling.ilvl ?? 0) >= EFFECT_ONLY_MIN_ILVL);
 
   let reason = null;
   if (item.factionRestriction === FACTION_HORDE_ONLY) reason = 'Horde only (the trainer models a Gnome)';
@@ -260,6 +355,18 @@ for (const item of source.items) {
       continue;
     }
     counts.keptByReference.push(`${item.id} ${item.name} (${reason})`);
+  }
+
+  // Each effect becomes exactly one of: a structured on-use entry, a structured proc entry, or a
+  // line of text (Part F). Only kept items are looked at, so PROC_TRIGGERS covers kept items only.
+  const effects = [];
+  const useEffects = [];
+  const procEffects = [];
+  for (const effect of item.itemEffects ?? []) {
+    const structured = structuredEffect(item, effect);
+    if (structured?.kind === 'use') useEffects.push(structured.value);
+    else if (structured?.kind === 'proc') procEffects.push(structured.value);
+    else effects.push(effectText(effect));
   }
 
   const record = { id: item.id, name: item.name, ...slotOf(item), icon: item.icon.toLowerCase(), phase: item.phase, stats };
@@ -282,10 +389,15 @@ for (const item of source.items) {
   const { twoHand, ...rest } = record;
   const ordered = { ...rest, ...(twoHand ? { twoHand } : {}) };
   if (effects.length) ordered.effects = effects;
-  if (isEmpty(stats) && !effects.length) fail(`item ${item.id} ${item.name}: no modelled stat and no effect`);
+  if (useEffects.length) ordered.useEffects = useEffects;
+  if (procEffects.length) ordered.procEffects = procEffects;
+  if (isEmpty(stats) && !effectCount) fail(`item ${item.id} ${item.name}: no modelled stat and no effect`);
   items[item.id] = ordered;
 }
 for (const id of refItems) if (!items[id]) fail(`referenced item ${id} missing from the source database`);
+for (const id of Object.keys(PROC_TRIGGERS)) {
+  if (!usedProcTriggers.has(id)) fail(`PROC_TRIGGERS ${id}: no kept item has a proc stat buff with this id (stale entry)`);
+}
 
 // ---------------------------------------------------------------------------------------------
 // Gems: all of them (214, small); stats beyond the modelled ones dropped.
@@ -372,5 +484,10 @@ for (const [reason, n] of Object.entries(counts.dropped).sort((a, b) => b[1] - a
 console.log(`gems: ${Object.keys(gems).length} of ${source.gems.length}`);
 console.log(`enchants: ${Object.keys(enchants).length} records from ${source.enchants.length} entries`);
 for (const [reason, n] of Object.entries(enchantDropped)) console.log(`  dropped ${n}: ${reason}`);
+const kept = Object.values(items);
+const uses = kept.flatMap((i) => i.useEffects ?? []);
+const procs = kept.flatMap((i) => i.procEffects ?? []);
+const byTrigger = (t) => procs.filter((p) => p.trigger === t).length;
+console.log(`item effects: ${uses.length} on-use (${uses.filter((u) => u.group).length} with a shared category), ${procs.length} proc (cast ${byTrigger('cast')}, hit ${byTrigger('hit')}, crit ${byTrigger('crit')}); ${kept.filter((i) => i.effects).length} items keep effect text`);
 console.log(`distinct icons: ${icons.size}`);
 console.log(`wrote ${outPath} (${Buffer.byteLength(out)} bytes)`);

@@ -8,6 +8,7 @@ import {
 } from '../../src/data/classes/warlock/items';
 import { ITEM_SLOTS, LOGICAL_SLOTS, PROFESSION_NAMES, itemsForSlot, loadItemDb, logicalSlot, professionName } from '../../src/data/items/db';
 import { itemDbSync } from '../../src/data/items/dbSync';
+import dbFileText from '../../src/data/items/db.json?raw';
 import type { ItemDb, ItemSlot } from '../../src/data/items/types';
 import type { RawStats } from '../../src/engine/types';
 
@@ -32,6 +33,14 @@ const MODELLED_STATS: readonly (keyof RawStats)[] = [
  * 359 521 bytes, the stringified data about the same), so a filter change that bloats it fails here.
  */
 const DB_JSON_MAX_CHARS = 540_000;
+
+/**
+ * Caps of the committed file itself (bytes, raw and gzip). Before the structured item effects
+ * (gear item effects Task 1) it was 359 521 raw / 56 610 gzip, after 362 715 / 57 280 (the spec
+ * allows under ~100 KB more raw). The caps leave about 17 KB raw and 4.7 KB gzip of headroom.
+ */
+const DB_FILE_MAX_BYTES = 380_000;
+const DB_FILE_MAX_GZIP_BYTES = 62_000;
 
 /**
  * Differences between the hand-written stage 1 tables (src/data/classes/warlock/items.ts, from the
@@ -66,7 +75,8 @@ describe('item database (generated from wowsims tbc-new)', () => {
         expect(value, `item ${key} ${stat}`).not.toBe(0);
       }
       const hasStats = Object.keys(item.stats).length > 0;
-      const flagged = (item.effects?.length ?? 0) > 0;
+      // An effect is either unmodelled text or structured (useEffects / procEffects, Part F).
+      const flagged = (item.effects?.length ?? 0) + (item.useEffects?.length ?? 0) + (item.procEffects?.length ?? 0) > 0;
       expect(hasStats || flagged, `item ${key} (${item.name}) has no modelled stat and no effect`).toBe(true);
       if (item.twoHand) expect(item.slot, `item ${key} two-hander`).toBe('mainHand');
       if (item.socketBonus) expect(item.sockets?.length, `item ${key} socket bonus without sockets`).toBeGreaterThan(0);
@@ -99,7 +109,11 @@ describe('item database (generated from wowsims tbc-new)', () => {
       phase: 1,
       stats: { spellPower: 43 },
       unique: true,
-      effects: ['On use: Blessing of the Silver Crescent (+155 spell damage, 20 s, 2 min cooldown)'],
+      // Structured since gear item effects Task 1 (was the text 'On use: Blessing of the Silver
+      // Crescent (+155 spell damage, 20 s, 2 min cooldown)'); see tests/data/item-effects-db.test.ts.
+      useEffects: [
+        { buffName: 'Blessing of the Silver Crescent', buffId: 35163, stats: { spellPower: 155 }, durationMs: 20000, cooldownMs: 120000, group: { id: 1141, ms: 20000 } },
+      ],
     });
     // db.json 29305: stats {2: 28 stamina, 3: 25 int, 4: 34, 5: 34, 13: 24}; proc 10%, +95 spell damage 10 s.
     expect(db.items[29305]).toEqual({
@@ -110,7 +124,11 @@ describe('item database (generated from wowsims tbc-new)', () => {
       phase: 3,
       stats: { intellect: 25, spellPower: 34, critRating: 24 },
       unique: true,
-      effects: ['Proc: Band of the Eternal Sage (+95 spell damage, 10 s)'],
+      // Structured since gear item effects Task 1 (was the text 'Proc: Band of the Eternal Sage
+      // (+95 spell damage, 10 s)').
+      procEffects: [
+        { buffName: 'Band of the Eternal Sage', buffId: 35084, stats: { spellPower: 95 }, durationMs: 10000, chance: 0.1, icdMs: 60000, trigger: 'hit' },
+      ],
     });
   });
 
@@ -264,9 +282,13 @@ describe('item database (generated from wowsims tbc-new)', () => {
     expect(db.items[23207]?.effects?.length).toBeGreaterThan(0); // effect-only trinket kept
   });
 
-  it('ids unique, keys match ids, json size under the limit', () => {
+  it('ids unique, keys match ids, json size under the limit', async () => {
     const size = JSON.stringify(db).length;
     expect(size).toBeLessThan(DB_JSON_MAX_CHARS);
+    const file = new TextEncoder().encode(dbFileText);
+    expect(file.length).toBeLessThan(DB_FILE_MAX_BYTES);
+    const gzip = await new Response(new Blob([file]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+    expect(gzip.byteLength).toBeLessThan(DB_FILE_MAX_GZIP_BYTES);
     for (const table of [db.items, db.gems, db.enchants]) {
       const ids = Object.values(table).map((r) => r.id);
       expect(new Set(ids).size).toBe(ids.length);

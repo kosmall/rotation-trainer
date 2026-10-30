@@ -733,7 +733,7 @@ Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/
 
 - Source: github.com/wowsims/tbc-new `master` @ `91f869a`, `assets/database/db.json` (8253 items, 214 gems, 144 enchant entries). wowsims is **MIT licensed** (`LICENSE` in the repo); the generated file records its source in its `source` field.
 - Generator: `npm run db:build -- <path to a tbc-new clone>` (`scripts/build-item-db.mjs`). It only reads JSON from the clone (`assets/database/db.json`, `ui/specs/warlock/dps/gear_sets/*.gear.json`) and `.git/HEAD` for the commit id, and never runs its code. Output: `src/data/items/db.json` (committed; one record per line) and `tests/fixtures/wowsims-warlock-gear-sets.json` (a copy of the 9 wowsims warlock gear sets: preraid, t4, t5, t6, za, swp, destro_fire_preraid, destro_fire_t4, blank). The output is deterministic (a second run is byte-identical).
-- Size: 359 521 bytes raw, about 57 KB gzip. `tests/data/item-db.test.ts` caps `JSON.stringify(db).length` at 540 000 (about 1.5x the real size).
+- Size: 359 521 bytes raw, about 57 KB gzip. `tests/data/item-db.test.ts` caps `JSON.stringify(db).length` at 540 000 (about 1.5x the real size). Since the structured item effects ("Part F: gear item effects"): 362 715 bytes raw, 57 280 gzip; the file itself is capped at 380 000 raw and 62 000 gzip.
 - Loading: `loadItemDb()` (`src/data/items/db.ts`) imports the JSON with a dynamic `import()`, so Vite emits it as its own chunk (`db-*.js`: 357.50 kB, 56.63 kB gzip in the final build; see "Bundle" below). `itemDbSync()` (`src/data/items/dbSync.ts`, tests and scripts only) imports it statically; app code must not import `dbSync.ts`, or the database lands in the main chunk.
 
 ### Mapping (verified)
@@ -761,7 +761,7 @@ Dropped (not modelled): stamina 2, healing 4 (equal to or above spell damage on 
 - `unique: true` from db.json `unique` (`limitCategory`, e.g. the Band of the Eternal ... rings' shared category, is not kept in the database; Task 2 lists the 21 rings that have one in `RING_LIMIT_CATEGORIES`, below).
 - `faction` from db.json `factionRestriction` (proto/ui.proto `FactionRestriction`: 1 Alliance only -> `'alliance'`, 2 Horde only -> `'horde'`; checked on Stormcaller 29155 = 2, Horde only, and Blade of the Archmage 29153 = 1). Kept items: 18 Alliance only, 1 Horde only (Stormcaller, kept by reference). db.json also marks Ashtongue Talisman of Shadows 32493 Alliance only (data as given).
 - `requiredProfession` (items, gems, enchants) from db.json, as the proto/common.proto `Profession` id: 1 Alchemy, 3 Enchanting, 4 Engineering, 7 Jewelcrafting, 11 Tailoring are the ones present. Kept items: 29 (16 Tailoring, 6 Engineering, 4 Jewelcrafting, 3 Alchemy); gems: 7 (Jewelcrafting: 33131 Crimson Sun, 33133 Don Julio's Heart, 33134, 33135, 33140, 33143, 33144); enchants: 4 (Enchanting: the ring enchants 2928, 2929, 2930, 2931). The trainer does not check professions (the author has Enchanting and Jewelcrafting).
-- `effects`: one short text per wowsims `itemEffects` entry, built from its structured fields only (buff name without the `(spell id)` suffix, modelled stats, stacks, duration, on-use cooldown): "On use: ..." (`onUse`), "Proc: ..." (`proc`/`stackProc`), else "Equip: ...". Unnamed effects read "spell <id>" (e.g. The Lightning Capacitor "Proc: spell 37657"). Effects implemented only in wowsims Go code (meta gem bonuses, set bonuses) are not in db.json. 148 items carry effects; the trainer models none of them except through setup entries (Icon of the Silver Crescent, Band of the Eternal Sage).
+- `effects`: one short text per wowsims `itemEffects` entry, built from its structured fields only (buff name without the `(spell id)` suffix, modelled stats, stacks, duration, on-use cooldown): "On use: ..." (`onUse`), "Proc: ..." (`proc`/`stackProc`), else "Equip: ...". Unnamed effects read "spell <id>" (e.g. The Lightning Capacitor "Proc: spell 37657"). Effects implemented only in wowsims Go code (meta gem bonuses, set bonuses) are not in db.json. 148 items carry effects; the trainer models none of them except through setup entries (Icon of the Silver Crescent, Band of the Eternal Sage). *Since "Part F: gear item effects": a plain on-use or proc stat buff is a structured `useEffects` / `procEffects` entry instead of a text line (43 items); 106 items keep `effects` text.*
 
 ### Filters and counts (items: 1730 kept of 8253)
 
@@ -933,7 +933,7 @@ The final Playwright smoke (Task 5) read the same shadow power, hit, haste and m
 
 - **When the database loads.** The default gear (the author's) is embedded in the main chunk (`items.ts`, `AUTHOR_GEAR_TABLES`), so the first paint and a fight with it never wait for the database. The `db-*.js` chunk is requested (once) when the Gear panel is first opened, or at start when the stored setup has a gear the embedded tables cannot build (`gearNeedsDb`). Until it has loaded, the next fight uses the author's gear, never a gear with unknown ids (`buildSetup` would skip them silently and give a wrong DPS); the DPS note names the fight's gear ("Gear: …"). When it has loaded, the stored gear is checked by `normalizeGear`; loading never writes to storage, and the next edit saves the checked config.
 - **A failed load.** The panel shows "Could not load the item database…" and a **Reload the page** button, not a retry. A browser keeps a failed dynamic `import()` in its module map, so a second `import()` of the same chunk fails again without a request. After a redeploy the old chunk name no longer exists either. Only a page reload can help. The setup is saved, so nothing is lost.
-- **Hidden in the pickers.** The 114 gems and 84 enchants with no modelled stat (strength, agility, stamina, defence, threat and similar) are not offered. A gem or enchant already worn stays listed. The 26 effect-only items (no modelled stat, only an `effects` text, e.g. The Lightning Capacitor) are hidden behind "Show items with only an unmodelled effect". Items are sorted newest phase first, with an "Up to phase N" filter. Gems that match the socket's colour come first, with a "Matches the socket" filter. Markers: "Horde only" or "Alliance only", the required profession, "Effect not modelled" (or "Effect: Setup panel" for the Icon and the Band); gems also "Unique".
+- **Hidden in the pickers.** The 114 gems and 84 enchants with no modelled stat (strength, agility, stamina, defence, threat and similar) are not offered. A gem or enchant already worn stays listed. The 26 effect-only items (no modelled stat, only an `effects` text, e.g. The Lightning Capacitor) are hidden behind "Show items with only an unmodelled effect". *Since "Part F: gear item effects", 7 of them have only a structured effect and no text (e.g. Talisman of Ephemeral Power), so the picker no longer counts them as effect-only (19 left).* Items are sorted newest phase first, with an "Up to phase N" filter. Gems that match the socket's colour come first, with a "Matches the socket" filter. Markers: "Horde only" or "Alliance only", the required profession, "Effect not modelled" (or "Effect: Setup panel" for the Icon and the Band); gems also "Unique".
 
 ### Bundle (Task 5)
 
@@ -951,7 +951,7 @@ The main chunk grew about 48 kB (15 kB gzip): the embedded presets, the importer
 - **Feet enchant name.** The author's Feet enchant shows the merged name "Enchant Bracer - Fortitude / Enchant Boots - Fortitude", with no modelled stat. Effect id 2649 is listed twice in db.json, once per slot, and the generator merges duplicate effect ids into one record (see "Filters and counts"). Stamina is not modelled, so the number is unaffected.
 - **Faction and professions are only flagged.** Horde-only items (Stormcaller) are kept and warned about, and Alliance-only items are fine for the Gnome. Profession-only items, gems and enchants are never checked against the character; the importer warns only when the export lists professions.
 - **Item buffs are not coupled to the gear.** The Icon of the Silver Crescent and Band of the Eternal Sage setup entries count when enabled in Setup, whether or not the item is worn. The Gear panel warns when one is enabled but the item is not worn. A worn Icon or Band adds nothing until its setup entry is enabled.
-- **Item effects.** On-use and proc effects of items are not modelled, except the Icon and the Band (above). Of the 148 items with an `effects` text, every one but those two is marked "Effect not modelled" in the picker, and the worn ones are listed in the Gear notes.
+- **Item effects.** On-use and proc effects of items are not modelled, except the Icon and the Band (above). Of the 148 items with an `effects` text, every one but those two is marked "Effect not modelled" in the picker, and the worn ones are listed in the Gear notes. *Superseded in part by "Part F: gear item effects": the 43 items whose effects are structured carry no text for them, so until the gear item effects Task 2/3 derive and show them, the picker and the Gear notes do not flag them (e.g. Quagmirran's Eye, The Skull of Gul'dan).*
 - **Set bonuses.** See "Set bonuses (Task 2)": Corruptor Raiment 2pc (no pet) and 4pc (needs an engine change to a running DoT), Wrath of Spellfire 3pc (no stat-to-stat conversion; Fire presets only, not offered) and the others in that table are listed, not modelled. Spellstrike and Mana-Etched use slightly different miss rules (a known, negligible inconsistency: the trainer skips misses for Spellstrike's "land", wowsims has no outcome filter).
 - **Talents and race.** The import's `talents` are not applied (stage 2b), and its race is only checked (warning for a race other than Gnome).
 - **Setup presets keep the gear.** Choosing a Setup preset ("None", "Raid as in my log") keeps the player's gear, like the fight length (ruling F-2). "Reset to defaults" restores the author's gear.
@@ -962,3 +962,93 @@ The main chunk grew about 48 kB (15 kB gzip): the embedded presets, the importer
 - Wrath of Spellfire 3pc (+7% of Intellect as spell damage): a `spellPowerPerIntellect`-style stat dependency in `computeStats`. It only matters for the Fire presets.
 - Corruptor Raiment 4pc: each landed Shadow Bolt (Incinerate) raises the running Corruption (Immolate) tick damage by 10%. This needs an engine operation on a DoT already on the target.
 - Stage 2b: apply the import's `talents` string (talent presets and editor).
+
+## Part F: gear item effects
+
+Gear item effects (plan `docs/superpowers/plans/2026-10-30-gear-item-effects.md`, spec `docs/superpowers/specs/2026-10-30-gear-item-effects-design.md`). Task 1: the item database carries the plain on-use and proc stat buffs of the items as structured data. Task 2 derives the setup entries from the worn gear, Task 3 the UI. Until Task 2 nothing reads the structured effects: the setup still uses the hand-written Icon and Band entries ("Part C: cooldowns and item effects").
+
+### Fields (`src/data/items/types.ts`)
+
+- `useEffects?: ItemUseEffect[]`: `{ buffName, buffId, stats, durationMs, cooldownMs, group? }`. `group` is `{ id, ms }`: db.json `onUse.categoryId` and `categoryCooldownMs`, or the buff's duration when that is not positive; no `group` when `categoryId` is 0 or missing, even if `categoryCooldownMs` is set (Heavenly Inspiration 30293). This is wowsims `sim/common/shared/shared_utils.go` `sharedCooldown`.
+- `procEffects?: ItemProcEffect[]`: `{ buffName, buffId, stats, durationMs, chance, icdMs, trigger }`. `chance` is `proc.procChance`; `icdMs` is `proc.icdMs`, or 0 when there is none (e.g. Wrath of Cenarius, Circlet of Arcane Might).
+- `buffName` is db.json `buffName` without its "(spell id)" suffix; `buffId` is db.json `buffId` (Wowhead spell id of the buff). `stats` are sparse, use modelled `RawStats` keys only, and are all positive.
+- `effects?: string[]` keeps one text line for every effect that is not structured. **Rule:** each `itemEffects` entry of an item becomes exactly one of a `useEffects` entry, a `procEffects` entry or an `effects` line, never two. So a structured effect is never listed as unmodelled text, and an item with both kinds keeps the text of the unmodelled one: Bangle of Endless Blessings 28370 has `useEffects` (Endless Blessings, +130 Spirit) and `effects: ["Proc: Meditation (15 s)"]`. All three fields are absent when empty. Tested in `tests/data/item-effects-db.test.ts`.
+
+### What becomes structured
+
+An effect is structured when all of the following hold (`structuredEffect` in `scripts/build-item-db.mjs`):
+
+1. It is a plain buff: no `maxCumulativeStacks`, `stackingAura` or `stackProc`.
+2. It has a `buffId`, a name, and a positive whole `effectDurationMs`.
+3. **Every stat of the buff is modelled**: Intellect 3, Spirit 16, SpellDamage 5, FireDamage 7, ShadowDamage 11, SpellHitRating 12, SpellCritRating 13, SpellHasteRating 14, MP5 35 (the Part E mapping), with positive values. The one exception is healing power (StatHealingPower 4), which is ignored. wowsims lists the "damage and healing" buffs with both stats (e.g. Icon of the Silver Crescent `{4: 155, 5: 155}`), and healing does nothing for a warlock's DPS. A buff with any other stat stays text (spell penetration, attack power, armor, health).
+4. On use: a positive whole `onUse.cooldownMs`. Proc: `procChance` in (0, 1], no PPM rate, and a trigger in `PROC_TRIGGERS` (below) that is not null.
+
+### Counts (tbc-new @ 91f869a)
+
+| | Count |
+|---|---|
+| `itemEffects` entries on the 1730 kept items | 161: 69 on-use, 33 proc, 59 equip |
+| Structured on-use (`useEffects`) | 31 (30 trinkets and Chain of the Twilight Owl, a neck); 20 in category 1141 (12 at 20 s, 8 at 15 s), 11 without a category |
+| Structured proc (`procEffects`) | 12: `cast` 6, `hit` 4, `crit` 2 |
+| Items with a structured effect | 43 (no item has two of one kind) |
+| Items keeping `effects` text | 106 (148 before; Bangle of Endless Blessings has both text and a structured effect) |
+| Effects with a modelled stat that stay text | 10 (one per item; table below) |
+| db.json size | 359 521 -> 362 715 bytes raw (+3 194), 56 610 -> 57 280 gzip |
+
+The regeneration is deterministic: a second `npm run db:build` is byte-identical.
+
+### Proc triggers
+
+The trainer has three triggers (`ItemProcTrigger`), each rolled once per event and only while the internal cooldown is not running:
+- `cast`: every completed player spell, whatever its outcome (a miss too). Items and DoT ticks do not count. This is wowsims `CallbackOnCastComplete`.
+- `hit`: a landed (hit or crit) offensive player spell, meaning one with a direct damage part or one that applies a DoT on the target. A miss, Life Tap and Curse of the Elements do not count. This is the stage F Band rule (`BAND_PROC_SPELL_IDS`, "Part C: cooldowns and item effects") and corresponds to wowsims `CallbackOnSpellHitDealt` with `OutcomeLanded`.
+- `crit`: a critical hit of a player spell (wowsims `OutcomeCrit`).
+
+Triggers come from the wowsims Go registrations, which are source code, not data. They are copied by hand into `PROC_TRIGGERS` in the generator, with the callback, mask, outcome and tooltip line of each. The build fails if a proc stat buff has no entry, or if an entry is unused. Mapping:
+- `CallbackOnSpellHitDealt` + `OutcomeCrit` -> `crit`.
+- `CallbackOnSpellHitDealt` + `OutcomeLanded` -> `hit`.
+- `CallbackOnCastComplete` + `ProcMaskSpellDamage` -> `hit` when the tooltip says the spell must land or hit, else `cast`.
+- Everything else -> text: heals only, periodic damage, a resisted spell, a kill, melee.
+
+| Item | Buff | wowsims registration (`stat_bonus_procs_auto_gen.go` unless noted) | Trigger |
+|---|---|---|---|
+| 21190 Wrath of Cenarius | Spell Blasting +132 spell damage 10 s, 5%, no ICD | OnCastComplete, ProcMaskSpellDamage; "when your harmful spells land" | `hit` |
+| 24122 Coronet of Verdant Flame | Verdant Flame +45 MP5 10 s, 75%, ICD 25 s | OnCastComplete, ProcMaskSpellDamage; "Chance on successful spellcast" | `cast` |
+| 24123 Circlet of Arcane Might | Arcane Might +120 spell damage 15 s, 2%, no ICD | OnCastComplete, ProcMaskSpellDamage; "chance on successful spellcast" | `cast` |
+| 27683 Quagmirran's Eye | Spell Haste +320 haste rating 6 s, 10%, ICD 45 s | OnCastComplete, ProcMaskSpellDamage; "Your harmful spells have a chance" | `cast` |
+| 28418 Shiffar's Nexus-Horn | Call of the Nexus (buff 34321) +225 spell damage 10 s, 20%, ICD 45 s | OnSpellHitDealt or OnHealDealt, OutcomeCrit; "Chance on spell critical hit" | `crit` |
+| 28578 Masquerade Gown | Love Struck +145 Spirit 15 s, 10%, ICD 50 s | OnCastComplete, ProcMaskSpellDamage; "Chance on spell cast" | `cast` |
+| 28602 Robe of the Elder Scribes | Power of Arcanagos +130 spell damage 10 s, 20%, ICD 50 s | OnCastComplete, ProcMaskSpellDamage; "when your harmful spells land" | `hit` |
+| 29305 Band of the Eternal Sage | Band of the Eternal Sage +95 spell damage 10 s, 10%, ICD 60 s | OnCastComplete, ProcMaskSpellDamage; "Your offensive spells have a chance on hit" | `hit` |
+| 29309 Band of the Eternal Restorer | +59 spell damage 10 s, 10%, ICD 60 s | OnSpellHitDealt or OnHealDealt, OutcomeLanded | `hit` |
+| 30626 Sextant of Unstable Currents | Unstable Currents +190 spell damage 15 s, 20%, ICD 45 s | OnSpellHitDealt or OnHealDealt, OutcomeCrit; "Your spell critical strikes" | `crit` |
+| 31336 Blade of Wizardry | Forgotten Knowledge +280 haste rating 6 s, 15%, ICD 50 s | OnCastComplete, ProcMaskSpellDamage; "Your harmful spells have a chance" | `cast` |
+| 32496 Memento of Tyrande | Wisdom +76 MP5 15 s, 10%, ICD 50 s | OnCastComplete, ProcMaskSpellDamage or SpellHealing; "Each time you cast a spell" | `cast` |
+
+**Band of the Eternal Sage against the hand model.** The generated Band has trigger `hit`, which is what stage F models: a landed damaging spell rolls, DoT applications included; misses, Life Tap and Curse of the Elements do not roll; no draw while the ICD runs. Its numbers equal the hand-written entry field for field: +95 spell power, 10 000 ms, chance 0.1 (`BAND_PROC_CHANCE`), ICD 60 000 (`BAND_ICD_MS`), and buff 35084 (the aura's `wowheadId`). The only difference is the name: the hand entry's hidden ICD aura is a trainer construct, not data, so Task 2 builds it. Against wowsims, the Part C deviation stands: wowsims rolls at cast end for any SpellDamage cast, misses and Life Tap included. The same `hit` reading applies to Wrath of Cenarius and Robe of the Elder Scribes, whose tooltips say "land". The other OnCastComplete items keep `cast`, which matches wowsims, except that the trainer runs hooks when the spell resolves (at impact, ruling S4), not at cast end.
+
+**Icon of the Silver Crescent against the hand model.** `useEffects[0]`: +155 spell power, 20 000 ms, cooldown 120 000, `group { id: 1141, ms: 20000 }`, buff "Blessing of the Silver Crescent" 35163. These equal the hand entry: action `cooldownMs`, `sharedCooldown` 20 s (named `trinket` there), and the aura's duration, stats, name and `wowheadId`.
+
+### What stays text, and why
+
+Equip effects stay text (59, e.g. Fear Cast Pushback Reduction, Alchemist's Stone, Demon Slaying, Increase Spell Dam Undead, Sunwell Exalted Caster Neck, Mount Speed), and so do on-use or proc effects without a modelled stat. Examples are summons, mana restores, absorbs, threat, the Lightning Capacitor's damage proc and Shifting Naaru Sliver's Power Circle. The effects below carry a modelled stat but stay text:
+
+| Item | Why |
+|---|---|
+| 19337 The Black Book | A pet buff: +200 spell damage, attack power and armor for the pet. Attack power and armor are not modelled. |
+| 21473 Eye of Moam | Also +100 spell penetration (not modelled). |
+| 22678 Talisman of Ascendance, 28727 Pendant of the Violet Eye | The buff stacks per spell (stacking aura); stacking is not modelled. The text now says "up to N stacks". |
+| 28190 Scarab of the Infinite Cycle | Procs from heals only (OnHealDealt). |
+| 28789 Eye of Magtheridon | Procs on a resisted spell (items_trinkets.go: OutcomeMiss). The trainer has no `miss` trigger. |
+| 31856 Darkmoon Card: Crusade, 31857 Darkmoon Card: Wrath | Stacking buffs (Crusade's second effect is melee attack power; Wrath's crit is melee and spell). |
+| 32493 Ashtongue Talisman of Shadows | Procs on Corruption ticks (sim/warlock/items.go: OnPeriodicDamageDealt). Hooks never run on ticks (spec: out of scope). |
+| 32771 Airman's Ribbon of Gallantry | Procs on a kill that gives honor or experience. Not implemented in wowsims (CallbackEmpty). |
+
+### Decisions and UNVERIFIED
+
+- **Healing power ignored** in the "all stats modelled" rule (above). Healer trinkets with a spell damage part become their spell damage (e.g. Hibernation Crystal +117, Essence of the Martyr +99, Direbrew Hops +135), exactly as wowsims' `NewSimpleStatActive` applies them.
+- **On-use list.** All 31 structured on-use items are registered by wowsims as plain stat on-use effects: `NewSimpleStatActive` in `stat_bonus_cds_auto_gen.go`, and the summoning figurines 24126 and 35700 in `items_trinkets.go`. The one exception is **Chain of the Twilight Owl 24121**: wowsims makes its +2% crit (44.153846 rating) a permanent aura (`items_armor.go`, `MakePermanent`). The database keeps db.json's on-use (30 min buff, 60 min cooldown), as in the game.
+- **`cast` or `hit` for OnCastComplete items** follows the tooltip, as the stage F Band decision did. It is a reading, not a wowsims field.
+- **Coronet of Verdant Flame** proc chance 0.75 and ICD 25 s are db.json values as given ("restore 90 mana over 10 s" = +45 MP5 for 10 s). UNVERIFIED against Wowhead, which gives no proc chance.
+- The trigger table and the hand-checked numbers of the Icon, the Band, Quagmirran's Eye and Shiffar's Nexus-Horn are pinned in `tests/data/item-effects-db.test.ts`.
+- Not decided here: what a proc does while its buff is still up (only possible when the ICD is shorter than the buff, e.g. no ICD), and two worn items with the same buff (e.g. Scryer's Bloodgem and Xi'ri's Gift, both "Spell Power" 35337). Task 2 owns the aura semantics.

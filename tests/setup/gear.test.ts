@@ -440,8 +440,12 @@ describe('describeGear', () => {
     expect(d.unmodelledSets.some((s) => s.startsWith("Shadow's Embrace (3)"))).toBe(true);
     // Mana-Etched Regalia 2 pieces is modelled (+35 hit rating): not listed.
     expect(d.unmodelledSets.some((s) => s.startsWith('Mana-Etched'))).toBe(false);
-    // Trinkets with on-use effects other than the Icon are listed.
-    expect(d.unmodelledEffects.length).toBeGreaterThan(0);
+    // Effects the item database keeps as text are listed. (Before the structured item effects,
+    // gear item effects Task 1, this was the pre-raid Quagmirran's Eye; its proc is now a structured
+    // `procEffects` entry, which Task 2 derives into the setup.) The SWP gear's Shifting Naaru
+    // Sliver (an on-use without a stat buff) stays text.
+    const swp = normalizeGear(wowsimsSets.swp!.items, db);
+    expect(describeGear(swp, db).unmodelledEffects.some((t) => t.startsWith('Shifting Naaru Sliver: '))).toBe(true);
 
     // Voidheart 4pc is modelled since Task 6 (one more DoT tick): no longer listed for the T4 gear;
     // T5's Corruptor bonuses still are.

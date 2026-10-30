@@ -1,4 +1,4 @@
-import type { EnchantDef, GemDef, ItemDef } from '../../engine/types';
+import type { EnchantDef, GemDef, ItemDef, RawStats } from '../../engine/types';
 
 /**
  * The 17 equipment slots, in WowSimsExporter / wowsims `ItemSlot` order (proto/common.proto):
@@ -49,10 +49,66 @@ export interface ItemRecord extends ItemDef {
   /** Staff: occupies the main hand and leaves the off hand empty. */
   twoHand?: boolean;
   /**
-   * Short readable text of the item's on-use, proc and equip effects (wowsims `itemEffects`), which
-   * the trainer does not model unless a setup entry does (e.g. Icon of the Silver Crescent).
+   * Short readable text of the item's on-use, proc and equip effects (wowsims `itemEffects`) that
+   * are NOT structured below: one line per effect. An effect that is in `useEffects` or
+   * `procEffects` is never also listed here (docs/data-sources.md, "Part F: gear item effects").
    */
   effects?: string[];
+  /** On-use stat buffs the trainer can model (absent when none). */
+  useEffects?: ItemUseEffect[];
+  /** Proc stat buffs the trainer can model, with their trigger (absent when none). */
+  procEffects?: ItemProcEffect[];
+}
+
+/**
+ * The stats of an item effect's buff: only modelled `RawStats` keys (never `baseMana`), all
+ * positive. A wowsims buff that also gives healing power (stat 4, "damage and healing") keeps only
+ * its spell damage; a buff with any other unmodelled stat stays text.
+ */
+export type ItemEffectStats = Partial<Omit<RawStats, 'baseMana'>>;
+
+/** An on-use stat buff (wowsims `itemEffects[].onUse`). */
+export interface ItemUseEffect {
+  /** The buff's name (db.json `buffName` without its "(spell id)" suffix). */
+  buffName: string;
+  /** Wowhead (TBC) spell id of the buff (db.json `buffId`). */
+  buffId: number;
+  stats: ItemEffectStats;
+  durationMs: number;
+  /** The item's own cooldown. */
+  cooldownMs: number;
+  /**
+   * Shared cooldown category (db.json `onUse.categoryId`, e.g. 1141 the on-use trinkets) and the
+   * time it blocks the category: `categoryCooldownMs`, or the buff's duration when that is not
+   * positive (wowsims sim/common/shared/shared_utils.go `sharedCooldown`). Absent: no category.
+   */
+  group?: { id: number; ms: number };
+}
+
+/**
+ * What a proc rolls on (one roll per event, only while its internal cooldown is not running):
+ * - `cast`: every completed player spell, whatever its outcome (a miss too); not items, not DoT
+ *   ticks (wowsims `CallbackOnCastComplete`).
+ * - `hit`: a landed (hit or crit) offensive player spell: one with a direct damage part or one
+ *   applying a DoT on the target; not a miss, not Life Tap or Curse of the Elements (the stage F
+ *   Band rule, `BAND_PROC_SPELL_IDS`; wowsims `CallbackOnSpellHitDealt` + `OutcomeLanded`).
+ * - `crit`: a critical hit of a player spell (wowsims `OutcomeCrit`).
+ */
+export type ItemProcTrigger = 'cast' | 'hit' | 'crit';
+
+/** A proc stat buff (wowsims `itemEffects[].proc` + the item's Go registration for the trigger). */
+export interface ItemProcEffect {
+  /** The buff's name (db.json `buffName` without its "(spell id)" suffix). */
+  buffName: string;
+  /** Wowhead (TBC) spell id of the buff (db.json `buffId`). */
+  buffId: number;
+  stats: ItemEffectStats;
+  durationMs: number;
+  /** Chance per roll, in (0, 1] (db.json `proc.procChance`). */
+  chance: number;
+  /** Internal cooldown from a proc (db.json `proc.icdMs`); 0: none. */
+  icdMs: number;
+  trigger: ItemProcTrigger;
 }
 
 export interface GemRecord extends GemDef {
