@@ -727,7 +727,8 @@ export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     // Rune 12662 (the same tooltip on Wowhead): categoryId 1153, categoryCooldownDuration 120,
     // effect 694074 (spellId 16666, mana, minEffectSize 899, effectSpread 601);
     // makeConjuredActivationSpellInternal: SharedCD on the category timer 2 min. The trainer draws
-    // an integer in 900..1500. Category 1153 is shared with Flame Cap (out of scope).
+    // an integer in 900..1500. Category 1153 is also shared with Flame Cap and Master Healthstone (out
+    // of scope); old wowsims/tbc puts Dark Rune, Flame Cap and Healthstone on one conjured timer.
     source: `wowsims/tbc sim/core/consumes.go makeConjuredActivation (item 20520); ${CONSUMES} (Demonic Rune 12662, effect 694074); https://www.wowhead.com/tbc/item=20520`,
     effect: {
       action: itemAction({
