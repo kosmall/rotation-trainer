@@ -148,6 +148,8 @@ interface SpellMods {
   critPctDelta: number;
   critMultDelta: number;
   coeffDelta: number;
+  /** Sum of `dotExtraTicks`; `dotExtraTicksOf` turns it into a whole tick count. */
+  dotExtraTicks: number;
 }
 
 function modifierMatches(m: SpellModifier, spell: SpellDef): boolean {
@@ -166,6 +168,7 @@ function foldModifiers(spell: SpellDef, modifiers: readonly SpellModifier[]): Sp
     critPctDelta: 0,
     critMultDelta: 0,
     coeffDelta: 0,
+    dotExtraTicks: 0,
   };
   for (const m of modifiers) {
     if (!modifierMatches(m, spell)) continue;
@@ -176,8 +179,14 @@ function foldModifiers(spell: SpellDef, modifiers: readonly SpellModifier[]): Sp
     mods.critPctDelta += m.critPctDelta ?? 0;
     mods.critMultDelta += m.critMultDelta ?? 0;
     mods.coeffDelta += m.coeffDelta ?? 0;
+    mods.dotExtraTicks += m.dotExtraTicks ?? 0;
   }
   return mods;
+}
+
+/** The whole number of extra DoT ticks a folded modifier sum gives: 0 unless positive and finite, floored. */
+function dotExtraTicksOf(mods: SpellMods): number {
+  return Number.isFinite(mods.dotExtraTicks) && mods.dotExtraTicks > 0 ? Math.floor(mods.dotExtraTicks) : 0;
 }
 
 function sumStatBonuses(bonuses: readonly Partial<RawStats>[]): Partial<RawStats> {
@@ -752,7 +761,9 @@ export class Simulation {
 
   /**
    * Applies (or refreshes) `auraId` from `source` (undefined: a scheduled aura, logged without
-   * `spellId`), lasting `durationMs` (default: the aura's own). A refresh cancels the aura's
+   * `spellId`), lasting `durationMs` (default: the aura's own). The DoT a spell applies itself
+   * (`source.applyAura`, a target aura with a tick) gets the source's `dotExtraTicks` (snapshotted
+   * now): it lasts `extra x intervalMs` longer and ticks `extra` more times. A refresh cancels the aura's
    * pending ticks and fade, then reschedules them from now: no immediate tick, no double ticks.
    * Ticks are scheduled for target auras only. The fade event removes the aura through
    * `removeAura`. A self aura's stat bonuses, multipliers and modifiers take effect at once
@@ -776,10 +787,15 @@ export class Simulation {
     }
     if (pending.has(auraId) && !tracker.get(auraId, this.nowMs)) this.removeAura(on, auraId);
     this.cancelAuraEvents(pending, auraId);
-    const lastsMs = durationMs ?? def.durationMs;
+    const baseMs = durationMs ?? def.durationMs;
+    const extraTicks =
+      on === 'target' && def.tick && def.tick.intervalMs > 0 && source?.applyAura?.auraId === auraId
+        ? dotExtraTicksOf(this.modsFor(source))
+        : 0;
+    const lastsMs = extraTicks > 0 ? baseMs + extraTicks * def.tick!.intervalMs : baseMs;
     tracker.apply(auraId, this.nowMs, lastsMs);
     this.addLog(source ? { type: 'aura-apply', spellId: source.id, auraId } : { type: 'aura-apply', auraId });
-    const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, lastsMs, source) : [];
+    const tickEventIds = on === 'target' && def.tick ? this.scheduleTicks(def, def.tick, baseMs, extraTicks, source) : [];
     // A fade after the fight's end never runs: the end cuts the aura without an `aura-fade`.
     const fadeEventId = this.schedule(this.nowMs + lastsMs, () => this.removeAura(on, auraId));
     pending.set(auraId, { tickEventIds, fadeEventId });
@@ -787,8 +803,9 @@ export class Simulation {
   }
 
   /**
-   * Schedules the DoT's `durationMs / intervalMs` ticks (floored) at every interval from now,
-   * up to the fight's end (later ones could never run). Power and the source spell's
+   * Schedules the DoT's `durationMs / intervalMs` ticks (floored) plus `extraTicks` at every
+   * interval from now, up to the fight's end (later ones could never run). Each tick deals the
+   * total over the base count, so an extra tick adds a full tick. Power and the source spell's
    * `dotDamageMult` (1 without a source) are snapshotted here; each tick reads the target's
    * damage-taken multiplier current at that tick. Ticks never crit.
    */
@@ -796,6 +813,7 @@ export class Simulation {
     def: AuraDef,
     tick: NonNullable<AuraDef['tick']>,
     durationMs: number,
+    extraTicks: number,
     source: SpellDef | undefined,
   ): EventId[] {
     if (!(tick.intervalMs > 0)) return [];
@@ -804,7 +822,7 @@ export class Simulation {
     const perTick = (tick.total + tick.coeffTotal * this.stats.power[tick.school]) / count;
     const dotDamageMult = source ? this.modsFor(source).dotDamageMult : 1;
     const ids: EventId[] = [];
-    for (let k = 1; k <= count; k++) {
+    for (let k = 1; k <= count + extraTicks; k++) {
       const atMs = this.nowMs + k * tick.intervalMs;
       if (atMs > this.durationMs) break;
       ids.push(

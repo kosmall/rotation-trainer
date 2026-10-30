@@ -34,6 +34,16 @@ export interface SpellModifier {
   critMultDelta?: number;
   /** Added to `DirectEffect.coeff` (direct damage only; DoT ticks use `AuraDef.tick.coeffTotal`). */
   coeffDelta?: number;
+  /**
+   * Extra ticks of the DoT the spell applies (its own `applyAura` on the target, an aura with a
+   * `tick`), e.g. Voidheart Raiment 4pc (wowsims `SpellMod_DotNumberOfTicks_Flat`): the aura
+   * lasts `durationMs + extra x tick.intervalMs` and ticks `base + extra` times; every tick is the
+   * unchanged base tick (total and power snapshot over the base tick count), so each extra tick
+   * adds one tick of damage. Summed over the matching modifiers when the DoT is applied; a
+   * non-positive or non-finite sum adds nothing, a fraction is floored. Auras applied by hooks or
+   * scheduled by the fight are never extended.
+   */
+  dotExtraTicks?: number;
 }
 
 /**
