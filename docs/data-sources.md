@@ -36,7 +36,7 @@ Rotation effect worth knowing:
 - Spell and aura icons are Blizzard artwork served by Wowhead's CDN. They are fetched once by `npm run icons` (`scripts/fetch-icons.mjs`, run with tsx) into `public/icons/spells/<icon>.jpg` and **committed**, so the app has no runtime network calls. Personal use; if this repo ever becomes public, decide whether to keep the files in it (the alternative is to gitignore `public/icons/` and run `npm run icons` after `npm install`).
 - Every `SpellDef` and `AuraDef` carries `wowheadId` (the TBC spell id, same ids as the data comments). For each id the script asks `https://nether.wowhead.com/tbc/tooltip/spell/<id>?dataEnv=5&locale=0` for the real icon name, compares it with the `icon` in the data (mismatch = report + exit 1; it never edits source files) and downloads `https://wow.zamimg.com/images/wow/icons/large/<icon>.jpg`. All 11 icon names that were first written from memory matched Wowhead. Since the item actions the script also walks the setup catalog's item actions (`effect.action`), and for a spell whose Wowhead tooltip has only the placeholder icon `classic_temp` it reads the icon from the item tooltip instead (`ICON_FROM_ITEM`: Super Mana Potion's spell 28499 -> item 22832); it never saves a placeholder (see "Part D: item actions", Icons).
 - `tests/data/icons.test.ts` checks (offline) that every spell/aura has a `wowheadId` and that its file is committed; `tests/ui/icons.test.tsx` checks the UI wiring and the fallback to the initials tile when a file is missing.
-- Not covered yet: item, gem and enchant icons (stage 2a, with the Gear tab; the same script will fetch them).
+- Item, gem and enchant icons (stage 2a): the same script also downloads every distinct `icon` of the item database into `public/icons/items/<icon>.jpg` (no tooltip call: the names come from wowsims db.json). See "Part E: gear", Icons.
 
 ## Task 3
 
@@ -718,3 +718,73 @@ UI only: no engine, data or setup change, no new game number. Plan `docs/superpo
 - Heroism's cooldown is not tracked (one use; the longest fight is 600 s).
 - The bot's item rules are guidance, not an optimizer: with both potions enabled it always takes the Destruction Potion; after Heroism it uses the Icon as soon as it is ready instead of saving it; after a queued item fires, the next spell starts at the bot's next step (up to 10 ms later).
 - The fight length input emits on every keystroke (a not-started fight is rebuilt each time; harmless).
+
+## Part E: gear
+
+Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database.
+
+### Item database (`src/data/items/db.json`)
+
+- Source: github.com/wowsims/tbc-new `master` @ `91f869a`, `assets/database/db.json` (8253 items, 214 gems, 144 enchant entries). wowsims is **MIT licensed** (`LICENSE` in the repo); the generated file records its source in its `source` field.
+- Generator: `npm run db:build -- <path to a tbc-new clone>` (`scripts/build-item-db.mjs`). It only reads JSON from the clone (`assets/database/db.json`, `ui/specs/warlock/dps/gear_sets/*.gear.json`) and `.git/HEAD` for the commit id, and never runs its code. Output: `src/data/items/db.json` (committed; one record per line) and `tests/fixtures/wowsims-warlock-gear-sets.json` (a copy of the 9 wowsims warlock gear sets: preraid, t4, t5, t6, za, swp, destro_fire_preraid, destro_fire_t4, blank). The output is deterministic (a second run is byte-identical).
+- Size: 358 173 bytes raw, about 57 KB gzip. `tests/data/item-db.test.ts` caps `JSON.stringify(db).length` at 1 500 000.
+- Loading: `loadItemDb()` (`src/data/items/db.ts`) imports the JSON with a dynamic `import()`, so Vite emits it as its own chunk (`db-*.js`, 356 kB, 56 kB gzip, measured with a probe build that references the loader from `main.tsx`; the main chunk grew 1.6 kB for the loader and Vite's preload helper). `itemDbSync()` (`src/data/items/dbSync.ts`, tests and scripts only) imports it statically; app code must not import `dbSync.ts`, or the database lands in the main chunk.
+
+### Mapping (verified)
+
+Enums from tbc-new `proto/common.proto`, checked by hand on Voidheart Crown 28963 (db.json stats `{2: 39, 3: 36, 4: 40, 5: 40, 13: 19, 31: 164}`, sockets `[1, 2]`, socket bonus index 12 = 4; Wowhead TBC: +39 Stamina, +36 Intellect, +40 spell damage, +19 spell crit rating, meta and red sockets, socket bonus +4 spell hit rating), Icon of the Silver Crescent 29370 and Band of the Eternal Sage 29305 (pinned in the test).
+
+| `Stat` index | proto name | `RawStats` |
+|---|---|---|
+| 3 | StatIntellect | `intellect` |
+| 5 | StatSpellDamage | `spellPower` |
+| 7 | StatFireDamage | `firePower` |
+| 11 | StatShadowDamage | `shadowPower` |
+| 12 | StatSpellHitRating | `hitRating` |
+| 13 | StatSpellCritRating | `critRating` |
+| 14 | StatSpellHasteRating | `hasteRating` |
+| 16 | StatSpirit | `spirit` (the plan's "Spirit 4?" was wrong: 4 is StatHealingPower) |
+| 35 | StatMP5 | `mp5` |
+
+Dropped (not modelled): stamina 2, healing 4 (equal to or above spell damage on caster items), arcane/frost/holy/nature damage, spell penetration 15, physical and tank stats, armor 31/32, resistances, health/mana 33/34.
+
+- Item stats: `scalingOptions["0"].stats` (every item has only the `"0"` entry). Socket bonus: the 42-entry `socketBonus` array. Gem and enchant stats: their 42-entry `stats` arrays.
+- Sockets and gem colours: proto `GemColor` (1 meta, 2 red, 3 blue, 4 yellow, 5 green, 6 orange, 7 purple, 8 prismatic); `gemSockets` only uses 1-4.
+- Slot (proto `ItemType` 1-14): head, neck, shoulder, back, chest, wrist, hands, waist, legs, feet; rings and trinkets have ONE logical slot `finger` / `trinket` (pickers offer them for finger1/finger2 and trinket1/trinket2: `itemsForSlot(db, slotKey)`, `logicalSlot`); wands `ranged`. Weapons: held-in-off-hand items (`weaponType` 5) `offHand`; staves (`handType` 4) `mainHand` with `twoHand: true` (they also take the off hand: gear validation must clear the off hand, Task 2); main-hand and one-hand daggers and swords `mainHand` (a Warlock cannot dual wield, so never the off hand).
+- Sets: `setId` = slug of `setName` (e.g. "Malefic Raiment" -> `malefic-raiment`, the stage 1 `SetBonusDef.setId`); the generator fails if two wowsims set ids share a slug. 52 sets in the database.
+- `unique: true` from db.json `unique` (`limitCategory`, e.g. the Band of the Eternal ... rings' shared category, is not kept).
+- `effects`: one short text per wowsims `itemEffects` entry, built from its structured fields only (buff name without the `(spell id)` suffix, modelled stats, stacks, duration, on-use cooldown): "On use: ..." (`onUse`), "Proc: ..." (`proc`/`stackProc`), else "Equip: ...". Unnamed effects read "spell <id>" (e.g. The Lightning Capacitor "Proc: spell 37657"). Effects implemented only in wowsims Go code (meta gem bonuses, set bonuses) are not in db.json. 148 items carry effects; the trainer models none of them except through setup entries (Icon of the Silver Crescent, Band of the Eternal Sage).
+
+### Filters and counts (items: 1730 kept of 8253)
+
+Warlock equippability is wowsims' `canEquipItem` (`ui/sim/proto/items.ts`) with the Warlock capabilities of `sim/core/character_constants.go` (= `ui/sim/player/classes/capabilities_auto_gen.ts`): cloth armour; daggers, held-in-off-hand items, staves (the only two-hander) and one-hand swords; wands; no dual wield.
+
+| Dropped | Count | Rule |
+|---|---|---|
+| armour heavier than cloth | 2496 | `armorType` > 1 (neck, back, rings, trinkets have 0) |
+| class allowlist excludes Warlock | 1777 | `classAllowlist` set and without class 9 |
+| no modelled stat | 928 | none of the stats above in the item's or its effects' stats, and not an effect-only item of item level >= 90 |
+| weapon type | 646 | axe, fist, mace, polearm, shield, unknown |
+| random suffix item | 306 | `randomSuffixOptions`: the stats depend on a suffix stored elsewhere; not supported |
+| ranged type other than wand | 273 | bows, guns, crossbows, thrown, idols, librams, totems |
+| two-hand weapon other than a staff | 71 | |
+| off-hand-only weapon | 17 | `handType` 3 dagger/sword (no dual wield) |
+| Horde only | 5 | `factionRestriction` 2: the trainer models a Gnome (Alliance) |
+| no item type | 4 | |
+
+- Phase: every db.json item has phase 1-5, so the "phase <= 5" limit drops nothing.
+- Always kept: every item referenced by a wowsims warlock gear set or by the author's export (`docs/samples/...`); the generator fails if one is missing or not equippable. Two were kept only for that reason: Riding Crop 25653 (no stat; the author's trinket) and Stormcaller 29155 (Horde only; in a wowsims gear set: its Alliance counterpart is Blade of the Archmage 29153).
+- Effect-only items (no stat at all, an `itemEffects` entry, item level >= 90): 11 are kept, e.g. The Lightning Capacitor, Mark of the Champion; 26 kept items have no modelled stat (they carry `effects`).
+- Kept items: 1511 with a damage, hit, crit or haste stat; 193 with only Intellect, Spirit or MP5; 26 effect-only. By phase: 1378 / 86 / 109 / 37 / 120.
+
+Gems: all 214 (small; an import may name any of them); 114 have no modelled stat (strength, agility, stamina, defence gems). Meta gems carry their activation rule from tbc-new `sim/core/reforge_optimizer/meta_gem_constraints.go` (copied by hand into the generator: it is Go source, not data): 14 as `metaRequires` minimum counts, 4 as `metaCompare` ("more red than blue": 25897, 25895; "more blue than yellow": 25893, 32640), which the stage 1 `buildSetup` does not evaluate. Meta gem bonuses beyond their stats (e.g. Chaotic Skyfire's +3% crit damage) are code in wowsims, not data: only the author's Chaotic Skyfire is modelled (`items.ts`).
+
+Enchants: 128 records from 144 entries, keyed by effect id (the export's `enchant`). Dropped: 7 shield enchants, 4 scopes (wands take no enchant). Kept: every other enchant (84 without a modelled stat), with `slot` from `type` and `extraSlots` from `extraTypes` (armor kits: chest, hands, legs, feet); 2H weapon enchants carry `twoHandOnly` (staves). Five effect ids appear twice in db.json and are merged into one record with both slots and both names joined by " / ": 963, 2564, 2617, 2648, 2649 (e.g. 2649 "Enchant Bracer - Fortitude / Enchant Boots - Fortitude", wrist + feet).
+
+### Consistency with stage 1
+
+The author's 17 items (`src/data/classes/warlock/items.ts`) have the same name, slot, modelled stats, sockets, socket bonus and set id in the database, and their 9 gems and 10 enchants the same name/colour/stats/meta requirement (enchants: stats); `tests/data/item-db.test.ts` checks it with an explicit allowlist for differences, which is empty.
+
+### Icons
+
+`npm run icons` downloads every distinct icon of the database (697: items, gems and enchants) into `public/icons/items/<icon>.jpg` from `https://wow.zamimg.com/images/wow/icons/large/<icon>.jpg`: 3 concurrent requests, 150 ms pause, 3 attempts with backoff, idempotent (present files are kept), exit 0 only when every icon is present and the folder stays under the 6 000 000-byte budget. All 697 fit: 1 250 183 bytes, so nothing was left out. `tests/data/item-db.test.ts` checks (offline) that every icon is committed.

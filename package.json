@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "icons": "tsx scripts/fetch-icons.mjs"
+    "icons": "tsx scripts/fetch-icons.mjs",
+    "db:build": "node scripts/build-item-db.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
