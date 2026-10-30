@@ -44,6 +44,7 @@ const startInput = (buffName: string) => screen.getByRole('spinbutton', { name: 
 const durationInput = (buffName: string) =>
   screen.getByRole('spinbutton', { name: `${buffName} duration (s)` }) as HTMLInputElement;
 const activePreset = () => screen.getByLabelText('Active preset').textContent;
+const fightLengthInput = () => screen.getByRole('spinbutton', { name: 'Fight length (s)' }) as HTMLInputElement;
 
 const buff = (id: string): BuffDef => {
   const b = SETUP_CATALOG.find((x) => x.id === id);
@@ -81,7 +82,6 @@ function Harness({
       catalog={SETUP_CATALOG}
       config={config}
       presets={presets}
-      fightLengthSec={60}
       onChange={(c) => {
         onChange(c);
         setConfig(c);
@@ -242,6 +242,7 @@ describe('SetupPanel', () => {
       distanceInput(),
       checkbox('Arcane Brilliance'),
       startInput('Heroism / Bloodlust'),
+      fightLengthInput(),
       screen.getByRole('radio', { name: 'Fel Armor' }),
       screen.getByRole('button', { name: 'Reset to defaults' }),
     ]) {
@@ -252,9 +253,12 @@ describe('SetupPanel', () => {
   it('every catalog group renders and toggling a buff calls onChange with it', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
+    // Timed buffs (Heroism) are in the Fight group; item actions and item procs under Items.
     const expectedGroup = (b: BuffDef) =>
-      b.timed || b.group === 'item'
-        ? 'Items and cooldowns'
+      b.timed
+        ? 'Fight'
+        : b.effect.action || b.group === 'item'
+          ? 'Items and cooldowns'
         : b.group === 'debuff'
           ? 'Target debuffs'
           : b.group === 'consumable'
@@ -262,7 +266,7 @@ describe('SetupPanel', () => {
             : b.group === 'warlock'
               ? 'Warlock options'
               : 'Raid and party';
-    for (const name of ['Raid and party', 'Consumables', 'Target debuffs', 'Items and cooldowns', 'Warlock options', 'Rotation', 'Distance']) {
+    for (const name of ['Fight', 'Raid and party', 'Consumables', 'Target debuffs', 'Items and cooldowns', 'Warlock options', 'Rotation', 'Distance']) {
       expect(screen.getByRole('group', { name }), name).toBeTruthy();
     }
     for (const b of SETUP_CATALOG) {
@@ -274,9 +278,10 @@ describe('SetupPanel', () => {
       expect(box.getAttribute('aria-describedby'), b.id).toBeTruthy();
       expect(document.getElementById(box.getAttribute('aria-describedby') as string)?.textContent).toBe(b.description);
     }
-    // Super Mana Potion and Dark Rune are in the catalog since the item actions (Consumables group).
-    for (const name of ['Super Mana Potion', 'Dark Rune']) {
-      expect(within(screen.getByRole('group', { name: 'Consumables' })).getByRole('checkbox', { name })).toBeTruthy();
+    // The item actions (used from the item bar) are listed with the items, not with the consumables.
+    for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', 'Icon of the Silver Crescent']) {
+      expect(within(screen.getByRole('group', { name: 'Items and cooldowns' })).getByRole('checkbox', { name })).toBeTruthy();
+      expect(within(screen.getByRole('group', { name: 'Consumables' })).queryByRole('checkbox', { name })).toBeNull();
     }
 
     fireEvent.click(checkbox('Arcane Brilliance'));
@@ -399,6 +404,105 @@ describe('SetupPanel', () => {
     // None; it is the only timed buff since the potion and the Icon became item actions).
     fireEvent.change(startInput('Heroism / Bloodlust'), { target: { value: '30' } });
     expect(activePreset()).toBe('None');
+  });
+
+  it('Fight group: length input clamps (abc ignored, 5 -> 10, 9999 -> 600), Heroism start/duration inputs behave as before, the warning appears when start > length; Items group no longer lists Heroism', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    // The first group of the panel.
+    const groupTitles = [...document.querySelectorAll('.setup-group > summary')].map((s) => s.firstChild?.textContent);
+    expect(groupTitles[0]).toBe('Fight');
+    const fight = screen.getByRole('group', { name: 'Fight' });
+    const length = within(fight).getByRole('spinbutton', { name: 'Fight length (s)' }) as HTMLInputElement;
+    expect(length.value).toBe('60');
+    expect(length.min).toBe(String(SETUP_LIMITS.fightDurationSec.min));
+    expect(length.max).toBe(String(SETUP_LIMITS.fightDurationSec.max));
+    expect([SETUP_LIMITS.fightDurationSec.min, SETUP_LIMITS.fightDurationSec.max]).toEqual([10, 600]);
+
+    fireEvent.change(length, { target: { value: 'abc' } });
+    fireEvent.change(length, { target: { value: '' } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.blur(length);
+    expect(length.value).toBe('60');
+    fireEvent.change(length, { target: { value: '5' } });
+    expect(last(onChange).fightDurationSec).toBe(10);
+    fireEvent.blur(length);
+    expect(length.value).toBe('10');
+    fireEvent.change(length, { target: { value: '9999' } });
+    expect(last(onChange).fightDurationSec).toBe(600);
+    fireEvent.blur(length);
+    expect(length.value).toBe('600');
+    fireEvent.change(length, { target: { value: '90.4' } });
+    expect(last(onChange).fightDurationSec).toBe(90);
+    fireEvent.blur(length);
+    expect(length.value).toBe('90');
+    expect(activePreset()).toBe('None'); // the length alone never changes the preset match
+
+    // Heroism lives here now: its checkbox, start and duration, the same validation as before.
+    const heroBox = within(fight).getByRole('checkbox', { name: 'Heroism / Bloodlust' }) as HTMLInputElement;
+    expect(within(fight).getByRole('spinbutton', { name: 'Heroism / Bloodlust start (s)' })).toBe(startInput('Heroism / Bloodlust'));
+    fireEvent.click(heroBox);
+    expect(last(onChange).enabledBuffs).toEqual(['heroism']);
+    fireEvent.change(startInput('Heroism / Bloodlust'), { target: { value: '70' } });
+    expect(last(onChange).timed.heroism).toEqual({ startSec: 70, durationSec: 40 });
+    expect(screen.queryByText(/starts after the fight ends/i)).toBeNull(); // 70 < 90
+    fireEvent.change(length, { target: { value: '60' } });
+    expect(screen.getByText('Starts after the fight ends (60 s): no effect.')).toBeTruthy();
+    fireEvent.change(length, { target: { value: '70' } });
+    expect(screen.getByText('Starts after the fight ends (70 s): no effect.')).toBeTruthy(); // at the end: never up
+    fireEvent.change(length, { target: { value: '71' } });
+    expect(screen.queryByText(/starts after the fight ends/i)).toBeNull();
+    fireEvent.change(durationInput('Heroism / Bloodlust'), { target: { value: '0' } });
+    expect(last(onChange).timed.heroism?.durationSec).toBe(SETUP_LIMITS.durationSec.min);
+
+    // The Items group: no Heroism, the items used from the item bar and the Band (a proc).
+    const items = screen.getByRole('group', { name: 'Items and cooldowns' });
+    expect(within(items).queryByRole('checkbox', { name: 'Heroism / Bloodlust' })).toBeNull();
+    expect(within(items).queryByRole('spinbutton')).toBeNull();
+    for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', 'Icon of the Silver Crescent', 'Band of the Eternal Sage']) {
+      expect(within(items).getByRole('checkbox', { name })).toBeTruthy();
+    }
+    expect(items.textContent).toContain('item bar (Z X C V)');
+    expect(items.textContent).not.toMatch(/you do not press/i);
+  });
+
+  it('an enabled item shows its item bar key, as applySetup binds it (catalog order)', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const keyOf = (name: string) => checkbox(name).closest('.setup-buff')?.querySelector('.setup-item-key')?.textContent ?? null;
+    expect(keyOf('Dark Rune')).toBeNull();
+    fireEvent.click(checkbox('Icon of the Silver Crescent'));
+    fireEvent.click(checkbox('Dark Rune'));
+    expect(keyOf('Dark Rune')).toBe('Item bar: Z');
+    expect(keyOf('Icon of the Silver Crescent')).toBe('Item bar: X');
+    fireEvent.click(checkbox('Destruction Potion'));
+    expect(keyOf('Destruction Potion')).toBe('Item bar: Z');
+    expect(keyOf('Dark Rune')).toBe('Item bar: X');
+    expect(keyOf('Icon of the Silver Crescent')).toBe('Item bar: C');
+    expect(keyOf('Super Mana Potion')).toBeNull();
+    expect(keyOf('Band of the Eternal Sage')).toBeNull(); // a proc, never pressed
+    fireEvent.click(checkbox('Band of the Eternal Sage'));
+    expect(keyOf('Band of the Eternal Sage')).toBeNull();
+  });
+
+  it('presets keep the chosen fight length (ruling F-2); Reset to defaults resets it to 60', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    fireEvent.change(fightLengthInput(), { target: { value: '90' } });
+    fireEvent.blur(fightLengthInput());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Raid as in my log' }));
+    expect(last(onChange)).toEqual({ ...SETUP_PRESETS['raid-log'].config, fightDurationSec: 90 });
+    expect(activePreset()).toBe('Raid as in my log');
+    expect(fightLengthInput().value).toBe('90');
+
+    fireEvent.click(screen.getByRole('button', { name: 'None' }));
+    expect(last(onChange)).toEqual({ ...SETUP_PRESETS.none.config, fightDurationSec: 90 });
+    expect(activePreset()).toBe('None');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
+    expect(last(onChange)).toEqual(DEFAULT_SETUP);
+    expect(fightLengthInput().value).toBe('60');
   });
 
   it('Reset to defaults restores DEFAULT_SETUP', () => {

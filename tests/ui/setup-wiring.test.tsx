@@ -363,7 +363,7 @@ describe('Target debuffs: own aura under the raid one', () => {
 });
 
 describe('Fight length (item actions and fight settings, Task 3)', () => {
-  /** A stored setup (the Fight section of the panel comes in Task 4) as GameView loads it at mount. */
+  /** A stored setup, as GameView loads it at mount. */
   const storedSetup = (p: Partial<SetupConfig>) =>
     memoryStorage({ [SETUP_STORAGE_KEY]: JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...p }) }).storage;
   const elapsed = () => screen.getByLabelText('Elapsed').textContent;
@@ -430,6 +430,47 @@ describe('Fight length (item actions and fight settings, Task 3)', () => {
     advance(3_000);
     expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
     expect(auraChip('Buffs', 'Heroism')).toBeUndefined();
+  });
+
+  it('changing the length in the panel applies to a not-started fight at once and after R to a running one; it is saved', () => {
+    const { storage, map } = memoryStorage();
+    render(<GameView storage={storage} />);
+    const length = () => spin('Fight length (s)');
+    fireEvent.change(length(), { target: { value: '30' } });
+    expect(elapsed()).toBe('0.0 / 30s'); // not started: at once
+    expect(stored(map).fightDurationSec).toBe(30);
+
+    press('1');
+    advance(1_000);
+    fireEvent.change(length(), { target: { value: '45' } });
+    expect(elapsed()).toBe('1.0 / 30s'); // the running fight keeps its length
+    expect(document.querySelector('.setup-pending')?.textContent).toMatch(/^The running fight keeps its setup/);
+    advance(30_000);
+    expect(within(screen.getByRole('region', { name: 'Fight summary' })).getByLabelText('Duration').textContent).toBe('30.0 s');
+
+    press('r');
+    expect(elapsed()).toBe('0.0 / 45s');
+    expect(stored(map).fightDurationSec).toBe(45);
+
+    // Kept on the next mount.
+    cleanup();
+    render(<GameView storage={storage} />);
+    expect(length().value).toBe('45');
+    expect(elapsed()).toBe('0.0 / 45s');
+  });
+
+  it('a length changed during a running fight: the Heroism warning uses the new length at once', () => {
+    render(
+      <GameView storage={storedSetup({ enabledBuffs: ['heroism'], timed: { heroism: { startSec: 40, durationSec: 40 } } })} />,
+    );
+    expect(screen.queryByText(/starts after the fight ends/i)).toBeNull(); // 40 s in a 60 s fight
+    press('1');
+    advance(500);
+    fireEvent.change(spin('Fight length (s)'), { target: { value: '30' } });
+    expect(screen.getByText('Starts after the fight ends (30 s): no effect.')).toBeTruthy();
+    expect(elapsed()).toBe('0.5 / 60s'); // the running fight is still 60 s long
+    fireEvent.change(spin('Fight length (s)'), { target: { value: '41' } });
+    expect(screen.queryByText(/starts after the fight ends/i)).toBeNull();
   });
 
   it('a 120 s fight: runs past 60 s, mana regen ticks and a second Life Tap work, ends at 120 s', () => {

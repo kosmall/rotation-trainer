@@ -26,6 +26,11 @@ import { useSimulation } from './useSimulation';
 /** How long a rejected press shows its reason on the slot. */
 const FLASH_MS = 700;
 
+/** The item bar's tooltips: each item action's catalog description. */
+const ITEM_DESCRIPTIONS: Readonly<Record<string, string>> = Object.fromEntries(
+  SETUP_CATALOG.flatMap((b) => (b.effect.action ? [[b.effect.action.id, b.description]] : [])),
+);
+
 /** Fields that take typed text or arrow keys: every key typed into them is theirs, never a hotkey. */
 const TEXT_TARGETS =
   'input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), select, textarea, [contenteditable]:not([contenteditable="false"])';
@@ -126,8 +131,8 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isHotkeyBlocked(event)) return; // e.g. digits typed into the distance field, Space on a focused <summary>
-      const slot = keyToSlot(event.key);
+      if (isHotkeyBlocked(event)) return; // e.g. digits or Z typed into a number field, Space on a focused <summary>
+      const slot = keyToSlot(event.key); // 1-9, 0, -, = and the item row's Z X C V (either case)
       const handled = slot !== undefined || event.key === 'Escape' || event.key === ' ' || event.key === 'r' || event.key === 'R';
       if (!handled) return;
       event.preventDefault();
@@ -156,7 +161,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
           <AuraList spec={spec} auras={snapshot.selfAuras} label="Buffs" fightRemainingMs={fightRemainingMs} />
           <CastBar spec={spec} snapshot={snapshot} />
           <ManaBar snapshot={snapshot} />
-          <ActionBar spec={spec} snapshot={snapshot} flash={flash} onPress={pressSlot} />
+          <ActionBar spec={spec} snapshot={snapshot} flash={flash} onPress={pressSlot} descriptions={ITEM_DESCRIPTIONS} />
         </div>
       </main>
       <aside className="game-side">
@@ -165,7 +170,6 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage }: GameV
           config={config}
           presets={SETUP_PRESETS}
           onChange={changeConfig}
-          fightLengthSec={config.fightDurationSec}
           pending={pending}
           fightEnded={snapshot.phase === 'ended'}
         />

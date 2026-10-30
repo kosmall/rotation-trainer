@@ -8,11 +8,15 @@ import type { BuffDef } from '../data/types';
 import { DEFAULT_SETUP, normalizeSetup, SETUP_LIMITS } from '../setup/defaults';
 import type { SetupConfig, SetupPresetId, TimedSetting } from '../setup/types';
 import { initials } from './format';
+import { ITEM_SLOT_KEYS } from './keys';
 import { SpellIcon } from './SpellIcon';
 
 /** The distance input's range in yards (the setup's limits; 28 yd is the default, target.ts). */
 export const MIN_DISTANCE_YD = SETUP_LIMITS.distanceYd.min;
 export const MAX_DISTANCE_YD = SETUP_LIMITS.distanceYd.max;
+/** The fight length input's range in seconds (the setup's limits; 60 s is the default). */
+export const MIN_FIGHT_SEC = SETUP_LIMITS.fightDurationSec.min;
+export const MAX_FIGHT_SEC = SETUP_LIMITS.fightDurationSec.max;
 /** UI bound for the Life Tap threshold, well above any level 70 mana pool. */
 const MAX_LIFE_TAP_MANA = 20000;
 /**
@@ -47,7 +51,9 @@ function rotationPresetOf(rotation: RotationConfig): RotationPresetId | 'custom'
 /**
  * What decides a fight, as a comparable string: the enabled buffs as a set, the start and length
  * of the ENABLED timed buffs only (a disabled buff's timing changes nothing), the rotation, the
- * distance and the warlock options.
+ * distance and the warlock options. The fight length decides a fight too, but preset matching
+ * ignores it: the presets keep the player's chosen length (ruling F-2), so "Raid as in my log"
+ * in a 90 s fight is still that preset.
  */
 function fightKey(config: SetupConfig, catalog: readonly BuffDef[]): string {
   const c = normalizeSetup(config, catalog);
@@ -69,18 +75,22 @@ export function activePresetName(config: SetupConfig, presets: SetupPresets, cat
   return match?.name ?? CUSTOM_PRESET_NAME;
 }
 
-type BuffGroupId = 'raid' | 'consumables' | 'debuffs' | 'items' | 'warlock';
+type BuffGroupId = 'fight' | 'raid' | 'consumables' | 'debuffs' | 'items' | 'warlock';
 
-/** The panel group a catalog buff is listed in: timed buffs and item effects together. */
+/**
+ * The panel group a catalog buff is listed in: timed buffs (Heroism) in "Fight"; item actions
+ * (used from the item bar, potions and runes too) and item procs in "Items and cooldowns".
+ */
 function groupOf(buff: BuffDef): BuffGroupId {
-  if (buff.timed || buff.group === 'item') return 'items';
+  if (buff.timed) return 'fight';
+  if (buff.effect.action || buff.group === 'item') return 'items';
   if (buff.group === 'debuff') return 'debuffs';
   if (buff.group === 'consumable') return 'consumables';
   if (buff.group === 'warlock') return 'warlock';
   return 'raid';
 }
 
-const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'warlock'>; title: string; hint: string }[] = [
+const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: string; hint: string }[] = [
   {
     id: 'raid',
     title: 'Raid and party',
@@ -99,7 +109,7 @@ const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'warlock'>; title: string; hint: s
   {
     id: 'items',
     title: 'Items and cooldowns',
-    hint: 'A timed buff starts at the given second of the fight and lasts the given time; you do not press it. Item effects are on top of the item stats already in the gear.',
+    hint: 'Use the Icon, the potions and the rune from the item bar (Z X C V), in the order listed here; the bot uses them too. One potion per 2 min (shared cooldown). The Band procs by itself. Item effects are on top of the item stats already in the gear.',
   },
 ];
 
@@ -238,8 +248,6 @@ export interface SetupPanelProps {
   /** Receives every edit as a new, normalized config (`normalizeSetup`). */
   onChange(config: SetupConfig): void;
   disabled?: boolean;
-  /** The fight length, for the "starts after the fight ends" warning of timed buffs. */
-  fightLengthSec?: number;
   /** The running fight was built with another setup: say that the new one applies after R. */
   pending?: boolean;
   /** The fight is over: the pending note then says "finished" instead of "in progress". */
@@ -248,9 +256,11 @@ export interface SetupPanelProps {
 
 /**
  * The collapsed "Setup" panel: presets and "Reset to defaults", the active preset's name, then
- * one collapsible group per kind of buff (raid and party, consumables, target debuffs, items and
- * cooldowns with a start second and a duration per timed buff), the warlock options, the rotation
- * and the distance from the target. Fully controlled: it shows `config` and passes every edit to
+ * the "Fight" group (fight length; Heroism / Bloodlust with its start second and duration, warned
+ * when it starts at or after the end), one collapsible group per kind of buff (raid and party,
+ * consumables, target debuffs, items used from the item bar and item procs), the warlock options,
+ * the rotation and the distance from the target. Presets keep the chosen fight length; "Reset to
+ * defaults" resets it too. Fully controlled: it shows `config` and passes every edit to
  * `onChange` as a new config normalized for `catalog` (exclusive buffs resolved, the later one
  * wins; numbers clamped), so `applySetup` and `buildPriority` always get a valid config. Number
  * inputs keep a typed text only while focused.
@@ -261,7 +271,6 @@ export function SetupPanel({
   presets,
   onChange,
   disabled = false,
-  fightLengthSec,
   pending = false,
   fightEnded = false,
 }: SetupPanelProps) {
@@ -290,6 +299,14 @@ export function SetupPanel({
   const rotationPreset = rotationPresetOf(config.rotation);
   const autoLifeTap = lifeTap === 'auto';
   const warlockBuffs = catalog.filter((b) => groupOf(b) === 'warlock');
+  const fightBuffs = catalog.filter((b) => groupOf(b) === 'fight');
+  const fightLengthSec = config.fightDurationSec;
+  // The item bar key of each enabled item action: applySetup binds them in catalog order.
+  const itemKeys = new Map(
+    catalog
+      .filter((b) => b.effect.action && enabled.has(b.id))
+      .map((b, i) => [b.id, ITEM_SLOT_KEYS[i]?.toUpperCase()] as const),
+  );
 
   const buffRow = (b: BuffDef) => {
     const t = b.timed ? timedOf(b) : null;
@@ -324,11 +341,12 @@ export function SetupPanel({
                 onValue={(durationSec) => setTimed(b, { durationSec })}
               />
             </label>
-            {fightLengthSec !== undefined && t.startSec >= fightLengthSec && (
+            {t.startSec >= fightLengthSec && (
               <p className="setup-warn">Starts after the fight ends ({fightLengthSec} s): no effect.</p>
             )}
           </div>
         )}
+        {itemKeys.get(b.id) && <p className="setup-item-key">Item bar: {itemKeys.get(b.id)}</p>}
       </OptionRow>
     );
   };
@@ -354,7 +372,7 @@ export function SetupPanel({
                 aria-pressed={presetName === p.name}
                 onClick={(e) => {
                   e.currentTarget.blur(); // keep Space/R for the fight
-                  emit(p.config);
+                  emit({ ...p.config, fightDurationSec: config.fightDurationSec }); // ruling F-2
                 }}
               >
                 {p.name}
@@ -374,6 +392,25 @@ export function SetupPanel({
             <p className="setup-pending">The {fightEnded ? 'finished' : 'running'} fight keeps its setup: the new one applies from the next fight (press R).</p>
           )}
         </div>
+
+        <Group title="Fight">
+          <div className="setup-row">
+            <label htmlFor={`${id}-fight-length`}>Fight length (s)</label>
+            <NumberField
+              id={`${id}-fight-length`}
+              value={String(config.fightDurationSec)}
+              min={MIN_FIGHT_SEC}
+              max={MAX_FIGHT_SEC}
+              step={1}
+              integer
+              onValue={(fightDurationSec) => emit({ ...config, fightDurationSec })}
+            />
+          </div>
+          <p className="hint">
+            {MIN_FIGHT_SEC} to {MAX_FIGHT_SEC} s. Presets keep it; Reset to defaults sets {DEFAULT_SETUP.fightDurationSec} s.
+          </p>
+          <ul className="setup-buffs">{fightBuffs.map(buffRow)}</ul>
+        </Group>
 
         {BUFF_GROUPS.map((g) => {
           const buffs = catalog.filter((b) => groupOf(b) === g.id);
