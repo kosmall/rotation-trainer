@@ -474,6 +474,9 @@ button.primary {
   font-size: 0.65rem;
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: center;
   z-index: 4;
   animation: slot-flash 700ms ease-out forwards;
 }
@@ -902,4 +905,11 @@ button.primary {
 .char-stats .hint {
   margin: 6px 0 0;
   font-size: 0.75rem;
+}
+
+/* Narrow screens: the longest flash label ("Missing aura") must fit a 40-50 px slot. */
+@media (max-width: 700px) {
+  .slot-flash {
+    font-size: 0.5rem;
+  }
 }

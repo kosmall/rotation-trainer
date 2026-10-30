@@ -137,9 +137,9 @@ describe('Item bar', () => {
     expect(cooldownText(DP)).toBe('2m');
     expect(cooldownText(SMP)).toBe('2m'); // shared potion cooldown
     expect(cooldownText(ICON)).toBeNull(); // another group
-    advance(1100); // frames every 16 ms: the shown time is the last frame's (1088 ms)
-    expect(cooldownText(DP)).toBe('119s');
-    expect(cooldownText(SMP)).toBe('119s');
+    advance(1100); // frames every 16 ms: the shown time is the last frame's (1088 ms); 119 s is shown as "2m" (remainingText, from 100 s on)
+    expect(cooldownText(DP)).toBe('2m');
+    expect(cooldownText(SMP)).toBe('2m');
 
     press('x'); // Super Mana Potion: blocked by the shared cooldown
     expect(within(itemButton(SMP)).getByRole('status').textContent).toBe('Cooldown');
@@ -154,7 +154,7 @@ describe('Item bar', () => {
     render(<GameView storage={storedSetup({ enabledBuffs: ['destruction-potion'] })} />);
     press('z');
     advance(1100);
-    expect(cooldownText(DP)).toBe('119s');
+    expect(cooldownText(DP)).toBe('2m');
     press('r');
     expect(startOverlay()).not.toBeNull();
     expect(cooldownText(DP)).toBeNull();

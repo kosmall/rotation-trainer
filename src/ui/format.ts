@@ -15,10 +15,10 @@ export function secondsText(ms: number): string {
   return (ms / 1000).toFixed(1);
 }
 
-/** Aura or cooldown time left: "12s" (rounded up), "5m" from two minutes on. */
+/** Aura or cooldown time left: "12s" (rounded up), "2m" from 100 s on (never a 4-character "118s": it does not fit a slot). */
 export function remainingText(ms: number): string {
   const s = Math.ceil(ms / 1000);
-  return s >= 120 ? `${Math.ceil(s / 60)}m` : `${s}s`;
+  return s >= 100 ? `${Math.ceil(s / 60)}m` : `${s}s`;
 }
 
 /** Up to three initials of the capitalised words ("Curse of Agony" -> "CA"); one word -> "Sh". */

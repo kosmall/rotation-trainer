@@ -92,7 +92,7 @@ for (const { wowheadId, claims } of byId.values()) {
 
     const file = join(outDir, `${real}.jpg`);
     if (!force && existsSync(file)) {
-      console.log(`ok    ${real}.jpg (${label}) already present`);
+      console.log(`ok    ${real}.jpg (${label}; ${source}) already present`);
     } else {
       const img = await fetch(CDN(real));
       const type = img.headers.get('content-type') ?? '';
@@ -100,7 +100,7 @@ for (const { wowheadId, claims } of byId.values()) {
       const bytes = Buffer.from(await img.arrayBuffer());
       if (bytes.length < 200) throw new Error(`suspiciously small image (${bytes.length} bytes)`);
       writeFileSync(file, bytes);
-      console.log(`saved ${real}.jpg (${label}) ${bytes.length} bytes`);
+      console.log(`saved ${real}.jpg (${label}; ${source}) ${bytes.length} bytes`);
     }
   } catch (error) {
     console.error(`FAIL  ${label} (${source}): ${error.message}`);
