@@ -159,7 +159,8 @@ describe('buildBuffViews: active', () => {
       nowMs: 25000,
       selfAuras: auras(aura('heroism', 30000), aura('destruction-potion', 3000)),
       scheduled: [
-        { auraId: 'icon-of-the-silver-crescent', on: 'self', atMs: 30000 },
+        { auraId: 'icon-of-the-silver-crescent', on: 'self', atMs: 29999 },
+        { auraId: 'heroism', on: 'self', atMs: 30000 },
         { auraId: 'destruction-potion', on: 'self', atMs: 45000 },
       ],
     });
@@ -167,8 +168,18 @@ describe('buildBuffViews: active', () => {
       ['heroism', 5000],
       ['destruction-potion', 3000],
     ]);
-    // At the fight's last ms the engine still applies it; after the end it never does.
-    expect(upcoming.map((u) => [u.auraId, u.inMs])).toEqual([['icon-of-the-silver-crescent', 5000]]);
+    // One ms before the end it is upcoming. At the fight's last ms the engine applies it as the
+    // fight ends: no effect (the Setup panel's warning), so not upcoming; after the end never.
+    expect(upcoming.map((u) => [u.auraId, u.inMs])).toEqual([['icon-of-the-silver-crescent', 4999]]);
+    // Applied at the end: not shown in the ended fight either (it never was on during the fight).
+    const atEnd = views({
+      fightDurationMs: 30000,
+      nowMs: 30000,
+      phase: 'ended',
+      selfAuras: auras(aura('heroism', 40000), aura('destruction-potion', 3000)),
+      scheduled: [{ auraId: 'heroism', on: 'self', atMs: 30000, durationMs: 40000 }],
+    });
+    expect(atEnd.active.map((a) => a.auraId)).toEqual(['destruction-potion']);
 
     // After the end nothing is left in the fight.
     const ended = views({ fightDurationMs: 30000, nowMs: 30000, phase: 'ended', selfAuras: auras(aura('heroism', 7000)) });

@@ -144,8 +144,9 @@ function plannedAtMs(e: ScheduledAura, fightDurationMs: number): number | null {
  * The panel's three lists.
  * - `active`: every self aura in the tracker's order (first applied first; a refresh keeps its
  *   place), time left clamped to the fight's end.
- * - `upcoming`: `on: 'self'` scheduled entries that have not applied yet, sorted by start (ties in
- *   setup order). Running: `atMs > nowMs` (an entry at `nowMs` has applied: the engine runs it when
+ * - `upcoming`: `on: 'self'` scheduled entries that have not applied yet and start before the
+ *   fight's end (one at the end has no effect: never upcoming, and not shown once applied), sorted
+ *   by start (ties in setup order). Running: `atMs > nowMs` (an entry at `nowMs` has applied: the engine runs it when
  *   it reaches that ms, so it is active in the same snapshot). Before the start (`ready`) every
  *   entry, those at 0 included (`start()` applies them); after the end, none.
  * - `permanent`: the enabled stat-only buffs (`isPermanent`).
@@ -155,10 +156,23 @@ export function buildBuffViews(input: BuffViewInput): BuffViews {
   const label = labeller(spec, catalog);
   const fightLeftMs = Math.max(0, fightDurationMs - nowMs);
 
+  // Scheduled self auras that apply at the fight's last ms: the engine applies them as the fight
+  // ends, so they have no effect (the Setup panel warns so) and are never shown, not even in the
+  // ended fight's frozen list. Aura id -> the duration such an application starts with.
+  const atEnd = new Map<string, number>();
+  for (const e of scheduled) {
+    if (e.on === 'self' && plannedAtMs(e, fightDurationMs) === fightDurationMs) {
+      const lastsMs = e.durationMs !== undefined ? Math.floor(e.durationMs) : label(e.auraId).def?.durationMs;
+      if (lastsMs !== undefined) atEnd.set(e.auraId, lastsMs);
+    }
+  }
+
   const active: ActiveBuffView[] = [];
   for (const view of Object.values(selfAuras)) {
     const { def, name, icon, description } = label(view.auraId);
     if (def?.hidden) continue; // the snapshot leaves them out already
+    const endLasts = atEnd.get(view.auraId);
+    if (phase === 'ended' && endLasts !== undefined && view.remainingMs >= endLasts) continue; // applied at the end
     const count = view.stacks > 1 ? view.stacks : view.charges > 0 ? view.charges : null;
     const remainingMs = Math.max(0, Math.min(view.remainingMs, fightLeftMs));
     active.push({ auraId: view.auraId, name, icon, description, count, remainingMs });
@@ -169,7 +183,7 @@ export function buildBuffViews(input: BuffViewInput): BuffViews {
     for (const e of scheduled) {
       if (e.on !== 'self') continue;
       const atMs = plannedAtMs(e, fightDurationMs);
-      if (atMs === null || (phase === 'running' && atMs <= nowMs)) continue;
+      if (atMs === null || atMs >= fightDurationMs || (phase === 'running' && atMs <= nowMs)) continue; // at the end: no effect
       const { def, name, icon } = label(e.auraId);
       if (def?.hidden) continue;
       upcoming.push({ auraId: e.auraId, name, icon, startsAtMs: atMs, inMs: phase === 'ready' ? atMs : atMs - nowMs });

@@ -708,6 +708,19 @@ describe('Your buffs panel in the game view (player buffs panel, Task 2)', () =>
     expect(upcomingTexts()).toEqual([]);
   });
 
+  it('Heroism starting exactly at the fight end (the Setup panel says "no effect") is never upcoming and never shown, not even in the ended fight', () => {
+    render(<GameView storage={storedSetup({ fightDurationSec: 30, enabledBuffs: ['heroism'], timed: heroismAt(30) })} />);
+    expect(screen.getByText('Starts after the fight ends (30 s): no effect.')).toBeTruthy();
+    expect(upcomingTexts()).toEqual([]);
+    press(' ');
+    advance(29_900);
+    expect(upcomingTexts()).toEqual([]);
+    advance(200);
+    expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
+    expect(selfBuff(HEROISM)).toBeUndefined();
+    expect(within(buffsPanel()).getByText('No active buffs')).toBeTruthy();
+  });
+
   it('the panel follows the running fight, not the pending setup: Heroism enabled mid-fight is neither upcoming nor active until R', () => {
     render(<GameView storage={storedSetup({ fightDurationSec: 30 })} />);
     press('1');
