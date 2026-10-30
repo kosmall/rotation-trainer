@@ -1,11 +1,11 @@
 import { buildSetup } from '../../../engine/gear';
-import type { EquippedItem, RawStats, StatMultipliers } from '../../../engine/types';
+import type { EnchantDef, EquippedItem, GemDef, ItemDef, RawStats, StatMultipliers } from '../../../engine/types';
 import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../common/target';
 import type { SpecData } from '../../types';
 import { warlockAuras } from './auras';
-import { enchants, gems, items } from './items';
+import { enchants, gems, items, metaGemModifiers } from './items';
 import { ROTATION_PRESETS, buildPriority } from './rotation';
-import { warlockSets } from './sets';
+import { setBonusesFor } from './sets';
 import { warlockSpells } from './spells';
 import { demonicSacrificeModifiers, talentModifiers, talentRank as r } from './talents';
 
@@ -99,14 +99,48 @@ export const destructionEquipped: EquippedItem[] = [
   { id: 29982, gems: [] },
 ];
 
+/**
+ * Where a gear's item, gem and enchant records come from: the item database (`ItemDb`,
+ * src/data/items, structurally compatible) or the embedded author tables (items.ts).
+ */
+export interface GearTables {
+  items: Readonly<Record<number, ItemDef>>;
+  gems: Readonly<Record<number, GemDef>>;
+  enchants: Readonly<Record<number, EnchantDef>>;
+}
+
+/** The embedded tables of the author's gear (items.ts): enough for the default gear, no database needed. */
+export const AUTHOR_GEAR_TABLES: GearTables = { items, gems, enchants };
+
+/**
+ * The setup of a gear from the given tables (`buildSetup`): set pieces, socket bonuses and the
+ * active meta gem's stats and modifiers included; empty slots (null) skipped; ids missing from the
+ * tables are skipped (`buildSetup` reports them; `normalizeGear` keeps a stored gear to known,
+ * fitting ids). A meta gem without `metaModifiers` in the tables gets the hand-modelled ones of
+ * items.ts (`metaGemModifiers`: the database has none). Only the gear's own gems are looked up.
+ */
+function gearSetupFor(gear: readonly (EquippedItem | null)[], tables: GearTables) {
+  const equipped = gear.filter((e): e is EquippedItem => e !== null);
+  const gemTable: Record<number, GemDef> = {};
+  for (const e of equipped) {
+    for (const id of e.gems ?? []) {
+      if (!Object.hasOwn(tables.gems, id) || Object.hasOwn(gemTable, id)) continue;
+      const gem = tables.gems[id]!;
+      const modelled = Object.hasOwn(metaGemModifiers, id) ? metaGemModifiers[id] : undefined;
+      gemTable[id] = gem.metaModifiers === undefined && modelled ? { ...gem, metaModifiers: [...modelled] } : gem;
+    }
+  }
+  return buildSetup({
+    baseStats: destructionBaseStats,
+    equipped,
+    items: tables.items as Record<number, ItemDef>,
+    gems: gemTable,
+    enchants: tables.enchants as Record<number, EnchantDef>,
+  }).setup;
+}
+
 // setPieces (4 x Malefic Raiment) and the meta gem's modifiers come from buildSetup.
-const { setup: gearSetup } = buildSetup({
-  baseStats: destructionBaseStats,
-  equipped: destructionEquipped,
-  items,
-  gems,
-  enchants,
-});
+const gearSetup = gearSetupFor(destructionEquipped, AUTHOR_GEAR_TABLES);
 
 // ---------------------------------------------------------------------------
 // Spec
@@ -143,7 +177,7 @@ const destructionHooks: SpecData['hooks'] = {
 };
 
 /**
- * The Destruction Warlock spec for the given options. Pure: every call returns a new SpecData
+ * The Destruction Warlock spec for the given options and gear. Pure: every call returns a new SpecData
  * with its own `modifiers`, `statBonuses`, `setup` (a shallow copy: the gear stats and the stat
  * multipliers inside it are shared) and `priority` arrays/objects; the spells, auras, sets,
  * priority steps and hooks are the shared static data (never mutate them).
@@ -151,22 +185,40 @@ const destructionHooks: SpecData['hooks'] = {
  *   `none` add nothing.
  * - `sacrificeSuccubus: false` leaves out Demonic Sacrifice's shadow x1.15
  *   (`demonicSacrificeModifiers`); the pet itself is not simulated either way.
+ * - `gear` (17 slots in WowSimsExporter order, null = empty; a normalized gear, `normalizeGear` in
+ *   src/setup/gear.ts) is built from `db` (the item database) or, without one, from the embedded
+ *   author tables (`AUTHOR_GEAR_TABLES`), which only know the author's gear. Without `gear` the
+ *   author's gear (`destructionEquipped`) is used, and without `db` either its setup is the one
+ *   built at load (the stage 1 spec, field for field; the gear stats object shared by every such
+ *   build).
+ * - `sets` are the modelled bonuses of the sets the gear wears (`setBonusesFor`: `warlockSets`
+ *   for the author's gear) and `auras` the spell auras (`warlockAuras`, shared) plus the self
+ *   auras of those bonuses' procs (a new array only when there are some).
  */
-export function buildDestructionWarlock(options: WarlockOptions): SpecData {
+export function buildDestructionWarlock(
+  options: WarlockOptions,
+  gear?: readonly (EquippedItem | null)[],
+  db?: GearTables,
+): SpecData {
   const statBonuses: Partial<RawStats> = options.armor === 'fel' ? { spellPower: FEL_ARMOR_SPELL_POWER } : {};
   const modifiers = options.sacrificeSuccubus
     ? [...talentModifiers]
     : talentModifiers.filter((m) => !demonicSacrificeModifiers.includes(m));
+  const setup =
+    gear === undefined && db === undefined ? gearSetup : gearSetupFor(gear ?? destructionEquipped, db ?? AUTHOR_GEAR_TABLES);
+  // The bonuses of the worn sets (the author's gear: `warlockSets`) and the auras their hooks apply.
+  const sets = setBonusesFor(setup.setPieces);
+  const setAuras = sets.flatMap((b) => b.auras ?? []);
   return {
     id: 'destruction-warlock',
     name: 'Destruction Warlock',
     spells: warlockSpells,
-    auras: warlockAuras,
+    auras: setAuras.length > 0 ? [...warlockAuras, ...setAuras] : warlockAuras,
     modifiers,
     statBonuses,
-    sets: warlockSets,
+    sets,
     // buildSetup does not carry statMultipliers: Expansive Mind etc. then scale the gear's stats too.
-    setup: { ...gearSetup, statMultipliers: destructionStatMultipliers },
+    setup: { ...setup, statMultipliers: destructionStatMultipliers },
     priority: [...defaultPriority],
     // Action bar slots 1-9, 0, -, =.
     keybinds: [

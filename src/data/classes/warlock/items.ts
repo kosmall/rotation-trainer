@@ -1,9 +1,14 @@
-import type { EnchantDef, GemDef, ItemDef } from '../../../engine/types';
+import type { EnchantDef, GemDef, ItemDef, SpellModifier } from '../../../engine/types';
 import { DESTRUCTION_SPELL_IDS } from './spells';
 
-// Stage 1 item tables: exactly the items, gems and enchants of the author's WowSimsExporter export
-// (docs/samples/wowsimsexporter-destruction-warlock.json). Stage 2a replaces them with the full
-// item database.
+// The author's gear (stage 1 item tables): exactly the items, gems and enchants of the author's
+// WowSimsExporter export (docs/samples/wowsimsexporter-destruction-warlock.json). Since stage 2a
+// the item database (src/data/items/db.json, loaded lazily with `loadItemDb`) is the stats source
+// for any gear; these tables are the embedded copy of the default gear's records, so the default
+// setup (and the first paint) is built without waiting for the database chunk. They hold the same
+// values as the database (tests/data/item-db.test.ts compares them field by field), and they carry
+// what the database cannot: the hand-modelled meta gem effect (`metaGemModifiers`) and which item
+// effects the setup catalog models (`MODELLED_ITEM_EFFECTS`).
 //
 // Source unless noted: github.com/wowsims/tbc-new master @ 91f869a, assets/database/db.json
 // (`items[]`, `gems[]`, `enchants[]` by `effectId`), cross-checked against github.com/wowsims/tbc
@@ -14,7 +19,7 @@ import { DESTRUCTION_SPELL_IDS } from './spells';
 // 16 Spirit, 35 MP5. Stats the engine does not model are left out: stamina (2), healing (4,
 // always equal to spell damage on these items), armor (31), strength/agility, weapon damage.
 // Socket colors: `gemSockets` 1 meta, 2 red, 3 blue, 4 yellow; gem `color` 1 meta, 2 red,
-// 4 yellow, 6 orange, 7 purple. See docs/data-sources.md, section "Task 12b".
+// 4 yellow, 6 orange, 7 purple. See docs/data-sources.md, section "Task 12b" and Part E.
 
 export const items: Record<number, ItemDef> = {
   // Hood of the Malefic: Int 36, SD 63, Hit 16, Crit 32; meta + yellow, bonus +5 SD; T6 set 670.
@@ -171,10 +176,30 @@ export const items: Record<number, ItemDef> = {
  * The second term assumes Ruin 1/1, true for the fixed stage 1 build (destruction.ts); the
  * stage 2b talent editor must make it conditional.
  */
-const chaoticSkyfireModifiers = [
+const chaoticSkyfireModifiers: SpellModifier[] = [
   { critMultDelta: 0.045 },
   { spellIds: [...DESTRUCTION_SPELL_IDS], critMultDelta: 0.045 },
 ];
+
+/**
+ * Hand-modelled meta gem effects, by gem id. The item database has no `metaModifiers` (a meta
+ * gem's effect beyond its stats is Go code in wowsims, not data), so `buildDestructionWarlock`
+ * adds these to the database's gem record. Every other meta gem's effect is listed as unmodelled
+ * (`describeGear`, src/setup/gear.ts).
+ */
+export const metaGemModifiers: Readonly<Record<number, readonly SpellModifier[]>> = {
+  34220: chaoticSkyfireModifiers,
+};
+
+/**
+ * Item effects the setup catalog models, by item id -> catalog buff id (src/data/classes/warlock/
+ * buffs.ts `warlockItemBuffs`): enabled in the setup panel, never automatically from the gear.
+ * `describeGear` does not list them as unmodelled.
+ */
+export const MODELLED_ITEM_EFFECTS: Readonly<Record<number, string>> = {
+  29370: 'icon-of-the-silver-crescent',
+  29305: 'band-of-the-eternal-sage',
+};
 
 export const gems: Record<number, GemDef> = {
   34220: {

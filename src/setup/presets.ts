@@ -70,6 +70,8 @@ const RAID_LOG_SETUP: SetupConfig = {
  * - `none`: the default setup (no buffs; the stage 1 numbers).
  * - `raid-log`: the author's raid as in the Naj'entus log (`RAID_LOG_SETUP` above); approximate,
  *   several buffs are guesses (`description` says which).
+ * Both keep the author's gear: they have no `gear` (`setupGear`, src/setup/gear.ts), so choosing
+ * one also returns the gear to the author's export.
  * Deep-frozen: copy a preset's config (structuredClone) before editing it.
  */
 export const SETUP_PRESETS: Readonly<Record<SetupPresetId, { name: string; description: string; config: SetupConfig }>> =

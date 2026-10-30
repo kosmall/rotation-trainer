@@ -6,7 +6,7 @@
 import type { WarlockOptions } from '../data/classes/warlock/destruction';
 import type { RotationConfig } from '../data/classes/warlock/rotation';
 import type { BuffDef, SpecData } from '../data/types';
-import type { ScheduledAura } from '../engine/types';
+import type { EquippedItem, ScheduledAura } from '../engine/types';
 
 /** Start and length of a timed buff (`BuffDef.timed`), in seconds of fight time. */
 export interface TimedSetting {
@@ -29,13 +29,27 @@ export interface SetupConfig {
    * config saved before the field existed gets 60 (`normalizeSetup`; no version bump).
    */
   fightDurationSec: number;
+  /**
+   * The equipped gear (stage 2a): 17 entries in WowSimsExporter slot order (src/data/items/db.ts
+   * `ITEM_SLOTS`), null for an empty slot. Absent (every config saved before stage 2a, the
+   * default setup and the setup presets): the author's gear (`setupGear`, src/setup/gear.ts).
+   * `normalizeSetup` checks its shape always and, given the item database, its ids
+   * (`normalizeGear`); no version bump.
+   */
+  gear?: (EquippedItem | null)[];
+  /** The gear preset the gear came from, for its label (`[a-z0-9-]`, up to 64 characters). */
+  gearPresetId?: string;
 }
 
 export type SetupPresetId = 'none' | 'raid-log';
 
 export interface ApplySetupInput {
-  /** Builds the spec for the warlock options (`buildDestructionWarlock`). */
-  buildSpec(warlock: WarlockOptions): SpecData;
+  /**
+   * Builds the spec for the warlock options and the config's gear (`buildDestructionWarlock`,
+   * bound to the item database when the gear needs it: src/setup/gear.ts `gearNeedsDb`).
+   * `gear` is undefined for a config without gear (the author's).
+   */
+  buildSpec(warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[]): SpecData;
   /** The buff catalog (`SETUP_CATALOG`). */
   catalog: readonly BuffDef[];
   config: SetupConfig;

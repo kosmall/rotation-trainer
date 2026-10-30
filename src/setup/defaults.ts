@@ -6,7 +6,9 @@ import { DEFAULT_WARLOCK_OPTIONS, type WarlockOptions } from '../data/classes/wa
 import { ROTATION_PRESETS, type CurseChoice, type RotationConfig } from '../data/classes/warlock/rotation';
 import { commonBuffs, consumables, cooldowns, debuffs, deepFreeze, EXCLUDES } from '../data/common/buffs';
 import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
+import type { ItemDb } from '../data/items/types';
 import type { BuffDef } from '../data/types';
+import { normalizeGear, normalizeGearShape } from './gear';
 import type { SetupConfig, TimedSetting } from './types';
 
 /**
@@ -64,7 +66,7 @@ function defaultSetup(catalog: readonly BuffDef[]): SetupConfig {
 /**
  * The default setup (design spec §5, plan Global Constraints): no buffs, the DoT rotation, 28 yd,
  * Fel Armor and the Succubus sacrificed, every timed buff (Heroism) at its catalog start and
- * duration, a 60 s fight. With it `applySetup` reproduces the stage 1 spec (plus an empty item
+ * duration, a 60 s fight, no `gear` (the author's gear: `setupGear`, src/setup/gear.ts). With it `applySetup` reproduces the stage 1 spec (plus an empty item
  * row) and its bot results exactly. Deep-frozen.
  */
 export const DEFAULT_SETUP: SetupConfig = deepFreeze(defaultSetup(SETUP_CATALOG));
@@ -164,6 +166,24 @@ function normalizeRotation(v: unknown): RotationConfig {
   };
 }
 
+/** A gear preset id: lower-case letters, digits and dashes, 1-64 characters. */
+const GEAR_PRESET_ID = /^[a-z0-9-]{1,64}$/;
+
+/**
+ * `gear` and `gearPresetId` of a config, only when present in the input: absent stays absent
+ * (the author's gear), so a stage 1.5 config normalizes to itself.
+ */
+function normalizeGearFields(input: Rec, db: ItemDb | undefined): Pick<SetupConfig, 'gear' | 'gearPresetId'> {
+  const out: Pick<SetupConfig, 'gear' | 'gearPresetId'> = {};
+  if (Object.hasOwn(input, 'gear')) {
+    const gear = own(input, 'gear');
+    out.gear = db === undefined ? normalizeGearShape(gear) : normalizeGear(gear, db);
+  }
+  const presetId = own(input, 'gearPresetId');
+  if (typeof presetId === 'string' && GEAR_PRESET_ID.test(presetId)) out.gearPresetId = presetId;
+  return out;
+}
+
 function normalizeWarlock(v: unknown): WarlockOptions {
   const w = isRecord(v) ? v : {};
   const armor = own(w, 'armor');
@@ -190,8 +210,13 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  * - `rotation` and `warlock`: each field checked against its type or union, else its default
  *   (curse 'elements', Life Tap 'auto' unless a finite number >= 0, Fel Armor, Succubus
  *   sacrificed).
+ * - `gear` (stage 2a): absent stays absent (the author's gear). Present: with the item database
+ *   `db`, `normalizeGear` (ids checked: unknown or misfit entries dropped; wrong length or not an
+ *   array: the author's gear); without it (the database is a lazy chunk, this function is
+ *   synchronous) only its shape (`normalizeGearShape`), and the caller runs `normalizeGear` once
+ *   the database has loaded. `gearPresetId`: kept when a string of `[a-z0-9-]`, 1-64 characters.
  */
-export function normalizeSetup(input: unknown, catalog: readonly BuffDef[]): SetupConfig {
+export function normalizeSetup(input: unknown, catalog: readonly BuffDef[], db?: ItemDb): SetupConfig {
   try {
     if (!isRecord(input) || own(input, 'version') !== 1) return defaultSetup(catalog);
     return {
@@ -202,6 +227,7 @@ export function normalizeSetup(input: unknown, catalog: readonly BuffDef[]): Set
       distanceYd: clampNumber(own(input, 'distanceYd'), SETUP_LIMITS.distanceYd, DEFAULT_DISTANCE_FROM_TARGET_YD),
       warlock: normalizeWarlock(own(input, 'warlock')),
       fightDurationSec: normalizeFightDuration(own(input, 'fightDurationSec')),
+      ...normalizeGearFields(input, db),
     };
   } catch {
     // A hostile getter or proxy: nothing of it is trusted.

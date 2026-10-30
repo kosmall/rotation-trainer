@@ -54,8 +54,8 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
 
 /**
  * The spec and the `SimConfig` fields for `config`:
- * - `spec` = `buildSpec(config.warlock)`, then for each enabled buff in CATALOG order (unknown
- *   enabled ids are ignored):
+ * - `spec` = `buildSpec(config.warlock, config.gear)` (no gear: the author's), then for each
+ *   enabled buff in CATALOG order (unknown enabled ids are ignored):
  *   - `statBonuses` summed into the spec's flat bonuses (added before any multiplier);
  *   - `statMultipliers` multiplied into a new `setup.statMultipliers` (the setup is a new shallow
  *     copy; the gear stats inside stay shared and untouched);
@@ -85,7 +85,7 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  * threshold.
  */
 export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): AppliedSetup {
-  const base = buildSpec(config.warlock);
+  const base = buildSpec(config.warlock, config.gear);
   const enabledIds = new Set(config.enabledBuffs);
   const enabled = catalog.filter((b) => enabledIds.has(b.id));
 

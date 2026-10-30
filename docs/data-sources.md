@@ -721,7 +721,7 @@ UI only: no engine, data or setup change, no new game number. Plan `docs/superpo
 
 ## Part E: gear
 
-Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database.
+Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database. Task 2: gear in the setup, socket and meta gem rules, set bonuses.
 
 ### Item database (`src/data/items/db.json`)
 
@@ -752,7 +752,7 @@ Dropped (not modelled): stamina 2, healing 4 (equal to or above spell damage on 
 - Sockets and gem colours: proto `GemColor` (1 meta, 2 red, 3 blue, 4 yellow, 5 green, 6 orange, 7 purple, 8 prismatic); `gemSockets` only uses 1-4.
 - Slot (proto `ItemType` 1-14): head, neck, shoulder, back, chest, wrist, hands, waist, legs, feet; rings and trinkets have ONE logical slot `finger` / `trinket` (pickers offer them for finger1/finger2 and trinket1/trinket2: `itemsForSlot(db, slotKey)`, `logicalSlot`); wands `ranged`. Weapons: held-in-off-hand items (`weaponType` 5) `offHand`; staves (`handType` 4) `mainHand` with `twoHand: true` (they also take the off hand: gear validation must clear the off hand, Task 2); main-hand and one-hand daggers and swords `mainHand` (a Warlock cannot dual wield, so never the off hand).
 - Sets: `setId` = slug of `setName` (e.g. "Malefic Raiment" -> `malefic-raiment`, the stage 1 `SetBonusDef.setId`); the generator fails if two wowsims set ids share a slug. 52 sets in the database.
-- `unique: true` from db.json `unique` (`limitCategory`, e.g. the Band of the Eternal ... rings' shared category, is not kept).
+- `unique: true` from db.json `unique` (`limitCategory`, e.g. the Band of the Eternal ... rings' shared category, is not kept in the database; Task 2 lists the 21 rings that have one in `RING_LIMIT_CATEGORIES`, below).
 - `faction` from db.json `factionRestriction` (proto/ui.proto `FactionRestriction`: 1 Alliance only -> `'alliance'`, 2 Horde only -> `'horde'`; checked on Stormcaller 29155 = 2, Horde only, and Blade of the Archmage 29153 = 1). Kept items: 18 Alliance only, 1 Horde only (Stormcaller, kept by reference). db.json also marks Ashtongue Talisman of Shadows 32493 Alliance only (data as given).
 - `requiredProfession` (items, gems, enchants) from db.json, as the proto/common.proto `Profession` id: 1 Alchemy, 3 Enchanting, 4 Engineering, 7 Jewelcrafting, 11 Tailoring are the ones present. Kept items: 29 (16 Tailoring, 6 Engineering, 4 Jewelcrafting, 3 Alchemy); gems: 7 (Jewelcrafting: 33131 Crimson Sun, 33133 Don Julio's Heart, 33134, 33135, 33140, 33143, 33144); enchants: 4 (Enchanting: the ring enchants 2928, 2929, 2930, 2931). The trainer does not check professions (the author has Enchanting and Jewelcrafting).
 - `effects`: one short text per wowsims `itemEffects` entry, built from its structured fields only (buff name without the `(spell id)` suffix, modelled stats, stacks, duration, on-use cooldown): "On use: ..." (`onUse`), "Proc: ..." (`proc`/`stackProc`), else "Equip: ...". Unnamed effects read "spell <id>" (e.g. The Lightning Capacitor "Proc: spell 37657"). Effects implemented only in wowsims Go code (meta gem bonuses, set bonuses) are not in db.json. 148 items carry effects; the trainer models none of them except through setup entries (Icon of the Silver Crescent, Band of the Eternal Sage).
@@ -779,7 +779,7 @@ Warlock equippability is wowsims' `canEquipItem` (`ui/sim/proto/items.ts`) with 
 - Effect-only items (no stat at all, an `itemEffects` entry, item level >= 90): 11 are kept, e.g. The Lightning Capacitor, Mark of the Champion; 26 kept items have no modelled stat (they carry `effects`).
 - Kept items: 1511 with a damage, hit, crit or haste stat; 193 with only Intellect, Spirit or MP5; 26 effect-only. By phase: 1378 / 86 / 109 / 37 / 120.
 
-Gems: all 214 (small; an import may name any of them); 114 have no modelled stat (strength, agility, stamina, defence gems). Meta gems carry their activation rule from tbc-new `sim/core/reforge_optimizer/meta_gem_constraints.go` (copied by hand into the generator: it is Go source, not data): 14 as `metaRequires` minimum counts, 4 as `metaCompare` ("more red than blue": 25897, 25895; "more blue than yellow": 25893, 32640), which the stage 1 `buildSetup` does not evaluate. Meta gem bonuses beyond their stats (e.g. Chaotic Skyfire's +3% crit damage) are code in wowsims, not data: only the author's Chaotic Skyfire is modelled (`items.ts`).
+Gems: all 214 (small; an import may name any of them); 114 have no modelled stat (strength, agility, stamina, defence gems). Meta gems carry their activation rule from tbc-new `sim/core/reforge_optimizer/meta_gem_constraints.go` (copied by hand into the generator: it is Go source, not data): 14 as `metaRequires` minimum counts, 4 as `metaCompare` ("more red than blue": 25897, 25895; "more blue than yellow": 25893, 32640), which `buildSetup` evaluates since Task 2 (below). Meta gem bonuses beyond their stats (e.g. Chaotic Skyfire's +3% crit damage) are code in wowsims, not data: only the author's Chaotic Skyfire is modelled (`items.ts`).
 
 Enchants: 128 records from 144 entries, keyed by effect id (the export's `enchant`). Dropped: 7 shield enchants, 4 scopes (wands take no enchant). Kept: every other enchant (84 without a modelled stat), with `slot` from `type` and `extraSlots` from `extraTypes` (armor kits: chest, hands, legs, feet); 2H weapon enchants carry `twoHandOnly` (staves). Five effect ids appear twice in db.json and are merged into one record with both slots and both names joined by " / ": 963, 2564, 2617, 2648, 2649 (e.g. 2649 "Enchant Bracer - Fortitude / Enchant Boots - Fortitude", wrist + feet).
 
@@ -790,3 +790,67 @@ The author's 17 items (`src/data/classes/warlock/items.ts`) have the same name, 
 ### Icons
 
 `npm run icons` downloads every distinct icon of the database (697: items, gems and enchants) into `public/icons/items/<icon>.jpg` from `https://wow.zamimg.com/images/wow/icons/large/<icon>.jpg`: 3 concurrent requests, 150 ms pause, 3 attempts with backoff, idempotent (present files are kept), exit 0 only when every icon is present and the folder stays under the 6 000 000-byte budget. All 697 fit: 1 250 183 bytes, so nothing was left out. `tests/data/item-db.test.ts` checks (offline) that every icon is committed.
+
+### Gear in the setup (Task 2)
+
+- `SetupConfig.gear?: (EquippedItem | null)[]` (17 entries, WowSimsExporter slot order, null = empty) and `gearPresetId?: string` (`[a-z0-9-]`, 1-64 characters). **Absent = the author's gear** (`setupGear(config)`, `DEFAULT_GEAR` = `destructionEquipped`): every stage 1.5 config, `DEFAULT_SETUP` and the setup presets `none` / `raid-log` have no `gear`, so they normalize, save and build exactly as before (no version bump).
+- Decision (database at load): `normalizeSetup(input, catalog, db?)` stays synchronous. Without the database (it is a lazy chunk) a present `gear` is checked for its shape only (`normalizeGearShape`: 17 entries, positive integer ids, at most 3 gems, malformed parts dropped; a wrong length or a non-array gives the author's gear); with the database, `normalizeGear(gear, db)` checks every id. The caller runs `normalizeGear` once `loadItemDb()` has resolved. `gearNeedsDb(gear)` says whether a gear has anything outside the embedded author tables (`AUTHOR_GEAR_TABLES` = `items.ts`): the author's gear builds without the database, so the first paint does not wait for the chunk.
+- `buildDestructionWarlock(options, gear?, db?)`: the gear's setup from `db` (or the author tables without one) through `buildSetup`; without `gear` the setup built at load (the stage 1 spec, shared). The database has no `metaModifiers`: the hand-modelled Chaotic Skyfire modifiers (`metaGemModifiers`, `items.ts`) are added to the database's gem 34220. `applySetup` calls `buildSpec(config.warlock, config.gear)`. Golden (`tests/setup/gear.test.ts`): the author's gear through the database gives the stage 1 setup field for field and the bot means 1425.1766666666667 / 1428.3350000000003.
+- Decision (`items.ts`): kept as the embedded copy of the author's 17 items, 9 gems and 10 enchants (the brief's "reduce it to ids" would make the default setup wait for the database chunk); `tests/data/item-db.test.ts` keeps it equal to the database. It also holds `metaGemModifiers` and `MODELLED_ITEM_EFFECTS` (Icon of the Silver Crescent, Band of the Eternal Sage: modelled through the setup catalog, so `describeGear` does not list them).
+
+`normalizeGear(input, db)` rules (never throws, never mutates, idempotent; the earlier slot wins every conflict):
+
+| Input | Result |
+|---|---|
+| not an array of 17 entries, or a hostile getter | the author's gear (a fresh copy) |
+| entry not a plain object, `id` not a positive integer, not in the database, or not fitting the slot (rings/trinkets fit both of their slots) | null |
+| staff (`twoHand`) in the main hand | off hand null |
+| a second copy of a `unique` item (rings and trinkets included) | null |
+| a second ring of one limit category (`RING_LIMIT_CATEGORIES`: 475 Signet Ring of the Bronze Dragonflight, 495 Violet Signet, 497 Band of Eternity; tbc-new db.json `limitCategory`, Wowhead TBC "Unique-Equipped: Band of Eternity (1)") | null |
+| `enchant` not in the database, not for the item's slot (`slot` or `extraSlots`: armour kits, Fortitude), or a 2H enchant (`twoHandOnly`) on a non-staff | dropped |
+| gem beyond the item's sockets | dropped |
+| gem not in the database, not fitting its socket (meta only in a meta socket, nothing else there), or a second `unique` gem | that socket empty (`0`, the WowSimsExporter convention; trailing zeros trimmed) |
+| Horde-only item (Stormcaller 29155) | kept; `describeGear` warns (the trainer's character is a Gnome, Alliance). Decision: an import or a wowsims preset keeps working; Task 3 swaps Stormcaller for Blade of the Archmage in the presets |
+| profession-only item, gem or enchant | kept, not checked |
+
+Socket and meta gem rules (`src/engine/gear.ts`, ledger carry (a), (b); engine change because `buildSetup` is where gem stats are summed):
+
+- A meta gem fits only a meta socket and a meta socket only a meta gem (`gemFitsSocket`); a misfit gem counts as an empty socket (no stats, no colour, no socket bonus). A prismatic gem fits and matches every coloured socket (tbc-new `sim/core/database.go` `ColorIntersects`; the stage 1 table matched it with nothing).
+- A meta gem gives its stats and its modifiers only while its requirement holds: the `metaRequires` minimums and, new, `metaCompare` (strictly more gems of one colour than of another; `GemDef.metaCompare` added to the engine type). Before, its stats always applied. tbc-new `sim/core/database.go` `ItemEquipmentGemAndEnchantStats` skips a disabled meta gem's stats and keeps its colour for the socket bonus; so does `buildSetup` (an inactive meta still fills the meta socket). The author's Chaotic Skyfire is active (2 blue: two purple gems), so the default numbers are unchanged.
+- Gem id 0 is an empty socket, not an unknown gem.
+
+`describeGear(gear, db)` (for the Gear panel): `unmodelledEffects` (the items' `effects` texts except the Icon and the Band; an active meta gem other than Chaotic Skyfire: "its effect beyond its stats is not modelled"), `unmodelledSets` (the worn bonuses of `UNMODELLED_SETS` with the reason; a set worn with 2+ pieces that is in neither list: "set bonuses not reviewed, not modelled", e.g. the PvP sets), `metaActive`, `socketBonuses` (per item with a bonus: active or not) and `warnings` (Horde-only items).
+
+### Set bonuses (Task 2)
+
+`WARLOCK_SET_BONUSES` (`src/data/classes/warlock/sets.ts`) holds every modelled bonus; a spec gets those of the sets its gear wears with 1+ piece (`setBonusesFor`; for the author's gear the stage 1 `warlockSets`, Malefic only, same array, so the set bonus panel lists only worn sets). The proc bonuses' self auras are added to the spec's auras when their set is worn. Sets searched: the setNames of the 9 wowsims warlock gear sets (Voidheart, Corruptor, Malefic, Mana-Etched, Spellstrike, Wrath of Spellfire, Shadow's Embrace) and the other cloth caster sets of the database. Sources: tbc-new @ 91f869a `sim/warlock/items.go` (warlock tiers), `sim/common/tbc/items_sets.go` (cloth sets), Wowhead TBC item-set and spell tooltips.
+
+| Set (Wowhead item-set) | Bonus | Modelled as | Source |
+|---|---|---|---|
+| Malefic Raiment (670, T6; also the ZA/SWP gear) | 2: heal 70 per Corruption/Immolate tick | listed, no effect (no health) | items.go 38394 |
+| | 4: Shadow Bolt and Incinerate +6% | `damageMult` 1.06 | items.go 38393 |
+| Voidheart Raiment (645, T4) | 2: 5% on a shadow/fire spell hit that deals damage: +135 shadow damage (Flameshadow 37379) / +135 fire damage (Shadowflame 37378) for 15 s | hook + self aura | items.go (ProcChance 0.05, RequireDamageDealt); Wowhead spell=37379, 37378 |
+| Mana-Etched Regalia (658, D3) | 2: +35 spell hit rating | `statBonuses` | items_sets.go 37607 |
+| | 4: 2% on any damaging spell, a miss included: +110 spell damage for 15 s (Insight 37620) | hook + self aura | items_sets.go (ProcChance 0.02, no outcome filter); Wowhead spell=37620 |
+| Spellstrike Infusion (559) | 2: 5% when a damaging spell lands: +92 spell damage for 10 s (Lesser Spell Blasting 32108) | hook + self aura | items_sets.go (ProcChance 0.05); tooltip "land": the trainer skips misses (wowsims has no outcome filter) |
+| Netherweave Vestments (555) | 2: +23 spell damage; 4: +14 spell crit rating | `statBonuses` | items_sets.go; Wowhead item-set=555 |
+| Imbued Netherweave (556) | 3: +28 spell crit rating | `statBonuses` | items_sets.go |
+| Soulcloth Embrace (557) | 3: +16 spell hit rating | `statBonuses` | items_sets.go; Wowhead item-set=557 |
+
+The procs roll in the hook after a resolved spell (the trainer's hooks run when a spell lands, wowsims rolls on its hit callback; DoT ticks run no hook, as in wowsims, whose periodic damage is a separate callback). "Damaging spells" are those of the Band of the Eternal Sage (`BAND_PROC_SPELL_IDS`: a direct part or a DoT; never Life Tap or Curse of the Elements). No proc has an internal cooldown (wowsims sets none).
+
+Not modelled (`UNMODELLED_SETS`, listed by `describeGear` when worn):
+
+| Set | Bonus | Why |
+|---|---|---|
+| Voidheart Raiment (4) | Corruption and Immolate +3 s (one more tick) | no DoT duration modifier in the engine; the rotation reads the static durations. T4 gear deals a bit less DoT damage than in the game |
+| Corruptor Raiment (2) | pet healed for 15% of damage | no pet |
+| Corruptor Raiment (4) | each landed Shadow Bolt multiplies the running Corruption's base tick damage by 1.1 (Incinerate: Immolate) | the engine cannot change a DoT already on the target; T5 gear deals less Corruption damage than in the game |
+| Wrath of Spellfire (3) | spell damage +7% of total intellect | no stat-to-stat conversion in the engine (about 35 spell power missing at 500 intellect) |
+| Shadow's Embrace (3) | shadow spells heal for 2% | no health (wowsims: TODO) |
+| Oblivion Raiment (2) / (4) | pet mana regen / Seed of Corruption +180 | no pet; no Seed of Corruption |
+| Primal Mooncloth (3) | 5% mana regeneration while casting | no casting regen rate in the engine (mana only) |
+| Battlecast Garb (2) | pushback/interrupt resistance | not simulated |
+| Whitemend Wisdom (2) | healing +10% of intellect | healing only |
+
+Not reviewed: the other 38 sets of the database (PvP sets, vanilla tiers, healer and off-class cloth sets); `describeGear` flags any of them worn with 2+ pieces. The 4 proc aura icons (`spell_shadow_shadowfury`, `spell_shadow_shadowandflame`, `spell_lightning_lightningbolt01`, `spell_arcane_blink`, names checked against the Wowhead tooltip API) are committed in `public/icons/spells/`; `npm run icons` does not know them yet (it reads the default spec's auras).
