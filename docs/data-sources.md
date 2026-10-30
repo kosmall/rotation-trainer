@@ -721,7 +721,7 @@ UI only: no engine, data or setup change, no new game number. Plan `docs/superpo
 
 ## Part E: gear
 
-Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database. Task 2: gear in the setup, socket and meta gem rules, set bonuses.
+Stage 2a (plan `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`, spec `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`). Task 1: the item database. Task 2: gear in the setup, socket and meta gem rules, set bonuses. Task 3: gear presets, WowSimsExporter import and wowsims gear export.
 
 ### Item database (`src/data/items/db.json`)
 
@@ -854,3 +854,40 @@ Not modelled (`UNMODELLED_SETS`, listed by `describeGear` when worn):
 | Whitemend Wisdom (2) | healing +10% of intellect | healing only |
 
 Not reviewed: the other 38 sets of the database (PvP sets, vanilla tiers, healer and off-class cloth sets); `describeGear` flags any of them worn with 2+ pieces. The 4 proc aura icons (`spell_shadow_shadowfury`, `spell_shadow_shadowandflame`, `spell_lightning_lightningbolt01`, `spell_arcane_blink`, names checked against the Wowhead tooltip API) are committed in `public/icons/spells/`; `npm run icons` does not know them yet (it reads the default spec's auras).
+
+### Gear presets (Task 3)
+
+`GEAR_PRESETS` (`src/data/classes/warlock/gearPresets.ts`): the 8 warlock gear sets of github.com/wowsims/tbc-new @ `91f869a` `ui/specs/warlock/dps/gear_sets/*.gear.json` (MIT; names from `ui/specs/warlock/dps/presets.ts`) plus the author's gear. Each gear is stored in the normalized form, and `tests/data/gear-presets.test.ts` checks that `normalizeGear` keeps every preset unchanged (no unknown id, every item in its slot, every gem in a fitting socket, every enchant on a fitting item), that `buildSetup` reports no unknown ids, and that every preset equals its wowsims file (the copy in `tests/fixtures/wowsims-warlock-gear-sets.json`) except for the changes listed below.
+
+| id | Name | Phase | Spec | wowsims file | Set pieces |
+|---|---|---|---|---|---|
+| `preraid` | Pre-Raid | 0 | shadow (offered) | preraid | Shadow's Embrace 3, Mana-Etched 2, Spellstrike 1 |
+| `t4` | T4 | 1 | shadow (offered) | t4 | Voidheart 4 (+ Spellstrike 1, Shadow's Embrace 1) |
+| `t5` | T5 | 2 | shadow (offered) | t5 | Corruptor 2, Voidheart 2 |
+| `t6` | T6 | 3 | shadow (offered) | t6 | Malefic 4 |
+| `za` | Zul'Aman | 4 | shadow (offered) | za | Malefic 4 |
+| `swp` | Sunwell Plateau | 5 | shadow (offered) | swp | Malefic 4 |
+| `fire-preraid` | Pre-Raid (Fire) | 0 | fire (not offered) | destro_fire_preraid | Wrath of Spellfire 3, Mana-Etched 2, Spellstrike 1 |
+| `fire-t4` | T4 (Fire) | 1 | fire (not offered) | destro_fire_t4 | Wrath of Spellfire 3, Voidheart 2, Spellstrike 1 |
+| `author` | My gear (export) | 4 (its newest item: Fetish of the Primal Gods) | shadow (offered first) | the author's export (`destructionEquipped`) | Malefic 4 |
+
+- Phase: the content phase the gear is for (0 pre-raid, 1 T4/Karazhan-Gruul-Magtheridon, 2 T5/SSC-TK, 3 T6/Hyjal-BT, 4 Zul'Aman, 5 Sunwell), not the item database's `phase` (the pre-raid items are phase 1 there).
+- `offeredGearPresets()`: the author's gear, then the shadow presets in phase order. The Fire presets are kept but not offered: the trainer's rotation is Shadow Bolt.
+- Shadow power rises with every offered phase (checked by the test against the previous phase, no fixed numbers). Derived shadow power with the default warlock options and no buffs: Pre-Raid 1130, T4 1163, T5 1222, T6 1350, Zul'Aman 1367, Sunwell 1381 (these figures are informational; the test only checks that each phase is higher than the one before).
+- Decision (Gnome, Alliance): Stormcaller 29155 (Horde only, db.json `factionRestriction` 2; `sources` rep 947 Thrallmar, Exalted) in `preraid` and `destro_fire_preraid` is replaced by its Alliance counterpart Blade of the Archmage 29153 (rep 946 Honor Hold, Exalted; db.json: both +159 spell damage and +21 spell crit rating, Intellect 11 against 12). The enchant (Soulfrost 2672 / Sunfire 2671) stays. The preset's `note` says so. After the swap no preset holds a Horde-only item (`describeGear` gives no warning for any preset). The presets do hold two Alliance-only items, both fine for a Gnome: Blade of the Archmage 29153 and Ashyen's Gift 29172 (`preraid`, `fire-preraid`). Ashtongue Talisman of Shadows 32493 (Alliance-only in the source data) is in no preset.
+- Decision (`za`): tbc-new's `za.gear.json` has no shoulder or cloak enchant, unlike every other set. Without them the Zul'Aman preset would have less spell power than T6. Both enchants are restored from the previous sim's 'P4 Destro' preset (github.com/wowsims/tbc @ `3301fca` `ui/warlock/presets.ts`: enchant item 28886 Greater Inscription of Discipline = effect 2982, +18 spell damage and +10 crit rating; 33150 Subtlety = effect 2621; mapping from `sim/core/items/all_enchants.go`). The preset's `note` says so.
+- Not modelled in these gears: Voidheart 4pc (T4), Corruptor 2pc, Wrath of Spellfire 3pc (Fire) and every on-use or proc item effect other than the Icon and the Band (see "Set bonuses (Task 2)"; `describeGear` lists them).
+
+### WowSimsExporter import and wowsims gear export (Task 3)
+
+`parseWowSimsExport(text, db)` and `exportWowSimsGear(gear)` (`src/setup/wowsimsGear.ts`); tests in `tests/setup/wowsims-gear.test.ts`.
+
+- Formats. (1) The WowSimsExporter addon export. The author's real export is `docs/samples/wowsimsexporter-destruction-warlock.json` (addon v3.2.4: `name`, `realm`, `race`, `class`, `spec`, `level`, `talents`, `professions` [{name, level}], `version`, `id`, `unit`, `gear.items` with 17 entries `{id, enchant?, gems}`). It was already in the repository since stage 1, so the importer test reads it directly. It is the real export, not a reconstruction. The fields read are the ones wowsims reads in tbc-new `ui/features/import-export/importers/addon.ts`: null entries for empty slots, `gem || 0` for empty sockets. (2) The wowsims `*.gear.json` shape: `{ "items": [...] }`, `{}` for an empty slot. A top-level `items` list and a `gear.items` list are both accepted.
+- Placement. A list of exactly 17 entries is read in slot order (`ITEM_SLOTS`, the addon's order). An item that does not fit its position leaves that slot empty and gets a warning. A list of any other length is placed by each known item's database slot, into the first free one. Rings and trinkets fill finger1/finger2 and trinket1/trinket2 in list order, as wowsims `Database.lookupEquipmentSpec` does. An item with no free slot is skipped with a warning. At most 64 entries are read.
+- Then `normalizeGear` runs, so every Task 2 rule applies (unique items, ring categories, a staff empties the off hand, enchant and socket fit). Each id of the text that it drops gets a readable warning. Empty sockets are gem 0 (or null) and stay empty.
+- `unknown`: the item, gem and enchant ids not in the item database, each once, in order. Their slots or sockets stay empty, and `ok` stays true while at least one known item was placed. With no known item `ok` is false and `gear` is 17 empty slots (not to be applied).
+- Never throws. Size cap: **200 000 characters** (`IMPORT_MAX_CHARS`; the author's export is 967). Non-JSON, a top-level array, a number, a string, null, no `items` list, or no known item give `ok` false. Only own properties are read (`__proto__` and `constructor` keys are plain data). Nesting up to the size cap is safe, because the parser never walks the tree: it reads fixed keys only. Every result is a fresh object.
+- Character fields. `talents` is returned untouched when it is digits and dashes (1-128 characters); stage 2b applies it. `race` and `character` ("Name-Realm") are returned as well. Warnings are given for a race other than Gnome (the trainer's base stats and racials are a Gnome's), a class other than warlock (wowsims refuses the import; the trainer imports what it knows) and a level other than 70.
+- Profession warnings. When the export lists professions, an item, gem or enchant whose `requiredProfession` is not among them gets a warning ("Don Julio's Heart needs Jewelcrafting"). The proto `Profession` names come from tbc-new `ui/sim/proto/names.ts`. Without a professions list (the gear.json shape) nothing is assumed.
+- Other warnings come from `describeGear` (Horde-only items). An inactive meta gem also gets a warning. Each warning appears once.
+- Export: `exportWowSimsGear(gear)` writes the exact layout of the wowsims gear files: tabs, one entry per line, `{}` for an empty slot, `enchant` and `gems` only when set, and 0 for an empty socket before a filled one. The `t6` preset exports to the content of tbc-new's `t6.gear.json`. Export then import gives back the same gear for the author's gear and every preset.
