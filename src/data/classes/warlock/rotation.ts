@@ -181,7 +181,11 @@ export function buildPriority(config: RotationConfig, distanceYd: number): Prior
 
   if (config.curse !== 'none') {
     const { spellId, auraId, label, hint } = CURSE_STEPS[config.curse];
-    steps.push({ spellId, label, hint, when: (s) => s.targetAuras[auraId] === undefined });
+    // Curse of Doom deals its one tick when it runs out: a cast that cannot run its full duration
+    // before the end of the fight (fights longer than 60 s) would be wasted, so it is only wanted
+    // while the fight still lasts as long as the curse (>=: the tick at exactly the end counts, R6).
+    const lastsToTheEnd = config.curse === 'doom' ? (s: SimSnapshot) => remainingFightMs(s) >= auraDurationMs(auraId) : () => true;
+    steps.push({ spellId, label, hint, when: (s) => s.targetAuras[auraId] === undefined && lastsToTheEnd(s) });
   }
 
   if (config.shadowburnFinisher) {

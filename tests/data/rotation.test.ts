@@ -20,8 +20,9 @@ const DOT = ROTATION_PRESETS.dot.config;
 const SB_SPAM = ROTATION_PRESETS['sb-spam'].config;
 
 /** The real spec's Simulation as the UI builds it (default distance 28 yd). */
-function destructionSim(seed: number, spellQueueWindowMs: number) {
+function destructionSim(seed: number, spellQueueWindowMs: number, durationMs?: number) {
   return new Simulation({
+    durationMs,
     spec: destructionWarlock,
     target: BOSS_TARGET,
     seed,
@@ -134,6 +135,22 @@ describe('rotation presets and buildPriority', () => {
     }
   });
 
+  it('Curse of Doom is only cast when it can run its full 60 s before the end of the fight', () => {
+    const priority = buildPriority(SB_SPAM, DEFAULT_DISTANCE_FROM_TARGET_YD);
+    for (const [durationMs, expectedCasts] of [
+      [60000, 1], // cast at the pull: its tick at exactly 60 s counts
+      [90000, 1], // a second cast at ~61 s could not land before 90 s
+      [150000, 2], // a second cast at ~61 s lands at ~121 s
+      [300000, 4], // casts at 0, ~61, ~122 and ~183 s; at ~244 s fewer than 60 s remain
+    ] as const) {
+      const sim = destructionSim(1, 400, durationMs);
+      runBot(sim, priority);
+      const casts = completed(sim.log(), 'curse-of-doom');
+      expect(casts, `${durationMs} ms`).toHaveLength(expectedCasts);
+      for (const c of casts) expect(c.atMs + 60000, `${durationMs} ms`).toBeLessThanOrEqual(durationMs);
+    }
+  });
+
   it('sb-spam has no Immolate or Corruption step and the bot casts neither (log has no aura-apply for them), casts Curse of Doom first, Shadow Bolt as filler, Shadowburn last at most once', () => {
     expect(ROTATION_PRESETS['sb-spam'].name).not.toBe(ROTATION_PRESETS.dot.name);
     expect(SB_SPAM).toEqual({
@@ -214,12 +231,15 @@ describe('rotation presets and buildPriority', () => {
       // The rest of the list does not depend on the curse.
       expect(view(p.slice(1)), curse).toEqual(TASK_2_PRIORITY.slice(1));
       const when = rule(p, id);
-      expect(when(snap()), `${curse}: nothing on the target`).toBe(true);
-      expect(when(snap({ targetAuras: [id] })), `${curse}: its aura is up`).toBe(false);
+      // A full 60 s left, so even Curse of Doom (which needs its whole duration) is wanted.
+      expect(when(snap({ remainingMs: 60000 })), `${curse}: nothing on the target`).toBe(true);
+      expect(when(snap({ remainingMs: 60000, targetAuras: [id] })), `${curse}: its aura is up`).toBe(false);
       // Another curse on the target does not satisfy it: casting it replaces that curse.
       for (const [, other] of curses) {
-        if (other !== id) expect(when(snap({ targetAuras: [other] })), `${curse} vs ${other}`).toBe(true);
+        if (other !== id) expect(when(snap({ remainingMs: 60000, targetAuras: [other] })), `${curse} vs ${other}`).toBe(true);
       }
+      // Only Curse of Doom needs its full duration before the end (its single tick).
+      expect(when(snap({ remainingMs: 59999 })), `${curse}: 59.999 s left`).toBe(curse !== 'doom');
     }
   });
 

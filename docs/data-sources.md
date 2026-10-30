@@ -552,7 +552,7 @@ Stage 1.5 Tasks 9-12. Files: `src/setup/{types,defaults,applySetup,storage,prese
 
 ### `applySetup` wiring (`src/setup/applySetup.ts`)
 
-`applySetup({ buildSpec, catalog, config })` returns `{ spec, sim: { scheduledAuras, distanceFromTarget, durationMs } }` (`durationMs = fightDurationSec x 1000`; `useSimulation` builds each fight with it, and every UI text about the fight's length reads the snapshot's `durationMs`). It is pure: the spec from `buildSpec(config.warlock)`, the catalog and the config are never mutated.
+`applySetup({ buildSpec, catalog, config })` returns `{ spec, sim: { scheduledAuras, distanceFromTarget, durationMs } }` (`durationMs = fightDurationSec x 1000`; `useSimulation` builds each fight with it, and every UI text about the fight's length reads the snapshot's `durationMs`, except the Setup panel's Heroism-start warning, which uses the chosen length of the next fight). It is pure: the spec from `buildSpec(config.warlock)`, the catalog and the config are never mutated.
 - The enabled buffs are folded in CATALOG order. Unknown ids are ignored.
   - `statBonuses` are summed into the spec's flat bonuses.
   - `statMultipliers` are multiplied into a new `setup.statMultipliers` (see "Stacking rule").
@@ -673,4 +673,5 @@ Item actions and fight settings, Task 2 (2026-10-30; spec `docs/superpowers/spec
 - Default setup: unchanged (1425.1766666666667 with the 400 ms queue window, 1428.3350000000003 with 0; golden test).
 - DoT rotation with Heroism at 6.4 s: 1717.9 (400 ms) / 1676.8 (0 ms) without items; with Destruction Potion, Dark Rune and the Icon 1763.5 / 1784.3 (`tests/data/item-actions.test.ts` asserts only "more").
 - `raid-log`: 2294.1 (both windows), stage 1.5's scheduled items 2305.3 (see "Calibration").
+- Long fights: Curse of Doom is only wanted while the fight still lasts its 60 s (its single tick), so a 90 s fight casts it once and a 300 s fight four times. With Destruction Potion and Super Mana Potion both enabled the bot takes the Destruction Potion at every ready moment (shared potion cooldown) and never the Super Mana Potion: the rules are guidance, not an optimizer.
 - After the Task 3 rule change ("Heroism up OR over") every 60 s number above is unchanged (re-measured: in 60 s the second use would come at about 129 s). With `fightDurationSec` 300, `raid-log` goes from 1800.8 to 1815.8 (400 ms) and from 1793.8 to 1811.3 (0 ms): the Icon and the potion are used again at about 129 s and 249 s.
