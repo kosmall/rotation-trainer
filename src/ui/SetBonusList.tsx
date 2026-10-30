@@ -38,7 +38,7 @@ interface Row {
  * Every bonus of the spec's sets (and the unmodelled bonuses of the worn sets), grouped by set,
  * each marked active, inactive or not modelled. The heading shows pieces worn over the largest
  * bonus threshold, e.g. "Malefic Raiment 4/4" (a set whose top bonus is not modelled still shows
- * its real threshold: "Voidheart Raiment 4/4").
+ * its real threshold, e.g. a Corruptor Raiment 4-piece marked "Not modelled").
  */
 export function SetBonusList({ sets, setPieces, unmodelled = [] }: SetBonusListProps) {
   const active = new Set(activeSetBonuses(sets, setPieces));

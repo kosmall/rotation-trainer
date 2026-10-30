@@ -190,7 +190,7 @@ modułu, więc pomaga tylko przeładowanie strony; setup jest zapisany).
 - **Uwagi:** efekty przedmiotów i bonusy setów, których trener nie modeluje, wymagane profesje,
   przedmioty hordy oraz ostrzeżenie, gdy Icon of the Silver Crescent albo Band of the Eternal Sage
   jest włączony w Setup, a przedmiotu nie nosisz (efekt i tak się liczy). Panel „Set bonuses”
-  pokazuje też bonusy niezamodelowane (np. Voidheart Raiment 4/4, 4-piece „Not modelled”).
+  pokazuje też bonusy niezamodelowane (np. Corruptor Raiment 4-piece, oznaczony „Not modelled”).
 - **Import z WowSimsExporter:**
   1. W grze wpisz `/wse export` (addon WowSimsExporter): okno pokaże zaznaczony tekst, skopiuj go `Ctrl+C`.
   2. W panelu Gear rozwiń „Import” i wklej tekst (albo plik `*.gear.json` z wowsims).
