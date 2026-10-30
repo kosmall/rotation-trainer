@@ -125,7 +125,7 @@ export const items: Record<number, ItemDef> = {
     slot: 'trinket',
     stats: {},
   },
-  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is a setup buff (warlockItemBuffs 'icon-of-the-silver-crescent'), off unless enabled.
+  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is a setup entry (warlockItemBuffs 'icon-of-the-silver-crescent'): when enabled, an item action on the item bar, used by the player.
   29370: {
     id: 29370,
     name: 'Icon of the Silver Crescent',

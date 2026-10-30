@@ -34,7 +34,7 @@ Rotation effect worth knowing:
 ## Icons
 
 - Spell and aura icons are Blizzard artwork served by Wowhead's CDN. They are fetched once by `npm run icons` (`scripts/fetch-icons.mjs`, run with tsx) into `public/icons/spells/<icon>.jpg` and **committed**, so the app has no runtime network calls. Personal use; if this repo ever becomes public, decide whether to keep the files in it (the alternative is to gitignore `public/icons/` and run `npm run icons` after `npm install`).
-- Every `SpellDef` and `AuraDef` carries `wowheadId` (the TBC spell id, same ids as the data comments). For each id the script asks `https://nether.wowhead.com/tbc/tooltip/spell/<id>?dataEnv=5&locale=0` for the real icon name, compares it with the `icon` in the data (mismatch = report + exit 1; it never edits source files) and downloads `https://wow.zamimg.com/images/wow/icons/large/<icon>.jpg`. All 11 icon names that were first written from memory matched Wowhead.
+- Every `SpellDef` and `AuraDef` carries `wowheadId` (the TBC spell id, same ids as the data comments). For each id the script asks `https://nether.wowhead.com/tbc/tooltip/spell/<id>?dataEnv=5&locale=0` for the real icon name, compares it with the `icon` in the data (mismatch = report + exit 1; it never edits source files) and downloads `https://wow.zamimg.com/images/wow/icons/large/<icon>.jpg`. All 11 icon names that were first written from memory matched Wowhead. Since the item actions the script also walks the setup catalog's item actions (`effect.action`), and for a spell whose Wowhead tooltip has only the placeholder icon `classic_temp` it reads the icon from the item tooltip instead (`ICON_FROM_ITEM`: Super Mana Potion's spell 28499 -> item 22832); it never saves a placeholder (see "Part D: item actions", Icons).
 - `tests/data/icons.test.ts` checks (offline) that every spell/aura has a `wowheadId` and that its file is committed; `tests/ui/icons.test.tsx` checks the UI wiring and the fallback to the initials tile when a file is missing.
 - Not covered yet: item, gem and enchant icons (stage 2a, with the Gear tab; the same script will fetch them).
 
@@ -349,7 +349,7 @@ Icon of the Silver Crescent's on-use and Band of the Eternal Sage's proc left th
 1. Malefic 4pc stacking with Emberstorm on Incinerate: wowsims adds both (`DamageMultiplierAdditive` 1 + 0.06 + 0.06 = 1.12), the engine multiplies (1.06 x 1.06 = 1.1236, +0.3%). Shadow Bolt is exact (its only other damage modifier, Demonic Sacrifice, is a school multiplier). Incinerate is not in the priority; an additive-damage modifier field would fix it. This supersedes the Task 12a note "each spell has at most one additive damage talent".
 2. The meta gem's Ruin term is tied to the fixed build (see above).
 3. The priority's rules use the unhasted talent cast times on purpose (Shadow Bolt 2500, Immolate 1500, Corruption 2000 ms; with gear haste they are 2431, 1458 and 1945 ms). Since ruling R20 the snapshot carries the effective cast times (`s.spells[id].castTimeMs`), and reading them was tried in the final fix wave: the DoT refresh then becomes due slightly later, sometimes just after the bot started another Shadow Bolt, so a DoT drops for up to one bolt (uptime from first to last application fell to 84% in one seed, below the bot test's 90%) and the mean DPS moved by about 4% (window 400). The unhasted values keep that margin; the finisher window is 69 ms wider than one hasted bolt. A rule that accounts for the cast in progress would be the real fix (a data decision for a later stage).
-4. Band of the Eternal Sage and Icon of the Silver Crescent: resolved in stage 1.5 Task 8 (the Band as a hook with a hidden internal-cooldown aura, the Icon as a timed buff, not a castable item); see "Part C: cooldowns and item effects".
+4. Band of the Eternal Sage and Icon of the Silver Crescent: resolved in stage 1.5 Task 8 (the Band as a hook with a hidden internal-cooldown aura, the Icon as a timed buff, not a castable item); see "Part C: cooldowns and item effects". *Superseded for the Icon (2026-10-30): it is an item action the player uses from the item bar; see "Part D: item actions".*
 
 ## Part A: projectile travel
 
@@ -396,7 +396,7 @@ Range: tbc-new gives Shadowburn (30546) `MaxRange: 20`, which even with Destruct
 
 `RotationConfig`: `curse` (`elements`, `agony`, `doom` or `none`), `immolate`, `corruption`, `shadowburnFinisher` (booleans) and `lifeTapBelowMana` (a number >= 0, or `auto` = Shadow Bolt's cost after Cataclysm, 399; NaN or a negative number throws `RangeError`).
 
-Rules: the order is curse > Shadowburn (finisher) > Immolate > Corruption > Life Tap > Shadow Bolt, and disabled steps are left out (`curse: 'none'` has no curse step). Every rule is the one in "Priority (shadow Destruction)" above. The curse step is wanted while its own aura is not on the target. Another curse on the target does not count, because casting this one replaces it. Curse of Doom's 60 s cooldown makes the engine reject a second cast, so it needs no extra condition. A number for `lifeTapBelowMana` replaces Shadow Bolt's cost as the Life Tap threshold. `distanceYd` changes only the finisher window: Shadow Bolt's unhasted cast (2500 ms) + its flight (`projectileTravelMs`; 1400 ms at 28 yd, 0 at 0 yd or for a negative or non-finite distance).
+Rules: the order is curse > Shadowburn (finisher) > Immolate > Corruption > Life Tap > Shadow Bolt, and disabled steps are left out (`curse: 'none'` has no curse step). Every rule is the one in "Priority (shadow Destruction)" above. The curse step is wanted while its own aura is not on the target. Another curse on the target does not count, because casting this one replaces it. Curse of Doom's 60 s cooldown makes the engine reject a second cast, so it needs no extra condition. *Superseded with the configurable fight length (2026-10-30, item actions and fight settings Task 3): in a fight longer than 60 s a recast near the end could never tick, so the Curse of Doom step is also only wanted while the remaining fight is at least the curse's 60 s (`>=`: a tick at exactly the end counts, R6). In a 60 s fight this changes nothing (only the cast at the pull fits).* A number for `lifeTapBelowMana` replaces Shadow Bolt's cost as the Life Tap threshold. `distanceYd` changes only the finisher window: Shadow Bolt's unhasted cast (2500 ms) + its flight (`projectileTravelMs`; 1400 ms at 28 yd, 0 at 0 yd or for a negative or non-finite distance).
 
 | Preset | Config | Source | Status |
 |---|---|---|---|
@@ -635,7 +635,7 @@ The preset keeps the spell power right, because it matters far more for the dama
 
 ## Part D: item actions
 
-Item actions and fight settings, Task 2 (2026-10-30; spec `docs/superpowers/specs/2026-10-30-item-actions-and-fight-settings-design.md`). The engine side (`SpellDef.item`, `sharedCooldown`, `gainManaRange`: no GCD, no cost, no hit roll, no hooks, no five-second rule) is Task 1 (`src/engine/sim.ts`). The data side: `BuffEffect.action` (`src/data/types.ts`), built with `itemAction` (`src/data/common/buffs.ts`).
+Item actions and fight settings, Tasks 2-5 (2026-10-30; spec `docs/superpowers/specs/2026-10-30-item-actions-and-fight-settings-design.md`). The engine side (`SpellDef.item`, `sharedCooldown`, `gainManaRange`: no GCD, no cost, no hit roll, no hooks, no five-second rule) is Task 1 (`src/engine/sim.ts`). The data side: `BuffEffect.action` (`src/data/types.ts`), built with `itemAction` (`src/data/common/buffs.ts`).
 
 ### The items
 
@@ -675,3 +675,36 @@ Item actions and fight settings, Task 2 (2026-10-30; spec `docs/superpowers/spec
 - `raid-log`: 2294.1 (both windows), stage 1.5's scheduled items 2305.3 (see "Calibration").
 - Long fights: Curse of Doom is only wanted while the fight still lasts its 60 s (its single tick), so a 90 s fight casts it once and a 300 s fight four times. With Destruction Potion and Super Mana Potion both enabled the bot takes the Destruction Potion at every ready moment (shared potion cooldown) and never the Super Mana Potion: the rules are guidance, not an optimizer.
 - After the Task 3 rule change ("Heroism up OR over") every 60 s number above is unchanged (re-measured: in 60 s the second use would come at about 129 s). With `fightDurationSec` 300, `raid-log` goes from 1800.8 to 1815.8 (400 ms) and from 1793.8 to 1811.3 (0 ms): the Icon and the potion are used again at about 129 s and 249 s.
+
+### Using an item in the fight (engine and player)
+
+- An item action is instant and off the GCD: it never starts or waits for the GCD, costs no mana, never starts the five-second rule, never rolls the hit table, launches no missile and never runs hooks (so Judgement of Wisdom and the Band never proc from it). Its log is `cast-complete`, then `mana` (a mana item), then `aura-apply` (a buff item; ruling F-1), with no `cast-start`.
+- **Busy and the queue (design spec §2.4, a simplification).** A cast in progress blocks an item exactly as it blocks an off-GCD instant: outside the spell queue window (400 ms before the cast ends) the press is rejected `busy` (the slot flashes "Busy"); inside it the item is queued and used at the cast's end, without a GCD. The GCD alone never blocks it: during the GCD with no cast the item is used at once and a spell already queued for the GCD's end keeps its place. Items share the one queue slot with spells: an item pressed in the window replaces a queued spell (`queue-drop` `replaced`) and a later spell press replaces a queued item. `Esc` cancels the cast and clears the queue (a queued item too); a used item is never undone. The player uses items between casts.
+- A press of an item in `ready` starts the fight like a cast (R13); a rejected one leaves it unstarted. A queued item at the fight's end is dropped silently, like a spell.
+- Rejections: `cooldown` (own or shared; the slot flashes "Cooldown"), `busy`. The snapshot's `cooldownRemainingMs[id]` is the larger of the item's own and its group's cooldown (one ready-time map; a group cooldown only ever pushes a ready time later).
+
+### Item bar (UI, Task 4)
+
+- A second row "Items" (`role="group"`, `aria-label="Item bar"`) under the spell row with only the bound item slots, keys Z X C V (`ITEM_SLOT_KEYS`; either case; never while typing in a text-like field, rulings S5). No item enabled: no row. Slots are as large as spell slots (same 12-column grid, 6 on phones).
+- The enabled actions fill Z X C V in catalog order (Destruction Potion, Super Mana Potion, Dark Rune, Icon); the Setup panel shows "Item bar: Z" (etc.) under each enabled item, computed by the same rule as `applySetup` (a UI test pins them together).
+- Tooltip: the name, "Item · off the GCD" and the catalog description. Cooldown text: the larger of own and shared cooldown, "2m" from 100 s, else seconds (ruling F-3: a 4-character "118s" overflowed a slot). The item's buff shows in the Buffs list (e.g. "Destruction Potion 15s", "Blessing of the Silver Crescent 20s").
+- The Setup panel lists the item actions (the potions and the rune moved from Consumables) and the Band in "Items and cooldowns"; Heroism moved to the "Fight" group.
+
+### Fight length (Tasks 3-4)
+
+- `SetupConfig.fightDurationSec`: whole seconds, 10-600, default 60 (normalize rules in "Setup config and `normalizeSetup`"); `applySetup` returns `durationMs`, `useSimulation` builds each fight with it. The panel's "Fight" group has "Fight length (s)" and Heroism / Bloodlust (checkbox, "Start (s)", "Duration (s)"; warning "Starts after the fight ends (N s): no effect." when the start is at or after the chosen length). A change applies from the next fight; a fight not yet started takes it at once.
+- Presets keep the player's chosen length; "Reset to defaults" sets 60 s (ruling F-2). Preset matching ignores the length.
+- Everything reads the fight's `durationMs`: the regen ticks (scheduled for the whole fight), scheduled auras (a start at or after the end is ignored, a duration past the end is cut), the "Time" label and the end summary, the aura time shown (clamped to the fight's end, ruling S3), the DoT refresh and Shadowburn finisher rules (remaining fight time) and the item rules (Heroism's end).
+- Long fights: Curse of Doom only while at least 60 s remain (Part B, superseded note); Heroism's 10 min cooldown allows one use in any fight up to 600 s, so it stays one timed buff; the Icon and the potions are used again whenever their 120 s cooldowns allow (with Heroism: after it). A 600 s bot fight runs in about 0.4 s. The "Raid as in my log" calibration stays a 60 s one (the preset inherits 60 s).
+- Determinism (final review, Task 5): the same setup and seed give byte-identical logs twice, and a replay of the bot's presses gives the same log and snapshot with one jump per press and with 70 ms or 7 ms steps (all four items and Heroism at 15 s, fights of 45 s and 137 s); the default setup's golden bot means are unchanged (1425.1766666666667 / 1428.3350000000003).
+
+### Known simplifications (item actions and fight settings)
+
+- An item cannot be used during a cast (busy, or queued in the window; see above).
+- No health: Dark Rune's 600-1000 health cost (like Life Tap's) is not simulated.
+- Mana gains are integers drawn uniformly over the tooltip's range (wowsims draws a real number).
+- Dark Rune's shared category is inferred from Demonic Rune (see "Which rune"); the `trinket` group has only the Icon (no other on-use trinket in the catalog).
+- An item's buff lasts its fixed duration (Icon 20 s, Destruction Potion 15 s); unlike Heroism, it has no duration setting.
+- Heroism's cooldown is not tracked (one use; the longest fight is 600 s).
+- The bot's item rules are guidance, not an optimizer: with both potions enabled it always takes the Destruction Potion; after Heroism it uses the Icon as soon as it is ready instead of saving it; after a queued item fires, the next spell starts at the bot's next step (up to 10 ms later).
+- The fight length input emits on every keystroke (a not-started fight is rebuilt each time; harmless).

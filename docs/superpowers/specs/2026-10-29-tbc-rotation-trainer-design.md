@@ -149,7 +149,10 @@ Jeden spec, osobny plan implementacji i commit na etap:
    2b. Gotowe „najlepsze talenty" na fazę i edytor drzewka talentów (zakładka Talents).
    2c. Keybindy konfigurowalne. (Raid buffy, consumables, zapis w `localStorage` i konfigurowalna
    rotacja zostały przeniesione do etapu 1.5: `2026-10-29-realism-and-setup-design.md`,
-   razem z czasem lotu pocisków; wykonywane przed 2a/2b.)
+   razem z czasem lotu pocisków; wykonywane przed 2a/2b. Po etapie 1.5, też przed 2a/2b:
+   aktywowane przedmioty na action barze (trinket, mikstury, runa; dzielone cooldowny) oraz
+   długość walki i sekunda startu Heroism/Bloodlust w Setup:
+   `2026-10-30-item-actions-and-fight-settings-design.md`.)
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla
