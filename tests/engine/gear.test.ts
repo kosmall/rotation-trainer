@@ -96,7 +96,10 @@ describe('buildSetup', () => {
     expect(setup.modifiers).toEqual([]);
   });
 
-  it('meta gem modifiers appear in setup.modifiers only when metaRequires is met; its stats apply either way', () => {
+  // Stage 2a (ledger carry (a)): an inactive meta gem gives nothing in the game, its stats
+  // included (wowsims tbc-new sim/core/database.go skips a disabled meta gem's stats). This test
+  // said "its stats apply either way" until then.
+  it('meta gem modifiers and stats appear only when metaRequires is met', () => {
     const metaItem: ItemDef = {
       id: 4,
       name: 'Helm',
@@ -116,7 +119,7 @@ describe('buildSetup', () => {
 
     const unmet = buildSetup({ ...p, equipped: [{ id: 4, gems: [13, 10] }] });
     expect(unmet.setup.modifiers).toEqual([]);
-    expect(unmet.setup.stats.critRating).toBe(12);
+    expect(unmet.setup.stats.critRating).toBe(0);
   });
 
   it('unknown item/gem/enchant ids are skipped, reported in unknown, and change nothing else', () => {

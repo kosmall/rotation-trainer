@@ -94,6 +94,13 @@ export interface GemDef {
   color: GemColor;
   stats: Partial<RawStats>;
   metaRequires?: Partial<Record<'red' | 'blue' | 'yellow', number>>;
+  /**
+   * Meta gems whose requirement compares two colours: active only with strictly more gems of
+   * colour `more` than of colour `than` (wowsims tbc-new sim/core/reforge_optimizer/
+   * meta_gem_constraints.go `compareColorGreater` / `compareColorLesser`). Checked by `buildSetup`
+   * together with `metaRequires`.
+   */
+  metaCompare?: { more: 'red' | 'blue' | 'yellow'; than: 'red' | 'blue' | 'yellow' };
   metaModifiers?: SpellModifier[];
 }
 
