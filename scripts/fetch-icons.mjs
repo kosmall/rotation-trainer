@@ -1,8 +1,14 @@
-// Fetches the spell/aura icons used by the UI into public/icons/spells/ (committed to the repo).
+// Fetches the icons used by the UI (committed to the repo):
+// - spell/aura icons into public/icons/spells/ (verified against Wowhead's tooltip API, below);
+// - item, gem and enchant icons into public/icons/items/: every distinct `icon` of the item
+//   database (src/data/items/db.json, `npm run db:build`). The database already holds the icon
+//   names (wowsims db.json), so no tooltip call is made for them.
 //
 // Usage: npm run icons            (downloads missing icons, verifies every icon name)
 //        npm run icons -- --force (re-downloads all)
 //
+// Idempotent: present files are kept. Exits 0 only when every expected icon is present (and the
+// item icons stay within ITEM_ICON_BUDGET_BYTES).
 // For every spell and aura of the spec, every buff of the setup catalog (the buff, the auras it
 // applies, its item action) and the warlock options, each with a `wowheadId`, it asks Wowhead's
 // tooltip API for the real icon name, compares it with the `icon` in the data (a mismatch is reported and exits 1: fix the
@@ -10,7 +16,7 @@
 // Icons are Blizzard artwork served by Wowhead: this is for the author's personal use.
 // Run it with tsx (it imports the TypeScript data directly).
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { destructionWarlock } from '../src/data/classes/warlock/destruction.ts';
@@ -114,3 +120,81 @@ if (problems > 0) {
   process.exit(1);
 }
 console.log(`\nAll ${byId.size} icons verified and present in public/icons/spells/.`);
+
+// ---------------------------------------------------------------------------------------------
+// Item, gem and enchant icons (public/icons/items/). Small concurrency, a pause between requests
+// and retries with backoff: be gentle with the CDN.
+
+/** Budget for public/icons/items/ (the UI shows an initials tile for a missing icon). */
+const ITEM_ICON_BUDGET_BYTES = 6_000_000;
+const ITEM_ICON_CONCURRENCY = 3;
+const ITEM_ICON_ATTEMPTS = 3;
+const itemOutDir = join(root, 'public', 'icons', 'items');
+const itemDb = JSON.parse(readFileSync(join(root, 'src', 'data', 'items', 'db.json'), 'utf8'));
+const itemIcons = [
+  ...new Set(
+    [itemDb.items, itemDb.gems, itemDb.enchants].flatMap((records) => Object.values(records).map((r) => r.icon)),
+  ),
+].sort();
+mkdirSync(itemOutDir, { recursive: true });
+
+async function downloadIcon(icon) {
+  let lastError;
+  for (let attempt = 1; attempt <= ITEM_ICON_ATTEMPTS; attempt++) {
+    try {
+      const img = await fetch(CDN(icon));
+      const type = img.headers.get('content-type') ?? '';
+      if (img.status === 404) throw Object.assign(new Error('CDN HTTP 404'), { permanent: true });
+      if (!img.ok || !type.startsWith('image/')) throw new Error(`CDN HTTP ${img.status} ${type}`);
+      const bytes = Buffer.from(await img.arrayBuffer());
+      if (bytes.length < 200) throw new Error(`suspiciously small image (${bytes.length} bytes)`);
+      return bytes;
+    } catch (error) {
+      lastError = error;
+      if (error.permanent) break;
+      await sleep(1000 * 3 ** (attempt - 1));
+    }
+  }
+  throw lastError;
+}
+
+let itemProblems = 0;
+let saved = 0;
+const queue = [...itemIcons];
+async function worker() {
+  for (let icon = queue.shift(); icon !== undefined; icon = queue.shift()) {
+    if (!/^[a-z0-9_-]+$/.test(icon)) {
+      console.error(`FAIL  item icon ${JSON.stringify(icon)}: unexpected icon name`);
+      itemProblems++;
+      continue;
+    }
+    const file = join(itemOutDir, `${icon}.jpg`);
+    if (!force && existsSync(file)) continue;
+    try {
+      const bytes = await downloadIcon(icon);
+      writeFileSync(file, bytes);
+      saved++;
+      console.log(`saved items/${icon}.jpg ${bytes.length} bytes`);
+    } catch (error) {
+      console.error(`FAIL  items/${icon}.jpg: ${error.message}`);
+      itemProblems++;
+    }
+    await sleep(150);
+  }
+}
+await Promise.all(Array.from({ length: ITEM_ICON_CONCURRENCY }, worker));
+
+const missing = itemIcons.filter((icon) => !existsSync(join(itemOutDir, `${icon}.jpg`)));
+const itemBytes = itemIcons
+  .filter((icon) => !missing.includes(icon))
+  .reduce((sum, icon) => sum + statSync(join(itemOutDir, `${icon}.jpg`)).size, 0);
+console.log(
+  `\nItem icons: ${itemIcons.length - missing.length}/${itemIcons.length} present in public/icons/items/ ` +
+    `(${saved} downloaded now), ${itemBytes} bytes of ${ITEM_ICON_BUDGET_BYTES} budget.`,
+);
+if (missing.length > 0) console.error(`Missing: ${missing.join(', ')}`);
+if (itemBytes > ITEM_ICON_BUDGET_BYTES) {
+  console.error('Over the item icon budget: restrict the icon list (presets and top items per slot).');
+  itemProblems++;
+}
+if (itemProblems > 0 || missing.length > 0) process.exit(1);

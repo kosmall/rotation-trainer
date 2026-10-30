@@ -269,6 +269,18 @@ describe('item database (generated from wowsims tbc-new)', () => {
     }
   });
 
+  it('every item, gem and enchant icon is committed as public/icons/items/<icon>.jpg (npm run icons)', () => {
+    const files = new Set(
+      Object.keys(import.meta.glob('/public/icons/items/*.jpg')).map((path) =>
+        (path.split('/').pop() ?? '').replace(/\.jpg$/, ''),
+      ),
+    );
+    const missing = [db.items, db.gems, db.enchants]
+      .flatMap((records) => Object.values(records).map((r) => r.icon))
+      .filter((icon) => !files.has(icon));
+    expect([...new Set(missing)]).toEqual([]);
+  });
+
   it('loadItemDb resolves to the same data as itemDbSync', async () => {
     const loaded = await loadItemDb();
     expect(loaded).toEqual(db);
