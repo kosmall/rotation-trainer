@@ -63,7 +63,7 @@ export interface GemRecord extends GemDef {
   requiredProfession?: number;
   /**
    * Meta gems whose requirement compares two colours ("more blue gems than yellow gems"), which
-   * `metaRequires` (minimum counts) cannot express. Not evaluated by the stage 1 `buildSetup`.
+   * `metaRequires` (minimum counts) cannot express. Evaluated by `buildSetup` (strictly "more than").
    */
   metaCompare?: { more: PrimaryGemColor; than: PrimaryGemColor };
 }

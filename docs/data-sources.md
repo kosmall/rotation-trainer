@@ -843,9 +843,9 @@ Not modelled (`UNMODELLED_SETS`, listed by `describeGear` when worn):
 
 | Set | Bonus | Why |
 |---|---|---|
-| Voidheart Raiment (4) | Corruption and Immolate +3 s (one more tick) | no DoT duration modifier in the engine; the rotation reads the static durations. T4 gear deals a bit less DoT damage than in the game |
+| Voidheart Raiment (4) | Corruption and Immolate +3 s (one more tick) | no DoT duration modifier in the engine; the rotation reads the static durations. The offered T4 preset (4 Voidheart pieces) deals less Corruption/Immolate damage than in the game (about +17% Corruption, +20% Immolate DoT per cast): a follow-up needs a `dotExtraTicks` spell modifier |
 | Corruptor Raiment (2) | pet healed for 15% of damage | no pet |
-| Corruptor Raiment (4) | each landed Shadow Bolt multiplies the running Corruption's base tick damage by 1.1 (Incinerate: Immolate) | the engine cannot change a DoT already on the target; T5 gear deals less Corruption damage than in the game |
+| Corruptor Raiment (4) | each landed Shadow Bolt multiplies the running Corruption's base tick damage by 1.1 (Incinerate: Immolate) | the engine cannot change a DoT already on the target. No offered preset wears 4 Corruptor pieces (the T5 preset wears 2 Corruptor + 2 Voidheart), so only a custom gear with the 4-piece is understated |
 | Wrath of Spellfire (3) | spell damage +7% of total intellect | no stat-to-stat conversion in the engine (about 35 spell power missing at 500 intellect) |
 | Shadow's Embrace (3) | shadow spells heal for 2% | no health (wowsims: TODO) |
 | Oblivion Raiment (2) / (4) | pet mana regen / Seed of Corruption +180 | no pet; no Seed of Corruption |

@@ -180,7 +180,8 @@ function normalizeGearFields(input: Rec, db: ItemDb | undefined): Pick<SetupConf
     out.gear = db === undefined ? normalizeGearShape(gear) : normalizeGear(gear, db);
   }
   const presetId = own(input, 'gearPresetId');
-  if (typeof presetId === 'string' && GEAR_PRESET_ID.test(presetId)) out.gearPresetId = presetId;
+  // A preset label only means something next to a gear list: without `gear` it would be stale.
+  if (out.gear !== undefined && typeof presetId === 'string' && GEAR_PRESET_ID.test(presetId)) out.gearPresetId = presetId;
   return out;
 }
 
