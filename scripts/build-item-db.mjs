@@ -121,6 +121,8 @@ const IGNORED_EFFECT_STATS = new Set(['4']);
 // - CallbackOnSpellHitDealt + OutcomeLanded (spell damage)      -> 'hit'
 // - CallbackOnCastComplete + ProcMaskSpellDamage (OutcomeEmpty) -> 'hit' when the tooltip says the
 //   spell must land or hit (the stage F Band rule: rolled on a landed damaging spell), else 'cast'
+//   (the trainer's 'cast': every completed player spell except Curse of the Elements, which has no
+//   ProcMaskSpellDamage in wowsims; Life Tap counts, as in wowsims)
 // - anything else (heals only, periodic damage, a resisted spell, a kill, melee) -> null (text).
 // Every proc buff with modelled stats must have an entry here (the build fails otherwise), and
 // every entry must be used (a stale entry fails too).
@@ -142,6 +144,11 @@ const PROC_TRIGGERS = {
   32496: { trigger: 'cast', why: 'Memento of Tyrande: OnCastComplete, ProcMaskSpellDamage | ProcMaskSpellHealing; "Each time you cast a spell"' },
   32771: { trigger: null, why: 'Airman\'s Ribbon of Gallantry: on a killing blow; CallbackEmpty (not implemented in wowsims)' },
 };
+
+// An on-use buff lasting this long (10 min) or longer is a pre-pull buff, not an item action:
+// `prepull: true` (Chain of the Twilight Owl: 30 min party buff, which wowsims makes a permanent
+// party aura, sim/core/buffs.go ChainOfTheTwilightOwlAura). Part F.
+const PREPULL_MIN_DURATION_MS = 600000;
 
 /** Effect-only items (no stat anywhere) are kept from this item level up (see Part E). */
 const EFFECT_ONLY_MIN_ILVL = 90;
@@ -214,6 +221,8 @@ function effectStatsOf(effect) {
 }
 
 const usedProcTriggers = new Set();
+/** Item ids whose proc stat buff already reached PROC_TRIGGERS (one per item, see structuredEffect). */
+const procCandidates = new Set();
 
 /**
  * One wowsims item effect as a structured on-use or proc stat buff ({ kind, value }), or null when
@@ -235,12 +244,17 @@ function structuredEffect(item, effect) {
     // wowsims sim/common/shared/shared_utils.go sharedCooldown: no category id -> no shared cooldown
     // (even with a categoryCooldownMs); a non-positive category cooldown -> the buff's duration.
     if (categoryId > 0) value.group = { id: categoryId, ms: categoryCooldownMs > 0 ? categoryCooldownMs : durationMs };
+    if (durationMs >= PREPULL_MIN_DURATION_MS) value.prepull = true;
     return { kind: 'use', value };
   }
   if (effect.proc) {
     const { procChance, icdMs = 0, ppm } = effect.proc;
     if (ppm || !(procChance > 0 && procChance <= 1) || !(icdMs >= 0) || !Number.isInteger(icdMs)) return null;
     const entry = PROC_TRIGGERS[item.id];
+    // PROC_TRIGGERS is keyed by item id: a second proc stat buff on one item would silently get
+    // the first one's trigger, so it fails until the table can tell them apart.
+    if (procCandidates.has(item.id)) fail(`proc item ${item.id} ${item.name}: more than one proc stat buff reaches PROC_TRIGGERS (keyed by item id); key it by buff id`);
+    procCandidates.add(item.id);
     if (entry === undefined) fail(`proc item ${item.id} ${item.name} (${buffName}): no trigger in PROC_TRIGGERS; read its Go registration`);
     usedProcTriggers.add(String(item.id));
     if (entry.trigger === null) return null;

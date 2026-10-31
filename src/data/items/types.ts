@@ -83,12 +83,20 @@ export interface ItemUseEffect {
    * positive (wowsims sim/common/shared/shared_utils.go `sharedCooldown`). Absent: no category.
    */
   group?: { id: number; ms: number };
+  /**
+   * A pre-pull buff (duration >= 10 min, e.g. Chain of the Twilight Owl: 30 min party buff): not
+   * an item action. Task 2 derives a toggle aura active from the pull, with no action and no item
+   * slot (wowsims makes it a permanent, exclusive party aura).
+   */
+  prepull?: true;
 }
 
 /**
  * What a proc rolls on (one roll per event, only while its internal cooldown is not running):
- * - `cast`: every completed player spell, whatever its outcome (a miss too); not items, not DoT
- *   ticks (wowsims `CallbackOnCastComplete`).
+ * - `cast`: every completed player spell, whatever its outcome (a miss too), EXCEPT Curse of the
+ *   Elements; not items, not DoT ticks. Close to, not identical with, wowsims
+ *   `CallbackOnCastComplete` + `ProcMaskSpellDamage`: class spells with that mask only (Life Tap
+ *   counts; Curse of the Elements has `ProcMaskEmpty` and does not).
  * - `hit`: a landed (hit or crit) offensive player spell: one with a direct damage part or one
  *   applying a DoT on the target; not a miss, not Life Tap or Curse of the Elements (the stage F
  *   Band rule, `BAND_PROC_SPELL_IDS`; wowsims `CallbackOnSpellHitDealt` + `OutcomeLanded`).

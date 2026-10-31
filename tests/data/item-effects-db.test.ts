@@ -73,6 +73,76 @@ const PROC_TRIGGER_TABLE: Readonly<Record<number, (typeof TRIGGERS)[number]>> = 
   32496: 'cast', // Memento of Tyrande: "Each time you cast a spell"
 };
 
+/**
+ * Every structured effect of the database, one compact line each (generated once from the DB and
+ * reviewed against tbc-new @ 91f869a assets/database/db.json `itemEffects`, then kept literal), so
+ * any regeneration that changes an effect shows up here as a test diff. Format: `<item id> use
+ * <stats> <durationMs> cd <cooldownMs> [group <id>/<ms>] [prepull]` or `<item id> proc <stats>
+ * <durationMs> chance <c> icd <ms> <trigger>`; stats: sp spell power, spi spirit, crit/hit/haste
+ * rating, mp5.
+ */
+const ALL_STRUCTURED_EFFECTS: readonly string[] = [
+  '18820 use sp 175 15000 cd 90000 group 1141/15000', // Talisman of Ephemeral Power: Ephemeral Power
+  '19947 use hit 80 15000 cd 75000', // Nat Pagle's Broken Reel: Pagle's Broken Reel
+  '19957 use crit 140 20000 cd 180000 group 1141/20000', // Hazza'rah's Charm of Destruction: Massive Destruction
+  '20636 use sp 117 15000 cd 90000', // Hibernation Crystal: Healing of the Ages
+  '21190 proc sp 132 10000 chance 0.05 icd 0 hit', // Wrath of Cenarius: Spell Blasting
+  '22268 use sp 100 15000 cd 75000 group 1141/15000', // Draconic Infused Emblem: Chromatic Infusion
+  '23046 use sp 130 20000 cd 120000 group 1141/20000', // The Restrained Essence of Sapphiron: Essence of Sapphiron
+  '23047 use sp 150 30000 cd 120000', // Eye of the Dead: The Eye of the Dead
+  '24121 use crit 44.153846 1800000 cd 3600000 prepull', // Chain of the Twilight Owl: Chain of the Twilight Owl
+  '24122 proc mp5 45 10000 chance 0.75 icd 25000 cast', // Coronet of Verdant Flame: Verdant Flame
+  '24123 proc sp 120 15000 chance 0.02 icd 0 cast', // Circlet of Arcane Might: Arcane Might
+  '24126 use sp 150 20000 cd 300000 group 1141/20000', // Figurine - Living Ruby Serpent: Living Ruby Serpent
+  '25619 use sp 104 20000 cd 120000 group 1141/20000', // Glowing Crystal Insignia: Focused Power
+  '25620 use sp 104 20000 cd 120000 group 1141/20000', // Ancient Crystal Talisman: Focused Power
+  '25634 use sp 71 20000 cd 120000', // Oshu'gun Relic: Power of Prayer
+  '25936 use sp 84 15000 cd 90000 group 1141/15000', // Terokkar Tablet of Vim: Spell Power
+  '25995 use sp 70 15000 cd 120000 group 1141/20000', // Star of Sha'naar: Spell Power
+  '27683 proc haste 320 6000 chance 0.1 icd 45000 cast', // Quagmirran's Eye: Spell Haste
+  '27828 use sp 94 20000 cd 120000', // Warp-Scarab Brooch: Accelerated Mending
+  '28040 use sp 120 15000 cd 90000 group 1141/15000', // Vengeance of the Illidari: Arcane Energy
+  '28223 use sp 167 20000 cd 120000 group 1141/20000', // Arcanist's Stone: The Arcanist's Stone
+  '28370 use spi 130 20000 cd 120000', // Bangle of Endless Blessings: Endless Blessings
+  '28418 proc sp 225 10000 chance 0.2 icd 45000 crit', // Shiffar's Nexus-Horn: Call of the Nexus
+  '28578 proc spi 145 15000 chance 0.1 icd 50000 cast', // Masquerade Gown: Love Struck
+  '28602 proc sp 130 10000 chance 0.2 icd 50000 hit', // Robe of the Elder Scribes: Power of Arcanagos
+  '29132 use sp 150 15000 cd 90000 group 1141/15000', // Scryer's Bloodgem: Spell Power
+  '29179 use sp 150 15000 cd 90000 group 1141/15000', // Xi'ri's Gift: Spell Power
+  '29305 proc sp 95 10000 chance 0.1 icd 60000 hit', // Band of the Eternal Sage: Band of the Eternal Sage
+  '29309 proc sp 59 10000 chance 0.1 icd 60000 hit', // Band of the Eternal Restorer: Band of the Eternal Restorer
+  '29370 use sp 155 20000 cd 120000 group 1141/20000', // Icon of the Silver Crescent: Blessing of the Silver Crescent
+  '29376 use sp 99 20000 cd 120000', // Essence of the Martyr: Essence of the Martyr
+  '30293 use sp 79 15000 cd 90000', // Heavenly Inspiration: Healing Power
+  '30340 use sp 125 15000 cd 90000 group 1141/15000', // Starkiller's Bauble: Spell Power
+  '30626 proc sp 190 15000 chance 0.2 icd 45000 crit', // Sextant of Unstable Currents: Unstable Currents
+  '31336 proc haste 280 6000 chance 0.15 icd 50000 cast', // Blade of Wizardry: Forgotten Knowledge
+  '31615 use sp 120 15000 cd 90000 group 1141/15000', // Ancient Draenei Arcane Relic: Arcane Energy
+  '32483 use haste 175 20000 cd 120000 group 1141/20000', // The Skull of Gul'dan: Fel Infusion
+  '32496 proc mp5 76 15000 chance 0.1 icd 50000 cast', // Memento of Tyrande: Wisdom
+  '33828 use sp 132 20000 cd 120000', // Tome of Diabolic Remedy: Diabolic Remedy
+  '33829 use sp 211 20000 cd 120000 group 1141/20000', // Hex Shrunken Head: Mojo Madness
+  '35700 use sp 150 20000 cd 120000 group 1141/20000', // Figurine - Crimson Serpent: Crimson Serpent
+  '281735 use sp 209 20000 cd 120000 group 1141/20000', // Dark Iron Smoking Pipe: Dark Iron Pipeweed
+  '281748 use sp 135 20000 cd 120000', // Direbrew Hops: Hopped Up
+];
+
+const STAT_ABBREV: Readonly<Record<string, string>> = {
+  intellect: 'int',
+  spirit: 'spi',
+  spellPower: 'sp',
+  shadowPower: 'shadow',
+  firePower: 'fire',
+  critRating: 'crit',
+  hitRating: 'hit',
+  hasteRating: 'haste',
+  mp5: 'mp5',
+};
+const statText = (stats: object): string =>
+  Object.entries(stats)
+    .map(([k, v]) => `${STAT_ABBREV[k] ?? k} ${v}`)
+    .join(' ');
+
 const allUse = (): [ItemRecord, ItemUseEffect][] =>
   items.flatMap((i) => (i.useEffects ?? []).map((e): [ItemRecord, ItemUseEffect] => [i, e]));
 const allProc = (): [ItemRecord, ItemProcEffect][] =>
@@ -171,6 +241,41 @@ describe('structured item effects in the database', () => {
     ]);
     expect(bangle.procEffects).toBeUndefined();
     expect(bangle.effects).toEqual(['Proc: Meditation (15 s)']);
+  });
+
+  it('every structured effect equals the pinned table', () => {
+    const lines: string[] = [];
+    for (const item of [...items].sort((a, b) => a.id - b.id)) {
+      for (const u of item.useEffects ?? []) {
+        const group = u.group ? ` group ${u.group.id}/${u.group.ms}` : '';
+        lines.push(`${item.id} use ${statText(u.stats)} ${u.durationMs} cd ${u.cooldownMs}${group}${u.prepull ? ' prepull' : ''}`);
+      }
+      for (const p of item.procEffects ?? []) {
+        lines.push(`${item.id} proc ${statText(p.stats)} ${p.durationMs} chance ${p.chance} icd ${p.icdMs} ${p.trigger}`);
+      }
+    }
+    expect(lines).toEqual(ALL_STRUCTURED_EFFECTS);
+  });
+
+  it('Chain of the Twilight Owl (24121): a pre-pull buff, +2% spell crit as crit rating, not an item action', () => {
+    // db.json 24121 itemEffects[0]: buffId 31035, effectDurationMs 1800000, stats {13: 44.153846}
+    // (SpellCritRating: exactly 2% at 22.076923 rating per %), onUse {cooldownMs 3600000}. Wowhead
+    // TBC: "+2% spell crit to nearby party members for 30 min (1 Hour Cooldown)"; wowsims makes it a
+    // permanent exclusive party aura (sim/core/buffs.go ChainOfTheTwilightOwlAura: SpellCritPercent 2).
+    expect(db.items[24121]!.useEffects).toEqual([
+      {
+        buffName: 'Chain of the Twilight Owl',
+        buffId: 31035,
+        stats: { critRating: 44.153846 },
+        durationMs: 1800000,
+        cooldownMs: 3600000,
+        prepull: true,
+      },
+    ]);
+    // `prepull` exactly for on-use buffs of 10 min or more; it is the only one today.
+    const uses = allUse();
+    for (const [item, e] of uses) expect(e.prepull === true, `${item.id} ${item.name}`).toBe(e.durationMs >= 600000);
+    expect(uses.filter(([, e]) => e.prepull).map(([i]) => i.id)).toEqual([24121]);
   });
 
   it('a modelled effect is never also listed as text', () => {

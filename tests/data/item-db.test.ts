@@ -36,7 +36,7 @@ const DB_JSON_MAX_CHARS = 540_000;
 
 /**
  * Caps of the committed file itself (bytes, raw and gzip). Before the structured item effects
- * (gear item effects Task 1) it was 359 521 raw / 56 610 gzip, after 362 715 / 57 280 (the spec
+ * (gear item effects Task 1) it was 359 521 raw / 56 610 gzip, after 362 730 / 57 287 (the spec
  * allows under ~100 KB more raw). The caps leave about 17 KB raw and 4.7 KB gzip of headroom.
  */
 const DB_FILE_MAX_BYTES = 380_000;
