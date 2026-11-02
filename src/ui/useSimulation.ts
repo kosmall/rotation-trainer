@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SPELL_QUEUE_WINDOW_MS } from '../data/common/ratings';
-import { BOSS_TARGET } from '../data/common/target';
 import type { SpecData } from '../data/types';
-import { Simulation } from '../engine/sim';
+import type { Simulation } from '../engine/sim';
 import type { CastResult, LogEvent, ScheduledAura, SimSnapshot } from '../engine/types';
+import { createFightSimulation } from '../sim-runner/fight';
 
 export interface SimulationControls<S extends FightSetup = FightSetup> {
   snapshot: SimSnapshot;
@@ -40,17 +40,12 @@ export interface FightSetup {
   sim: { scheduledAuras: readonly ScheduledAura[]; distanceFromTarget: number; durationMs: number };
 }
 
-/** The fight as the bot tests build it: boss target, default spell queue window, the setup's auras, distance and fight length. */
+/**
+ * The fight as the bot tests build it (`createFightSimulation`, shared with the simulator): boss
+ * target, default spell queue window, the setup's auras, distance and fight length, a fresh seed.
+ */
 function createSimulation(setup: FightSetup): Simulation {
-  return new Simulation({
-    spec: setup.spec,
-    target: BOSS_TARGET,
-    seed: freshSeed(),
-    spellQueueWindowMs: SPELL_QUEUE_WINDOW_MS,
-    distanceFromTarget: setup.sim.distanceFromTarget,
-    scheduledAuras: setup.sim.scheduledAuras,
-    durationMs: setup.sim.durationMs,
-  });
+  return createFightSimulation(setup, freshSeed(), SPELL_QUEUE_WINDOW_MS);
 }
 
 /**
