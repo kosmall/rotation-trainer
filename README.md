@@ -211,6 +211,19 @@ Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następn
 - **Rotacja:** presety rotacji „DoT rotation” (domyślna) i „Shadow Bolt spam + curse” (jak w
   logu). Do tego klątwa, Immolate, Corruption, Shadowburn na koniec walki i próg many dla Life
   Tapa („Auto” albo liczba). Panel Priority pokazuje listę priorytetów dla tych ustawień.
+  Wybór presetu rotacji nie zmienia reguł użycia przedmiotów (poniżej).
+- **Item use** (w grupie Rotation): kiedy bot (i Simulator) używa każdego włączonego przedmiotu z
+  paska Items (Destruction Potion, Super Mana Potion, Dark Rune, trinkety on-use z gearu; tylko
+  włączone). Jeden wiersz na przedmiot: wyzwalacz („Whenever ready”, „At the pull only”, „From a
+  second on”, „With Heroism”, „While a buff is up” z wyborem buffa: Heroism albo buff innego
+  włączonego przedmiotu, „Mana below”, „Mana missing”, „In the last seconds”, „Never (bot)”) z
+  parametrem, opcjonalne okno „Not before / Not after (s)”, strzałki kolejności (wyżej = ważniejszy)
+  i „Reset” wiersza, a pod listą „Reset all item rules to default”. Domyślne reguły to dawne
+  zachowanie bota (burst z Heroismem, a bez Heroismu gdy gotowy; mana-itemy, gdy brakuje ich
+  największego zysku), z identycznymi logami. Własne reguły są częścią setupu: preset pokazuje
+  wtedy „Custom” i dopisek, który preset pasuje poza regułami. Presety setupu i rotacji zachowują
+  reguły. Minimalnego odstępu (`minGapSec`) nie ma w edytorze: w modelu bez pamięci działa tylko
+  w obrębie cooldownu przedmiotu, więc prawie nic nie zmienia (`docs/data-sources.md`, Part H).
 - **Odległość od celu** (yd, domyślnie 28 jak w logu): Shadow Bolt leci 20 yd/s, czyli 1,4 s przy
   28 yd. Odległość wpływa też na moment Shadowburna na koniec walki.
 - **„Stats at the pull”**: statystyki następnej walki przed buffami czasowymi.
@@ -266,6 +279,36 @@ Ekwipunek zapisuje się razem z setupem. Zmiana działa od następnej walki: wal
 zaczęła, bierze ją od razu, trwająca zachowuje swój ekwipunek do `R` (panel to pokazuje, a notka pod
 DPS podaje „Gear: …” walki). „Stats at the pull” pokazuje statystyki z nowym ekwipunkiem od razu.
 Pisanie w polach wyszukiwania, importu i eksportu nie uruchamia skrótów klawiszowych.
+
+## Symulator
+
+Zwijany panel **Simulator** (pod Combat text) gra setup **następnej walki** (gear, buffy, rotacja z
+regułami przedmiotów, długość walki, odległość) wiele razy botem i pokazuje średni DPS.
+
+- **Runs**: liczba walk, 1-100 000 (domyślnie 1000; poza zakresem poprawiane przy wyjściu z pola).
+  Obok szacunek czasu: około 1,2 ms na 60-sekundową walkę w tle (dłuższa walka i więcej przedmiotów
+  trwa dłużej; 100 000 walk to około 2 min).
+- **Seed**: puste pole = losowe ziarno, pokazane przy wyniku („Reuse seed” wpisuje je do pola).
+  Ten sam seed, liczba walk i setup dają zawsze ten sam wynik.
+- **Run / Cancel**: liczy w Web Workerze, więc gra i panele działają normalnie w trakcie. Pasek
+  postępu, tekst postępu najwyżej raz na sekundę. Cancel przerywa i zostawia poprzedni wynik. Run
+  bierze **migawkę** setupu z chwili kliknięcia: zmiany w trakcie liczenia nie wpływają na wynik,
+  a wynik ma opis ustawień, z których powstał (gear, preset setupu, rotacja, reguły przedmiotów,
+  długość walki, okno kolejki, liczba walk, seed). Gdy przeglądarka nie uruchomi workera, liczy w
+  głównym wątku małymi porcjami (ten sam wynik).
+- **Wynik**: średni DPS, σ, błąd standardowy średniej, 95% przedział ufności średniej, min, max,
+  mediana, percentyle 5/25/75/95, histogram, tabela czarów (udział, obrażenia, rzuty, crit, miss),
+  średnie użycia przedmiotów, uptime DoT-ów i buffów, zużyta mana i liczba Life Tapów. „Copy
+  result” kopiuje wynik jako tekst (bez schowka: tekst zaznaczony do skopiowania). Wynik nie jest
+  zapisywany.
+- **Co znaczy ±**: **σ** (odchylenie standardowe) to rozrzut pojedynczych walk: około 2/3 walk
+  mieści się w średnia ± σ, 95% w ± 2σ; więcej walk go nie zmniejsza. **Błąd standardowy** średniej
+  (σ/√runs) mówi, jak dokładnie znamy średnią: 4× więcej walk to 2× mniejszy błąd. Dwa setupy
+  porównuj średnimi; różnica mniejsza niż około 2·√(SE₁² + SE₂²) to szum.
+- **Ograniczenia**: bot gra listę priorytetów z idealnym refleksem (kroki 10 ms, okno kolejki
+  400 ms), jeden cel, bez ruchu i zdrowia, bez efektów, których trener nie modeluje. Wynik służy do
+  porównywania konfiguracji, nie jest bezwzględną prognozą DPS. Gear wymagający bazy przedmiotów
+  czeka, aż baza się wczyta.
 
 ## Co jest modelowane
 
@@ -328,5 +371,6 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/data` | dane gry: współczynniki, cel, katalog buffów, Destruction Warlock (czary, aury, talenty, przedmioty, zestawy, presety gearu, rotacja), baza przedmiotów (`src/data/items`) |
 | `src/setup` | setup walki: domyślne ustawienia i ich walidacja, presety, zapis w `localStorage`, zamiana setupu na dane walki, walidacja gearu, import i eksport wowsims |
 | `src/bot` | bot grający listę priorytetów (punkt odniesienia DPS) |
-| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup, panel Gear, podsumowanie walki |
+| `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, Web Worker i jego klient |
+| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup z edytorem reguł przedmiotów, panel Gear, panel Simulator, podsumowanie walki |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `ui` oraz `smoke.test.ts` |
