@@ -1077,3 +1077,60 @@ Equip effects stay text (59, e.g. Fear Cast Pushback Reduction, Alchemist's Ston
 - **Item row.** 6 slots, keys `ITEM_SLOT_KEYS` = Z X C V B N (`SLOT_KEYS` slots 12-17; `keyToSlot` either case); only bound slots render. B and N follow the hotkey rules of S5 (never inside text-like fields, modals; toggles keep only Space and Enter). On phones (<= 560 px) the "Items" label takes its own row so the six slots fit one row of six (checked at 390 px: no horizontal scroll). An enabled action past the 6th: its row says "Not on the item row (6 slots, all taken): no effect." and the group lists "<name>: not on the item row (6 slots, all taken)", the same text as `describeGear(...).unboundItemEffects`. Hint texts build the key list from `ITEM_SLOT_KEYS`.
 - **Gear panel.** "Item effects: <name> (on use), <name> (proc), <name> (before the pull)" for the worn gear, and the same for each gear preset in its button tooltip. Picker markers: "Effect: Setup panel" when `hasModelledGearEffect` (the derivation's own validators), "Effect not modelled" when the item has an `effects` text; effect-only (hidden) = no modelled stat, no modelled effect, a text effect. Hints: one per worn effect that is not enabled. `describeGear(...).modelledEffects` uses the same validator.
 
+
+## Part G: combat text HUD
+
+Scrolling combat text in the style of MikScrollingBattleText (design spec `docs/superpowers/specs/2026-10-30-scrolling-combat-text-design.md`). The HUD only reads the fight: the model (`src/ui/hudEvents.ts`, `hudFormat.ts`, `hudQueue.ts`, `hudSettings.ts`, pure, no React, no DOM) turns new log entries and snapshot changes into texts. The only engine change is the read-only `Simulation.logSince(index)` (copies of the entries from `index` on, so a reader does not copy the whole log every frame); tests/engine/sim-logsince.test.ts proves a fight read with it every step gives a byte-identical log and the same result, and the golden means stay 1425.1766666666667 / 1428.3350000000003.
+
+### Show/skip table (`HUD_LOG_DECISIONS`)
+
+| Log type | HUD | Rule |
+| --- | --- | --- |
+| `cast-start` | skip | The cast bar shows it. |
+| `cast-complete` | show | Item actions only (`SpellDef.item`): item use "Name" (Notifications). Other spells show their result instead. |
+| `cast-cancel` | skip | Nothing happened. |
+| `impact` | skip | The damage/miss entries that follow it are shown. |
+| `damage` | show | Outgoing: a hit "3,141" (category `damage`) or a crit "4,712!" (category `crits`, larger, bold, sticky), school colour (`SCHOOL_COLORS`); below `minDamage` skipped. |
+| `miss` | show | Outgoing: "Miss" (category `misses`). |
+| `tick` | show | Outgoing: a DoT tick, smaller (x0.85) and lighter (opacity 0.8), the DoT's school colour (category `ticks`); merged per spell within `mergeTicks`; below `minDamage` skipped. |
+| `aura-apply` | show | Visible auras only: a proc "Name!" (gold, sticky, category `procs`), another player buff "+Name" (green, `buffsOn`), an aura on the target "+Name" (`targetDebuffs`, default off). Never: hidden auras, whole-fight auras the fight puts on at 0. |
+| `aura-fade` | show | Visible auras only: a player buff (procs included) "-Name" (red, `buffsOff`), an aura on the target "-Name" (`targetDebuffs`). |
+| `mana` | show | Gains with a source spell: Life Tap, Judgement of Wisdom (logged with the resolving spell), potions, runes: "+1,622 Mana" (blue, `mana`). Regen ticks (no spell id, every 2 s) never. Gains below `mergeManaBelow` merge within 2 s. |
+| `queue` | skip | The spell queue shows on the action bar. |
+| `queue-drop` | skip | Nothing happened. |
+
+From the snapshot (running fights only, stamped with the snapshot's fight time): "Name ready" (`cooldownReady`) when a tracked cooldown that was running reaches 0 (a cooldown at 0 from the start never fires); "Low Mana" (`lowMana`) once when mana drops below `lowManaPct` % of max mana, re-armed when it climbs back to `lowManaPct + 5` % (hysteresis: regen and casts around the threshold would otherwise repeat it).
+
+### Which aura is what (`buildHudContext`, from the fight's data; no hook is run)
+
+- **Unit**: the `on` of the aura's first scheduled entry, else of the first spell applying it (`applyAura`), else the target for an aura with a DoT tick or a damage-taken multiplier (hook-applied target auras: Shadow Vulnerability), else the player.
+- **Proc**: a visible player aura that no spell applies and the fight does not schedule, so only a hook can apply it: set bonus procs (Flameshadow, Shadowflame, Lesser Spell Blasting, Insight), gear procs `item-buff:<id>` (Band of the Eternal Sage, Quagmirran's Eye's "Spell Haste"). Item-use buffs (applied by their item action: the Icon, Destruction Potion) and timed buffs (Heroism) are "+Name" buffs. Backlash and Shadow Trance are not modelled as auras in the trainer (Backlash is a flat +3 % crit talent), so they have no text.
+- **Whole fight at 0**: an aura scheduled at 0 (or before) with no duration override (raid debuffs on the target, 1 h; the pre-pull Chain of the Twilight Owl buff) gives no "+Name" at 0, whatever the settings. A timed buff scheduled at 0 (Heroism at 0 s: it has a duration) shows "+Heroism" at 0.
+- **Ready notifications** track item actions and spells with a cooldown of at least 30 s (`HUD_READY_MIN_COOLDOWN_MS`): Curse of Doom (60 s) and every item action (potions, rune, on-use trinkets; a shared cooldown counts: after a Destruction Potion, "Super Mana Potion ready" when the shared 2 min ends). Shadowburn (15 s) and Conflagrate (10 s) are left out as noise.
+- **Icons**: item icons (public/icons/items/) for ids the catalog marks `iconKind: 'item'` and the derived gear ids (`use-item-`, `item-buff:`, `item-icd:`), spell icons otherwise.
+
+### Cursor, queue
+
+- `HudCursor` = log index read so far, last snapshot time, next event id, last remaining cooldown per tracked spell, low-mana latch. Each entry is read once (a test feeds 10 000 entries one frame at a time and counts exactly 10 000 reads). A log shorter than the index, or a snapshot earlier than the last one, is a new fight: reading restarts at entry 0 with fresh cooldown and low-mana state; ids keep counting (unique React keys). Settings filter what is emitted, never the cursor state.
+- `HudQueue`: merges ticks with the same key (`tick:<spell id>`) whose first tick is at most `mergeTicks` ms of fight time older (amounts summed, one text) and small mana gains within 2 s; at `maxTexts` it drops the oldest non-sticky text; a sticky text (crit, proc) is never dropped: when all texts on screen are sticky it waits (up to 100 waiting: only past that is the oldest waiting dropped) and comes up when one expires. Lanes: 3 per area, round robin, so consecutive texts of an area never share a lane. `expire(nowMs)` removes texts `durationMs` after they came up (UI time, not fight time).
+
+### Settings (`rotation-trainer:hud:v1`, interface preferences, not part of the setup)
+
+| Setting | Default | Range |
+| --- | --- | --- |
+| `enabled` | on | |
+| `damage`, `crits`, `ticks`, `misses`, `buffsOn`, `buffsOff`, `procs`, `mana`, `itemUse`, `cooldownReady`, `lowMana` | on | |
+| `targetDebuffs` | off | |
+| `animation` | `straight` | `straight`, `parabola` |
+| `durationMs` | 1600 | 600-4000 |
+| `fontPx` | 16 | 10-32 |
+| `critScale` | 1.5 | 1-2.5 (two decimals) |
+| `showIcons` | on | |
+| `showSpellNames` | off | |
+| `minDamage` | 0 | 0-100000 |
+| `mergeTicks` (ms, 0 = off) | 250 | 0-2000 |
+| `mergeManaBelow` (0 = off) | 100 (Judgement of Wisdom's 74 merges) | 0-10000 |
+| `maxTexts` | 24 | 4-60 |
+| `lowManaPct` | 20 | 5-80 |
+
+`normalizeHudSettings` takes each field only with the right type (booleans as booleans, finite numbers clamped and rounded, a known animation), own properties only (prototype pollution inert); everything else is the default. `loadHudSettings` / `saveHudSettings` never throw; text over 10 000 characters is ignored before parsing and never written.
