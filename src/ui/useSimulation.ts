@@ -3,7 +3,7 @@ import { SPELL_QUEUE_WINDOW_MS } from '../data/common/ratings';
 import { BOSS_TARGET } from '../data/common/target';
 import type { SpecData } from '../data/types';
 import { Simulation } from '../engine/sim';
-import type { CastResult, ScheduledAura, SimSnapshot } from '../engine/types';
+import type { CastResult, LogEvent, ScheduledAura, SimSnapshot } from '../engine/types';
 
 export interface SimulationControls<S extends FightSetup = FightSetup> {
   snapshot: SimSnapshot;
@@ -13,6 +13,14 @@ export interface SimulationControls<S extends FightSetup = FightSetup> {
   cancel(): void;
   reset(): void;
   start(): void;
+  /**
+   * The current fight's log entries from `index` on (the Simulation's read-only `logSince`): an
+   * incremental reader keeps its own copy and asks only for the new entries each frame, never the
+   * whole log. Stable across fights; pair it with `fightId`.
+   */
+  logSince(index: number): readonly LogEvent[];
+  /** Counts the Simulations built: a new number means a new fight (reset, or a rebuilt fight not started yet). */
+  fightId: number;
 }
 
 let seedCounter = 0;
@@ -68,6 +76,7 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
     builtRef.current = setup;
   }
   const [fight, setFight] = useState<S>(setup);
+  const [fightId, setFightId] = useState(0);
   const [snapshot, setSnapshot] = useState<SimSnapshot>(() => (simRef.current as Simulation).snapshot());
   /** performance.now() at fight time 0, or null before the fight starts. */
   const startedAtRef = useRef<number | null>(null);
@@ -145,8 +154,11 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
     simRef.current = createSimulation(next);
     builtRef.current = next;
     setFight(next);
+    setFightId((n) => n + 1);
     setSnapshot(simRef.current.snapshot());
   }, [stopLoop]);
+
+  const logSince = useCallback((index: number): readonly LogEvent[] => sim().logSince(index), [sim]);
 
   // A new setup rebuilds a fight that has not started; a started or ended fight keeps its own.
   useEffect(() => {
@@ -161,5 +173,5 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
     return stopLoop;
   }, [ensureClock, stopLoop]);
 
-  return { snapshot, fight, cast, cancel, reset, start };
+  return { snapshot, fight, cast, cancel, reset, start, logSince, fightId };
 }

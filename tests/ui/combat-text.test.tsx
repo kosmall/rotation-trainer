@@ -1,0 +1,650 @@
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { Profiler } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
+import type { GearTables, WarlockOptions } from '../../src/data/classes/warlock/destruction';
+import type { SpecData } from '../../src/data/types';
+import type { EquippedItem, LogEvent } from '../../src/engine/types';
+import { DEFAULT_SETUP } from '../../src/setup/defaults';
+import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
+import type { SetupStorage } from '../../src/setup/storage';
+import type { SetupConfig } from '../../src/setup/types';
+import { GameView } from '../../src/ui/GameView';
+import { SCHOOL_COLORS } from '../../src/ui/format';
+import { DEFAULT_HUD_SETTINGS, HUD_STORAGE_KEY } from '../../src/ui/hudSettings';
+import type { HudSettings } from '../../src/ui/hudSettings';
+
+// Shared with the module mocks below (hoisted above the imports by Vitest).
+const h = vi.hoisted(() => ({
+  /** Every Simulation built in the current test (the mock below), newest last. */
+  sims: [] as { log(): readonly unknown[]; snapshot(): { damageTotal: number } }[],
+  /** The seed every Simulation gets: fights in this file are deterministic whatever ran before. */
+  seed: 20261030,
+  /** Renders of the TargetPanel: one per GameView render (it is not memoized). */
+  targetRenders: 0,
+}));
+
+vi.mock('../../src/engine/sim', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/engine/sim')>();
+  class Simulation extends actual.Simulation {
+    constructor(config: ConstructorParameters<typeof actual.Simulation>[0]) {
+      super({ ...config, seed: h.seed });
+      h.sims.push(this);
+    }
+  }
+  return { ...actual, Simulation };
+});
+
+vi.mock('../../src/ui/TargetPanel', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/ui/TargetPanel')>();
+  return {
+    ...actual,
+    TargetPanel: (props: Parameters<typeof actual.TargetPanel>[0]) => {
+      h.targetRenders += 1;
+      return actual.TargetPanel(props);
+    },
+  };
+});
+
+// Fake clock like game.test.tsx: requestAnimationFrame, performance.now and Date move only
+// through vi.advanceTimersByTime (one frame per 16 ms).
+const FAKE_NOW = 1_800_000_000_000;
+
+function fakeClock() {
+  vi.useRealTimers();
+  vi.useFakeTimers({
+    now: FAKE_NOW,
+    toFake: ['Date', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout'],
+  });
+}
+
+beforeEach(() => {
+  h.sims = [];
+  h.targetRenders = 0;
+  fakeClock();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+function advance(ms: number) {
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
+function press(key: string, target: Element | Window = window) {
+  fireEvent.keyDown(target, { key });
+}
+
+/** An in-memory storage holding a setup and (optionally) HUD settings; `map` shows what was saved. */
+function memoryStorage(setup: Partial<SetupConfig> = {}, hud?: Partial<HudSettings> | string) {
+  const map = new Map<string, string>([[SETUP_STORAGE_KEY, JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...setup })]]);
+  if (hud !== undefined) map.set(HUD_STORAGE_KEY, typeof hud === 'string' ? hud : JSON.stringify({ ...DEFAULT_HUD_SETTINGS, ...hud }));
+  const storage: SetupStorage = {
+    getItem: (k) => map.get(k) ?? null,
+    setItem: (k, v) => void map.set(k, v),
+    removeItem: (k) => void map.delete(k),
+  };
+  return { storage, map };
+}
+
+const storedHud = (map: Map<string, string>): HudSettings => JSON.parse(map.get(HUD_STORAGE_KEY) ?? 'null') as HudSettings;
+
+/** The Destruction Warlock with Shadow Bolt's crit chance moved by `critPctDelta` (+100: always, -100: never). */
+function boltCrit(critPctDelta: number) {
+  return (w: WarlockOptions, gear?: readonly (EquippedItem | null)[], db?: GearTables): SpecData => {
+    const spec = db === undefined ? buildDestructionWarlock(w, gear) : buildDestructionWarlock(w, gear, db);
+    return { ...spec, modifiers: [...spec.modifiers, { spellIds: ['shadow-bolt'], critPctDelta }] };
+  };
+}
+const ALWAYS_CRIT = boltCrit(100);
+const NEVER_CRIT = boltCrit(-100);
+
+const hudRoot = () => document.querySelector<HTMLElement>('.hud');
+const texts = (area?: 'outgoing' | 'notifications') =>
+  Array.from(document.querySelectorAll<HTMLElement>(area ? `.hud-${area} .hud-text` : '.hud-text'));
+const labels = (area?: 'outgoing' | 'notifications') => texts(area).map((t) => t.textContent ?? '');
+const textOf = (label: string | RegExp, area?: 'outgoing' | 'notifications') =>
+  texts(area).find((t) => (typeof label === 'string' ? t.textContent === label : label.test(t.textContent ?? '')));
+const fontPx = (el: HTMLElement) => Number.parseFloat(el.style.getPropertyValue('--hud-font'));
+const ids = () => texts().map((t) => t.dataset.hudId);
+const castBar = () => screen.queryByRole('progressbar', { name: 'Cast bar' });
+
+const AMOUNT = /^\d{1,3}(,\d{3})*$/;
+
+/**
+ * A Shadow Bolt (pressed at fight time 0), then Life Tap at 2.5 s, 50 ms on: Life Tap on full mana
+ * gains nothing (no text), so the bolt spends some first. The bolt lands at about 3.83 s.
+ */
+/**
+ * A rough rotation, one call per second of fight: Corruption every 12 s, Immolate every 12 s
+ * (3 s later), Curse of Agony every 24 s, Life Tap every 7 s, Shadow Bolt otherwise (pressed
+ * early is queued or rejected; either is fine). Plenty of hits, crits, ticks, mana and buffs.
+ */
+function rotationKeys(second: number): string[] {
+  if (second % 24 === 6) return ['9'];
+  if (second % 12 === 0) return ['3'];
+  if (second % 12 === 3) return ['2'];
+  if (second % 7 === 6) return ['6'];
+  return ['1'];
+}
+
+function boltThenLifeTap() {
+  press('1');
+  advance(2500);
+  press('6');
+  advance(50);
+}
+
+/**
+ * Opens the "Combat text" panel. A browser fires `toggle` after the click (as a task); jsdom's
+ * comes later than the test, so it is fired here: the panel renders its body once open.
+ */
+function openCombatText(): HTMLDetailsElement {
+  const summary = screen.getByText('Combat text');
+  const details = summary.closest('details') as HTMLDetailsElement;
+  fireEvent.click(summary);
+  fireEvent(details, new Event('toggle'));
+  return details;
+}
+
+async function readCss(): Promise<string> {
+  // Vitest serves stylesheets empty, so the file is read from disk (as player-buffs.test.tsx does).
+  const nodeFs = 'node:' + 'fs';
+  const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
+  const testFile = decodeURIComponent(new URL(import.meta.url).pathname);
+  return fs.readFileSync(testFile.replace(/tests\/ui\/[^/]+$/, 'src/ui/game.css'), 'utf8');
+}
+
+describe('Combat text HUD: texts in the fight', () => {
+  it('casting Shadow Bolt shows its damage text in the outgoing area with the school colour and icon', () => {
+    render(<GameView storage={memoryStorage().storage} buildSpec={NEVER_CRIT} />);
+    press('1');
+    advance(3500);
+    expect(texts()).toHaveLength(0); // still in flight (cast ends 2431, lands 3831 at 28 yd)
+    advance(500);
+    const hit = texts('outgoing');
+    expect(hit).toHaveLength(1);
+    expect(hit[0]!.textContent).toMatch(AMOUNT);
+    expect(hit[0]!.classList.contains('hud-damage')).toBe(true);
+    expect(hit[0]!.style.getPropertyValue('--hud-color')).toBe(SCHOOL_COLORS.shadow);
+    expect(fontPx(hit[0]!)).toBe(DEFAULT_HUD_SETTINGS.fontPx);
+    expect(hit[0]!.querySelector('img')?.getAttribute('src')).toContain('icons/spells/');
+    expect(texts('notifications')).toHaveLength(0);
+  });
+
+  it("a crit shows the larger '!' text", () => {
+    render(<GameView storage={memoryStorage().storage} buildSpec={ALWAYS_CRIT} />);
+    press('1');
+    advance(4000);
+    const crit = textOf(/!$/, 'outgoing');
+    expect(crit).toBeTruthy();
+    expect(crit!.textContent).toMatch(/^\d{1,3}(,\d{3})*!$/);
+    expect(crit!.classList.contains('hud-crit')).toBe(true);
+    expect(fontPx(crit!)).toBe(Math.round(DEFAULT_HUD_SETTINGS.fontPx * DEFAULT_HUD_SETTINGS.critScale));
+  });
+
+  it('a DoT tick shows a smaller, lighter text in the DoT school colour', () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    press('3'); // Corruption
+    let tick: HTMLElement | undefined;
+    for (let i = 0; i < 100 && !tick; i++) {
+      advance(100);
+      tick = texts('outgoing').find((t) => t.classList.contains('hud-tick'));
+    }
+    expect(tick).toBeTruthy();
+    expect(tick!.textContent).toMatch(AMOUNT);
+    expect(fontPx(tick!)).toBeLessThan(DEFAULT_HUD_SETTINGS.fontPx);
+    expect(tick!.style.getPropertyValue('--hud-color')).toBe(SCHOOL_COLORS.shadow);
+  });
+
+  it("Heroism enabled at 6 s shows '+Heroism / Bloodlust' at 6 s and '-Heroism / Bloodlust' at its end", () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['heroism'], timed: { heroism: { startSec: 6, durationSec: 40 } } });
+    render(<GameView storage={storage} />);
+    press(' ');
+    advance(5900);
+    expect(textOf('+Heroism / Bloodlust')).toBeUndefined();
+    advance(200);
+    const on = textOf('+Heroism / Bloodlust', 'notifications');
+    expect(on).toBeTruthy();
+    expect(on!.classList.contains('hud-buff-on')).toBe(true);
+    advance(46000 - 6100 - 100);
+    expect(textOf('-Heroism / Bloodlust')).toBeUndefined();
+    advance(200);
+    expect(textOf('-Heroism / Bloodlust', 'notifications')?.classList.contains('hud-buff-off')).toBe(true);
+  });
+
+  it('an item use shows its name (with its buff)', () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] });
+    render(<GameView storage={storage} />);
+    press('z');
+    advance(50);
+    expect(textOf('Destruction Potion', 'notifications')?.classList.contains('hud-item')).toBe(true);
+    expect(textOf('+Destruction Potion', 'notifications')).toBeTruthy();
+  });
+
+  it('texts born together start on different steps (never on top of each other)', () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion', 'item:29370'] });
+    render(<GameView storage={storage} />);
+    press('z');
+    press('x');
+    advance(50);
+    const notes = texts('notifications');
+    expect(notes.map((t) => t.textContent).sort()).toEqual(
+      ['+Destruction Potion', '+Icon of the Silver Crescent', 'Destruction Potion', 'Icon of the Silver Crescent'].sort(),
+    );
+    const steps = notes.map((t) => t.style.getPropertyValue('--hud-step'));
+    expect(new Set(steps).size).toBe(4);
+    // Item icons come from the item icon folder.
+    expect(textOf('Icon of the Silver Crescent')!.querySelector('img')?.getAttribute('src')).toContain('icons/items/');
+  });
+
+  it("Life Tap shows '+N Mana'", () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    boltThenLifeTap();
+    const mana = textOf(/Mana$/, 'notifications');
+    expect(mana?.textContent).toMatch(/^\+\d{1,3}(,\d{3})* Mana$/);
+    expect(mana!.classList.contains('hud-mana')).toBe(true);
+  });
+
+  it('texts disappear after durationMs and the DOM never holds more than maxTexts', () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] }, { maxTexts: 4, durationMs: 1000, minDamage: 0 });
+    render(<GameView storage={storage} />);
+    press('z'); // "Destruction Potion" and "+Destruction Potion"
+    advance(50);
+    const first = ids();
+    expect(first.length).toBeGreaterThan(0);
+    expect(hudRoot()!.querySelector<HTMLElement>(".hud-text")!.style.animationDuration).toBe('1000ms');
+    advance(1000);
+    for (const id of first) expect(ids()).not.toContain(id);
+
+    // Longer lives (changed live in the panel): the cap is what limits the texts now.
+    openCombatText();
+    const duration = screen.getByLabelText('Text duration (ms)');
+    fireEvent.change(duration, { target: { value: '4000' } });
+    fireEvent.blur(duration);
+
+    let most = 0;
+    for (let i = 0; i < 240; i++) {
+      if (i % 4 === 0) for (const key of rotationKeys(i / 4)) press(key);
+      advance(250);
+      most = Math.max(most, texts().length);
+      expect(texts().length).toBeLessThanOrEqual(4);
+    }
+    expect(most).toBe(4); // the cap was reached
+  });
+
+  it('the HUD is decorative: aria-hidden, no pointer events (stylesheet), reduced motion removes the movement', async () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    const root = hudRoot();
+    expect(root).not.toBeNull();
+    expect(root!.getAttribute('aria-hidden')).toBe('true');
+    expect(root!.closest('.arena')).not.toBeNull(); // inside the arena
+    const css = await readCss();
+    expect(css).toMatch(/\.hud \{[^}]*pointer-events: none/);
+    expect(css).toMatch(/\.hud-text \{[^}]*animation-name: hud-rise/);
+    expect(css).toMatch(/\.hud-parabola \.hud-text \{[^}]*animation-name: hud-arc/);
+    const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)?.join('\n') ?? '';
+    expect(reduced).toMatch(/\.hud-text[^{]*\{[^}]*animation-name: hud-fade/);
+    expect(reduced).toMatch(/\.hud-crit \.hud-inner[^{]*\{[^}]*animation: none/);
+    // hud-fade only fades: no transform in its keyframes.
+    const fade = css.match(/@keyframes hud-fade \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(fade).toMatch(/opacity/);
+    expect(fade).not.toMatch(/transform/);
+  });
+
+  it('disabling the HUD stops every text; disabling a category stops exactly its texts', () => {
+    const off = memoryStorage({}, { enabled: false });
+    render(<GameView storage={off.storage} buildSpec={NEVER_CRIT} />);
+    boltThenLifeTap();
+    advance(1500);
+    expect(hudRoot()).toBeNull();
+    cleanup();
+
+    const noDamage = memoryStorage({}, { damage: false });
+    render(<GameView storage={noDamage.storage} buildSpec={NEVER_CRIT} />);
+    boltThenLifeTap();
+    expect(textOf(/Mana$/)).toBeTruthy(); // mana still on
+    advance(1500); // the bolt has landed
+    expect(texts('outgoing')).toHaveLength(0);
+    cleanup();
+
+    const noCrits = memoryStorage({}, { crits: false });
+    render(<GameView storage={noCrits.storage} buildSpec={ALWAYS_CRIT} />);
+    boltThenLifeTap();
+    expect(textOf(/Mana$/)).toBeTruthy(); // mana still on
+    advance(1500);
+    expect(texts('outgoing')).toHaveLength(0);
+    cleanup();
+
+    const noMana = memoryStorage({}, { mana: false });
+    render(<GameView storage={noMana.storage} buildSpec={ALWAYS_CRIT} />);
+    boltThenLifeTap();
+    expect(textOf(/Mana$/)).toBeUndefined();
+    advance(1500);
+    expect(textOf(/!$/, 'outgoing')).toBeTruthy(); // crits still on
+  });
+
+  it('reset (R) clears all texts', () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] });
+    render(<GameView storage={storage} />);
+    boltThenLifeTap();
+    press('z');
+    advance(50);
+    expect(labels()).toHaveLength(3);
+    expect(labels()).toEqual(expect.arrayContaining(['+Destruction Potion', 'Destruction Potion', expect.stringMatching(/^\+[\d,]+ Mana$/)]));
+    press('r');
+    expect(texts()).toHaveLength(0);
+    // The next fight starts from its own log: its first texts are its own, nothing replayed.
+    press('z');
+    advance(50);
+    expect(labels().sort()).toEqual(['+Destruction Potion', 'Destruction Potion']);
+  });
+
+  it('a setup change that rebuilds a fight not started yet starts the HUD over (no texts, nothing replayed)', () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] });
+    render(<GameView storage={storage} />);
+    boltThenLifeTap();
+    press('r'); // ready again
+    // Change the setup (fight length) while ready: the fight is rebuilt at once.
+    fireEvent.click(screen.getByText('Setup'));
+    const length = screen.getByLabelText('Fight length (s)');
+    fireEvent.change(length, { target: { value: '90' } });
+    fireEvent.blur(length);
+    expect(texts()).toHaveLength(0);
+    press('z');
+    advance(50);
+    expect(labels().sort()).toEqual(['+Destruction Potion', 'Destruction Potion']);
+  });
+
+  it('the end of the fight leaves no new texts; the ones up finish and go', () => {
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] });
+    render(<GameView storage={storage} />);
+    press(' ');
+    advance(59_400);
+    press('z'); // the potion at 59.4 s: its texts are up at the end
+    advance(50);
+    expect(textOf('Destruction Potion')).toBeTruthy();
+    advance(1000); // the fight ends at 60 s
+    expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
+    const atEnd = ids();
+    expect(atEnd.length).toBeGreaterThan(0);
+    advance(5000);
+    expect(ids()).toEqual(atEnd); // nothing new
+    // In a browser each text goes when its CSS animation ends.
+    for (const el of texts()) fireEvent.animationEnd(el);
+    expect(texts()).toHaveLength(0);
+    advance(2000);
+    expect(texts()).toHaveLength(0);
+  });
+
+  it('a text whose animation ended is gone for good (not shown again while the fight runs)', () => {
+    render(<GameView storage={memoryStorage({ enabledBuffs: ['destruction-potion'] }).storage} />);
+    press('z');
+    advance(50);
+    const [first, second] = texts();
+    fireEvent.animationEnd(first!);
+    expect(texts()).toEqual([second]);
+    fireEvent.animationEnd(second!.querySelector('.hud-inner')!); // the crit pop bubbling up: not the text's own end
+    expect(texts()).toEqual([second]);
+    fireEvent.animationEnd(second!);
+    advance(100);
+    expect(texts()).toHaveLength(0);
+  });
+});
+
+describe('Combat text HUD: it only reads the fight', () => {
+  /** Plays a fixed 30 s sequence and returns the fight's log and damage. */
+  function play(hud: Partial<HudSettings>) {
+    fakeClock(); // the same clock (and frame times) for every run
+    const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion', 'heroism'], fightDurationSec: 30 }, hud);
+    const commits = { n: 0 };
+    const view = render(
+      <Profiler id="game" onRender={() => void (commits.n += 1)}>
+        <GameView storage={storage} />
+      </Profiler>,
+    );
+    const timers: number[] = [];
+    press('z');
+    for (let i = 0; i < 31; i++) {
+      for (const key of rotationKeys(i)) press(key);
+      advance(1000);
+      timers.push(vi.getTimerCount());
+    }
+    const sim = h.sims[h.sims.length - 1]!;
+    const result = { log: JSON.stringify(sim.log()), damage: sim.snapshot().damageTotal, timers, renders: h.targetRenders, commits: commits.n };
+    view.unmount();
+    h.targetRenders = 0;
+    return result;
+  }
+
+  it('HUD on and off give identical simulation results (log and damage totals)', () => {
+    const on = play({});
+    const off = play({ enabled: false });
+    expect(on.damage).toBeGreaterThan(0);
+    expect(on.log).toBe(off.log);
+    expect(on.damage).toBe(off.damage);
+    expect((JSON.parse(on.log) as LogEvent[]).length).toBeGreaterThan(50);
+  });
+
+  it('no extra timers (vi.getTimerCount unchanged vs HUD off) and no GameView render per text', () => {
+    const on = play({});
+    const off = play({ enabled: false });
+    expect(on.timers.join(' ')).toBe(off.timers.join(' '));
+    // The GameView (its TargetPanel) renders once per frame either way: the texts never re-render it.
+    expect(on.renders).toBe(off.renders);
+    // The HUD adds at most one commit of its own per frame.
+    expect(on.commits).toBeLessThanOrEqual(off.commits * 2);
+  });
+
+  it('a 300 s fight with many events stays under the cap and keeps the UI responsive', () => {
+    const { storage } = memoryStorage(
+      { enabledBuffs: ['destruction-potion', 'heroism', 'super-mana-potion', 'dark-rune'], fightDurationSec: 300 },
+      { maxTexts: 8, durationMs: 4000, targetDebuffs: true },
+    );
+    let frames = 0;
+    const raf = window.requestAnimationFrame.bind(window);
+    const spy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      frames += 1;
+      return raf(cb);
+    });
+    render(<GameView storage={storage} />);
+    const started = Date.now();
+    let most = 0;
+    for (let s = 0; s < 301; s++) {
+      for (const key of [...(s % 60 === 0 ? ['z', 'x', 'c'] : []), ...rotationKeys(s)]) press(key);
+      advance(1000);
+      most = Math.max(most, texts().length);
+      expect(texts().length).toBeLessThanOrEqual(8);
+    }
+    spy.mockRestore();
+    expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
+    expect(most).toBe(8);
+    // One frame per 16 ms of fight time (plus one per key press that restarts nothing): no extra loop.
+    expect(frames).toBeLessThanOrEqual(Math.ceil(300_000 / 16) + 10);
+    expect(Date.now() - started).toBe(301_000); // fake clock: only the advances moved it
+  }, 30_000);
+});
+
+describe('Combat text settings panel', () => {
+  const open = openCombatText;
+  const CHECKBOXES: [string, keyof HudSettings][] = [
+    ['Show combat text', 'enabled'],
+    ['Damage', 'damage'],
+    ['Crits', 'crits'],
+    ['DoT ticks', 'ticks'],
+    ['Misses', 'misses'],
+    ['Buffs gained', 'buffsOn'],
+    ['Buffs faded', 'buffsOff'],
+    ['Procs', 'procs'],
+    ['Debuffs on the target', 'targetDebuffs'],
+    ['Mana gains', 'mana'],
+    ['Item use', 'itemUse'],
+    ['Cooldown ready', 'cooldownReady'],
+    ['Low mana', 'lowMana'],
+    ['Spell icons', 'showIcons'],
+    ['Spell names', 'showSpellNames'],
+  ];
+  const NUMBERS: [string, keyof HudSettings, number, number][] = [
+    ['Text duration (ms)', 'durationMs', 600, 4000],
+    ['Font size (px)', 'fontPx', 10, 32],
+    ['Crit size (x)', 'critScale', 1, 2.5],
+    ['Minimum damage', 'minDamage', 0, 100000],
+    ['Merge DoT ticks within (ms)', 'mergeTicks', 0, 2000],
+    ['Merge mana gains below', 'mergeManaBelow', 0, 10000],
+    ['Most texts at once', 'maxTexts', 4, 60],
+    ['Low mana below (%)', 'lowManaPct', 5, 80],
+  ];
+
+  it('is a collapsible panel in the side column next to Setup and Gear', () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    expect(screen.queryByLabelText('Damage')).toBeNull(); // collapsed: no controls rendered
+    const details = open();
+    expect(screen.getByLabelText('Damage')).toBeTruthy();
+    expect(details.classList.contains('panel')).toBe(true);
+    expect(details.closest('.game-side')).not.toBeNull();
+    expect(details.open).toBe(true);
+  });
+
+  it('every checkbox switches its setting, shown and saved', () => {
+    const { storage, map } = memoryStorage();
+    render(<GameView storage={storage} />);
+    open();
+    for (const [label, key] of CHECKBOXES) {
+      const box = screen.getByLabelText(label) as HTMLInputElement;
+      expect(box.checked, label).toBe(DEFAULT_HUD_SETTINGS[key]);
+      fireEvent.click(box);
+      expect((screen.getByLabelText(label) as HTMLInputElement).checked, label).toBe(!DEFAULT_HUD_SETTINGS[key]);
+      expect(storedHud(map)[key], label).toBe(!DEFAULT_HUD_SETTINGS[key]);
+    }
+  });
+
+  it('the animation select offers Straight and Parabola and is saved', () => {
+    const { storage, map } = memoryStorage();
+    render(<GameView storage={storage} />);
+    open();
+    const select = screen.getByLabelText('Animation') as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Straight up', 'Parabola']);
+    fireEvent.change(select, { target: { value: 'parabola' } });
+    expect(storedHud(map).animation).toBe('parabola');
+    expect(hudRoot()!.classList.contains('hud-parabola')).toBe(true);
+  });
+
+  it('number inputs take values in range at once and clamp on blur', () => {
+    const { storage, map } = memoryStorage();
+    render(<GameView storage={storage} />);
+    open();
+    for (const [label, key, min, max] of NUMBERS) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      expect(Number(input.value), label).toBe(DEFAULT_HUD_SETTINGS[key]);
+      const inRange = key === 'critScale' ? 2 : min + 1;
+      fireEvent.change(input, { target: { value: String(inRange) } });
+      expect(storedHud(map)[key], label).toBe(inRange);
+      fireEvent.change(input, { target: { value: String(max * 10) } });
+      expect(input.value, label).toBe(String(max * 10)); // kept while typing
+      expect(storedHud(map)[key], label).toBe(inRange);
+      fireEvent.blur(input);
+      expect(Number((screen.getByLabelText(label) as HTMLInputElement).value), label).toBe(max);
+      expect(storedHud(map)[key], label).toBe(max);
+      fireEvent.change(input, { target: { value: String(min - 1) } });
+      fireEvent.blur(input);
+      expect(storedHud(map)[key], label).toBe(min);
+      fireEvent.change(input, { target: { value: '' } });
+      fireEvent.blur(input);
+      expect(Number((screen.getByLabelText(label) as HTMLInputElement).value), label).toBe(min); // empty: unchanged
+    }
+  });
+
+  it('Reset to defaults restores every setting', () => {
+    const { storage, map } = memoryStorage({}, { fontPx: 30, crits: false, animation: 'parabola' });
+    render(<GameView storage={storage} />);
+    const details = open();
+    expect((screen.getByLabelText('Font size (px)') as HTMLInputElement).value).toBe('30');
+    fireEvent.click(within(details).getByRole('button', { name: 'Reset combat text to defaults' }));
+    expect(storedHud(map)).toEqual(DEFAULT_HUD_SETTINGS);
+    expect((screen.getByLabelText('Font size (px)') as HTMLInputElement).value).toBe('16');
+    expect((screen.getByLabelText('Crits') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText('Animation') as HTMLSelectElement).value).toBe('straight');
+  });
+
+  it('settings are saved and restored on the next mount (their own key, not the setup)', () => {
+    const { storage, map } = memoryStorage();
+    const setupBefore = map.get(SETUP_STORAGE_KEY);
+    const first = render(<GameView storage={storage} />);
+    open();
+    fireEvent.click(screen.getByLabelText('Misses'));
+    fireEvent.change(screen.getByLabelText('Most texts at once'), { target: { value: '9' } });
+    first.unmount();
+    expect(map.get(SETUP_STORAGE_KEY)).toBe(setupBefore);
+    render(<GameView storage={storage} />);
+    open();
+    expect((screen.getByLabelText('Misses') as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText('Most texts at once') as HTMLInputElement).value).toBe('9');
+  });
+
+  it('corrupt stored settings fall back to defaults; a throwing storage still works', () => {
+    const corrupt = memoryStorage({}, '{"fontPx": "huge", "enabled": 7, "__proto__": {"enabled": false}');
+    render(<GameView storage={corrupt.storage} />);
+    open();
+    expect((screen.getByLabelText('Font size (px)') as HTMLInputElement).value).toBe('16');
+    expect((screen.getByLabelText('Show combat text') as HTMLInputElement).checked).toBe(true);
+    cleanup();
+
+    const throwing: SetupStorage = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+      removeItem: () => {
+        throw new Error('denied');
+      },
+    };
+    render(<GameView storage={throwing} />);
+    open();
+    fireEvent.click(screen.getByLabelText('Damage'));
+    expect((screen.getByLabelText('Damage') as HTMLInputElement).checked).toBe(false);
+    boltThenLifeTap();
+    expect(textOf(/Mana$/)).toBeTruthy();
+  });
+
+  it('typing in the settings inputs never triggers hotkeys', () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    open();
+    const input = screen.getByLabelText('Font size (px)');
+    const select = screen.getByLabelText('Animation');
+    for (const target of [input, select]) {
+      target.focus();
+      for (const key of ['1', '6', ' ', 'z', 'r', 'Escape']) press(key, target);
+    }
+    expect(castBar()).toBeNull();
+    expect(screen.getByRole('button', { name: 'Start the fight' })).toBeTruthy();
+    // A checkbox keeps only Space and Enter (ruling S5): 1 still casts.
+    const box = screen.getByLabelText('Misses');
+    press(' ', box);
+    expect(screen.getByRole('button', { name: 'Start the fight' })).toBeTruthy();
+    press('1', box);
+    expect(castBar()).not.toBeNull();
+  });
+
+  it('works while a fight is running: a change applies to the next texts', () => {
+    const { storage } = memoryStorage({}, {});
+    render(<GameView storage={storage} buildSpec={NEVER_CRIT} />);
+    press('1');
+    advance(1000);
+    open();
+    fireEvent.click(screen.getByLabelText('Spell names'));
+    fireEvent.change(screen.getByLabelText('Font size (px)'), { target: { value: '20' } });
+    advance(3000); // the bolt lands at about 3.83 s
+    const hit = texts('outgoing')[0]!;
+    expect(hit.textContent).toMatch(/^Shadow Bolt \d{1,3}(,\d{3})*$/);
+    expect(fontPx(hit)).toBe(20);
+    fireEvent.click(screen.getByLabelText('Show combat text'));
+    expect(hudRoot()).toBeNull();
+    expect(within(screen.getByRole('toolbar', { name: 'Action bar' })).getAllByRole('button').length).toBeGreaterThan(0);
+  });
+});

@@ -1650,3 +1650,244 @@ button.primary {
     padding: 6px 0;
   }
 }
+
+/* Combat text HUD (scrolling combat text): two scroll areas inside the arena, under its overlays.
+   Decorative (aria-hidden), never in the way of a click; moved by transform and opacity only.
+   Outgoing (damage) on the right, over the target; Notifications (buffs, procs, mana, items, ready,
+   low mana) at the bottom left, just above the player's bars. Each text starts at its area's
+   bottom on its lane (--hud-x, --hud-y) and rises --hud-rise over its life (the duration is set
+   per text). Colours: the kind's or school's colour (--hud-color), lightened, with a dark outline
+   that reads on the light and the dark theme. */
+.hud {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+  user-select: none;
+  --hud-scale: 1;
+  /* How much of the text colour is kept (the rest is white): the school colours are dark, so the
+     dark theme lightens them; the light theme keeps them (the outline carries the contrast). */
+  --hud-tint: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hud {
+    --hud-tint: 72%;
+  }
+}
+
+.hud-area {
+  position: absolute;
+  width: 50%;
+}
+
+.hud-outgoing {
+  right: 0;
+  top: 0;
+  height: 62%;
+  --hud-rise: 96px;
+  --hud-dx: -50%;
+}
+
+.hud-notifications {
+  left: 0;
+  bottom: 4px;
+  height: 52%;
+  --hud-rise: 72px;
+  --hud-dx: 0px;
+}
+
+/* Lanes: consecutive texts take the next lane (Outgoing: columns; Notifications: a small indent).
+   Texts born close together also start --hud-step lines apart (CombatTextHud), so they never start
+   on top of each other. --hud-arc: the parabola's sideways reach. */
+.hud-outgoing .hud-lane-0 {
+  --hud-x: 50%;
+  --hud-y: 0em;
+  --hud-arc: -36px;
+}
+
+.hud-outgoing .hud-lane-1 {
+  --hud-x: 22%;
+  --hud-y: 0.6em;
+  --hud-arc: -56px;
+}
+
+.hud-outgoing .hud-lane-2 {
+  --hud-x: 76%;
+  --hud-y: 1.2em;
+  --hud-arc: 28px;
+}
+
+.hud-notifications .hud-lane-0 {
+  --hud-x: 12px;
+  --hud-y: 0em;
+  --hud-arc: 40px;
+}
+
+.hud-notifications .hud-lane-1 {
+  --hud-x: 22px;
+  --hud-y: 0em;
+  --hud-arc: 56px;
+}
+
+.hud-notifications .hud-lane-2 {
+  --hud-x: 32px;
+  --hud-y: 0em;
+  --hud-arc: 72px;
+}
+
+.hud-text {
+  position: absolute;
+  left: var(--hud-x, 50%);
+  bottom: calc(var(--hud-y, 0em) + var(--hud-step, 0) * 1.25em);
+  white-space: nowrap;
+  font-size: calc(var(--hud-font, 16px) * var(--hud-scale));
+  line-height: 1.1;
+  color: var(--hud-color);
+  color: color-mix(in srgb, var(--hud-color) var(--hud-tint), #fff);
+  text-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 0 3px rgba(0, 0, 0, 0.85);
+  font-variant-numeric: tabular-nums;
+  transform: translate(var(--hud-dx), 0);
+  opacity: 0;
+  animation-name: hud-rise;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.hud-parabola .hud-text {
+  animation-name: hud-arc;
+}
+
+.hud-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.hud-crit .hud-inner {
+  transform-origin: 50% 80%;
+  animation: hud-pop 240ms ease-out;
+}
+
+.hud-icon {
+  width: 1em;
+  height: 1em;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+@keyframes hud-rise {
+  0% {
+    opacity: 0;
+    transform: translate(var(--hud-dx), 0);
+  }
+  8% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--hud-dx), calc(-1 * var(--hud-rise)));
+  }
+}
+
+/* x follows 1 - (1 - t)^2 (fast out sideways, then straight up), y rises evenly. */
+@keyframes hud-arc {
+  0% {
+    opacity: 0;
+    transform: translate(var(--hud-dx), 0);
+  }
+  8% {
+    opacity: 1;
+  }
+  25% {
+    transform: translate(calc(var(--hud-dx) + 0.4375 * var(--hud-arc)), calc(-0.25 * var(--hud-rise)));
+  }
+  50% {
+    transform: translate(calc(var(--hud-dx) + 0.75 * var(--hud-arc)), calc(-0.5 * var(--hud-rise)));
+  }
+  72% {
+    opacity: 1;
+  }
+  75% {
+    transform: translate(calc(var(--hud-dx) + 0.9375 * var(--hud-arc)), calc(-0.75 * var(--hud-rise)));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--hud-dx) + var(--hud-arc)), calc(-1 * var(--hud-rise)));
+  }
+}
+
+@keyframes hud-pop {
+  0% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion: no movement, no pop; texts appear in place and fade. */
+@keyframes hud-fade {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-text,
+  .hud-parabola .hud-text {
+    animation-name: hud-fade;
+  }
+
+  .hud-crit .hud-inner {
+    animation: none;
+  }
+}
+
+/* Phones: smaller texts and a shorter rise (the arena is narrower and lower). */
+@media (max-width: 560px) {
+  .hud {
+    --hud-scale: 0.85;
+  }
+
+  .hud-outgoing {
+    --hud-rise: 80px;
+  }
+
+  .hud-notifications {
+    --hud-rise: 60px;
+  }
+}
+
+/* Combat text settings (reuses the Setup panel's rows and checks). */
+.hud-settings-group {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.hud-settings-group legend {
+  padding: 0 4px;
+  color: var(--muted);
+}

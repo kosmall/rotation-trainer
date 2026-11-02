@@ -87,7 +87,7 @@ export function isExpiring(remainingMs: number): boolean {
  * aura, which an item `action` applies), the self aura its `action` applies, and its visible helper
  * `auras` (the Band's proc). The first entry in catalog order wins.
  */
-function auraSources(catalog: readonly BuffDef[]): Map<string, BuffDef> {
+export function auraSources(catalog: readonly BuffDef[]): Map<string, BuffDef> {
   const out = new Map<string, BuffDef>();
   const add = (auraId: string | undefined, b: BuffDef) => {
     if (auraId !== undefined && !out.has(auraId)) out.set(auraId, b);

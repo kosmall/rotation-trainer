@@ -20,13 +20,18 @@ import type { AppliedSetup, SetupConfig } from '../setup/types';
 import { ActionBar, REJECT_LABELS } from './ActionBar';
 import type { SlotFlash } from './ActionBar';
 import { CastBar } from './CastBar';
+import { CombatTextLayer } from './CombatTextHud';
+import { CombatTextSettings } from './CombatTextSettings';
+import { buildHudContext } from './hudEvents';
+import { loadHudSettings, normalizeHudSettings, saveHudSettings } from './hudSettings';
+import type { HudSettings, HudStorage } from './hudSettings';
 import { formatDps, formatInt, secondsText } from './format';
 import { CUSTOM_GEAR_NAME, GearPanel, type GearDbStatus } from './GearPanel';
 import { itemEffectHints, matchingPreset } from './gearView';
 import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
-import { buildBuffViews } from './buffsView';
+import { auraSources, buildBuffViews } from './buffsView';
 import { PlayerBuffsPanel, useAuraTotals } from './PlayerBuffsPanel';
 import { activePresetName, SetupPanel } from './SetupPanel';
 import { StartOverlay } from './StartOverlay';
@@ -125,6 +130,11 @@ export interface GameViewProps {
    * (storage.ts never throws).
    */
   storage?: SetupStorage | null;
+  /**
+   * Where the combat text settings are loaded from (once, at mount) and saved to, under their own
+   * key. Default: `storage` when it is given (`null` included), else the browser's localStorage.
+   */
+  hudStorage?: HudStorage | null;
 }
 
 /**
@@ -134,8 +144,25 @@ export interface GameViewProps {
  * takes it at once, a running or ended one keeps its own until R (useSimulation). The Priority
  * list and the stats at the pull follow the setup at once.
  */
-export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb = loadItemDb, onReload = reloadPage }: GameViewProps) {
+export function GameView({
+  buildSpec = buildDestructionWarlock,
+  storage,
+  hudStorage,
+  loadDb = loadItemDb,
+  onReload = reloadPage,
+}: GameViewProps) {
   const [store] = useState<SetupStorage | null>(() => (storage === undefined ? browserStorage() : storage));
+  const [hudStore] = useState<HudStorage | null>(() => (hudStorage !== undefined ? hudStorage : store));
+  // Combat text preferences: loaded once, every edit normalized and saved (the HUD's own key).
+  const [hudSettings, setHudSettings] = useState<HudSettings>(() => loadHudSettings(hudStore));
+  const changeHudSettings = useCallback(
+    (edited: HudSettings) => {
+      const next = normalizeHudSettings(edited);
+      setHudSettings(next);
+      saveHudSettings(hudStore, next); // false (full, private mode): kept in memory only
+    },
+    [hudStore],
+  );
   const [config, setConfig] = useState<SetupConfig>(() => loadSetup(store, SETUP_CATALOG));
   const [itemDb, setItemDb] = useState<{ status: GearDbStatus; db: ItemDb | null }>({ status: 'idle', db: null });
   const dbRef = useRef<ItemDb | null>(null);
@@ -210,7 +237,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
       ...applySetup({ buildSpec: build, catalog: STATIC_SETUP_CATALOG, config: fightConfig, db }),
     };
   }, [buildSpec, config, db]);
-  const { snapshot, fight, cast, cancel, reset, start } = useSimulation(nextFight);
+  const { snapshot, fight, cast, cancel, reset, start, logSince, fightId } = useSimulation(nextFight);
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
   const priority = nextFight.spec.priority;
@@ -218,6 +245,21 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
   const fightGear = useMemo(() => gearName(fight.config), [fight.config]);
   const itemDescriptionsOfFight = useMemo(() => itemDescriptions(fight.catalog), [fight]);
   const itemIconsOfFight = useMemo(() => itemIconActions(fight.catalog), [fight]);
+  // The combat text of the running (or ended) fight: names, icons (item icons from its catalog),
+  // school colours, hidden and proc auras, item actions and cooldowns, its scheduled auras. An
+  // aura from a catalog entry is named like in "Your buffs" ("Heroism / Bloodlust").
+  const hudContext = useMemo(() => {
+    const sources = auraSources(fight.catalog);
+    return buildHudContext({
+      spells: fight.spec.spells,
+      auras: fight.spec.auras.map((a) => {
+        const name = sources.get(a.id)?.name;
+        return name === undefined || name === a.name ? a : { ...a, name };
+      }),
+      scheduledAuras: fight.sim.scheduledAuras,
+      catalog: fight.catalog,
+    });
+  }, [fight]);
   // The Gear panel's hints (shown once the database has loaded: then the next fight wears `config`'s gear).
   const gearHints = useMemo(
     () => itemEffectHints(nextFight.catalog.filter((b) => isGearEffectId(b.id)), config.enabledBuffs),
@@ -317,6 +359,14 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
         <FightStats snapshot={snapshot} config={fight.config} presetName={fightPreset} gearName={fightGear} />
         <section className="arena">
           <TargetPanel spec={spec} targetAuras={snapshot.targetAuras} fightRemainingMs={fightRemainingMs} />
+          {/* Under the overlays: the start card and the end summary stay clean. */}
+          <CombatTextLayer
+            snapshot={snapshot}
+            fightId={fightId}
+            logSince={logSince}
+            context={hudContext}
+            settings={hudSettings}
+          />
           {snapshot.phase === 'ready' && <StartOverlay onStart={start} />}
           {snapshot.phase === 'ended' && (
             <EndSummary
@@ -372,6 +422,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
           fightEnded={snapshot.phase === 'ended'}
           hints={gearHints}
         />
+        <CombatTextSettings settings={hudSettings} onChange={changeHudSettings} />
         <CharacterStats spec={nextFight.spec} />
         <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} unmodelled={UNMODELLED_SETS} />
         <details className="panel priority">
