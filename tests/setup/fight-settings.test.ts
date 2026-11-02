@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
 import { buildDestructionWarlock, destructionWarlock } from '../../src/data/classes/warlock/destruction';
-import { buildItemSteps } from '../../src/data/classes/warlock/itemRules';
+import { buildItemSteps as buildStaticItemSteps } from '../../src/data/classes/warlock/itemRules';
 import { deepFreeze } from '../../src/data/common/buffs';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
 import { BOSS_TARGET } from '../../src/data/common/target';
@@ -15,12 +15,19 @@ import type { LogEvent, SimSnapshot } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
 import { DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG, SETUP_LIMITS } from '../../src/setup/defaults';
 import { SETUP_PRESETS } from '../../src/setup/presets';
+import { gearItemRules, isGearEffectId } from '../../src/setup/gearEffects';
 import type { SetupConfig } from '../../src/setup/types';
 
 deepFreeze(destructionWarlock);
 deepFreeze(SETUP_CATALOG);
 
-const ICON = 'use-icon-of-the-silver-crescent';
+// The Icon is derived from the author's gear since gear item effects Task 2 (stage F ids: entry
+// 'icon-of-the-silver-crescent', action 'use-icon-of-the-silver-crescent'); its bot rule comes
+// with the gear (`gearItemRules`), as applySetup passes it.
+const ICON = 'use-item-29370';
+const ICON_BUFF = 'item:29370';
+const GEAR_RULES = gearItemRules(SETUP_CATALOG.filter((b) => isGearEffectId(b.id)));
+const buildItemSteps = (ids: readonly string[], heroismEndMs: number | null) => buildStaticItemSteps(ids, heroismEndMs, GEAR_RULES);
 const DESTRUCTION = 'use-destruction-potion';
 const SUPER_MANA = 'use-super-mana-potion';
 const DARK_RUNE = 'use-dark-rune';
@@ -117,7 +124,8 @@ describe('fight length: config and normalizeSetup', () => {
     const out = norm(oldV1);
     expect(out.fightDurationSec).toBe(60);
     expect(out.timed).toEqual({ heroism: { startSec: 6.4, durationSec: 40 } });
-    expect(out.enabledBuffs).toEqual(['heroism', 'destruction-potion', 'icon-of-the-silver-crescent', 'misery']);
+    // The stage F Icon id migrates to the gear-derived id (gear item effects Task 2).
+    expect(out.enabledBuffs).toEqual(['heroism', 'destruction-potion', ICON_BUFF, 'misery']);
     expect(out.distanceYd).toBe(12);
     expect(out.rotation.curse).toBe('doom');
     expect(out.warlock).toEqual({ armor: 'demon', sacrificeSuccubus: false });
@@ -208,12 +216,12 @@ describe('item rules with Heroism in fights longer than one cooldown', () => {
       const step = steps.find((s) => s.spellId === ICON)!;
       return step.when!(at0);
     };
-    const items = ['heroism', 'icon-of-the-silver-crescent'];
+    const items = ['heroism', ICON_BUFF];
     expect(iconWhen({ enabledBuffs: items, ...heroismAt(6.4) })).toBe(false); // waits for Heroism
     expect(iconWhen({ enabledBuffs: items, ...heroismAt(70) })).toBe(true); // 60 s fight: never up
     expect(iconWhen({ enabledBuffs: items, ...heroismAt(60) })).toBe(true); // at the end exactly: never up
     expect(iconWhen({ enabledBuffs: items, ...heroismAt(70), fightDurationSec: 120 })).toBe(false); // up at 70 s
-    expect(iconWhen({ enabledBuffs: ['icon-of-the-silver-crescent'], ...heroismAt(6.4) })).toBe(true); // Heroism off
+    expect(iconWhen({ enabledBuffs: [ICON_BUFF], ...heroismAt(6.4) })).toBe(true); // Heroism off
 
     // In a fight: Heroism at 70 s of a 60 s fight, the Icon is used at the pull.
     const applied = apply({ enabledBuffs: items, ...heroismAt(70) });
@@ -226,7 +234,7 @@ describe('item rules with Heroism in fights longer than one cooldown', () => {
 
   it('bot, 300 s fight, Heroism at 6.4 s: the Icon and Destruction Potion are used during Heroism, then again whenever ready (~120 s after each use); Dark Rune keeps its 1500 threshold', () => {
     const applied = apply({
-      enabledBuffs: ['heroism', 'destruction-potion', 'dark-rune', 'icon-of-the-silver-crescent'],
+      enabledBuffs: ['heroism', 'destruction-potion', 'dark-rune', ICON_BUFF],
       ...heroismAt(6.4),
       fightDurationSec: 300,
     });
@@ -257,7 +265,7 @@ describe('item rules with Heroism in fights longer than one cooldown', () => {
 
   it('bot, 300 s fight, Heroism at 6.4 s: Super Mana Potion only at >= 3000 missing mana and Dark Rune at >= 1500, the potion group never inside 120 s', () => {
     const applied = apply({
-      enabledBuffs: ['heroism', 'super-mana-potion', 'dark-rune', 'icon-of-the-silver-crescent'],
+      enabledBuffs: ['heroism', 'super-mana-potion', 'dark-rune', ICON_BUFF],
       ...heroismAt(6.4),
       fightDurationSec: 300,
     });

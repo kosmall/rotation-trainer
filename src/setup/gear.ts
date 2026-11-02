@@ -4,13 +4,15 @@
 // framework-free; nothing here throws or mutates its inputs.
 
 import { destructionEquipped, AUTHOR_GEAR_TABLES } from '../data/classes/warlock/destruction';
-import { MODELLED_ITEM_EFFECTS, metaGemModifiers } from '../data/classes/warlock/items';
+import { metaGemModifiers } from '../data/classes/warlock/items';
 import { UNMODELLED_SETS, WARLOCK_SET_BONUSES } from '../data/classes/warlock/sets';
 import { deepFreeze } from '../data/common/buffs';
 import { ITEM_SLOTS, logicalSlot } from '../data/items/db';
 import type { ItemDb, ItemRecord, SlotKey } from '../data/items/types';
 import { countGemColor, gemFitsSocket, metaRequirementMet, socketMatches, type MetaColorCounts } from '../engine/gear';
 import type { EquippedItem, GemDef, RawStats } from '../engine/types';
+import { ITEM_SLOT_COUNT, type BuffDef } from '../data/types';
+import { enabledSetupEntries } from './gearEffects';
 import type { SetupConfig } from './types';
 
 /** A gear: one entry per slot of `ITEM_SLOTS` (WowSimsExporter order), null for an empty slot. */
@@ -214,11 +216,18 @@ export function gearNeedsDb(gear: readonly (EquippedItem | null)[]): boolean {
 /** What the UI shows about a gear (`describeGear`). */
 export interface GearDescription {
   /**
-   * One line per item or meta gem effect the trainer does not model ("<item>: <effect>"). Items
-   * whose effect the setup catalog models (Icon of the Silver Crescent, Band of the Eternal Sage:
-   * `MODELLED_ITEM_EFFECTS`) are left out.
+   * One line per item or meta gem effect the trainer does not model ("<item>: <effect>"): the
+   * items' text effects (`ItemRecord.effects`). Structured effects (`useEffects`/`procEffects`) are
+   * modelled (src/setup/gearEffects.ts) and never listed here.
    */
   unmodelledEffects: string[];
+  /** The worn items with a modelled effect (a `useEffects` or `procEffects` entry), by name, slot order. */
+  modelledEffects: string[];
+  /**
+   * With `enabled`: one line per enabled item effect whose item action does not fit the item row
+   * ("<entry>: not on the item row (6 slots, all taken)"); it is not applied. Empty otherwise.
+   */
+  unboundItemEffects: string[];
   /** One line per worn set bonus that is not modelled ("<set> (<pieces>): <reason>"). */
   unmodelledSets: string[];
   /** A meta gem is socketed and its requirement holds (an inactive meta gem gives nothing). */
@@ -230,11 +239,18 @@ export interface GearDescription {
 }
 
 /**
- * Describes a (normalized) gear for the UI. Unknown ids are skipped. Pure; never throws for a
+ * Describes a (normalized) gear for the UI. Unknown ids are skipped. With `enabled` (the config's
+ * enabled ids and the catalog) also the enabled item effects left off the item row
+ * (`enabledSetupEntries`: more than ITEM_SLOT_COUNT item actions). Pure; never throws for a
  * normalized gear.
  */
-export function describeGear(gear: readonly (EquippedItem | null)[], db: ItemDb): GearDescription {
+export function describeGear(
+  gear: readonly (EquippedItem | null)[],
+  db: ItemDb,
+  enabled?: { enabledBuffs: readonly string[]; catalog: readonly BuffDef[] },
+): GearDescription {
   const unmodelledEffects: string[] = [];
+  const modelledEffects: string[] = [];
   const warnings: string[] = [];
   const socketBonuses: GearDescription['socketBonuses'] = [];
   const counts: MetaColorCounts = { red: 0, blue: 0, yellow: 0 };
@@ -250,9 +266,8 @@ export function describeGear(gear: readonly (EquippedItem | null)[], db: ItemDb)
       s.count += 1;
       setPieces.set(item.setId, s);
     }
-    if (!has(MODELLED_ITEM_EFFECTS, item.id)) {
-      for (const effect of item.effects ?? []) unmodelledEffects.push(`${item.name}: ${effect}`);
-    }
+    for (const effect of item.effects ?? []) unmodelledEffects.push(`${item.name}: ${effect}`);
+    if ((item.useEffects?.length ?? 0) + (item.procEffects?.length ?? 0) > 0) modelledEffects.push(item.name);
     if (item.faction === 'horde') {
       warnings.push(`${item.name} is a Horde-only item; the trainer's character is a Gnome (Alliance).`);
     }
@@ -292,5 +307,20 @@ export function describeGear(gear: readonly (EquippedItem | null)[], db: ItemDb)
     }
   }
 
-  return { unmodelledEffects, unmodelledSets, metaActive: activeMetas.length > 0, socketBonuses, warnings };
+  const unboundItemEffects =
+    enabled === undefined
+      ? []
+      : enabledSetupEntries(enabled.catalog, { enabledBuffs: [...enabled.enabledBuffs], gear: [...gear] }, db).unbound.map(
+          (b) => `${b.name}: not on the item row (${ITEM_SLOT_COUNT} slots, all taken)`,
+        );
+
+  return {
+    unmodelledEffects,
+    modelledEffects,
+    unboundItemEffects,
+    unmodelledSets,
+    metaActive: activeMetas.length > 0,
+    socketBonuses,
+    warnings,
+  };
 }

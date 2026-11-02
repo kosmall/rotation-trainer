@@ -5,6 +5,7 @@
 
 import type { WarlockOptions } from '../data/classes/warlock/destruction';
 import type { RotationConfig } from '../data/classes/warlock/rotation';
+import type { ItemDb } from '../data/items/types';
 import type { BuffDef, SpecData } from '../data/types';
 import type { EquippedItem, ScheduledAura } from '../engine/types';
 
@@ -50,9 +51,18 @@ export interface ApplySetupInput {
    * `gear` is undefined for a config without gear (the author's).
    */
   buildSpec(warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[]): SpecData;
-  /** The buff catalog (`SETUP_CATALOG`). */
+  /**
+   * The buff catalog (`SETUP_CATALOG`, `STATIC_SETUP_CATALOG` or `setupCatalogFor(...)`): only its
+   * gear-independent entries are used; the item entries are derived from `config.gear`.
+   */
   catalog: readonly BuffDef[];
   config: SetupConfig;
+  /**
+   * The item database, for the gear's item effects (src/setup/gearEffects.ts). Absent or null (not
+   * loaded yet): the embedded author records, which know only the author's items (the default
+   * gear's Icon and Band work without the database).
+   */
+  db?: ItemDb | null;
 }
 
 export interface AppliedSetup {

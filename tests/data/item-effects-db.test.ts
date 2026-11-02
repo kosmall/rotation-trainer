@@ -1,9 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BAND_ICD_MS,
-  BAND_PROC_CHANCE,
-  warlockItemBuffs,
-} from '../../src/data/classes/warlock/buffs';
 import { itemDbSync } from '../../src/data/items/dbSync';
 import type { ItemDb, ItemProcEffect, ItemRecord, ItemUseEffect } from '../../src/data/items/types';
 import type { RawStats } from '../../src/engine/types';
@@ -168,15 +163,16 @@ describe('structured item effects in the database', () => {
     // Its only effect is structured: no unmodelled text left.
     expect(icon.effects).toBeUndefined();
 
-    // The same numbers as the hand-modelled stage 1.5 / F entry.
-    const hand = warlockItemBuffs.find((b) => b.id === 'icon-of-the-silver-crescent')!;
+    // The same numbers as the hand-modelled stage 1.5 / F entry (removed in gear item effects Task 2:
+    // the entry is now derived from this record, tests/setup/gear-effects.test.ts): cooldown 120000,
+    // shared 20000, aura 20000 ms +155 spell power "Blessing of the Silver Crescent", wowheadId 35163.
     const use = icon.useEffects![0]!;
-    expect(use.cooldownMs).toBe(hand.effect.action!.cooldownMs);
-    expect(use.group!.ms).toBe(hand.effect.action!.sharedCooldown!.ms);
-    expect(use.durationMs).toBe(hand.effect.selfAura!.durationMs);
-    expect(use.stats).toEqual(hand.effect.selfAura!.selfStatBonuses);
-    expect(use.buffName).toBe(hand.effect.selfAura!.name);
-    expect(use.buffId).toBe(hand.effect.selfAura!.wowheadId);
+    expect(use.cooldownMs).toBe(120000);
+    expect(use.group!.ms).toBe(20000);
+    expect(use.durationMs).toBe(20000);
+    expect(use.stats).toEqual({ spellPower: 155 });
+    expect(use.buffName).toBe('Blessing of the Silver Crescent');
+    expect(use.buffId).toBe(35163);
   });
 
   it("Band of the Eternal Sage (29305): procEffect +95 spell power, 10000 ms, chance 0.1, icd 60000, trigger 'hit'", () => {
@@ -199,14 +195,14 @@ describe('structured item effects in the database', () => {
     expect(band.useEffects).toBeUndefined();
     expect(band.effects).toBeUndefined();
 
-    const hand = warlockItemBuffs.find((b) => b.id === 'band-of-the-eternal-sage')!;
-    const buff = hand.effect.auras!.find((a) => a.id === 'band-of-the-eternal-sage')!;
+    // The stage F hand entry's numbers (BAND_PROC_CHANCE 0.1, BAND_ICD_MS 60000, aura 10000 ms +95,
+    // wowheadId 35084; removed in Task 2, the derived entry reproduces them).
     const proc = band.procEffects![0]!;
-    expect(proc.chance).toBe(BAND_PROC_CHANCE);
-    expect(proc.icdMs).toBe(BAND_ICD_MS);
-    expect(proc.durationMs).toBe(buff.durationMs);
-    expect(proc.stats).toEqual(buff.selfStatBonuses);
-    expect(proc.buffId).toBe(buff.wowheadId);
+    expect(proc.chance).toBe(0.1);
+    expect(proc.icdMs).toBe(60000);
+    expect(proc.durationMs).toBe(10000);
+    expect(proc.stats).toEqual({ spellPower: 95 });
+    expect(proc.buffId).toBe(35084);
   });
 
   it("Quagmirran's Eye (27683): proc +320 haste 6000 ms chance 0.1 icd 45000, trigger 'cast'", () => {

@@ -49,6 +49,13 @@ export interface BuffDef {
   id: string;
   name: string;
   icon: string;
+  /**
+   * Where `icon` lives: absent for a spell icon (public/icons/spells/<icon>.jpg, the default);
+   * 'item' for an item icon (public/icons/items/<icon>.jpg), as the gear-derived item effects
+   * have (src/setup/gearEffects.ts: the icon of the worn item). Their auras and item action carry
+   * the same item icon name.
+   */
+  iconKind?: 'item';
   /** Wowhead (TBC) spell id: source of the icon file. */
   wowheadId?: number;
   group: BuffGroup;
@@ -105,5 +112,9 @@ export interface SpecData {
 
 /** Slots of the spell row (keys 1-9, 0, -, =): `SpecData.keybinds[0..11]`. */
 export const SPELL_SLOT_COUNT = 12;
-/** Slots of the item row (keys Z X C V): `SpecData.keybinds[12..15]` of an applied setup. */
-export const ITEM_SLOT_COUNT = 4;
+/**
+ * Slots of the item row (keys Z X C V B N): `SpecData.keybinds[12..17]` of an applied setup. Six,
+ * because two on-use trinkets, Destruction Potion, Super Mana Potion and Dark Rune already make
+ * five (gear item effects spec §2 D).
+ */
+export const ITEM_SLOT_COUNT = 6;

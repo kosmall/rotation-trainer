@@ -1,11 +1,9 @@
 // Warlock side of the setup catalog (stage 1.5 Part C): how the raid's debuffs relate to the
 // warlock's own auras, the descriptions of the warlock options for the setup panel (see
-// docs/data-sources.md, "Part C: consumables, debuffs and warlock options"), and the effects of
-// the warlock's equipped items (see "Part C: cooldowns and item effects").
+// docs/data-sources.md, "Part C: consumables, debuffs and warlock options"), and which spells
+// trigger the gear's proc effects (see "Part F: gear item effects").
 
 import type { AuraDef } from '../../../engine/types';
-import { deepFreeze, itemAction } from '../../common/buffs';
-import type { BuffDef } from '../../types';
 import { warlockAuras } from './auras';
 import type { WarlockOptions } from './destruction';
 import { warlockSpells } from './spells';
@@ -96,30 +94,20 @@ export const SACRIFICE_SUCCUBUS_OPTION: Readonly<WarlockOptionInfo> = Object.fre
 });
 
 // ===========================================================================
-// Item effects of the equipped gear (stage 1.5 Task 8, group 'item')
-// Both items are in the default gear (destruction.ts `destructionEquipped`: 29370 trinket, 29305
-// ring) and their equip stats (Icon +43 spell damage; Band +25 int, +34 spell damage, +24 crit
-// rating) are already in the gear stats. These entries add ONLY the on-use / proc buff, so
-// nothing is counted twice. The Icon is an item action (pressed from the item row; stage 1.5
-// scheduled it at a configurable second: superseded, see docs/data-sources.md "Part D: item
-// actions"). Values: wowsims/tbc-new @ 91f869a assets/database/db.json
-// `itemEffects` of the items (read by sim/common/tbc/stat_bonus_cds_auto_gen.go and
-// stat_bonus_procs_auto_gen.go), cross-checked with Wowhead TBC tooltips; durations and the
-// internal cooldown are checkpoints of the author's Naj'entus log. Every aura here is its own
-// object (the catalog is deep-frozen).
+// Proc triggers of the gear's item effects (gear item effects Task 2)
+// The item effects themselves are derived from the worn gear and the item database
+// (src/setup/gearEffects.ts `deriveGearEffects`); stage 1.5 Task 8 hand-wrote the Icon of the
+// Silver Crescent and the Band of the Eternal Sage here (superseded: the derived entries reproduce
+// them exactly, tests/setup/gear-effects.test.ts). What stays here is warlock data: which spells
+// count for the `hit`/`crit` and `cast` triggers (rulings E-1, E-2; src/data/items/types.ts
+// `ItemProcTrigger`).
 // ===========================================================================
 
-/** Band of the Eternal Sage: proc chance per roll (db.json item 29305 `proc.procChance` 0.1). */
-export const BAND_PROC_CHANCE = 0.1;
-/** Band of the Eternal Sage: internal cooldown (db.json `proc.icdMs` 60000; author's log: 60 s). */
-export const BAND_ICD_MS = 60000;
-/** Id of the Band's hidden internal-cooldown aura. */
-export const BAND_ICD_AURA_ID = 'band-of-the-eternal-sage-icd';
-
 /**
- * The warlock spells that can proc the Band: the "offensive spells" that deal damage (a direct
- * part, or a DoT applied on the target). Life Tap (no target) and Curse of the Elements (no damage)
- * never do. Derived from the spell and aura data, so a new damaging spell is included.
+ * The warlock spells that a `hit` (and `crit`) proc rolls on: the "offensive spells" that deal
+ * damage (a direct part, or a DoT applied on the target). Life Tap (no target) and Curse of the
+ * Elements (no damage) never do. Derived from the spell and aura data, so a new damaging spell is
+ * included. The stage F Band rule (ruling E-2), hence the name.
  */
 export const BAND_PROC_SPELL_IDS: readonly string[] = Object.freeze(
   warlockSpells
@@ -127,92 +115,8 @@ export const BAND_PROC_SPELL_IDS: readonly string[] = Object.freeze(
     .map((s) => s.id),
 );
 
-export const warlockItemBuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
-  {
-    id: 'icon-of-the-silver-crescent',
-    name: 'Icon of the Silver Crescent',
-    icon: 'inv_trinket_naxxramas06',
-    wowheadId: 35163,
-    group: 'item',
-    description:
-      "On use (item bar): +155 spell power for 20 s (author's log: 20 s). 2 min cooldown; other on-use trinkets are blocked for 20 s. Its equip +43 spell power is already in the gear.",
-    // db.json item 29370 itemEffects: buffId 35163 "Blessing of the Silver Crescent",
-    // effectDurationMs 20000, stats SpellDamage 155, onUse { cooldownMs 120000, categoryId 1141,
-    // categoryCooldownMs 20000 } (the shared trinket category); stat_bonus_cds_auto_gen.go
-    // NewSimpleStatActive(29370). Wowhead TBC spell=35163 "Increases damage and healing done by
-    // magical spells and effects by up to 155 for 20 sec.", item=29370 "(2 Min Cooldown)".
-    source:
-      "wowsims/tbc-new sim/common/tbc/stat_bonus_cds_auto_gen.go NewSimpleStatActive(29370) + assets/database/db.json item 29370; https://www.wowhead.com/tbc/spell=35163; author's log",
-    effect: {
-      // Used from the item row: applies the aura below; no `timed` (the player chooses when).
-      action: itemAction({
-        id: 'use-icon-of-the-silver-crescent',
-        name: 'Icon of the Silver Crescent',
-        icon: 'inv_trinket_naxxramas06',
-        wowheadId: 35163,
-        cooldownMs: 120000, // db.json onUse cooldownMs
-        sharedCooldown: { group: 'trinket', ms: 20000 }, // db.json onUse categoryId 1141, categoryCooldownMs
-        applyAura: { auraId: 'icon-of-the-silver-crescent', on: 'self' },
-      }),
-      selfAura: {
-        id: 'icon-of-the-silver-crescent',
-        name: 'Blessing of the Silver Crescent',
-        icon: 'inv_trinket_naxxramas06',
-        wowheadId: 35163,
-        durationMs: 20000,
-        selfStatBonuses: { spellPower: 155 },
-      },
-    },
-  },
-  {
-    id: 'band-of-the-eternal-sage',
-    name: 'Band of the Eternal Sage',
-    icon: 'spell_holy_mindvision',
-    wowheadId: 35084,
-    group: 'item',
-    description:
-      "Proc: each landed damaging spell has a 10% chance to give +95 spell power for 10 s, then not again for 60 s (author's log: 10 s buff, 60 s internal cooldown). DoT ticks, Life Tap and Curse of the Elements never proc it; wowsims rolls at cast end, the trainer when the spell lands. Its equip stats are already in the gear.",
-    // db.json item 29305 itemEffects: buffId 35084, effectDurationMs 10000, stats SpellDamage 95,
-    // proc { icdMs 60000, procChance 0.1 }; stat_bonus_procs_auto_gen.go: CallbackOnCastComplete,
-    // ProcMaskSpellDamage. aura_helpers.go AttachProcTriggerCallback: the ICD is checked before
-    // the roll (no draw while on cooldown) and starts when it procs. Wowhead TBC spell=35083 "Your
-    // offensive spells have a chance on hit to increase your spell damage by 95 for 10 secs.
-    // (Proc chance: 10%, 1m cooldown)", spell=35084 the buff.
-    source:
-      "wowsims/tbc-new sim/common/tbc/stat_bonus_procs_auto_gen.go (29305) + assets/database/db.json item 29305; https://www.wowhead.com/tbc/spell=35083; author's log",
-    effect: {
-      auras: [
-        {
-          id: 'band-of-the-eternal-sage',
-          name: 'Band of the Eternal Sage',
-          icon: 'spell_holy_mindvision',
-          wowheadId: 35084,
-          durationMs: 10000,
-          selfStatBonuses: { spellPower: 95 },
-        },
-        {
-          // Bookkeeping only: while it is up the Band cannot proc.
-          id: BAND_ICD_AURA_ID,
-          name: 'Band of the Eternal Sage (internal cooldown)',
-          icon: 'inv_misc_head_tiger_01',
-          wowheadId: 35083,
-          durationMs: BAND_ICD_MS,
-          hidden: true,
-        },
-      ],
-      hooks: {
-        // Runs after every resolved spell (DoT ticks never call hooks). The internal cooldown is
-        // checked before the roll, so no random draw happens while it is up; a setup without the
-        // Band never composes this hook and keeps every draw unchanged.
-        onSpellResolved(e, api) {
-          if (e.outcome === 'miss' || !BAND_PROC_SPELL_IDS.includes(e.spellId)) return;
-          if (api.hasSelfAura(BAND_ICD_AURA_ID)) return;
-          if (api.roll() < BAND_PROC_CHANCE) {
-            api.applySelfAura(BAND_ICD_AURA_ID);
-            api.applySelfAura('band-of-the-eternal-sage');
-          }
-        },
-      },
-    },
-  },
-]);
+/**
+ * The completed player spells a `cast` proc does NOT roll on (ruling E-1): Curse of the Elements
+ * (wowsims curse_of_elements.go: `ProcMaskEmpty`). Every other spell rolls, whatever its outcome.
+ */
+export const CAST_TRIGGER_EXCLUDED_SPELL_IDS: readonly string[] = Object.freeze(['curse-of-the-elements']);

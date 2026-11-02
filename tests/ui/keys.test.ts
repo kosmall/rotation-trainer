@@ -12,12 +12,14 @@ it('keyToSlot maps 1..9, 0, -, = and ignores others', () => {
   }
 });
 
-it('the item row: Z X C V are slots 12-15, upper case too (Caps Lock, Shift)', () => {
+it('the item row: Z X C V B N are slots 12-17, upper case too (Caps Lock, Shift)', () => {
   expect(SPELL_SLOT_KEYS).toHaveLength(SPELL_SLOT_COUNT);
-  expect(ITEM_SLOT_KEYS).toEqual(['z', 'x', 'c', 'v']);
+  expect(ITEM_SLOT_COUNT).toBe(6);
+  expect(ITEM_SLOT_KEYS).toEqual(['z', 'x', 'c', 'v', 'b', 'n']);
   expect(ITEM_SLOT_KEYS).toHaveLength(ITEM_SLOT_COUNT);
   expect(SLOT_KEYS).toEqual([...SPELL_SLOT_KEYS, ...ITEM_SLOT_KEYS]);
-  ['z', 'x', 'c', 'v'].forEach((key, i) => {
+  expect(SLOT_KEYS).toHaveLength(18);
+  ['z', 'x', 'c', 'v', 'b', 'n'].forEach((key, i) => {
     expect(keyToSlot(key)).toBe(SPELL_SLOT_COUNT + i);
     expect(keyToSlot(key.toUpperCase())).toBe(SPELL_SLOT_COUNT + i);
   });

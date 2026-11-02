@@ -18,7 +18,7 @@ import type { SetupConfig, SetupPresetId } from './types';
  *   Crescent (log: Blessing of the Silver Crescent at 30.2 s), Band of the Eternal Sage (procs at
  *   0.8 s and 69.5 s; a proc, so enabled, never scheduled); the rotation (Curse of Doom, Shadow
  *   Bolt, Life Tap, Shadowburn: the 'sb-spam' rotation preset) at 28 yd. The potion and the Icon
- *   are item actions (item bar Z X C V): when to use them is the player's choice (the bot uses
+ *   are item actions (item bar Z X C V B N): when to use them is the player's choice (the bot uses
  *   them while Heroism is up); stage 1.5 scheduled them at the log's 7.5 s and 30.2 s (superseded).
  *   No Super Mana Potion or Dark Rune: the log shows neither.
  * - From the design spec's preset list, not measured: Improved Shadow Bolt from other warlocks
@@ -34,6 +34,9 @@ import type { SetupConfig, SetupPresetId } from './types';
  *   it; Shadow Bolt crit at the pull is already 37.9%), Blessing of Wisdom, Misery, Shadow Weaving,
  *   the raid's Curse of the Elements and Inspiring Presence (nothing in the log shows them).
  */
+// The Icon and the Band are the gear's item effects (src/setup/gearEffects.ts, ids `item:<itemId>`;
+// stage 1.5 had the hand ids 'icon-of-the-silver-crescent' / 'band-of-the-eternal-sage', which
+// `normalizeSetup` migrates). The preset keeps the author's gear, which wears both.
 const RAID_LOG_SETUP: SetupConfig = {
   ...structuredClone(DEFAULT_SETUP),
   // Catalog order (applySetup folds in catalog order anyway).
@@ -55,8 +58,8 @@ const RAID_LOG_SETUP: SetupConfig = {
     // Cooldowns and items.
     'heroism', // author's log
     'destruction-potion', // author's log (item action)
-    'icon-of-the-silver-crescent', // author's log (item action)
-    'band-of-the-eternal-sage', // author's log (proc)
+    'item:29370', // Icon of the Silver Crescent: author's log (item action, derived from the gear)
+    'item:29305', // Band of the Eternal Sage: author's log (proc, derived from the gear)
   ],
   timed: {
     ...structuredClone(DEFAULT_SETUP.timed),

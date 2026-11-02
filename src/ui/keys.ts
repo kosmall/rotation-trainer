@@ -3,8 +3,8 @@ import { ITEM_SLOT_COUNT, SPELL_SLOT_COUNT } from '../data/types';
 /** Spell row hotkeys, slot 0 first: keys 1-9, 0, -, = (the default WoW action bar). */
 export const SPELL_SLOT_KEYS: readonly string[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
 
-/** Item row hotkeys (slots 12-15: trinket, potion, rune actions of an applied setup). */
-export const ITEM_SLOT_KEYS: readonly string[] = ['z', 'x', 'c', 'v'];
+/** Item row hotkeys (slots 12-17: trinket, potion, rune actions of an applied setup). */
+export const ITEM_SLOT_KEYS: readonly string[] = ['z', 'x', 'c', 'v', 'b', 'n'];
 
 /** Every slot's hotkey, slot i at index i: the spell row, then the item row. */
 export const SLOT_KEYS: readonly string[] = [...SPELL_SLOT_KEYS, ...ITEM_SLOT_KEYS];

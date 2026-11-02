@@ -548,11 +548,11 @@ describe('SetupPanel', () => {
     expect(raidButton.getAttribute('aria-pressed')).toBe('true');
     expect(noneButton.getAttribute('aria-pressed')).toBe('false');
     expect(checkbox(buff('moonkin-aura').name).checked).toBe(true);
-    expect(checkbox(buff('band-of-the-eternal-sage').name).checked).toBe(true);
+    expect(checkbox(buff('item:29305').name).checked).toBe(true); // Band of the Eternal Sage (gear item effect)
     expect(startInput(buff('heroism').name).value).toBe('6.4');
     // The Icon is an item action now: enabled, no start second.
-    expect(checkbox(buff('icon-of-the-silver-crescent').name).checked).toBe(true);
-    expect(screen.queryByRole('spinbutton', { name: `${buff('icon-of-the-silver-crescent').name} start (s)` })).toBeNull();
+    expect(checkbox(buff('item:29370').name).checked).toBe(true); // Icon of the Silver Crescent (gear item effect)
+    expect(screen.queryByRole('spinbutton', { name: `${buff('item:29370').name} start (s)` })).toBeNull();
     expect(presetSelect().value).toBe('sb-spam');
 
     fireEvent.click(noneButton);

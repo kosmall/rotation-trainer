@@ -1,5 +1,6 @@
 import type { EnchantDef, GemDef, ItemDef, SpellModifier } from '../../../engine/types';
 import { DESTRUCTION_SPELL_IDS } from './spells';
+import type { ItemRecord } from '../../items/types';
 
 // The author's gear (stage 1 item tables): exactly the items, gems and enchants of the author's
 // WowSimsExporter export (docs/samples/wowsimsexporter-destruction-warlock.json). Since stage 2a
@@ -192,13 +193,48 @@ export const metaGemModifiers: Readonly<Record<number, readonly SpellModifier[]>
 };
 
 /**
- * Item effects the setup catalog models, by item id -> catalog buff id (src/data/classes/warlock/
- * buffs.ts `warlockItemBuffs`): enabled in the setup panel, never automatically from the gear.
- * `describeGear` does not list them as unmodelled.
+ * Worn items whose effect the setup models, by item id -> the derived catalog id (src/setup/
+ * gearEffects.ts `deriveGearEffects`: `item:<itemId>`). Kept for the Gear panel's markers and the
+ * "enabled but not worn" note (src/ui/gearView.ts) until they read the structured effects
+ * (`useEffects`/`procEffects`) themselves (gear item effects Task 3). `describeGear` no longer uses
+ * it: any item with a structured effect is modelled.
  */
 export const MODELLED_ITEM_EFFECTS: Readonly<Record<number, string>> = {
-  29370: 'icon-of-the-silver-crescent',
-  29305: 'band-of-the-eternal-sage',
+  29370: 'item:29370',
+  29305: 'item:29305',
+};
+
+/**
+ * The effect fields of the author's items that have any (db.json records, copied verbatim): what
+ * `deriveGearEffects` and `unmodelledGearEffects` read when the item database has not loaded
+ * (src/setup/gearEffects.ts `EMBEDDED_GEAR_EFFECT_SOURCE`), so the default gear's Icon and Band
+ * entries exist on the first paint. tests/setup/gear-effects.test.ts pins every record equal to
+ * the database's (name, icon, effects, useEffects, procEffects) and the derived entries equal.
+ */
+export const authorItemEffects: Readonly<
+  Record<number, Pick<ItemRecord, 'id' | 'name' | 'icon' | 'effects' | 'useEffects' | 'procEffects'>>
+> = {
+  // db.json 29370: Blessing of the Silver Crescent, +155 spell damage (and healing) for 20 s, 2 min
+  // cooldown, category 1141 for 20 s (wowsims/tbc-new assets/database/db.json itemEffects).
+  29370: {
+    id: 29370,
+    name: 'Icon of the Silver Crescent',
+    icon: 'inv_weapon_shortblade_23',
+    useEffects: [
+      { buffName: 'Blessing of the Silver Crescent', buffId: 35163, stats: { spellPower: 155 }, durationMs: 20000, cooldownMs: 120000, group: { id: 1141, ms: 20000 } },
+    ],
+  },
+  // db.json 29305: +95 spell damage for 10 s, 10% chance, 60 s ICD; trigger 'hit' (Part F).
+  29305: {
+    id: 29305,
+    name: 'Band of the Eternal Sage',
+    icon: 'inv_jewelry_ring_55',
+    procEffects: [
+      { buffName: 'Band of the Eternal Sage', buffId: 35084, stats: { spellPower: 95 }, durationMs: 10000, chance: 0.1, icdMs: 60000, trigger: 'hit' },
+    ],
+  },
+  // db.json 25653: its only effect, not simulated.
+  25653: { id: 25653, name: 'Riding Crop', icon: 'inv_misc_crop_02', effects: ['Equip: Mount Speed'] },
 };
 
 export const gems: Record<number, GemDef> = {

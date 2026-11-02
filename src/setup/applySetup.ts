@@ -17,6 +17,7 @@ import type {
   StatMultipliers,
 } from '../engine/types';
 import { combineStatMultipliers } from '../engine/stats';
+import { enabledSetupEntries, gearItemRules } from './gearEffects';
 import type { AppliedSetup, ApplySetupInput } from './types';
 
 /**
@@ -40,13 +41,9 @@ const HEROISM_BUFF_ID = 'heroism';
 
 /**
  * The spec's keybinds as a new array of SPELL_SLOT_COUNT + ITEM_SLOT_COUNT slots: the spell row
- * as the spec has it ('' past its end), then the item actions' ids in order ('' for the rest).
- * More actions than item slots is a catalog error (the catalog has 4: tests/data/item-actions).
+ * as the spec has it ('' past its end), then the bound item actions' ids in order ('' for the rest).
  */
 function withItemRow(specKeybinds: readonly string[], actionIds: readonly string[]): string[] {
-  if (actionIds.length > ITEM_SLOT_COUNT) {
-    throw new RangeError(`${actionIds.length} item actions enabled, the item row has ${ITEM_SLOT_COUNT} slots`);
-  }
   return Array.from({ length: SPELL_SLOT_COUNT + ITEM_SLOT_COUNT }, (_, i) =>
     i < SPELL_SLOT_COUNT ? (specKeybinds[i] ?? '') : (actionIds[i - SPELL_SLOT_COUNT] ?? ''),
   );
@@ -55,14 +52,17 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
 /**
  * The spec and the `SimConfig` fields for `config`:
  * - `spec` = `buildSpec(config.warlock, config.gear)` (no gear: the author's), then for each
- *   enabled buff in CATALOG order (unknown enabled ids are ignored):
+ *   enabled entry of `enabledSetupEntries(catalog, config, db)` (the gear-independent catalog's
+ *   in catalog order, then the worn gear's derived item effects; unknown enabled ids and ids of
+ *   items not worn are ignored; item actions past the 6th are left out):
  *   - `statBonuses` summed into the spec's flat bonuses (added before any multiplier);
  *   - `statMultipliers` multiplied into a new `setup.statMultipliers` (the setup is a new shallow
  *     copy; the gear stats inside stay shared and untouched);
  *   - `modifiers` appended;
- *   - `targetAura`, `selfAura` and helper `auras` appended to a new `auras` array;
+ *   - `targetAura`, `selfAura` and helper `auras` appended to a new `auras` array (a self or helper
+ *     aura id already added is not added again: gear items sharing a buff);
  *   - an item `action` appended to a new `spells` array and bound to the next free slot of the
- *     item row (keybinds SPELL_SLOT_COUNT.., keys Z X C V); its `selfAura` is what it applies,
+ *     item row (keybinds SPELL_SLOT_COUNT.., keys Z X C V B N); its `selfAura` is what it applies,
  *     never scheduled;
  *   - `hooks` run after the spec's own (`composeHooks`); with no buff hook the spec's hooks
  *     object is kept.
@@ -76,7 +76,8 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   end is kept: the engine ignores it.
  * - `spec.keybinds`: always a new array of SPELL_SLOT_COUNT + ITEM_SLOT_COUNT slots (`withItemRow`;
  *   the item row is '' when no item is enabled). The shared spec keeps its 12.
- * - `spec.priority = [...buildItemSteps(enabled action ids, Heroism's end in ms or null),
+ * - `spec.priority = [...buildItemSteps(enabled action ids, Heroism's end in ms or null,
+ *   gearItemRules(the gear's entries)),
  *   ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)]` (no item: the rotation
  *   alone), where `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included:
  *   e.g. Voidheart 4pc gives `{ corruption: 1, immolate: 1 }`, so the DoT refresh rules count the
@@ -87,10 +88,9 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  * Expects a normalized config (`normalizeSetup`): buildPriority throws on an invalid Life Tap
  * threshold.
  */
-export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): AppliedSetup {
+export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput): AppliedSetup {
   const base = buildSpec(config.warlock, config.gear);
-  const enabledIds = new Set(config.enabledBuffs);
-  const enabled = catalog.filter((b) => enabledIds.has(b.id));
+  const { enabled, gearEntries } = enabledSetupEntries(catalog, config, db);
 
   const statBonuses: Partial<RawStats> = { ...base.statBonuses };
   const multipliers: StatMultipliers[] = [];
@@ -100,6 +100,13 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
   const scheduledAuras: ScheduledAura[] = [];
   const actions: SpellDef[] = [];
   const durationMs = Math.round(config.fightDurationSec * 1000);
+  /**
+   * Adds a self or helper aura once per id: two gear items with the same buff share one aura
+   * (`deriveGearEffects`), so the second def is the same aura and is not added again.
+   */
+  const addAura = (a: AuraDef) => {
+    if (!extraAuras.some((x) => x.id === a.id)) extraAuras.push(a);
+  };
   /** When Heroism is scheduled (start and end, ms), if enabled. */
   let heroism: { atMs: number; endMs: number } | undefined;
 
@@ -116,7 +123,7 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
     }
     if (e.action) actions.push(e.action);
     if (e.selfAura) {
-      extraAuras.push(e.selfAura);
+      addAura(e.selfAura);
       if (e.action) {
         // An item's aura is applied when the item is used (its action), never scheduled.
       } else if (b.timed) {
@@ -125,11 +132,11 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
         const lastsMs = Math.round(t.durationSec * 1000);
         scheduledAuras.push({ auraId: e.selfAura.id, on: 'self', atMs, durationMs: lastsMs });
         if (b.id === HEROISM_BUFF_ID) heroism = { atMs, endMs: atMs + lastsMs };
-      } else {
+      } else if (!scheduledAuras.some((x) => x.on === 'self' && x.auraId === e.selfAura!.id)) {
         scheduledAuras.push({ auraId: e.selfAura.id, on: 'self', atMs: 0 });
       }
     }
-    if (e.auras) extraAuras.push(...e.auras);
+    if (e.auras) for (const a of e.auras) addAura(a);
     if (e.hooks) buffHooks.push(e.hooks);
   }
 
@@ -156,7 +163,7 @@ export function applySetup({ buildSpec, catalog, config }: ApplySetupInput): App
       statBonuses,
       setup: { ...base.setup, ...(statMultipliers !== undefined && { statMultipliers }) },
       keybinds: withItemRow(base.keybinds, actionIds),
-      priority: [...buildItemSteps(actionIds, heroismEndMs), ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)],
+      priority: [...buildItemSteps(actionIds, heroismEndMs, gearItemRules(gearEntries)), ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)],
       hooks: buffHooks.length > 0 ? composeHooks(base.hooks, ...buffHooks) : base.hooks,
     },
     sim: { scheduledAuras, distanceFromTarget: config.distanceYd, durationMs },

@@ -446,6 +446,9 @@ describe('describeGear', () => {
     // Sliver (an on-use without a stat buff) stays text.
     const swp = normalizeGear(wowsimsSets.swp!.items, db);
     expect(describeGear(swp, db).unmodelledEffects.some((t) => t.startsWith('Shifting Naaru Sliver: '))).toBe(true);
+    // Restored (gear item effects Task 2): the pre-raid Quagmirran's Eye is a modelled effect now.
+    expect(d.unmodelledEffects.some((t) => t.startsWith("Quagmirran's Eye"))).toBe(false);
+    expect(d.modelledEffects).toContain("Quagmirran's Eye");
 
     // Voidheart 4pc is modelled since Task 6 (one more DoT tick): no longer listed for the T4 gear;
     // T5's Corruptor bonuses still are.

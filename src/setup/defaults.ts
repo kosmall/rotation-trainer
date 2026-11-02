@@ -1,29 +1,50 @@
 // The setup catalog, the default setup and the validation of untrusted setup data (stage 1.5
 // Part C). Framework-free; nothing here throws.
 
-import { warlockItemBuffs } from '../data/classes/warlock/buffs';
 import { DEFAULT_WARLOCK_OPTIONS, type WarlockOptions } from '../data/classes/warlock/destruction';
 import { ROTATION_PRESETS, type CurseChoice, type RotationConfig } from '../data/classes/warlock/rotation';
 import { commonBuffs, consumables, cooldowns, debuffs, deepFreeze, EXCLUDES } from '../data/common/buffs';
 import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
 import type { ItemDb } from '../data/items/types';
+import type { EquippedItem } from '../engine/types';
 import type { BuffDef } from '../data/types';
 import { normalizeGear, normalizeGearShape } from './gear';
+import { authorGearEffects, deriveGearEffects, EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, LEGACY_ITEM_BUFF_IDS } from './gearEffects';
 import type { SetupConfig, TimedSetting } from './types';
 
 /**
- * Every buff the setup can enable, in a fixed order (also the order `applySetup` folds effects,
- * composes hooks and fills the item row in): raid/party/individual buffs, consumables, target
- * debuffs, cooldowns (Heroism, then the potion and rune item actions; src/data/common/buffs.ts),
- * then the warlock's item effects (the Icon's item action, the Band; src/data/classes/warlock/
- * buffs.ts). The UI, the storage and the tests all use this list.
+ * Every buff the setup can enable that does not depend on the gear, in a fixed order (also the
+ * order `applySetup` folds effects, composes hooks and fills the item row in): raid/party/
+ * individual buffs, consumables, target debuffs, cooldowns (Heroism, then the potion and rune item
+ * actions; src/data/common/buffs.ts). The gear's item effects (group 'item') are derived from the
+ * worn gear (src/setup/gearEffects.ts) and come after them (`setupCatalogFor`). A new array on
+ * every call (the entries are shared, deep-frozen).
  */
 export function buildSetupCatalog(): readonly BuffDef[] {
-  return Object.freeze([...commonBuffs, ...consumables, ...debuffs, ...cooldowns, ...warlockItemBuffs]);
+  return Object.freeze([...commonBuffs, ...consumables, ...debuffs, ...cooldowns]);
 }
 
-/** The catalog of the app (`buildSetupCatalog()`, built once). */
-export const SETUP_CATALOG: readonly BuffDef[] = buildSetupCatalog();
+/** The gear-independent catalog (`buildSetupCatalog()`, built once). */
+export const STATIC_SETUP_CATALOG: readonly BuffDef[] = buildSetupCatalog();
+
+/**
+ * The catalog of the default (author's) gear: `STATIC_SETUP_CATALOG` followed by the author's item
+ * effects (Icon of the Silver Crescent `item:29370`, Band of the Eternal Sage `item:29305`),
+ * derived from the embedded author records (`authorGearEffects`, no item database needed: first
+ * paint). The app and the storage use it until the Setup panel lists the worn gear's effects
+ * (`setupCatalogFor`, gear item effects Task 3). `applySetup` takes only its gear-independent
+ * entries and derives the item entries from the config's own gear.
+ */
+export const SETUP_CATALOG: readonly BuffDef[] = Object.freeze([...STATIC_SETUP_CATALOG, ...authorGearEffects()]);
+
+/**
+ * The catalog for a gear: `STATIC_SETUP_CATALOG` followed by the worn items' effects
+ * (`deriveGearEffects` from `db`, or the embedded author records without it: only the author's
+ * items are known then). A new array per call; the derived entries are fresh and deep-frozen.
+ */
+export function setupCatalogFor(gear: readonly (EquippedItem | null)[], db?: ItemDb | null): readonly BuffDef[] {
+  return Object.freeze([...STATIC_SETUP_CATALOG, ...deriveGearEffects(gear, db ?? EMBEDDED_GEAR_EFFECT_SOURCE)]);
+}
 
 /** Accepted ranges; out-of-range numbers are clamped into them (Review Focus 5). */
 export const SETUP_LIMITS = Object.freeze({
@@ -100,7 +121,7 @@ function normalizeFightDuration(v: unknown): number {
 }
 
 /** Two buffs that cannot be enabled together: same exclusive group, or groups `EXCLUDES` pairs. */
-function conflicts(a: BuffDef, b: BuffDef): boolean {
+function conflicts(a: Pick<BuffDef, 'exclusiveGroup'>, b: Pick<BuffDef, 'exclusiveGroup'>): boolean {
   const ga = a.exclusiveGroup;
   const gb = b.exclusiveGroup;
   if (ga === undefined || gb === undefined) return false;
@@ -110,17 +131,21 @@ function conflicts(a: BuffDef, b: BuffDef): boolean {
 }
 
 /**
- * Catalog ids only, each once, in saved order; a buff enabled later replaces an earlier one it
- * conflicts with (exclusive group, flask vs elixirs both ways). A repeated id counts at its last
- * position.
+ * Catalog ids and well-formed gear effect ids (`isGearEffectId`: `item:<id>[:<n>]`, kept whether
+ * or not the item is worn now: an id of an item taken off stays saved, inactive), each once, in
+ * saved order; the stage F ids `icon-of-the-silver-crescent` / `band-of-the-eternal-sage` become
+ * `item:29370` / `item:29305` (`LEGACY_ITEM_BUFF_IDS`). A buff enabled later replaces an earlier one
+ * it conflicts with (exclusive group, flask vs elixirs both ways). A repeated id counts at its
+ * last position.
  */
 function normalizeEnabled(v: unknown, catalog: readonly BuffDef[]): string[] {
   if (!Array.isArray(v)) return [];
   const byId = new Map(catalog.map((b) => [b.id, b]));
-  const out: BuffDef[] = [];
-  for (const id of v) {
-    if (typeof id !== 'string') continue;
-    const b = byId.get(id);
+  const out: Pick<BuffDef, 'id' | 'exclusiveGroup'>[] = [];
+  for (const raw of v) {
+    if (typeof raw !== 'string') continue;
+    const id = Object.hasOwn(LEGACY_ITEM_BUFF_IDS, raw) ? LEGACY_ITEM_BUFF_IDS[raw]! : raw;
+    const b: Pick<BuffDef, 'id' | 'exclusiveGroup'> | undefined = byId.get(id) ?? (isGearEffectId(id) ? { id } : undefined);
     if (!b) continue;
     for (let i = out.length - 1; i >= 0; i--) {
       if (out[i]!.id === b.id || conflicts(out[i]!, b)) out.splice(i, 1);
@@ -199,8 +224,9 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  * Turns untrusted data (stored JSON, a preset, UI state) into a valid `SetupConfig` for `catalog`.
  * Never throws and never mutates `input`; the result shares no object with it.
  * - Not a plain object, or `version` other than 1: the defaults.
- * - `enabledBuffs`: catalog ids only (non-strings, unknown ids and duplicates dropped); within an
- *   exclusive group, and for the `EXCLUDES` pairs (a flask vs the elixirs, both ways), the one
+ * - `enabledBuffs`: catalog ids and well-formed gear effect ids (`item:<id>[:<n>]`, worn or not;
+ *   the stage F Icon/Band ids migrate to `item:29370`/`item:29305`); non-strings, unknown ids and
+ *   duplicates dropped; within an exclusive group, and for the `EXCLUDES` pairs (a flask vs the elixirs, both ways), the one
  *   later in the saved list wins.
  * - `timed`: one entry per timed catalog buff; `startSec` clamped to [0, 600], `durationSec` to
  *   [1, 600], a missing or non-number value takes the catalog default. Entries of other ids are

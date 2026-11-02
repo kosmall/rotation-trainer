@@ -35,7 +35,8 @@ const heroismUp = (s: SimSnapshot) => s.selfAuras['heroism'] !== undefined;
  */
 type HeroismEndMs = number | null;
 
-interface ItemRule {
+/** How the bot and the "Priority" panel use one item action. */
+export interface ItemRule {
   label: string;
   hint(heroismEndMs: HeroismEndMs): string;
   wanted(heroismEndMs: HeroismEndMs): (s: SimSnapshot) => boolean;
@@ -48,7 +49,7 @@ const seconds = (ms: number) => `${Number((ms / 1000).toFixed(1))} s`;
  * once Heroism is over (a long fight has room for more uses: 120 s cooldowns); without Heroism at
  * the pull and whenever it is ready.
  */
-function burstRule(label: string, effect: string, cooldown: string): ItemRule {
+export function burstRule(label: string, effect: string, cooldown: string): ItemRule {
   return {
     label,
     hint: (heroismEndMs) =>
@@ -60,7 +61,11 @@ function burstRule(label: string, effect: string, cooldown: string): ItemRule {
   };
 }
 
-/** The rule of every item action of the catalog, by action id. */
+/**
+ * The rule of every item action of the static catalog, by action id. The gear's on-use items are
+ * derived with the gear (src/setup/gearEffects.ts `gearItemRules`: `burstRule` each) and passed to
+ * `buildItemSteps` as `gearRules`.
+ */
 export const ITEM_RULES: Readonly<Record<string, Readonly<ItemRule>>> = Object.freeze({
   'use-destruction-potion': burstRule(
     'Destruction Potion',
@@ -79,17 +84,12 @@ export const ITEM_RULES: Readonly<Record<string, Readonly<ItemRule>>> = Object.f
       `When at least ${DARK_RUNE_MISSING_MANA} mana is missing (its largest gain): restores 900 to 1500 mana. 2 min cooldown of its own.`,
     wanted: () => (s) => missingMana(s) >= DARK_RUNE_MISSING_MANA,
   },
-  'use-icon-of-the-silver-crescent': burstRule(
-    'Icon of the Silver Crescent',
-    '+155 spell power for 20 s',
-    '2 min cooldown; other on-use trinkets wait 20 s.',
-  ),
 });
 
 /**
  * The priority steps for the enabled item actions, in the given order (`applySetup` passes the
- * catalog order); ids without a rule are left out. Pure: new step objects on every call.
- * - Icon of the Silver Crescent and Destruction Potion: with `heroismEndMs` (the fight has
+ * catalog order, then the gear's); ids without a rule (in `ITEM_RULES` or `gearRules`) are left out. Pure: new step objects on every call.
+ * - Destruction Potion and the gear's on-use items (`gearRules`, the burst rule): with `heroismEndMs` (the fight has
  *   Heroism; `applySetup` passes null when it is disabled or starts at or after the fight's end),
  *   while Heroism is up (`selfAuras.heroism`) or once it is over (`nowMs >= heroismEndMs`): used
  *   with Heroism, then whenever the cooldown allows. Without it always (at the pull, then
@@ -98,11 +98,15 @@ export const ITEM_RULES: Readonly<Record<string, Readonly<ItemRule>>> = Object.f
  * Every rule also waits until the press cannot replace a queued spell (`itemPressFree`). A press
  * the engine rejects (cooldown, busy) falls through to the rotation, as for any step.
  */
-export function buildItemSteps(enabledActionIds: readonly string[], heroismEndMs: number | null): PriorityStep[] {
+export function buildItemSteps(
+  enabledActionIds: readonly string[],
+  heroismEndMs: number | null,
+  gearRules: Readonly<Record<string, Readonly<ItemRule>>> = {},
+): PriorityStep[] {
   const steps: PriorityStep[] = [];
   for (const spellId of enabledActionIds) {
-    if (!Object.hasOwn(ITEM_RULES, spellId)) continue;
-    const rule = ITEM_RULES[spellId]!;
+    const rule = Object.hasOwn(ITEM_RULES, spellId) ? ITEM_RULES[spellId] : Object.hasOwn(gearRules, spellId) ? gearRules[spellId] : undefined;
+    if (rule === undefined) continue;
     const wanted = rule.wanted(heroismEndMs);
     steps.push({
       spellId,

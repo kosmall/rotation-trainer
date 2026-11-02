@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { BAND_ICD_AURA_ID } from '../../src/data/classes/warlock/buffs';
 import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
 import type { SpecData } from '../../src/data/types';
 import { createRng } from '../../src/engine/rng';
@@ -18,6 +17,16 @@ import {
   type BuffViewInput,
 } from '../../src/ui/buffsView';
 
+// The Icon and the Band are the author's gear item effects since gear item effects Task 2: entry
+// ids item:29370 / item:29305, aura ids item-buff:35163 / item-buff:35084, hidden ICD
+// item-icd:29305 (stage F: ICON_AURA / BAND_AURA for both,
+// 'band-of-the-eternal-sage-icd'); their icons are the items' (iconKind 'item').
+const ICON = 'item:29370';
+const BAND = 'item:29305';
+const ICON_AURA = 'item-buff:35163';
+const BAND_AURA = 'item-buff:35084';
+const BAND_ICD_AURA_ID = 'item-icd:29305';
+
 /** Raid buff, individual buff, flask, a target debuff and every self-aura source of the catalog. */
 const ENABLED = [
   'arcane-brilliance',
@@ -27,8 +36,8 @@ const ENABLED = [
   'heroism',
   'destruction-potion',
   'super-mana-potion',
-  'icon-of-the-silver-crescent',
-  'band-of-the-eternal-sage',
+  ICON,
+  BAND,
 ];
 
 const config = normalizeSetup(
@@ -78,9 +87,9 @@ describe('buildBuffViews: active', () => {
       nowMs: 50000,
       selfAuras: auras(
         aura('heroism', 30000),
-        aura('icon-of-the-silver-crescent', 8000),
+        aura(ICON_AURA, 8000),
         aura('destruction-potion', 12000, { stacks: 3 }),
-        aura('band-of-the-eternal-sage', 4000, { charges: 2 }),
+        aura(BAND_AURA, 4000, { charges: 2 }),
       ),
     });
     expect(active).toEqual([
@@ -94,11 +103,11 @@ describe('buildBuffViews: active', () => {
         remainingMs: 10000, // 30 s left on the aura, 10 s left in the fight
       },
       {
-        auraId: 'icon-of-the-silver-crescent',
+        auraId: ICON_AURA,
         // The item's name (the AuraDef is 'Blessing of the Silver Crescent').
         name: 'Icon of the Silver Crescent',
-        icon: 'inv_trinket_naxxramas06',
-        description: catalogDescription('icon-of-the-silver-crescent'),
+        icon: 'inv_weapon_shortblade_23', // the item's icon (stage F: the buff's inv_trinket_naxxramas06)
+        description: catalogDescription(ICON),
         count: null,
         remainingMs: 8000,
       },
@@ -112,10 +121,10 @@ describe('buildBuffViews: active', () => {
       },
       {
         // The Band's proc aura comes from the entry's helper `auras`.
-        auraId: 'band-of-the-eternal-sage',
+        auraId: BAND_AURA,
         name: 'Band of the Eternal Sage',
-        icon: 'spell_holy_mindvision',
-        description: catalogDescription('band-of-the-eternal-sage'),
+        icon: 'inv_jewelry_ring_55', // the item's icon (stage F: the buff's spell_holy_mindvision)
+        description: catalogDescription(BAND),
         count: 2,
         remainingMs: 4000,
       },
@@ -124,13 +133,13 @@ describe('buildBuffViews: active', () => {
 
   it('keeps the order the tracker gives (first applied first)', () => {
     const order = (selfAuras: Record<string, AuraView>) => views({ selfAuras }).active.map((a) => a.auraId);
-    expect(order(auras(aura('icon-of-the-silver-crescent', 1000), aura('heroism', 2000)))).toEqual([
-      'icon-of-the-silver-crescent',
+    expect(order(auras(aura(ICON_AURA, 1000), aura('heroism', 2000)))).toEqual([
+      ICON_AURA,
       'heroism',
     ]);
-    expect(order(auras(aura('heroism', 2000), aura('icon-of-the-silver-crescent', 1000)))).toEqual([
+    expect(order(auras(aura('heroism', 2000), aura(ICON_AURA, 1000)))).toEqual([
       'heroism',
-      'icon-of-the-silver-crescent',
+      ICON_AURA,
     ]);
   });
 
@@ -159,7 +168,7 @@ describe('buildBuffViews: active', () => {
       nowMs: 25000,
       selfAuras: auras(aura('heroism', 30000), aura('destruction-potion', 3000)),
       scheduled: [
-        { auraId: 'icon-of-the-silver-crescent', on: 'self', atMs: 29999 },
+        { auraId: ICON_AURA, on: 'self', atMs: 29999 },
         { auraId: 'heroism', on: 'self', atMs: 30000 },
         { auraId: 'destruction-potion', on: 'self', atMs: 45000 },
       ],
@@ -170,7 +179,7 @@ describe('buildBuffViews: active', () => {
     ]);
     // One ms before the end it is upcoming. At the fight's last ms the engine applies it as the
     // fight ends: no effect (the Setup panel's warning), so not upcoming; after the end never.
-    expect(upcoming.map((u) => [u.auraId, u.inMs])).toEqual([['icon-of-the-silver-crescent', 4999]]);
+    expect(upcoming.map((u) => [u.auraId, u.inMs])).toEqual([[ICON_AURA, 4999]]);
     // Applied at the end: not shown in the ended fight either (it never was on during the fight).
     const atEnd = views({
       fightDurationMs: 30000,
@@ -193,8 +202,8 @@ describe('buildBuffViews: upcoming', () => {
     { auraId: 'heroism', on: 'self', atMs: 12000, durationMs: 40000 },
     { auraId: 'misery', on: 'target', atMs: 5000 },
     { auraId: 'destruction-potion', on: 'self', atMs: 8000 },
-    { auraId: 'band-of-the-eternal-sage', on: 'self', atMs: 70000 },
-    { auraId: 'icon-of-the-silver-crescent', on: 'self', atMs: 3000 },
+    { auraId: BAND_AURA, on: 'self', atMs: 70000 },
+    { auraId: ICON_AURA, on: 'self', atMs: 3000 },
     { auraId: BAND_ICD_AURA_ID, on: 'self', atMs: 9000 },
     { auraId: 'heroism', on: 'self', atMs: Number.NaN },
     { auraId: 'heroism', on: 'self', atMs: 20000, durationMs: 0 },
@@ -215,7 +224,7 @@ describe('buildBuffViews: upcoming', () => {
 
     const ready = views({ scheduled, nowMs: 0, phase: 'ready' });
     expect(ready.upcoming.map((u) => [u.auraId, u.startsAtMs, u.inMs])).toEqual([
-      ['icon-of-the-silver-crescent', 3000, 3000],
+      [ICON_AURA, 3000, 3000],
       ['destruction-potion', 8000, 8000],
       ['heroism', 12000, 12000],
     ]);
@@ -285,8 +294,8 @@ describe('buildBuffViews: permanent', () => {
       'destruction-potion', // item action + self aura
       'super-mana-potion', // item action
       'dark-rune', // item action
-      'icon-of-the-silver-crescent', // item action + self aura
-      'band-of-the-eternal-sage', // proc aura (helper auras + hook)
+      ICON, // item action + self aura
+      BAND, // proc aura (helper auras + hook)
       'misery', // target debuff
       'judgement-of-wisdom', // target debuff + hook
     ]) {

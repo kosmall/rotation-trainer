@@ -591,7 +591,9 @@ describe('Your buffs panel in the game view (player buffs panel, Task 2)', () =>
     press('x');
     expect(selfBuff(ICON)?.getAttribute('aria-label')).toBe(`${ICON}, 20 seconds left`);
     expect(selfBuff(ICON)?.querySelector('.buff-time')?.textContent).toBe('20s');
-    expect(selfBuff(ICON)?.querySelector('img')?.getAttribute('src')).toContain('inv_trinket_naxxramas06');
+    // The item's icon since gear item effects Task 2 (stage F: the buff's inv_trinket_naxxramas06);
+    // the panel serves it from public/icons/items/ once it reads `iconKind` (Task 3).
+    expect(selfBuff(ICON)?.querySelector('img')?.getAttribute('src')).toContain('inv_weapon_shortblade_23');
     expect(activeNames()).toEqual([DP, ICON]); // first used first
 
     advance(8000); // 10 s: the potion has 5 s left, the Icon 12 s

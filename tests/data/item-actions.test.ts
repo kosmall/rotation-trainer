@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
-import { buildItemSteps, ITEM_RULES } from '../../src/data/classes/warlock/itemRules';
+import { buildItemSteps as buildStaticItemSteps, ITEM_RULES } from '../../src/data/classes/warlock/itemRules';
 import { buildDestructionWarlock, destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { deepFreeze } from '../../src/data/common/buffs';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
@@ -16,7 +16,13 @@ import { Simulation } from '../../src/engine/sim';
 import type { LogEvent, SimSnapshot, SpellDef, TargetData } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
 import { DEFAULT_SETUP, SETUP_CATALOG } from '../../src/setup/defaults';
+import { gearItemRules, isGearEffectId } from '../../src/setup/gearEffects';
 import type { SetupConfig } from '../../src/setup/types';
+
+/** The gear's item rules (the Icon: derived since gear item effects Task 2, the burst rule). */
+const GEAR_RULES = gearItemRules(SETUP_CATALOG.filter((b) => isGearEffectId(b.id)));
+/** `buildItemSteps` with the author's gear rules, as applySetup passes them. */
+const buildItemSteps = (ids: readonly string[], heroismEndMs: number | null) => buildStaticItemSteps(ids, heroismEndMs, GEAR_RULES);
 
 deepFreeze(destructionWarlock);
 deepFreeze(SETUP_CATALOG);
@@ -24,7 +30,10 @@ deepFreeze(SETUP_CATALOG);
 const NEVER_MISS: TargetData = { ...BOSS_TARGET, missPct: 0, minMissPct: 0 };
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-const ICON = 'use-icon-of-the-silver-crescent';
+// The Icon's entry is derived from the author's gear since gear item effects Task 2 (stage F ids:
+// entry and aura ICON_BUFF, action 'use-icon-of-the-silver-crescent').
+const ICON = 'use-item-29370';
+const ICON_BUFF = 'item:29370';
 const DESTRUCTION = 'use-destruction-potion';
 const SUPER_MANA = 'use-super-mana-potion';
 const DARK_RUNE = 'use-dark-rune';
@@ -100,10 +109,10 @@ describe('item actions: catalog', () => {
   it('catalog: Icon, Destruction Potion, Super Mana Potion and Dark Rune carry an item action; none has timed; ids unique; cooldown groups; mana ranges; item/onGcd/castTime/manaCost/icon/source', () => {
     const withAction = SETUP_CATALOG.filter((b) => b.effect.action !== undefined);
     // Catalog order: the cooldowns (common/buffs.ts) before the warlock's gear (warlock/buffs.ts).
-    expect(withAction.map((b) => b.id)).toEqual(['destruction-potion', 'super-mana-potion', 'dark-rune', 'icon-of-the-silver-crescent']);
+    expect(withAction.map((b) => b.id)).toEqual(['destruction-potion', 'super-mana-potion', 'dark-rune', ICON_BUFF]);
     // At most one action per item slot: applySetup can always bind every enabled action.
     expect(withAction.length).toBeLessThanOrEqual(ITEM_SLOT_COUNT);
-    expect(ITEM_SLOT_COUNT).toBe(4);
+    expect(ITEM_SLOT_COUNT).toBe(6);
     expect(SPELL_SLOT_COUNT).toBe(12);
 
     const actionIds = withAction.map((b) => b.effect.action!.id);
@@ -115,7 +124,7 @@ describe('item actions: catalog', () => {
       const a = b.effect.action!;
       expect(b.timed, b.id).toBeUndefined();
       expect(b.exclusiveGroup, b.id).toBeUndefined();
-      expect(a.id, b.id).toBe(`use-${b.id}`);
+      expect(a.id, b.id).toBe(b.id.startsWith('item:') ? `use-item-${b.id.slice(5).replace(':', '-')}` : `use-${b.id}`);
       expect(a.name, b.id).toBe(b.name);
       expect(a.item, b.id).toBe(true);
       expect(a.onGcd, b.id).toBe(false);
@@ -126,7 +135,9 @@ describe('item actions: catalog', () => {
       expect(a.direct, b.id).toBeUndefined();
       expect(a.icon, b.id).toMatch(/^[a-z0-9_]+$/);
       expect(Number.isInteger(a.wowheadId), b.id).toBe(true);
-      expect([a.icon, a.wowheadId], b.id).toEqual([b.icon, b.wowheadId]);
+      expect(a.icon, b.id).toBe(b.icon);
+      // A gear item entry shows its item's icon (iconKind 'item'); its action keeps the buff's spell id.
+      expect(a.wowheadId, b.id).toBe(b.iconKind === 'item' ? b.effect.selfAura!.wowheadId : b.wowheadId);
       expect(b.source.trim().length, b.id).toBeGreaterThan(0);
       expect(b.description.trim().length, b.id).toBeGreaterThan(0);
       // Every item's own cooldown: 2 min (Wowhead TBC tooltips "(2 Min Cooldown)").
@@ -140,19 +151,19 @@ describe('item actions: catalog', () => {
       expect(b.effect.hooks, b.id).toBeUndefined();
     }
 
-    expect(actionOf('icon-of-the-silver-crescent').sharedCooldown).toEqual({ group: 'trinket', ms: 20000 });
+    expect(actionOf(ICON_BUFF).sharedCooldown).toEqual({ group: 'category-1141', ms: 20000 }); // stage F: 'trinket'
     expect(actionOf('destruction-potion').sharedCooldown).toEqual({ group: 'potion', ms: 120000 });
     expect(actionOf('super-mana-potion').sharedCooldown).toEqual({ group: 'potion', ms: 120000 });
     expect(actionOf('dark-rune').sharedCooldown).toEqual({ group: 'rune', ms: 120000 });
 
     expect(actionOf('super-mana-potion').gainManaRange).toEqual({ min: 1800, max: 3000 });
     expect(actionOf('dark-rune').gainManaRange).toEqual({ min: 900, max: 1500 });
-    expect(actionOf('icon-of-the-silver-crescent').gainManaRange).toBeUndefined();
+    expect(actionOf(ICON_BUFF).gainManaRange).toBeUndefined();
     expect(actionOf('destruction-potion').gainManaRange).toBeUndefined();
 
     // The auras: the stage 1.5 values (Icon +155 spell power 20 s; potion +120 and +2% crit 15 s).
-    expect(catalogBuff('icon-of-the-silver-crescent').effect.selfAura).toMatchObject({
-      id: 'icon-of-the-silver-crescent',
+    expect(catalogBuff(ICON_BUFF).effect.selfAura).toMatchObject({
+      id: 'item-buff:35163',
       durationMs: 20000,
       selfStatBonuses: { spellPower: 155 },
     });
@@ -189,14 +200,14 @@ describe('item actions: catalog', () => {
 
 describe('item actions: applySetup', () => {
   it('applySetup with Icon + Dark Rune enabled adds both actions to spec.spells, the Icon aura to spec.auras, keybinds[12] and [13] are their ids in catalog order, scheduledAuras has no entry for them', () => {
-    const { spec, sim } = apply({ enabledBuffs: ['icon-of-the-silver-crescent', 'dark-rune'] });
+    const { spec, sim } = apply({ enabledBuffs: [ICON_BUFF, 'dark-rune'] });
     // Catalog order: Dark Rune (cooldowns) before the Icon (warlock items), whatever the config order.
-    expect(spec.spells).toEqual([...destructionWarlock.spells, actionOf('dark-rune'), actionOf('icon-of-the-silver-crescent')]);
+    expect(spec.spells).toEqual([...destructionWarlock.spells, actionOf('dark-rune'), actionOf(ICON_BUFF)]);
     expect(spec.spells).not.toBe(destructionWarlock.spells);
-    expect(spec.auras).toEqual([...destructionWarlock.auras, catalogBuff('icon-of-the-silver-crescent').effect.selfAura]);
+    expect(spec.auras).toEqual([...destructionWarlock.auras, catalogBuff(ICON_BUFF).effect.selfAura]);
     expect(spec.keybinds).toHaveLength(SPELL_SLOT_COUNT + ITEM_SLOT_COUNT);
     expect(spec.keybinds.slice(0, SPELL_SLOT_COUNT)).toEqual(destructionWarlock.keybinds);
-    expect(spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([DARK_RUNE, ICON, '', '']);
+    expect(spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([DARK_RUNE, ICON, '', '', '', '']);
     expect(spec.keybinds).not.toBe(destructionWarlock.keybinds);
     expect(sim.scheduledAuras).toEqual([]);
     // Their rules come first (off the GCD), in the same order; then the rotation unchanged.
@@ -207,7 +218,7 @@ describe('item actions: applySetup', () => {
 
   it('with none enabled keybinds[12..15] are empty and the spec equals the stage 1.5 spec', () => {
     const { spec, sim } = apply();
-    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '']);
+    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '', '', '']);
     expect(spec.keybinds).not.toBe(destructionWarlock.keybinds);
     expect(spec.spells).toEqual(destructionWarlock.spells);
     expect(spec.auras).toEqual(destructionWarlock.auras);
@@ -218,9 +229,9 @@ describe('item actions: applySetup', () => {
   });
 
   it('all four enabled: the item row is full, in catalog order, and the fight knows every action', () => {
-    const enabledBuffs = ['icon-of-the-silver-crescent', 'dark-rune', 'super-mana-potion', 'destruction-potion'];
+    const enabledBuffs = [ICON_BUFF, 'dark-rune', 'super-mana-potion', 'destruction-potion'];
     const applied = apply({ enabledBuffs });
-    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([DESTRUCTION, SUPER_MANA, DARK_RUNE, ICON]);
+    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([DESTRUCTION, SUPER_MANA, DARK_RUNE, ICON, '', '']);
     expect(applied.sim.scheduledAuras).toEqual([]);
     const sim = fight(applied);
     for (const id of ITEM_IDS) expect(sim.snapshot().spells[id], id).toEqual({ manaCost: 0, castTimeMs: 0 });
@@ -293,7 +304,7 @@ describe('item actions in a fight', () => {
   });
 
   it('Super Mana Potion restores 1800-3000 mana (capped at max mana), and the Icon shares the 20 s trinket group only with trinkets', () => {
-    const applied = apply({ enabledBuffs: ['super-mana-potion', 'icon-of-the-silver-crescent', 'destruction-potion'] });
+    const applied = apply({ enabledBuffs: ['super-mana-potion', ICON_BUFF, 'destruction-potion'] });
     const gains: number[] = [];
     for (const seed of SEEDS) {
       const sim = new Simulation({ spec: applied.spec, target: NEVER_MISS, seed, infiniteMana: false, distanceFromTarget: 0 });
@@ -330,7 +341,9 @@ describe('item actions in a fight', () => {
 describe('item actions: bot rules (buildItemSteps)', () => {
   it('buildItemSteps is pure, follows the given order, ignores unknown ids, and has a rule for every catalog action', () => {
     const all = SETUP_CATALOG.flatMap((b) => (b.effect.action ? [b.effect.action.id] : []));
-    expect(Object.keys(ITEM_RULES).sort()).toEqual([...all].sort());
+    expect([...Object.keys(ITEM_RULES), ...Object.keys(GEAR_RULES)].sort()).toEqual([...all].sort());
+    expect(Object.keys(GEAR_RULES)).toEqual([ICON]);
+    expect(buildStaticItemSteps([ICON], null)).toEqual([]); // no static rule for a gear item
     expect(buildItemSteps(all, 46400).map((s) => s.spellId)).toEqual(all);
     expect(buildItemSteps([ICON, 'no-such-item', DARK_RUNE], null).map((s) => s.spellId)).toEqual([ICON, DARK_RUNE]);
     expect(buildItemSteps([], 46400)).toEqual([]);
@@ -380,7 +393,7 @@ describe('item actions: bot rules (buildItemSteps)', () => {
   });
 
   it('bot: with Icon and Destruction Potion and Heroism at 6.4 s the bot uses them while Heroism is up; never replaces a queued spell; never twice inside 120 s', () => {
-    const applied = apply({ enabledBuffs: ['heroism', 'destruction-potion', 'icon-of-the-silver-crescent'], ...heroismAt(6.4) });
+    const applied = apply({ enabledBuffs: ['heroism', 'destruction-potion', ICON_BUFF], ...heroismAt(6.4) });
     for (const seed of SEEDS) {
       const sim = fight(applied, { seed });
       const presses = recordPresses(sim);
@@ -403,7 +416,7 @@ describe('item actions: bot rules (buildItemSteps)', () => {
   });
 
   it('bot: with Heroism off the Icon and the potion are used at the pull, then every 120 s (never twice inside 120 s)', () => {
-    const applied = apply({ enabledBuffs: ['destruction-potion', 'icon-of-the-silver-crescent'] });
+    const applied = apply({ enabledBuffs: ['destruction-potion', ICON_BUFF] });
     for (const seed of [1, 2, 3]) {
       const sim = fight(applied, { seed, durationMs: 300000 });
       runBot(sim, applied.spec.priority);
@@ -456,7 +469,7 @@ describe('item actions: bot rules (buildItemSteps)', () => {
       return SEEDS.map((seed) => runBot(fight(a, { seed }), a.spec.priority).dps).reduce((x, y) => x + y, 0) / SEEDS.length;
     };
     const without = meanDps(['heroism']);
-    const withItems = meanDps(['heroism', 'destruction-potion', 'dark-rune', 'icon-of-the-silver-crescent']);
+    const withItems = meanDps(['heroism', 'destruction-potion', 'dark-rune', ICON_BUFF]);
     expect(withItems).toBeGreaterThan(without);
   });
 });

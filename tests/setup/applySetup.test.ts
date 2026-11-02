@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
-import { BAND_ICD_AURA_ID, warlockItemBuffs } from '../../src/data/classes/warlock/buffs';
 import {
   buildDestructionWarlock,
   destructionWarlock,
@@ -24,7 +23,18 @@ import { Simulation } from '../../src/engine/sim';
 import { computeStats } from '../../src/engine/stats';
 import type { LogEvent, ScheduledAura, SpecHooks, TargetData } from '../../src/engine/types';
 import { applySetup, composeHooks } from '../../src/setup/applySetup';
-import { buildSetupCatalog, DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG } from '../../src/setup/defaults';
+import { buildSetupCatalog, DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG, STATIC_SETUP_CATALOG } from '../../src/setup/defaults';
+import { authorGearEffects } from '../../src/setup/gearEffects';
+
+// The Icon and the Band are derived from the author's gear since gear item effects Task 2 (stage F
+// hand ids: 'icon-of-the-silver-crescent' / 'band-of-the-eternal-sage' for entry and aura,
+// 'use-icon-of-the-silver-crescent', 'band-of-the-eternal-sage-icd').
+const ICON = 'item:29370';
+const BAND = 'item:29305';
+const ICON_AURA = 'item-buff:35163';
+const USE_ICON = 'use-item-29370';
+const BAND_AURA = 'item-buff:35084';
+const BAND_ICD_AURA_ID = 'item-icd:29305';
 import { SETUP_PRESETS } from '../../src/setup/presets';
 import type { SetupConfig } from '../../src/setup/types';
 
@@ -99,11 +109,14 @@ function catalogBuff(id: string): BuffDef {
 // ---------------------------------------------------------------------------
 
 describe('setup catalog, DEFAULT_SETUP and SETUP_PRESETS', () => {
-  it('the catalog is commonBuffs + consumables + debuffs + cooldowns + warlockItemBuffs, in that order, with unique ids', () => {
-    const expected = [...commonBuffs, ...consumables, ...debuffs, ...cooldowns, ...warlockItemBuffs];
-    expect(SETUP_CATALOG).toEqual(expected);
-    SETUP_CATALOG.forEach((b, i) => expect(b).toBe(expected[i]));
+  it("the catalog is commonBuffs + consumables + debuffs + cooldowns, in that order, then the author's gear item effects (Icon, Band), with unique ids", () => {
+    const expected = [...commonBuffs, ...consumables, ...debuffs, ...cooldowns];
+    expect(STATIC_SETUP_CATALOG).toEqual(expected);
+    STATIC_SETUP_CATALOG.forEach((b, i) => expect(b).toBe(expected[i]));
     expect(buildSetupCatalog()).toEqual(expected);
+    SETUP_CATALOG.slice(0, expected.length).forEach((b, i) => expect(b).toBe(expected[i]));
+    expect(SETUP_CATALOG.slice(expected.length).map((b) => b.id)).toEqual([ICON, BAND]);
+    expect(SETUP_CATALOG.slice(expected.length).map((b) => b.description)).toEqual(authorGearEffects().map((b) => b.description));
     const ids = SETUP_CATALOG.map((b) => b.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(Object.isFrozen(SETUP_CATALOG)).toBe(true);
@@ -158,7 +171,7 @@ describe('normalizeSetup', () => {
     expect(withBuffs(['misery', 'misery'])).toEqual(['misery']);
     expect(withBuffs(['misery', 'arcane-brilliance', 'misery'])).toEqual(['arcane-brilliance', 'misery']);
     // Aura ids that are not catalog ids, and Object.prototype names, are not buffs.
-    expect(withBuffs([BAND_ICD_AURA_ID, '__proto__', 'constructor', 'toString', 'hasOwnProperty'])).toEqual([]);
+    expect(withBuffs([BAND_ICD_AURA_ID, BAND_AURA, '__proto__', 'constructor', 'toString', 'hasOwnProperty'])).toEqual([]);
     // Not an array: no buffs.
     expect(withBuffs('misery')).toEqual([]);
     expect(withBuffs({ 0: 'misery', length: 1 })).toEqual([]);
@@ -344,7 +357,7 @@ describe('applySetup', () => {
     expect(spec.modifiers).toEqual(destructionWarlock.modifiers);
     expect(spec.sets).toEqual(destructionWarlock.sets);
     // The spell row unchanged; the item row (slots 12-15, Z X C V) empty: no item enabled.
-    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '']);
+    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '', '', '']);
     expect(spec.hooks).toBe(destructionWarlock.hooks);
     expect(spec.priority.map((s) => s.spellId)).toEqual(destructionWarlock.priority.map((s) => s.spellId));
     expect(spec.priority.map((s) => [s.label, s.hint])).toEqual(destructionWarlock.priority.map((s) => [s.label, s.hint]));
@@ -437,7 +450,7 @@ describe('applySetup', () => {
 
   it('a timed buff uses the configured start and duration; an item action is never scheduled (a stale timed entry is ignored)', () => {
     const { spec, sim } = apply({
-      enabledBuffs: ['icon-of-the-silver-crescent', 'heroism'],
+      enabledBuffs: [ICON, 'heroism'],
       // The Icon entry is what a stage 1.5 config held (normalizeSetup drops it; applySetup ignores it).
       timed: { ...DEFAULT_SETUP.timed, heroism: { startSec: 6.4, durationSec: 30 }, 'icon-of-the-silver-crescent': { startSec: 30.2, durationSec: 5 } },
     });
@@ -446,19 +459,19 @@ describe('applySetup', () => {
     // for its action.
     expect(spec.auras.slice(destructionWarlock.auras.length)).toEqual([
       catalogBuff('heroism').effect.selfAura,
-      catalogBuff('icon-of-the-silver-crescent').effect.selfAura,
+      catalogBuff(ICON).effect.selfAura,
     ]);
     const fight = newSim({ spec, sim });
     expect(fight.cast('life-tap').ok).toBe(true); // starts the fight
     fight.advanceTo(30200);
-    expect(fight.cast('use-icon-of-the-silver-crescent')).toEqual({ ok: true });
+    expect(fight.cast(USE_ICON)).toEqual({ ok: true });
     fight.advanceTo(60000);
     const log = fight.log().filter((e) => e.type === 'aura-apply' || e.type === 'aura-fade');
     expect(log).toEqual([
       { atMs: 6400, type: 'aura-apply', auraId: 'heroism' },
-      { atMs: 30200, type: 'aura-apply', auraId: 'icon-of-the-silver-crescent', spellId: 'use-icon-of-the-silver-crescent' },
+      { atMs: 30200, type: 'aura-apply', auraId: ICON_AURA, spellId: USE_ICON },
       { atMs: 36400, type: 'aura-fade', auraId: 'heroism' },
-      { atMs: 50200, type: 'aura-fade', auraId: 'icon-of-the-silver-crescent' },
+      { atMs: 50200, type: 'aura-fade', auraId: ICON_AURA },
     ]);
   });
 
@@ -676,8 +689,8 @@ describe('applySetup', () => {
 
   it('end to end: Band, Icon, Heroism, Destruction Potion and Judgement of Wisdom through applySetup in a scripted fight (the potion and the Icon pressed from 1 s and 5 s)', () => {
     const enabledBuffs = [
-      'band-of-the-eternal-sage',
-      'icon-of-the-silver-crescent',
+      BAND,
+      ICON,
       'heroism',
       'destruction-potion',
       'judgement-of-wisdom',
@@ -686,7 +699,7 @@ describe('applySetup', () => {
     const applied = apply({ enabledBuffs, timed });
     const items = [
       { id: 'use-destruction-potion', fromMs: 1000 },
-      { id: 'use-icon-of-the-silver-crescent', fromMs: 5000 },
+      { id: USE_ICON, fromMs: 5000 },
     ];
     expect(applied.spec.hooks).not.toBe(destructionWarlock.hooks);
 
@@ -719,7 +732,7 @@ describe('applySetup', () => {
       // at 2431, the third, hasted, at 6180); the aura is applied by the action.
       const itemApplies = (auraId: string) => log.filter((e) => e.type === 'aura-apply' && e.auraId === auraId);
       expect(itemApplies('destruction-potion').map((e) => [e.atMs, e.spellId])).toEqual([[2440, 'use-destruction-potion']]);
-      expect(itemApplies('icon-of-the-silver-crescent').map((e) => [e.atMs, e.spellId])).toEqual([[6180, 'use-icon-of-the-silver-crescent']]);
+      expect(itemApplies(ICON_AURA).map((e) => [e.atMs, e.spellId])).toEqual([[6180, USE_ICON]]);
 
       // Shadow Bolts started during Heroism (2 s to 42 s) take round(2500 / 1.337) = 1870 ms; outside, 2431.
       const starts = log.filter((e) => e.type === 'cast-start' && e.spellId === 'shadow-bolt');
@@ -747,7 +760,7 @@ describe('applySetup', () => {
       // Band: its buff and hidden internal cooldown applied together, at most once in 60 s.
       // (Applied by the hook, so logged with the resolving spell's id.)
       const procApplies = (id: string) => log.filter((e) => e.type === 'aura-apply' && e.auraId === id);
-      const band = procApplies('band-of-the-eternal-sage');
+      const band = procApplies(BAND_AURA);
       const icd = procApplies(BAND_ICD_AURA_ID);
       for (const e of band) expect(e.spellId).toBe('shadow-bolt');
       expect(band.map((e) => e.atMs)).toEqual(icd.map((e) => e.atMs));

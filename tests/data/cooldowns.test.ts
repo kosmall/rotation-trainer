@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
-import {
-  BAND_ICD_AURA_ID,
-  BAND_ICD_MS,
-  BAND_PROC_CHANCE,
-  BAND_PROC_SPELL_IDS,
-  warlockItemBuffs,
-} from '../../src/data/classes/warlock/buffs';
+import { BAND_PROC_SPELL_IDS } from '../../src/data/classes/warlock/buffs';
 import { destructionEquipped, destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { items } from '../../src/data/classes/warlock/items';
 import { warlockAuras } from '../../src/data/classes/warlock/auras';
@@ -17,6 +11,20 @@ import { createRng } from '../../src/engine/rng';
 import { Simulation } from '../../src/engine/sim';
 import { computeStats } from '../../src/engine/stats';
 import type { AuraDef, HitOutcome, LogEvent, ScheduledAura, SpecHooks, TargetData } from '../../src/engine/types';
+import { authorGearEffects } from '../../src/setup/gearEffects';
+
+// The Icon and the Band are derived from the author's gear since gear item effects Task 2
+// (src/setup/gearEffects.ts); the stage F hand entries had the ids 'icon-of-the-silver-crescent'
+// and 'band-of-the-eternal-sage' for both the entry and its aura. Their numbers are unchanged.
+const warlockItemBuffs = authorGearEffects();
+const ICON = 'item:29370';
+const BAND = 'item:29305';
+const ICON_AURA = 'item-buff:35163';
+const BAND_AURA = 'item-buff:35084';
+const BAND_ICD_AURA_ID = 'item-icd:29305';
+/** Stage F `BAND_ICD_MS` / `BAND_PROC_CHANCE` (db.json item 29305 proc). */
+const BAND_ICD_MS = 60000;
+const BAND_PROC_CHANCE = 0.1;
 
 const NEVER_MISS: TargetData = { ...BOSS_TARGET, missPct: 0, minMissPct: 0 };
 
@@ -134,12 +142,13 @@ describe('timed cooldowns and item effects: catalog', () => {
     const ids = ALL.map((b) => b.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(cooldowns.map((b) => b.id)).toEqual(['heroism', 'destruction-potion', 'super-mana-potion', 'dark-rune']);
-    expect(warlockItemBuffs.map((b) => b.id)).toEqual(['icon-of-the-silver-crescent', 'band-of-the-eternal-sage']);
+    expect(warlockItemBuffs.map((b) => b.id)).toEqual([ICON, BAND]);
     for (const b of NEW) {
-      expect(b.id).toMatch(/^[a-z0-9-]+$/);
+      expect(b.id).toMatch(/^[a-z0-9:-]+$/);
       expect(b.name.length, b.id).toBeGreaterThan(0);
       expect(b.icon, b.id).toMatch(/^[a-z0-9_]+$/);
-      expect(Number.isInteger(b.wowheadId), b.id).toBe(true);
+      // Item icons (gear-derived entries) come from the item record, not from a Wowhead spell id.
+      expect(b.iconKind === 'item' || Number.isInteger(b.wowheadId), b.id).toBe(true);
       expect(b.description.trim().length, b.id).toBeGreaterThan(0);
       expect(b.source.trim().length, b.id).toBeGreaterThan(0);
     }
@@ -147,38 +156,38 @@ describe('timed cooldowns and item effects: catalog', () => {
     expect(buff('destruction-potion').group).toBe('consumable');
     expect(buff('super-mana-potion').group).toBe('consumable');
     expect(buff('dark-rune').group).toBe('consumable');
-    expect(buff('icon-of-the-silver-crescent').group).toBe('item');
-    expect(buff('band-of-the-eternal-sage').group).toBe('item');
+    expect(buff(ICON).group).toBe('item');
+    expect(buff(BAND).group).toBe('item');
 
     // Timed: selfAura + timed, the aura's own duration equals the default duration. Only Heroism
     // (another player's spell); the potion and the Icon are item actions since the item-actions
     // feature (no `timed`, the action applies the same aura; tests/data/item-actions.test.ts).
     expect(buff('heroism').timed).toEqual({ defaultStartSec: 0, durationSec: 40 });
-    const auraDurations: [string, number][] = [
-      ['heroism', 40],
-      ['destruction-potion', 15],
-      ['icon-of-the-silver-crescent', 20],
+    const auraDurations: [string, number, string][] = [
+      ['heroism', 40, 'heroism'],
+      ['destruction-potion', 15, 'destruction-potion'],
+      [ICON, 20, ICON_AURA],
     ];
-    for (const [id, dur] of auraDurations) {
+    for (const [id, dur, auraId] of auraDurations) {
       expect(selfAuraOf(id).durationMs, id).toBe(dur * 1000);
-      expect(selfAuraOf(id).id, id).toBe(id);
+      expect(selfAuraOf(id).id, id).toBe(auraId);
     }
-    for (const id of ['destruction-potion', 'icon-of-the-silver-crescent']) {
+    for (const id of ['destruction-potion', ICON]) {
       expect(buff(id).timed, id).toBeUndefined();
-      expect(buff(id).effect.action?.applyAura, id).toEqual({ auraId: id, on: 'self' });
+      expect(buff(id).effect.action?.applyAura, id).toEqual({ auraId: selfAuraOf(id).id, on: 'self' });
     }
     expect(selfAuraOf('heroism').selfStatMultipliers).toEqual({ haste: 1.3 });
     expect(selfAuraOf('destruction-potion').selfStatBonuses).toEqual({ spellPower: 120 });
     expect(selfAuraOf('destruction-potion').selfModifiers).toEqual([{ critPctDelta: 2 }]);
-    expect(selfAuraOf('icon-of-the-silver-crescent').selfStatBonuses).toEqual({ spellPower: 155 });
+    expect(selfAuraOf(ICON).selfStatBonuses).toEqual({ spellPower: 155 });
 
     // Band: a proc, not timed: a 10 s buff and a hidden 60 s internal cooldown, both helper auras.
-    const band = buff('band-of-the-eternal-sage');
+    const band = buff(BAND);
     expect(band.timed).toBeUndefined();
     expect(band.effect.selfAura).toBeUndefined();
     expect(band.effect.hooks?.onSpellResolved).toBeTypeOf('function');
     const [bandBuff, bandIcd] = band.effect.auras ?? [];
-    expect(bandBuff).toMatchObject({ id: 'band-of-the-eternal-sage', durationMs: 10000, selfStatBonuses: { spellPower: 95 } });
+    expect(bandBuff).toMatchObject({ id: BAND_AURA, durationMs: 10000, selfStatBonuses: { spellPower: 95 } });
     expect(bandBuff?.hidden).toBeUndefined();
     expect(bandIcd).toMatchObject({ id: BAND_ICD_AURA_ID, durationMs: 60000, hidden: true });
     expect(bandIcd?.selfStatBonuses).toBeUndefined();
@@ -213,14 +222,14 @@ describe('timed cooldowns and item effects: catalog', () => {
     expect(items[29370]!.stats).toEqual({ spellPower: 43 });
     expect(items[29305]!.stats).toEqual({ intellect: 25, spellPower: 34, critRating: 24 });
     // The catalog effects are the use / proc buffs only: no static part.
-    for (const id of ['icon-of-the-silver-crescent', 'band-of-the-eternal-sage']) {
+    for (const id of [ICON, BAND]) {
       const e = buff(id).effect;
       expect(e.statBonuses, id).toBeUndefined();
       expect(e.statMultipliers, id).toBeUndefined();
       expect(e.modifiers, id).toBeUndefined();
     }
     // Enabling them (auras added, nothing active) changes no stat of the spec.
-    const spec = specWith(['icon-of-the-silver-crescent', 'band-of-the-eternal-sage']);
+    const spec = specWith([ICON, BAND]);
     expect(spec.setup).toBe(destructionWarlock.setup);
     expect(spec.statBonuses).toBe(destructionWarlock.statBonuses);
   });
@@ -314,21 +323,21 @@ describe('timed cooldowns in the engine', () => {
       const sim = newSim(spec, [], { seed: 3 });
       for (const t of [0, 10000, 30000]) {
         if (useIconAtMs !== undefined && useIconAtMs < t && sim.snapshot().nowMs <= useIconAtMs) {
-          useAt(sim, useIconAtMs, 'icon-of-the-silver-crescent');
+          useAt(sim, useIconAtMs, ICON);
         }
         castAt(sim, t, 'shadow-bolt');
       }
       sim.advanceTo(40000);
       return { sim, dmg: damages(sim, 'shadow-bolt') };
     };
-    const withIcon = run(specWith(['icon-of-the-silver-crescent']), 5000);
+    const withIcon = run(specWith([ICON]), 5000);
     const base = run(destructionWarlock);
     const permanent = run({
       ...destructionWarlock,
       statBonuses: { ...destructionWarlock.statBonuses, spellPower: (destructionWarlock.statBonuses.spellPower ?? 0) + 155 },
     });
     expect(withIcon.dmg).toHaveLength(3);
-    expect(auraLog(withIcon.sim, 'icon-of-the-silver-crescent')).toEqual([
+    expect(auraLog(withIcon.sim, ICON_AURA)).toEqual([
       { atMs: 5000, type: 'aura-apply' },
       { atMs: 25000, type: 'aura-fade' },
     ]);
@@ -349,13 +358,13 @@ describe('timed cooldowns in the engine', () => {
     // engine path when scheduled directly (the item-actions feature presses them instead).
     const late = (id: string, startSec: number): ScheduledAura =>
       buff(id).timed ? scheduled(id, startSec) : { auraId: selfAuraOf(id).id, on: 'self', atMs: startSec * 1000 };
-    for (const id of ['heroism', 'destruction-potion', 'icon-of-the-silver-crescent']) {
+    for (const id of ['heroism', 'destruction-potion', ICON]) {
       const sim = newSim(specWith([id]), [late(id, 60.001), late(id, 600)]);
       castAt(sim, 0, 'shadow-bolt');
       expect(castAt(sim, 50000, 'shadow-bolt'), id).toBe(2431);
       sim.advanceTo(60000);
       expect(sim.snapshot().phase).toBe('ended');
-      expect(auraLog(sim, id), id).toEqual([]);
+      expect(auraLog(sim, selfAuraOf(id).id), id).toEqual([]);
     }
     // A duration running past the end is cut by it (no fade logged).
     const sim = newSim(specWith(['heroism']), [scheduled('heroism', 50)]);
@@ -365,16 +374,16 @@ describe('timed cooldowns in the engine', () => {
   });
 
   it('timed buffs with a custom start/duration from the config are honoured; an item aura lasts its own duration from the use', () => {
-    const sim = newSim(specWith(['heroism', 'icon-of-the-silver-crescent']), [scheduled('heroism', 0, 10)]);
+    const sim = newSim(specWith(['heroism', ICON]), [scheduled('heroism', 0, 10)]);
     expect(castAt(sim, 0, 'shadow-bolt')).toBe(1870);
     expect(castAt(sim, 12000, 'shadow-bolt')).toBe(2431);
-    useAt(sim, 30000, 'icon-of-the-silver-crescent');
+    useAt(sim, 30000, ICON);
     sim.advanceTo(60000);
     expect(auraLog(sim, 'heroism')).toEqual([
       { atMs: 0, type: 'aura-apply' },
       { atMs: 10000, type: 'aura-fade' },
     ]);
-    expect(auraLog(sim, 'icon-of-the-silver-crescent')).toEqual([
+    expect(auraLog(sim, ICON_AURA)).toEqual([
       { atMs: 30000, type: 'aura-apply' },
       { atMs: 50000, type: 'aura-fade' },
     ]);
@@ -386,7 +395,7 @@ describe('timed cooldowns in the engine', () => {
 // ---------------------------------------------------------------------------
 
 describe('Band of the Eternal Sage', () => {
-  const hook = buff('band-of-the-eternal-sage').effect.hooks?.onSpellResolved;
+  const hook = buff(BAND).effect.hooks?.onSpellResolved;
 
   /** A stub api recording the calls; the ICD is up while `icd.on`. */
   function stubApi(rolls: () => number, icd = { on: false }) {
@@ -436,7 +445,7 @@ describe('Band of the Eternal Sage', () => {
     ] as const) {
       const { api, calls } = stubApi(() => 0.05);
       fire(api, spellId, outcome);
-      expect(calls).toEqual({ roll: 1, applied: [BAND_ICD_AURA_ID, 'band-of-the-eternal-sage'] });
+      expect(calls).toEqual({ roll: 1, applied: [BAND_ICD_AURA_ID, BAND_AURA] });
     }
     // A roll at or over the chance: nothing applied.
     {
@@ -454,7 +463,7 @@ describe('Band of the Eternal Sage', () => {
     {
       const { api, calls } = stubApi(() => 0);
       for (let i = 0; i < 10; i++) fire(api, 'shadow-bolt', 'hit');
-      expect(calls).toEqual({ roll: 1, applied: [BAND_ICD_AURA_ID, 'band-of-the-eternal-sage'] });
+      expect(calls).toEqual({ roll: 1, applied: [BAND_ICD_AURA_ID, BAND_AURA] });
     }
     // Proc rate per roll with a seeded Rng (ICD cleared after each proc): near 10%.
     const rng = createRng(4242);
@@ -475,7 +484,7 @@ describe('Band of the Eternal Sage', () => {
     let rolls = 0;
     let procs = 0;
     // Counts the Band hook's rolls: a pass-through api in front of the Band's hook.
-    const bandHook = buff('band-of-the-eternal-sage').effect.hooks!;
+    const bandHook = buff(BAND).effect.hooks!;
     const counting: SpecHooks = {
       onSpellResolved(e, api) {
         bandHook.onSpellResolved!(e, {
@@ -491,13 +500,13 @@ describe('Band of the Eternal Sage', () => {
     for (let seed = 1; seed <= 25; seed++) {
       const withBand: SpecData = {
         ...destructionWarlock,
-        auras: [...destructionWarlock.auras, ...(buff('band-of-the-eternal-sage').effect.auras ?? [])],
+        auras: [...destructionWarlock.auras, ...(buff(BAND).effect.auras ?? [])],
         hooks: compose(destructionWarlock.hooks, counting),
       };
       const sim = newSim(withBand, [], { seed, durationMs, target: BOSS_TARGET, infiniteMana: false });
       runBot(sim, withBand.priority, 20);
-      const applies = sim.log().filter((e) => e.type === 'aura-apply' && e.auraId === 'band-of-the-eternal-sage');
-      const fades = sim.log().filter((e) => e.type === 'aura-fade' && e.auraId === 'band-of-the-eternal-sage');
+      const applies = sim.log().filter((e) => e.type === 'aura-apply' && e.auraId === BAND_AURA);
+      const fades = sim.log().filter((e) => e.type === 'aura-fade' && e.auraId === BAND_AURA);
       const icdApplies = sim.log().filter((e) => e.type === 'aura-apply' && e.auraId === BAND_ICD_AURA_ID);
       procs += applies.length;
       expect(icdApplies.map((e) => e.atMs)).toEqual(applies.map((e) => e.atMs));
@@ -518,7 +527,7 @@ describe('Band of the Eternal Sage', () => {
 
   it('while the Band buff is up the player has +95 spell power (Shadow Bolt as with a permanent +95)', () => {
     // Force a proc on the first landed bolt: a roll stub only for the Band hook.
-    const bandHook = buff('band-of-the-eternal-sage').effect.hooks!;
+    const bandHook = buff(BAND).effect.hooks!;
     const alwaysProc: SpecHooks = {
       onSpellResolved(e, api) {
         bandHook.onSpellResolved!(e, { ...api, roll: () => 0 });
@@ -526,7 +535,7 @@ describe('Band of the Eternal Sage', () => {
     };
     const spec: SpecData = {
       ...destructionWarlock,
-      auras: [...destructionWarlock.auras, ...(buff('band-of-the-eternal-sage').effect.auras ?? [])],
+      auras: [...destructionWarlock.auras, ...(buff(BAND).effect.auras ?? [])],
       hooks: compose(destructionWarlock.hooks, alwaysProc),
     };
     const run = (s: SpecData) => {
@@ -543,7 +552,7 @@ describe('Band of the Eternal Sage', () => {
     });
     // Proc at the first landing (2431), buff to 12431; second bolt lands at 7431 (during), third
     // at 22431 (after, ICD still up so no new proc).
-    expect(auraLog(band.sim, 'band-of-the-eternal-sage')).toEqual([
+    expect(auraLog(band.sim, BAND_AURA)).toEqual([
       { atMs: 2431, type: 'aura-apply' },
       { atMs: 12431, type: 'aura-fade' },
     ]);
