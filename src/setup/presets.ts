@@ -74,7 +74,10 @@ const RAID_LOG_SETUP: SetupConfig = {
  * - `raid-log`: the author's raid as in the Naj'entus log (`RAID_LOG_SETUP` above); approximate,
  *   several buffs are guesses (`description` says which).
  * Both keep the author's gear: they have no `gear` (`setupGear`, src/setup/gear.ts), so choosing
- * one also returns the gear to the author's export.
+ * one also returns the gear to the author's export. Neither has `rotation.itemUse` /
+ * `itemUseOrder`: the default item-use rules (itemUse.ts `DEFAULT_ITEM_USE`, applied by
+ * `applySetup`), so choosing one also resets the item rules; a config whose rules equal the
+ * defaults still matches a preset (`normalizeSetup` drops them).
  * Deep-frozen: copy a preset's config (structuredClone) before editing it.
  */
 export const SETUP_PRESETS: Readonly<Record<SetupPresetId, { name: string; description: string; config: SetupConfig }>> =

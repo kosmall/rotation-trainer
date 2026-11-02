@@ -2,6 +2,7 @@
 // Part C). Framework-free; nothing here throws.
 
 import { DEFAULT_WARLOCK_OPTIONS, type WarlockOptions } from '../data/classes/warlock/destruction';
+import { normalizeItemUse, normalizeItemUseOrder, type ItemUseRule } from '../data/classes/warlock/itemUse';
 import { ROTATION_PRESETS, type CurseChoice, type RotationConfig } from '../data/classes/warlock/rotation';
 import { commonBuffs, consumables, cooldowns, debuffs, deepFreeze, EXCLUDES } from '../data/common/buffs';
 import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
@@ -180,8 +181,35 @@ function normalizeTimed(v: unknown, catalog: readonly BuffDef[]): Record<string,
   return out;
 }
 
-function normalizeRotation(v: unknown): RotationConfig {
+/** Whether `id` can carry an item-use rule: a catalog entry with an item action, or a gear effect id. */
+function itemUseIdChecker(catalog: readonly BuffDef[]): (id: string) => boolean {
+  const actionIds = new Set(catalog.filter((b) => b.effect.action !== undefined).map((b) => b.id));
+  return (id) => actionIds.has(id) || isGearEffectId(id);
+}
+
+/**
+ * Whether a rule equals its default in every fight, so storing it changes nothing: no window or
+ * gap, and for a mana item (Super Mana Potion, Dark Rune: an action with `gainManaRange`)
+ * `mana-missing` its largest gain, for any other action (Destruction Potion, the gear's on-use
+ * items) `with-heroism` (the default with Heroism; without it `with-heroism` is always wanted, the
+ * same steps as the default `ready`). `ready` is kept even without Heroism: enabling Heroism later
+ * would change what a dropped rule means.
+ */
+function defaultRuleChecker(catalog: readonly BuffDef[]): (id: string, rule: ItemUseRule) => boolean {
+  const manaGain = new Map(catalog.flatMap((b) => (b.effect.action?.gainManaRange ? [[b.id, b.effect.action.gainManaRange.max] as const] : [])));
+  return (id, rule) => {
+    if (rule.notBeforeSec !== undefined || rule.notAfterSec !== undefined || rule.minGapSec !== undefined) return false;
+    const gain = manaGain.get(id);
+    if (gain !== undefined) return rule.trigger.kind === 'mana-missing' && rule.trigger.amount === gain;
+    return rule.trigger.kind === 'with-heroism';
+  };
+}
+
+function normalizeRotation(v: unknown, catalog: readonly BuffDef[]): RotationConfig {
   const r = isRecord(v) ? v : {};
+  const isKnownId = itemUseIdChecker(catalog);
+  const itemUse = normalizeItemUse(own(r, 'itemUse'), isKnownId, defaultRuleChecker(catalog));
+  const itemUseOrder = normalizeItemUseOrder(own(r, 'itemUseOrder'), isKnownId);
   const curse = own(r, 'curse');
   const flag = (key: 'immolate' | 'corruption' | 'shadowburnFinisher'): boolean => {
     const f = own(r, key);
@@ -198,6 +226,9 @@ function normalizeRotation(v: unknown): RotationConfig {
       typeof lifeTap === 'number' && Number.isFinite(lifeTap) && lifeTap >= 0
         ? Math.min(lifeTap, SETUP_LIMITS.lifeTapBelowMana.max)
         : 'auto',
+    // Absent stays absent: a config without rules is not given the defaults (applySetup does).
+    ...(itemUse !== undefined && { itemUse }),
+    ...(itemUseOrder !== undefined && { itemUseOrder }),
   };
 }
 
@@ -247,6 +278,14 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  * - `rotation` and `warlock`: each field checked against its type or union, else its default
  *   (curse 'elements', Life Tap 'auto' unless a finite number >= 0, Fel Armor, Succubus
  *   sacrificed).
+ * - `rotation.itemUse` / `rotation.itemUseOrder` (simulator Task 1, itemUse.ts): absent stays
+ *   absent (the defaults apply at `applySetup`, nothing is written back). Present: only ids of
+ *   catalog entries with an item action and well-formed gear effect ids (worn or not, like
+ *   `enabledBuffs`; prototype keys never pass), each rule validated by `normalizeItemUseRule`
+ *   (known trigger kinds, seconds clamped to 0-3600, mana to 0-100 000; an invalid rule is
+ *   dropped), at most 32 rules and 32 order entries; rules equal to their default in every fight
+ *   are dropped (so spelling out the defaults keeps the preset identity); an empty result leaves
+ *   the field absent.
  * - `gear` (stage 2a): absent stays absent (the author's gear). Present: with the item database
  *   `db`, `normalizeGear` (ids checked: unknown or misfit entries dropped; wrong length or not an
  *   array: the author's gear); without it (the database is a lazy chunk, this function is
@@ -260,7 +299,7 @@ export function normalizeSetup(input: unknown, catalog: readonly BuffDef[], db?:
       version: 1,
       enabledBuffs: normalizeEnabled(own(input, 'enabledBuffs'), catalog),
       timed: normalizeTimed(own(input, 'timed'), catalog),
-      rotation: normalizeRotation(own(input, 'rotation')),
+      rotation: normalizeRotation(own(input, 'rotation'), catalog),
       distanceYd: clampNumber(own(input, 'distanceYd'), SETUP_LIMITS.distanceYd, DEFAULT_DISTANCE_FROM_TARGET_YD),
       warlock: normalizeWarlock(own(input, 'warlock')),
       fightDurationSec: normalizeFightDuration(own(input, 'fightDurationSec')),

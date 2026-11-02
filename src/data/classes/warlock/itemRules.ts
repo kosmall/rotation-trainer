@@ -1,5 +1,6 @@
 import type { SimSnapshot } from '../../../engine/types';
 import type { PriorityStep } from '../../types';
+import { compileItemUse, compileItemUseRule, DEFAULT_ITEM_USE, defaultItemUseRule, type ItemUseAction } from './itemUse';
 
 // The priority steps of the item actions (item actions and fight settings, Task 2): `applySetup`
 // puts them at the START of the priority, before the rotation, since items are off the GCD. They
@@ -15,105 +16,110 @@ export const SUPER_MANA_POTION_MISSING_MANA = 3000;
 export const DARK_RUNE_MISSING_MANA = 1500;
 
 /**
- * An item press never takes a spell's place in the spell queue: during a cast with a spell already
- * queued, a valid item press would replace it (one queue slot, Task 1 Decision 1) and the next
- * spell would start late. So an item is wanted only when no cast is in progress (it is used at
- * once, even during the GCD, and a spell queued for the GCD's end keeps its slot), when nothing is
- * queued yet (it takes the queue and fires at the cast's end), or when it is the queued spell
- * itself (the bot then stops at its step and keeps the queue as it is).
- */
-function itemPressFree(s: SimSnapshot, spellId: string): boolean {
-  return s.cast === null || s.queuedSpellId === null || s.queuedSpellId === spellId;
-}
-
-const missingMana = (s: SimSnapshot) => s.maxMana - s.mana;
-const heroismUp = (s: SimSnapshot) => s.selfAuras['heroism'] !== undefined;
-
-/**
  * When Heroism ends in the next fight (ms of fight time), or null when the setup has no Heroism
  * that comes up during the fight (disabled, or starting at or after the fight's end).
  */
 type HeroismEndMs = number | null;
 
-/** How the bot and the "Priority" panel use one item action. */
+/** What an item action is, for the item-use rules (itemUse.ts `ItemUseAction` without its ids and label). */
+export type ItemRuleUse = Omit<ItemUseAction, 'id' | 'spellId' | 'label'>;
+
+/**
+ * How the bot and the "Priority" panel use one item action by default. `use` describes the action
+ * for the configurable rules (itemUse.ts); `hint` and `wanted` are its default rule
+ * (`DEFAULT_ITEM_USE`), compiled by `compileItemUse` (the item queue gate excluded from `wanted`).
+ */
 export interface ItemRule {
   label: string;
+  use: ItemRuleUse;
   hint(heroismEndMs: HeroismEndMs): string;
   wanted(heroismEndMs: HeroismEndMs): (s: SimSnapshot) => boolean;
 }
 
-const seconds = (ms: number) => `${Number((ms / 1000).toFixed(1))} s`;
+function ruleOf(label: string, use: ItemRuleUse): ItemRule {
+  const compiled = (heroismEndMs: HeroismEndMs) => {
+    const action: ItemUseAction = { id: label, spellId: label, label, ...use };
+    return compileItemUseRule(action, defaultItemUseRule(action, heroismEndMs), { heroismEndMs })!;
+  };
+  return {
+    label,
+    use,
+    hint: (heroismEndMs) => compiled(heroismEndMs).hint,
+    wanted: (heroismEndMs) => compiled(heroismEndMs).wanted,
+  };
+}
 
 /**
  * A burst item: with Heroism when the fight has it (both stack), then again whenever it is ready
  * once Heroism is over (a long fight has room for more uses: 120 s cooldowns); without Heroism at
- * the pull and whenever it is ready.
+ * the pull and whenever it is ready (`DEFAULT_ITEM_USE`: `with-heroism`, or `ready`).
  */
-export function burstRule(label: string, effect: string, cooldown: string): ItemRule {
-  return {
-    label,
-    hint: (heroismEndMs) =>
-      heroismEndMs !== null
-        ? `Use it while Heroism is up, then whenever it is ready once Heroism has ended at ${seconds(heroismEndMs)} (off the GCD): ${effect}. ${cooldown}`
-        : `Use it at the pull and whenever it is ready (off the GCD): ${effect}. ${cooldown}`,
-    wanted: (heroismEndMs) =>
-      heroismEndMs !== null ? (s) => heroismUp(s) || s.nowMs >= heroismEndMs : () => true,
-  };
+export function burstRule(label: string, effect: string, cooldown: string, cooldownMs = 0): ItemRule {
+  return ruleOf(label, { kind: 'burst', effect, cooldown, cooldownMs });
+}
+
+/** A mana item: wanted when its largest gain is missing (`DEFAULT_ITEM_USE`: `mana-missing`). */
+function manaRule(label: string, effect: string, cooldown: string, cooldownMs: number, maxManaGain: number): ItemRule {
+  return ruleOf(label, { kind: 'mana', effect, cooldown, cooldownMs, maxManaGain });
 }
 
 /**
  * The rule of every item action of the static catalog, by action id. The gear's on-use items are
  * derived with the gear (src/setup/gearEffects.ts `gearItemRules`: `burstRule` each) and passed to
- * `buildItemSteps` as `gearRules`.
+ * `buildItemSteps` as `gearRules`. Cooldowns: src/data/common/buffs.ts (120 s each).
  */
 export const ITEM_RULES: Readonly<Record<string, Readonly<ItemRule>>> = Object.freeze({
   'use-destruction-potion': burstRule(
     'Destruction Potion',
     '+120 spell power and +2% crit for 15 s',
     'Shares the 2 min potion cooldown with Super Mana Potion.',
+    120000,
   ),
-  'use-super-mana-potion': {
-    label: 'Super Mana Potion',
-    hint: () =>
-      `When at least ${SUPER_MANA_POTION_MISSING_MANA} mana is missing (its largest gain): restores 1800 to 3000 mana. Shares the 2 min potion cooldown with Destruction Potion.`,
-    wanted: () => (s) => missingMana(s) >= SUPER_MANA_POTION_MISSING_MANA,
-  },
-  'use-dark-rune': {
-    label: 'Dark Rune',
-    hint: () =>
-      `When at least ${DARK_RUNE_MISSING_MANA} mana is missing (its largest gain): restores 900 to 1500 mana. 2 min cooldown of its own.`,
-    wanted: () => (s) => missingMana(s) >= DARK_RUNE_MISSING_MANA,
-  },
+  'use-super-mana-potion': manaRule(
+    'Super Mana Potion',
+    'restores 1800 to 3000 mana',
+    'Shares the 2 min potion cooldown with Destruction Potion.',
+    120000,
+    SUPER_MANA_POTION_MISSING_MANA,
+  ),
+  'use-dark-rune': manaRule('Dark Rune', 'restores 900 to 1500 mana', '2 min cooldown of its own.', 120000, DARK_RUNE_MISSING_MANA),
 });
 
+/** The rule of an action id: the static catalog's, else the gear's; undefined without one. */
+export function itemRuleOf(spellId: string, gearRules: Readonly<Record<string, Readonly<ItemRule>>> = {}): Readonly<ItemRule> | undefined {
+  return Object.hasOwn(ITEM_RULES, spellId) ? ITEM_RULES[spellId] : Object.hasOwn(gearRules, spellId) ? gearRules[spellId] : undefined;
+}
+
+/** The item-use action of an action id with its rule (`id`: the catalog entry id, the itemUse key). */
+export function itemUseActionOf(id: string, spellId: string, rule: Readonly<ItemRule>): ItemUseAction {
+  return { id, spellId, label: rule.label, ...rule.use };
+}
+
 /**
- * The priority steps for the enabled item actions, in the given order (`applySetup` passes the
- * catalog order, then the gear's); ids without a rule (in `ITEM_RULES` or `gearRules`) are left out. Pure: new step objects on every call.
+ * The priority steps for the enabled item actions under the DEFAULT rules, in the given order
+ * (`applySetup` compiles the setup's own rules with `compileItemUse`); ids without a rule (in
+ * `ITEM_RULES` or `gearRules`) are left out. A thin wrapper:
+ * `compileItemUse(actions, { itemUse: DEFAULT_ITEM_USE(actions, heroismEndMs) }, { heroismEndMs })`.
+ * Pure: new step objects on every call.
  * - Destruction Potion and the gear's on-use items (`gearRules`, the burst rule): with `heroismEndMs` (the fight has
  *   Heroism; `applySetup` passes null when it is disabled or starts at or after the fight's end),
  *   while Heroism is up (`selfAuras.heroism`) or once it is over (`nowMs >= heroismEndMs`): used
  *   with Heroism, then whenever the cooldown allows. Without it always (at the pull, then
  *   whenever the cooldown allows).
  * - Super Mana Potion: when max mana - mana >= 3000; Dark Rune: when >= 1500.
- * Every rule also waits until the press cannot replace a queued spell (`itemPressFree`). A press
- * the engine rejects (cooldown, busy) falls through to the rotation, as for any step.
+ * Every rule also waits until the press cannot replace a queued spell (itemUse.ts `itemPressFree`:
+ * no cast, nothing queued, or itself queued). A press the engine rejects (cooldown, busy) falls
+ * through to the rotation, as for any step.
  */
 export function buildItemSteps(
   enabledActionIds: readonly string[],
   heroismEndMs: number | null,
   gearRules: Readonly<Record<string, Readonly<ItemRule>>> = {},
 ): PriorityStep[] {
-  const steps: PriorityStep[] = [];
+  const actions: ItemUseAction[] = [];
   for (const spellId of enabledActionIds) {
-    const rule = Object.hasOwn(ITEM_RULES, spellId) ? ITEM_RULES[spellId] : Object.hasOwn(gearRules, spellId) ? gearRules[spellId] : undefined;
-    if (rule === undefined) continue;
-    const wanted = rule.wanted(heroismEndMs);
-    steps.push({
-      spellId,
-      label: rule.label,
-      hint: rule.hint(heroismEndMs),
-      when: (s) => itemPressFree(s, spellId) && wanted(s),
-    });
+    const rule = itemRuleOf(spellId, gearRules);
+    if (rule !== undefined) actions.push(itemUseActionOf(spellId, spellId, rule));
   }
-  return steps;
+  return compileItemUse(actions, { itemUse: DEFAULT_ITEM_USE(actions, heroismEndMs) }, { heroismEndMs });
 }

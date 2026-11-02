@@ -359,7 +359,7 @@ export function gearItemRules(entries: readonly BuffDef[]): Record<string, ItemR
     if (!a || !aura) continue;
     const cooldown =
       `${secs(a.cooldownMs)} cooldown` + (a.sharedCooldown ? `; other items of its category wait ${secs(a.sharedCooldown.ms)}.` : '.');
-    rules[a.id] = burstRule(b.name, `${statsText(aura.selfStatBonuses)} for ${secs(aura.durationMs)}`, cooldown);
+    rules[a.id] = burstRule(b.name, `${statsText(aura.selfStatBonuses)} for ${secs(aura.durationMs)}`, cooldown, a.cooldownMs);
   }
   return rules;
 }

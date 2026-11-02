@@ -2,6 +2,7 @@ import { activeSetBonuses } from '../../../engine/sets';
 import { projectileTravelMs } from '../../../engine/travel';
 import type { SimSnapshot, SpellModifier } from '../../../engine/types';
 import type { PriorityStep, SpecData } from '../../types';
+import type { ItemUseRule } from './itemUse';
 import { warlockAuras } from './auras';
 import { warlockSpells } from './spells';
 import { talentModifiers, talentRank } from './talents';
@@ -24,6 +25,16 @@ export interface RotationConfig {
   shadowburnFinisher: boolean;
   /** Life Tap when mana is below this; 'auto' = Shadow Bolt's cost (399 with Cataclysm). */
   lifeTapBelowMana: number | 'auto';
+  /**
+   * When the bot uses each item action (simulator Task 1, itemUse.ts): rules keyed by the catalog
+   * entry id (`destruction-potion`, `super-mana-potion`, `dark-rune`, `item:<id>`). Absent (every
+   * config saved before, the presets), or an action without a rule: its default
+   * (`DEFAULT_ITEM_USE`, the bot's behaviour before the rules existed). Not read by
+   * `buildPriority`: `applySetup` compiles it (`compileItemUse`) into the item steps.
+   */
+  itemUse?: Record<string, ItemUseRule>;
+  /** The item steps' order: these entry ids first, the other actions after in catalog order. */
+  itemUseOrder?: string[];
 }
 
 export type RotationPresetId = 'dot' | 'sb-spam';

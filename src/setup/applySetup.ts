@@ -4,7 +4,8 @@
 // catalog, only auras, modifiers, stats and hooks.
 
 import { neutralizeOwnAuras } from '../data/classes/warlock/buffs';
-import { buildItemSteps } from '../data/classes/warlock/itemRules';
+import { itemRuleOf, itemUseActionOf } from '../data/classes/warlock/itemRules';
+import { compileItemUse, type ItemUseAction } from '../data/classes/warlock/itemUse';
 import { buildPriority, dotExtraTicksForSpec } from '../data/classes/warlock/rotation';
 import { ITEM_SLOT_COUNT, SPELL_SLOT_COUNT } from '../data/types';
 import type {
@@ -76,10 +77,12 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   end is kept: the engine ignores it.
  * - `spec.keybinds`: always a new array of SPELL_SLOT_COUNT + ITEM_SLOT_COUNT slots (`withItemRow`;
  *   the item row is '' when no item is enabled). The shared spec keeps its 12.
- * - `spec.priority = [...buildItemSteps(enabled action ids, Heroism's end in ms or null,
- *   gearItemRules(the gear's entries)),
+ * - `spec.priority = [...compileItemUse(the bound item actions that have a bot rule (itemRules.ts
+ *   `ITEM_RULES`, or `gearItemRules(the gear's entries)`), keyed by their entry ids,
+ *   config.rotation (its `itemUse` / `itemUseOrder`; absent: the default rules, the same steps
+ *   as `buildItemSteps`), { heroismEndMs: Heroism's end in ms or null, auraNames }),
  *   ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)]` (no item: the rotation
- *   alone), where `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included:
+ *   alone); rules of entries that are not bound actions are ignored (kept in the config), where `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included:
  *   e.g. Voidheart 4pc gives `{ corruption: 1, immolate: 1 }`, so the DoT refresh rules count the
  *   longer DoTs; `{}` otherwise, the list unchanged). Heroism's
  *   end is its scheduled start + duration; null when Heroism is disabled or starts at or after
@@ -99,6 +102,8 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
   const buffHooks: SpecHooks[] = [];
   const scheduledAuras: ScheduledAura[] = [];
   const actions: SpellDef[] = [];
+  /** The catalog entry id of each action (the `itemUse` key), in `actions` order. */
+  const actionEntryIds: string[] = [];
   const durationMs = Math.round(config.fightDurationSec * 1000);
   /**
    * Adds a self or helper aura once per id: two gear items with the same buff share one aura
@@ -121,7 +126,10 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
       extraAuras.push(e.targetAura);
       scheduledAuras.push({ auraId: e.targetAura.id, on: 'target', atMs: 0 });
     }
-    if (e.action) actions.push(e.action);
+    if (e.action) {
+      actions.push(e.action);
+      actionEntryIds.push(b.id);
+    }
     if (e.selfAura) {
       addAura(e.selfAura);
       if (e.action) {
@@ -153,17 +161,28 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
   // The DoT refresh rules must know a DoT the gear extends (Voidheart 4pc): the extra ticks of the
   // spec as the Simulation will fold them (its modifiers, the buffs', the gear's, the active sets').
   const dotExtraTicks = dotExtraTicksForSpec({ modifiers, setup: base.setup, sets: base.sets });
+  // The item steps: each bound action with a bot rule (the static catalog's or the gear's burst
+  // rule), under the config's item-use rules (absent: the defaults, the steps of before).
+  const gearRules = gearItemRules(gearEntries);
+  const itemActions: ItemUseAction[] = actions.flatMap((a, i) => {
+    const rule = itemRuleOf(a.id, gearRules);
+    return rule === undefined ? [] : [itemUseActionOf(actionEntryIds[i]!, a.id, rule)];
+  });
+  const auras = [...neutralizeOwnAuras(base.auras, enabled.map((b) => b.id)), ...extraAuras];
+  const auraNames: Record<string, string> = {};
+  for (const a of auras) if (!Object.hasOwn(auraNames, a.id)) auraNames[a.id] = a.name;
+  const itemSteps = compileItemUse(itemActions, config.rotation, { heroismEndMs, auraNames });
 
   return {
     spec: {
       ...base,
       spells: [...base.spells, ...actions],
-      auras: [...neutralizeOwnAuras(base.auras, enabled.map((b) => b.id)), ...extraAuras],
+      auras,
       modifiers,
       statBonuses,
       setup: { ...base.setup, ...(statMultipliers !== undefined && { statMultipliers }) },
       keybinds: withItemRow(base.keybinds, actionIds),
-      priority: [...buildItemSteps(actionIds, heroismEndMs, gearItemRules(gearEntries)), ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)],
+      priority: [...itemSteps, ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)],
       hooks: buffHooks.length > 0 ? composeHooks(base.hooks, ...buffHooks) : base.hooks,
     },
     sim: { scheduledAuras, distanceFromTarget: config.distanceYd, durationMs },
