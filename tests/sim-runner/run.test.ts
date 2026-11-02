@@ -303,8 +303,9 @@ describe('simulate', () => {
     const r = await simulate(request({ runs: 1000, seed: 1 }), { chunk: 100 });
     const ms = performance.now() - t0;
     expect(r.runs).toBe(1000);
-    // Measured on the development container: see the Task 2 report and docs Part H.
-    expect(ms).toBeLessThan(120000);
+    // Measured on the development container about 1.2 s (1.2 ms per run, docs Part H "Cost");
+    // 15 s before the bot skipped the steps at which no press can be accepted.
+    expect(ms).toBeLessThan(30000);
   }, 240000);
 });
 

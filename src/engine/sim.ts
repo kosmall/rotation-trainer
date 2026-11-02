@@ -219,6 +219,12 @@ export class Simulation {
   private readonly baseModifiers: SpellModifier[];
   /** Built from the base inputs plus the self auras in `statsAuraIds` (see `syncSelfStats`). */
   private stats: DerivedStats;
+  /**
+   * Per spell (in `spells` order) the `snapshot().spells` values for the current `stats` and
+   * `spellMods`; null after they are rebuilt (`buildStatsAndModifiers`), filled by `snapshot()`.
+   * A cache only: never read by the fight's logic.
+   */
+  private spellViews: { id: string; manaCost: number; castTimeMs: number }[] | null = null;
   /** The active self aura ids (sorted) that `stats` and `spellMods` were last built from. */
   private statsAuraIds: string[] = [];
   private readonly infiniteMana: boolean;
@@ -362,12 +368,56 @@ export class Simulation {
     this.addLog({ type: 'cast-cancel', spellId: cast.spellId });
   }
 
+  /** Read-only: the fight's phase (`snapshot().phase` without building a snapshot). */
+  currentPhase(): SimSnapshot['phase'] {
+    return this.phase;
+  }
+
+  /**
+   * Read-only (changes nothing, logs nothing): a fight time before which no `cast()` of any
+   * spell can be accepted or queued, as long as nobody calls `cast()` or `cancelCast()` in
+   * between, whatever events run meanwhile. A lower bound, not a promise that a press succeeds
+   * then. While the fight is running:
+   * - a spell is queued or a cast is in progress and the queue window has opened: now;
+   * - a cast in progress: its end minus the spell queue window (every spell is `busy` until then,
+   *   and its block end is at least the cast's end, so it cannot be queued earlier either);
+   * - no cast: the earliest of, over the spells, the GCD end minus the window (on-GCD spells;
+   *   now when the GCD is over) and the cooldown ready time (off-GCD spells: item actions; now
+   *   when ready).
+   * These inputs (the cast's end, the GCD end, the cooldowns) change only when a cast starts or
+   * completes; a cast starts only through `cast()` or the queue (which this bound covers) and
+   * completes at the cast's end, so events before the bound cannot move it earlier. In `ready`
+   * and `ended`: now.
+   */
+  nextPressOpportunityMs(): number {
+    const now = this.nowMs;
+    if (this.phase !== 'running' || this.queued) return now;
+    const window = this.spellQueueWindowMs;
+    if (this.activeCast) return Math.max(now, this.activeCast.endMs - window);
+    let earliest = Infinity;
+    for (const spell of this.spells.values()) {
+      const opens = usesGcd(spell)
+        ? this.gcdEndsAtMs - window
+        : (this.cooldownReadyAtMs.get(spell.id) ?? 0);
+      if (opens <= now) return now;
+      if (opens < earliest) earliest = opens;
+    }
+    return earliest === Infinity ? now : earliest;
+  }
+
   snapshot(): SimSnapshot {
     const cooldownRemainingMs: Record<string, number> = {};
     const spells: SimSnapshot['spells'] = {};
-    for (const [id, spell] of this.spells) {
-      cooldownRemainingMs[id] = this.cooldownRemaining(id);
-      spells[id] = { manaCost: this.manaCost(spell), castTimeMs: this.castTimeMs(spell) };
+    // manaCost and castTimeMs depend only on the stats and modifiers, rebuilt together (the cache
+    // is dropped then): computed once per rebuild, copied into fresh objects per snapshot.
+    this.spellViews ??= [...this.spells.values()].map((spell) => ({
+      id: spell.id,
+      manaCost: this.manaCost(spell),
+      castTimeMs: this.castTimeMs(spell),
+    }));
+    for (const v of this.spellViews) {
+      cooldownRemainingMs[v.id] = this.cooldownRemaining(v.id);
+      spells[v.id] = { manaCost: v.manaCost, castTimeMs: v.castTimeMs };
     }
     return {
       nowMs: this.nowMs,
@@ -926,6 +976,7 @@ export class Simulation {
    * per-spell modifier table from the base modifiers plus those auras' modifiers.
    */
   private buildStatsAndModifiers(auraIds: readonly string[]): DerivedStats {
+    this.spellViews = null;
     const auras = auraIds.map((id) => this.auraDef(id));
     const modifiers = [...this.baseModifiers, ...auras.flatMap((a) => a.selfModifiers ?? [])];
     for (const spell of this.spells.values()) this.spellMods.set(spell.id, foldModifiers(spell, modifiers));

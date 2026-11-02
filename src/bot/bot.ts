@@ -19,6 +19,15 @@ import type { SimSnapshot } from '../engine/types';
  *
  * A rejected cast in `ready` does not start the fight; if no step can start it the bot throws
  * instead of looping forever. Returns the final snapshot's `dps` and `damageTotal`.
+ *
+ * Steps at which no press can be accepted are skipped (simulator Task 2 performance wave): after
+ * the walk, the bot moves straight to the first step time at or after
+ * `sim.nextPressOpportunityMs()` (never before `now + stepMs`). At a skipped step every press
+ * would have been rejected, and a rejected press changes nothing; taking a snapshot changes
+ * nothing; and one `advanceTo` over several steps runs the same events in the same order as one
+ * call per step. So the fight (log, RNG draws, result) is exactly that of a walk at every step
+ * (pinned in tests/bot/bot-equivalence.test.ts). `when` conditions must be pure functions of the
+ * snapshot (they are never called at a skipped step).
  */
 export function runBot(
   sim: Simulation,
@@ -28,13 +37,24 @@ export function runBot(
   if (!Number.isFinite(stepMs) || stepMs <= 0) throw new RangeError(`runBot needs a positive stepMs, got ${stepMs}`);
   for (let s = sim.snapshot(); s.phase !== 'ended'; s = sim.snapshot()) {
     pressFirstCastable(sim, priority, s);
-    if (sim.snapshot().phase === 'ready') {
+    if (sim.currentPhase() === 'ready') {
       throw new Error('runBot: no priority step can start the fight (every cast was rejected in ready)');
     }
-    sim.advanceTo(s.nowMs + stepMs);
+    sim.advanceTo(nextStepMs(s.nowMs, stepMs, sim.nextPressOpportunityMs()));
   }
   const { dps, damageTotal } = sim.snapshot();
   return { dps, damageTotal };
+}
+
+/**
+ * The next step time: `now + k x stepMs` for the smallest k >= 1 with that time at or after
+ * `opensAtMs` (the same grid the bot would walk one step at a time).
+ */
+function nextStepMs(nowMs: number, stepMs: number, opensAtMs: number): number {
+  const next = nowMs + stepMs;
+  // A fractional step is floored by every advanceTo: walk it one step at a time, as before.
+  if (!Number.isInteger(stepMs)) return next;
+  return opensAtMs > next ? next + Math.ceil((opensAtMs - next) / stepMs) * stepMs : next;
 }
 
 function pressFirstCastable(sim: Simulation, priority: readonly PriorityStep[], s: SimSnapshot): void {
