@@ -49,7 +49,7 @@ export const CombatTextHud = memo(function CombatTextHud({ texts, settings, onDo
     return () => root.removeEventListener('animationend', onEnd);
   }, []);
   const stepsRef = useRef<Map<number, number>>(new Map());
-  const steps = assignSteps(texts, stepsRef.current);
+  const steps = assignSteps(texts, stepsRef.current, settings.fontPx);
   const view = (t: HudText) => <HudTextView key={t.id} text={t} step={steps.get(t.id) ?? 0} settings={settings} />;
   return (
     <div ref={rootRef} className={`hud hud-${settings.animation}`} aria-hidden="true">
@@ -59,32 +59,39 @@ export const CombatTextHud = memo(function CombatTextHud({ texts, settings, onDo
   );
 });
 
-/** Texts born this close together (ms) start one step apart, so they never start on top of each other. */
-export const HUD_STACK_WINDOW_MS = 500;
-/** Steps (lines) above a text's start point. */
-export const HUD_STACK_STEPS = 4;
+/** Steps (lines) above a text's start point a new text may take. */
+export const HUD_STACK_STEPS = 6;
+/** How far a text rises over its life, px (game.css `--hud-rise` on a wide screen). */
+const RISE_PX: Readonly<Record<HudText['area'], number>> = { outgoing: 96, notifications: 72 };
+/** One step: the line height game.css uses for `--hud-step` (1.25em). */
+const STEP_EM = 1.25;
 
 /**
  * The start step of each text (0 = its lane's start, each step one line higher), kept for the
  * text's whole life in `memory` (a text never jumps when an older one goes). A new text takes the
- * lowest step no recent text (born within `HUD_STACK_WINDOW_MS` before it) of the same area uses;
- * Outgoing lanes are columns apart, so there only texts of the same lane count. Lanes alone are
- * not enough: four texts born in one frame (an item, its buff, a trinket, its buff) share a lane.
+ * lowest step at least one line away from where every older text of its area (Outgoing: of its
+ * lane, the lanes are columns apart) is now: an older text's place is its own step plus how far it
+ * has risen since (linear: `RISE_PX` over its life, in lines of `fontPx`). So texts born in one
+ * frame (an item, its buff, a trinket, its buff, Heroism: five at once) start one line apart, and
+ * a text born 50-500 ms after another does not start on top of the risen one.
  */
-function assignSteps(texts: readonly HudText[], memory: Map<number, number>): ReadonlyMap<number, number> {
+export function assignSteps(texts: readonly HudText[], memory: Map<number, number>, fontPx: number): ReadonlyMap<number, number> {
   const live = new Set<number>();
+  const line = STEP_EM * Math.max(1, fontPx);
   for (const t of texts) {
     live.add(t.id);
     if (memory.has(t.id)) continue;
-    const used = new Set<number>();
+    const taken: number[] = [];
     for (const o of texts) {
       if (o === t) break;
       const step = memory.get(o.id);
       if (step === undefined || o.area !== t.area || (t.area === 'outgoing' && o.lane !== t.lane)) continue;
-      if (t.bornMs - o.bornMs < HUD_STACK_WINDOW_MS) used.add(step);
+      const life = Math.max(1, o.expiresAtMs - o.bornMs);
+      const risen = (Math.max(0, t.bornMs - o.bornMs) / life) * (RISE_PX[o.area] / line);
+      taken.push(step + risen);
     }
     let step = 0;
-    while (used.has(step) && step < HUD_STACK_STEPS - 1) step++;
+    while (step < HUD_STACK_STEPS - 1 && taken.some((p) => Math.abs(p - step) < 1)) step++;
     memory.set(t.id, step);
   }
   for (const id of memory.keys()) if (!live.has(id)) memory.delete(id);
@@ -144,6 +151,8 @@ export function CombatTextLayer({ snapshot, fightId, logSince, context, settings
   const cursorRef = useRef<HudCursor>(initialHudCursor());
   const logRef = useRef<LogEvent[]>([]);
   const fightRef = useRef(fightId);
+  /** The fight whose last entries (logged in the frame that ended it) have been read. */
+  const endReadRef = useRef<number | null>(null);
   /** Texts whose animation ended before the queue expired them (never shown again). */
   const doneRef = useRef<Set<number>>(new Set());
   const [texts, setTexts] = useState<readonly HudText[]>([]);
@@ -174,13 +183,24 @@ export function CombatTextLayer({ snapshot, fightId, logSince, context, settings
         doneRef.current.clear();
       }
     }
-    if (snapshot.phase === 'running') {
+    // While the fight runs, and once more for the entries of the frame that ended it (a DoT's last
+    // tick at the end); the snapshot events (ready, low mana) stay with the running fight.
+    const lastRead = snapshot.phase === 'ended' && endReadRef.current !== fightId;
+    if (snapshot.phase === 'running' || lastRead) {
+      if (lastRead) endReadRef.current = fightId;
       const log = logRef.current;
       for (const entry of logSince(log.length)) log.push(entry);
       const { events, cursor } = extractHudEvents(cursorRef.current, log, snapshot, context, settings);
       cursorRef.current = cursor;
-      q.push(events, snapshot.nowMs, settings);
-      q.expire(snapshot.nowMs);
+      // After a backgrounded tab the first frame reads the whole gap: only what is still young
+      // enough to be on screen comes up (no crits replayed for seconds).
+      const oldest = snapshot.nowMs - settings.durationMs;
+      q.push(
+        events.filter((e) => e.atMs >= oldest),
+        snapshot.nowMs,
+        settings,
+      );
+      if (snapshot.phase === 'running') q.expire(snapshot.nowMs);
     }
     if (!settings.enabled) q.clear();
     publish();

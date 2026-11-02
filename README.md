@@ -144,16 +144,17 @@ jego funkcjami):
 
 - **Outgoing** (po prawej, nad celem): Twoje obrażenia w kolorze szkoły, krytyki większe z „!” i
   krótkim „pop”, ticki DoT mniejsze i jaśniejsze, pudła „Miss”.
-- **Notifications** (po lewej, nad paskami postaci): buff włączony „+Heroism / Bloodlust” (zielony)
+- **Notifications** (po lewej, w pasie u dołu areny, pod debuffami celu i nad paskami postaci): buff włączony „+Heroism / Bloodlust” (zielony)
   i wygasły „-Heroism / Bloodlust” (czerwony), proc „Band of the Eternal Sage!” (złoty), zysk many
   „+1,622 Mana” (niebieski; regeneracja nie, drobne zyski łączone), użycie przedmiotu „Destruction
-  Potion”, gotowy cooldown „Curse of Doom ready” i „Low Mana” po zejściu poniżej progu.
+  Potion”, gotowy cooldown „Curse of Doom ready” i „Low Mana” po zejściu poniżej progu. Debuffy
+  na celu (opcjonalnie) pokazują „+Nazwa” tylko przy nałożeniu, nie przy każdym odświeżeniu.
 
 Panel **Combat text** (pod panelem Gear, zwinięty) ustawia: cały HUD (`Show combat text`), każdą
 kategorię osobno (debuffy na celu domyślnie wyłączone), animację (`Straight up` prosto w górę albo
 `Parabola` po łuku), czas życia tekstu, rozmiar czcionki i krytyków, ikony i nazwy czarów, próg
 obrażeń, scalanie ticków i drobnych zysków many, limit tekstów na ekranie (krytyki i proce nigdy nie
-giną) i próg „Low Mana”. Pola liczbowe przyjmują wartość z zakresu od razu, a poza zakresem jest
+giną, poza zalewem powyżej 100 oczekujących) i próg „Low Mana”. Pola liczbowe przyjmują wartość z zakresu od razu, a poza zakresem jest
 przycinana po wyjściu z pola; `Reset combat text to defaults` przywraca domyślne. Zmiany działają od
 razu, także w trwającej walce, i są zapamiętane w przeglądarce (osobno od setupu). Klawisze wpisane w
 pola liczbowe i listę wyboru nie rzucają czarów.
@@ -161,7 +162,12 @@ pola liczbowe i listę wyboru nie rzucają czarów.
 HUD tylko czyta walkę: wynik, log i DPS są identyczne z HUD i bez niego. Wyłączysz go
 odznaczając `Show combat text`. Jest dekoracją (czytnik ekranu go pomija, nie łapie kliknięć); przy
 systemowym ograniczeniu animacji teksty nie przesuwają się, tylko pojawiają się i gasną. Reset (`R`)
-czyści ekran, a po końcu walki nie pojawiają się nowe teksty (te na ekranie dogasają).
+czyści ekran, a po końcu walki nie pojawiają się nowe teksty (te na ekranie dogasają; ostatnie
+zdarzenia z chwili końca, np. tick Curse of Doom w 60. sekundzie, jeszcze się pokazują). Po powrocie
+do karty, która była w tle, pojawia się tylko to, co jeszcze zmieściłoby się w czasie życia tekstu.
+
+Ograniczenia: nie ma osobnego włączania obszarów (tylko kategorie) ani ustawienia szybkości (tekst
+przebiega swoją drogę w ustawionym czasie życia).
 
 ## Panel Setup
 

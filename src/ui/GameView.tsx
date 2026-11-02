@@ -357,7 +357,8 @@ export function GameView({
     <div className="game">
       <main className="game-main">
         <FightStats snapshot={snapshot} config={fight.config} presetName={fightPreset} gearName={fightGear} />
-        <section className="arena">
+        {/* With the HUD on, the arena keeps a band at its bottom for the notifications (clear of the target's debuffs). */}
+        <section className={hudSettings.enabled ? 'arena arena-hud' : 'arena'}>
           <TargetPanel spec={spec} targetAuras={snapshot.targetAuras} fightRemainingMs={fightRemainingMs} />
           {/* Under the overlays: the start card and the end summary stay clean. */}
           <CombatTextLayer

@@ -1,6 +1,7 @@
 // Combat text HUD: the texts on screen (scrolling combat text Task 1, design spec §3): merging of
-// DoT ticks and small mana gains, the anti-spam cap, lanes and expiry. Framework-free; times are
-// the UI loop's ms (`nowMs`), except the merge windows, which compare the events' fight times.
+// DoT ticks and small mana gains, the anti-spam cap, lanes and expiry. Framework-free. `nowMs` is
+// the caller's clock: CombatTextLayer passes the snapshot's fight time (1x real time while the
+// fight runs); the merge windows compare the events' own fight times.
 
 import type { HudArea, HudEvent } from './hudEvents';
 import { formatHudText } from './hudFormat';
@@ -8,9 +9,9 @@ import type { HudSettings } from './hudSettings';
 
 /** A text on screen. */
 export interface HudText extends HudEvent {
-  /** UI time it was shown at. */
+  /** `nowMs` it was shown at (the snapshot's fight time in CombatTextLayer). */
   bornMs: number;
-  /** UI time it goes away (`bornMs + durationMs` of the settings it was shown with). */
+  /** `nowMs` it goes away (`bornMs + durationMs` of the settings it was shown with). */
   expiresAtMs: number;
 }
 
@@ -24,7 +25,7 @@ export const MANA_MERGE_WINDOW_MS = 2000;
  * Most sticky texts waiting for room (a burst of 100 events fits). Only past this many waiting is
  * the oldest waiting one dropped: the one case a crit or proc text can be lost.
  */
-export const HUD_MAX_PENDING = 100;
+const HUD_MAX_PENDING = 100;
 
 /**
  * The texts on screen, oldest first.

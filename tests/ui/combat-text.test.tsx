@@ -9,7 +9,13 @@ import { DEFAULT_SETUP } from '../../src/setup/defaults';
 import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
+import { assignSteps, CombatTextLayer, HUD_STACK_STEPS } from '../../src/ui/CombatTextHud';
 import { GameView } from '../../src/ui/GameView';
+import { buildHudContext } from '../../src/ui/hudEvents';
+import type { HudText } from '../../src/ui/hudQueue';
+import { Simulation } from '../../src/engine/sim';
+import { BOSS_TARGET } from '../../src/data/common/target';
+import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { SCHOOL_COLORS } from '../../src/ui/format';
 import { DEFAULT_HUD_SETTINGS, HUD_STORAGE_KEY } from '../../src/ui/hudSettings';
 import type { HudSettings } from '../../src/ui/hudSettings';
@@ -393,6 +399,116 @@ describe('Combat text HUD: texts in the fight', () => {
     fireEvent.animationEnd(second!);
     advance(100);
     expect(texts()).toHaveLength(0);
+  });
+});
+
+describe('Combat text HUD: fixes after review', () => {
+  const text = (id: number, bornMs: number, p: Partial<HudText> = {}): HudText => ({
+    id,
+    atMs: bornMs,
+    area: 'notifications',
+    kind: 'buff-on',
+    text: `t${id}`,
+    color: '#fff',
+    sticky: false,
+    lane: id % 3,
+    bornMs,
+    expiresAtMs: bornMs + 1600,
+    ...p,
+  });
+
+  it('M1: texts born in one frame start on different steps (up to HUD_STACK_STEPS)', () => {
+    const five = [0, 1, 2, 3, 4].map((i) => text(i, 1000));
+    const steps = assignSteps(five, new Map(), 16);
+    expect(new Set(five.map((t) => steps.get(t.id))).size).toBe(5);
+    expect(HUD_STACK_STEPS).toBeGreaterThanOrEqual(6);
+    const six = [0, 1, 2, 3, 4, 5].map((i) => text(i, 1000));
+    expect(new Set(six.map((t) => assignSteps(six, new Map(), 16).get(t.id))).size).toBe(6);
+  });
+
+  it('M1: a text born 50-500 ms after another does not start on top of the risen one', () => {
+    for (const dt of [50, 150, 300, 450]) {
+      const memory = new Map<number, number>();
+      const older = text(1, 1000);
+      assignSteps([older], memory, 16);
+      const newer = text(2, 1000 + dt);
+      const steps = assignSteps([older, newer], memory, 16);
+      // The older one has risen dt / 1600 of 72 px, in lines of 1.25 x 16 px.
+      const olderNow = (dt / 1600) * (72 / 20);
+      expect(Math.abs(steps.get(2)! - olderNow), `dt ${dt}`).toBeGreaterThanOrEqual(1);
+    }
+    // Long enough after: the start is free again.
+    const memory = new Map<number, number>();
+    assignSteps([text(1, 1000)], memory, 16);
+    expect(assignSteps([text(1, 1000), text(2, 1600)], memory, 16).get(2)).toBe(0);
+    // A step, once given, stays when the older text goes.
+    expect(assignSteps([text(2, 1600)], memory, 16).get(2)).toBe(0);
+  });
+
+  it('M1: Heroism at 0, the Icon and the potion together: five notifications, five different steps', () => {
+    const { storage } = memoryStorage({
+      enabledBuffs: ['heroism', 'destruction-potion', 'item:29370'],
+      timed: { heroism: { startSec: 0, durationSec: 40 } },
+    });
+    render(<GameView storage={storage} />);
+    press('z');
+    press('x');
+    advance(50);
+    const notes = texts('notifications');
+    expect(notes).toHaveLength(5);
+    expect(new Set(notes.map((t) => t.style.getPropertyValue('--hud-step'))).size).toBe(5);
+  });
+
+  it("M2: an entry logged in the frame that ends the fight is read once (Curse of Doom's tick at 60 s)", () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    press('0'); // Curse of Doom: one tick, 60 s later
+    advance(59_900);
+    expect(texts('outgoing').filter((t) => t.classList.contains('hud-tick'))).toHaveLength(0);
+    advance(300);
+    expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
+    const ticks = texts('outgoing').filter((t) => t.classList.contains('hud-tick'));
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0]!.textContent).toMatch(AMOUNT);
+    const atEnd = ids();
+    advance(3000);
+    expect(ids()).toEqual(atEnd); // read once, nothing after
+  });
+
+  it('M3: after a backgrounded tab the catch-up frame shows only events young enough to be on screen', () => {
+    const sim = new Simulation({ spec: destructionWarlock, target: BOSS_TARGET, seed: 7, spellQueueWindowMs: 400, distanceFromTarget: 0, scheduledAuras: [], durationMs: 60000 });
+    sim.start();
+    for (let t = 0; t <= 30_000; t += 100) {
+      sim.cast('shadow-bolt');
+      sim.advanceTo(t);
+    }
+    const snapshot = sim.snapshot();
+    expect(snapshot.phase).toBe('running');
+    const context = buildHudContext({ spells: destructionWarlock.spells, auras: destructionWarlock.auras });
+    const settings = { ...DEFAULT_HUD_SETTINGS, maxTexts: 60 };
+    const recent = sim.log().filter((e) => (e.type === 'damage' || e.type === 'miss') && e.atMs >= 30_000 - settings.durationMs);
+    expect(sim.log().filter((e) => e.type === 'damage').length).toBeGreaterThan(recent.length + 5);
+    // One frame after 30 s without any: the whole log arrives at once.
+    render(<CombatTextLayer snapshot={snapshot} fightId={1} logSince={(i) => sim.logSince(i)} context={context} settings={settings} />);
+    expect(texts()).toHaveLength(recent.length);
+  });
+
+  it('M5: with the HUD on the arena keeps a band for the notifications below the target panel', async () => {
+    render(<GameView storage={memoryStorage().storage} />);
+    expect(document.querySelector('.arena')!.classList.contains('arena-hud')).toBe(true);
+    cleanup();
+    render(<GameView storage={memoryStorage({}, { enabled: false }).storage} />);
+    expect(document.querySelector('.arena')!.classList.contains('arena-hud')).toBe(false);
+    const css = await readCss();
+    expect(css).toMatch(/\.arena-hud \{[^}]*padding-bottom: 64px/);
+    expect(css).toMatch(/\.hud-notifications \{[^}]*bottom: 4px;[^}]*height: 60px/);
+  });
+
+  it('M6: light theme darkens the colours with a white outline, dark theme lightens them with a black one', async () => {
+    const css = await readCss();
+    expect(css).toMatch(/\.hud \{[^}]*--hud-tint: 62%;[^}]*--hud-tint-with: #000;[^}]*--hud-outline: #fff;/);
+    const dark = css.match(/@media \(prefers-color-scheme: dark\) \{\s*\.hud \{([^}]*)\}/)?.[1] ?? '';
+    expect(dark).toMatch(/--hud-tint: 65%;[^]*--hud-tint-with: #fff;[^]*--hud-outline: #000;/);
+    expect(css).toMatch(/\.hud-text \{[^}]*color-mix\(in srgb, var\(--hud-color\) var\(--hud-tint\), var\(--hud-tint-with\)\)/);
   });
 });
 

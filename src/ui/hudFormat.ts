@@ -83,8 +83,8 @@ export function formatHudText(event: HudTextInput, settings: Pick<HudSettings, '
 }
 
 /** Size of a tick relative to `fontPx`, and its opacity: smaller and lighter than a hit. */
-export const HUD_TICK_SCALE = 0.85;
-export const HUD_TICK_OPACITY = 0.8;
+const HUD_TICK_SCALE = 0.85;
+const HUD_TICK_OPACITY = 0.8;
 
 /** How a kind of text looks: crits `fontPx x critScale` and bold, ticks smaller and lighter, procs bold. */
 export function hudTextStyle(kind: HudKind, settings: Pick<HudSettings, 'fontPx' | 'critScale'>): { fontPx: number; bold: boolean; opacity: number } {

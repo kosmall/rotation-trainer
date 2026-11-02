@@ -155,6 +155,10 @@ Jeden spec, osobny plan implementacji i commit na etap:
    aktywowane przedmioty na action barze (trinket, mikstury, runa; dzielone cooldowny) oraz
    długość walki i sekunda startu Heroism/Bloodlust w Setup:
    `2026-10-30-item-actions-and-fight-settings-design.md`.)
+   2d. HUD ze scrolling combat text (w stylu MikScrollingBattleText): obrażenia, buffy, proce,
+   mana i powiadomienia nad areną, z panelem „Combat text”. **Zrobione**: specyfikacja
+   `2026-10-30-scrolling-combat-text-design.md`, plan `../plans/2026-10-30-scrolling-combat-text.md`;
+   reguły i ustawienia w `docs/data-sources.md`, „Part G: combat text HUD”.
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla

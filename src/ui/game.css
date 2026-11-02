@@ -1656,8 +1656,15 @@ button.primary {
    Outgoing (damage) on the right, over the target; Notifications (buffs, procs, mana, items, ready,
    low mana) at the bottom left, just above the player's bars. Each text starts at its area's
    bottom on its lane (--hud-x, --hud-y) and rises --hud-rise over its life (the duration is set
-   per text). Colours: the kind's or school's colour (--hud-color), lightened, with a dark outline
-   that reads on the light and the dark theme. */
+   per text). Colours: the kind's or school's colour (--hud-color), darkened on the light theme
+   (at least 3.5:1 against the white panel) with a white outline, lightened on the dark theme (at
+   least 5:1 against the panel) with a black outline. */
+/* The notifications' band: the arena's bottom 64 px stay free of the target panel (its debuff list
+   can take several rows, two on a phone), so a notification starts below the list. */
+.arena-hud {
+  padding-bottom: 64px;
+}
+
 .hud {
   position: absolute;
   inset: 0;
@@ -1666,14 +1673,22 @@ button.primary {
   pointer-events: none;
   user-select: none;
   --hud-scale: 1;
-  /* How much of the text colour is kept (the rest is white): the school colours are dark, so the
-     dark theme lightens them; the light theme keeps them (the outline carries the contrast). */
-  --hud-tint: 100%;
+  /* How much of the text colour is kept, and what the rest is: the light theme darkens the colours
+     (62 % + black: the lightest, the item beige, reaches 3.5:1 on white), the dark theme lightens
+     them (65 % + white: the darkest, shadow purple, reaches 5.0:1 on the panel). The outline is the
+     opposite of the text. */
+  --hud-tint: 62%;
+  --hud-tint-with: #000;
+  --hud-outline: #fff;
+  --hud-glow: rgba(255, 255, 255, 0.85);
 }
 
 @media (prefers-color-scheme: dark) {
   .hud {
-    --hud-tint: 72%;
+    --hud-tint: 65%;
+    --hud-tint-with: #fff;
+    --hud-outline: #000;
+    --hud-glow: rgba(0, 0, 0, 0.85);
   }
 }
 
@@ -1693,7 +1708,7 @@ button.primary {
 .hud-notifications {
   left: 0;
   bottom: 4px;
-  height: 52%;
+  height: 60px;
   --hud-rise: 72px;
   --hud-dx: 0px;
 }
@@ -1745,13 +1760,13 @@ button.primary {
   font-size: calc(var(--hud-font, 16px) * var(--hud-scale));
   line-height: 1.1;
   color: var(--hud-color);
-  color: color-mix(in srgb, var(--hud-color) var(--hud-tint), #fff);
+  color: color-mix(in srgb, var(--hud-color) var(--hud-tint), var(--hud-tint-with));
   text-shadow:
-    -1px -1px 0 #000,
-    1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000,
-    0 0 3px rgba(0, 0, 0, 0.85);
+    -1px -1px 0 var(--hud-outline),
+    1px -1px 0 var(--hud-outline),
+    -1px 1px 0 var(--hud-outline),
+    1px 1px 0 var(--hud-outline),
+    0 0 3px var(--hud-glow);
   font-variant-numeric: tabular-nums;
   transform: translate(var(--hud-dx), 0);
   opacity: 0;
@@ -1780,7 +1795,7 @@ button.primary {
   width: 1em;
   height: 1em;
   border-radius: 3px;
-  box-shadow: 0 0 0 1px #000;
+  box-shadow: 0 0 0 1px var(--hud-outline);
 }
 
 @keyframes hud-rise {

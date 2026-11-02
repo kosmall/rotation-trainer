@@ -453,6 +453,31 @@ describe('HUD event extraction', () => {
     expect(texts(events)).toEqual(['+Shadow Vulnerability', '+Curse of Agony', '-Shadow Vulnerability']);
   });
 
+  it('a refresh of a target aura already up is not "+Name" again, across frames and while the HUD is off', () => {
+    const on = settings({ targetDebuffs: true });
+    const log: LogEvent[] = [
+      { atMs: 1000, type: 'aura-apply', spellId: 'shadow-bolt', auraId: 'shadow-vulnerability' },
+      { atMs: 3000, type: 'aura-apply', spellId: 'shadow-bolt', auraId: 'shadow-vulnerability' }, // refresh
+      { atMs: 5000, type: 'aura-apply', spellId: 'shadow-bolt', auraId: 'shadow-vulnerability' }, // refresh
+      { atMs: 17000, type: 'aura-fade', auraId: 'shadow-vulnerability' },
+      { atMs: 18000, type: 'aura-apply', spellId: 'shadow-bolt', auraId: 'shadow-vulnerability' }, // up again
+    ];
+    expect(texts(extract(log, { s: on }).events)).toEqual(['+Shadow Vulnerability', '-Shadow Vulnerability', '+Shadow Vulnerability']);
+    // One entry per frame: the same.
+    let cursor = initialHudCursor();
+    const shown: string[] = [];
+    for (let i = 1; i <= log.length; i++) {
+      const r = extractHudEvents(cursor, log.slice(0, i), snap({ nowMs: log[i - 1]!.atMs }), ctxFull, on);
+      cursor = r.cursor;
+      shown.push(...texts(r.events));
+    }
+    expect(shown).toEqual(['+Shadow Vulnerability', '-Shadow Vulnerability', '+Shadow Vulnerability']);
+    // Applied while the HUD was off: its refresh after turning it on is still not a text.
+    const off = extractHudEvents(initialHudCursor(), log.slice(0, 1), snap({ nowMs: 1000 }), ctxFull, settings({ enabled: false, targetDebuffs: true }));
+    expect(off.events).toEqual([]);
+    expect(extractHudEvents(off.cursor, log.slice(0, 2), snap({ nowMs: 3000 }), ctxFull, on).events).toEqual([]);
+  });
+
   it("mana entries become '+N Mana' with the spell as source (Life Tap, Judgement of Wisdom 74, the rune); regen ticks never", () => {
     const log: LogEvent[] = [
       { atMs: 1000, type: 'mana', spellId: 'life-tap', amount: 1622 },

@@ -87,7 +87,7 @@ export interface HudContext {
 export const HUD_READY_MIN_COOLDOWN_MS = 30000;
 
 /** After "Low Mana", mana must climb this many percentage points above the threshold to re-arm it. */
-export const LOW_MANA_REARM_PCT = 5;
+const LOW_MANA_REARM_PCT = 5;
 
 /** Default text colour of an aura without a DoT school. */
 const AURA_DEFAULT_COLOR = '#e6dcc8';
@@ -169,7 +169,7 @@ export const HUD_LOG_DECISIONS: Readonly<Record<LogType, Readonly<{ show: boolea
   tick: { show: true, rule: "Outgoing: a DoT tick, smaller and lighter, the DoT's school colour; merged per spell within mergeTicks." },
   'aura-apply': {
     show: true,
-    rule: 'Visible auras: a proc "Name!" (gold, sticky), another player buff "+Name", a target aura "+Name" (targetDebuffs only); hidden auras and whole-fight auras scheduled at 0 never.',
+    rule: 'Visible auras: a proc "Name!" (gold, sticky), another player buff "+Name", a target aura "+Name" (targetDebuffs only; a refresh of one already up is skipped); hidden auras and whole-fight auras scheduled at 0 never.',
   },
   'aura-fade': { show: true, rule: 'Visible auras: a player buff "-Name", a target aura "-Name" (targetDebuffs only); hidden auras never.' },
   mana: { show: true, rule: 'Gains with a source spell (Life Tap, Judgement of Wisdom, potions, runes): "+N Mana"; regen ticks (no spell) never; small gains merged.' },
@@ -189,10 +189,15 @@ export interface HudCursor {
   readonly cooldowns: ReadonlyMap<string, number>;
   /** "Low Mana" may fire (re-armed after recovery). */
   readonly lowManaArmed: boolean;
+  /**
+   * Visible target auras applied and not faded yet: a refresh logs another `aura-apply` (no fade
+   * in between), which is not a new "+Name".
+   */
+  readonly targetActive: ReadonlySet<string>;
 }
 
 export function initialHudCursor(nextId = 0): HudCursor {
-  return { index: 0, nowMs: 0, nextId, cooldowns: new Map(), lowManaArmed: true };
+  return { index: 0, nowMs: 0, nextId, cooldowns: new Map(), lowManaArmed: true, targetActive: new Set() };
 }
 
 const isAmount = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
@@ -227,9 +232,12 @@ export function extractHudEvents(
     events.push({ id: nextId++, lane: 0, text: formatHudText(e, settings), ...e });
   };
 
+  const targetActive = new Set(start.targetActive);
+  const muted: Emit = () => {};
   for (let i = start.index; i < length; i++) {
     const entry = log[i];
-    if (on && entry) readEntry(entry, ctx, settings, emit);
+    // Read even when the HUD is off: the target aura state must follow the fight.
+    if (entry) readEntry(entry, ctx, settings, on ? emit : muted, targetActive);
   }
 
   // Snapshot: cooldowns becoming ready, low mana.
@@ -258,13 +266,13 @@ export function extractHudEvents(
     }
   }
 
-  return { events, cursor: { index: Math.max(start.index, length), nowMs: snapshot.nowMs, nextId, cooldowns, lowManaArmed } };
+  return { events, cursor: { index: Math.max(start.index, length), nowMs: snapshot.nowMs, nextId, cooldowns, lowManaArmed, targetActive } };
 }
 
 type Emit = (e: Omit<HudEvent, 'id' | 'lane' | 'text'>) => void;
 
 /** One log entry -> at most one event (see `HUD_LOG_DECISIONS`). */
-function readEntry(e: LogEvent, ctx: HudContext, s: HudSettings, emit: Emit): void {
+function readEntry(e: LogEvent, ctx: HudContext, s: HudSettings, emit: Emit, targetActive: Set<string>): void {
   const spell = typeof e.spellId === 'string' ? ctx.spells.get(e.spellId) : undefined;
   const aura = typeof e.auraId === 'string' ? ctx.auras.get(e.auraId) : undefined;
   const atMs = e.atMs;
@@ -291,6 +299,13 @@ function readEntry(e: LogEvent, ctx: HudContext, s: HudSettings, emit: Emit): vo
     case 'aura-fade': {
       if (!aura || aura.hidden) return;
       const apply = e.type === 'aura-apply';
+      if (aura.unit === 'target') {
+        // A refresh of a target aura already up (the DoTs, Shadow Vulnerability) is not "+Name" again.
+        const id = e.auraId as string;
+        if (apply && targetActive.has(id)) return;
+        if (apply) targetActive.add(id);
+        else targetActive.delete(id);
+      }
       // Whole-fight auras the fight puts on at 0 (raid debuffs, pre-pull buffs): not a text.
       if (apply && e.spellId === undefined && atMs <= 0 && aura.permanentAtStart) return;
       let kind: HudKind;
