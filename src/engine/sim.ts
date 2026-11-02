@@ -406,6 +406,17 @@ export class Simulation {
     return this.logEvents.map((e) => ({ ...e }));
   }
 
+  /**
+   * Copies of the log entries from `index` on (`log().slice(index)`), oldest first, without
+   * copying the earlier ones: a reader that remembers how far it got (the combat text HUD) reads
+   * only the new entries each frame. Read-only: changes no state. `index` is floored and clamped
+   * to [0, log length]; NaN reads from 0.
+   */
+  logSince(index: number): readonly LogEvent[] {
+    const from = Number.isNaN(index) ? 0 : Math.min(this.logEvents.length, Math.max(0, Math.floor(index)));
+    return this.logEvents.slice(from).map((e) => ({ ...e }));
+  }
+
   // -------------------------------------------------------------------------
   // Time and events
   // -------------------------------------------------------------------------
