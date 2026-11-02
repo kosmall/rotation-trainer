@@ -12,6 +12,7 @@ import type { EquippedItem, RawStats, SimSnapshot, SpellDef, SpellModifier } fro
 import { applySetup } from '../setup/applySetup';
 import { normalizeSetup, SETUP_CATALOG, setupCatalogFor, STATIC_SETUP_CATALOG } from '../setup/defaults';
 import { gearNeedsDb, setupGear } from '../setup/gear';
+import type { SimRunner } from '../sim-runner/client';
 import { EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, unmodelledGearEffects } from '../setup/gearEffects';
 import { SETUP_PRESETS } from '../setup/presets';
 import { browserStorage, loadSetup, saveSetup } from '../setup/storage';
@@ -36,6 +37,7 @@ import { PlayerBuffsPanel, useAuraTotals } from './PlayerBuffsPanel';
 import { activePresetName, SetupPanel } from './SetupPanel';
 import { StartOverlay } from './StartOverlay';
 import { TargetPanel } from './TargetPanel';
+import { SimulatorPanel } from './SimulatorPanel';
 import { useSimulation } from './useSimulation';
 
 /** How long a rejected press shows its reason on the slot. */
@@ -135,6 +137,11 @@ export interface GameViewProps {
    * key. Default: `storage` when it is given (`null` included), else the browser's localStorage.
    */
   hudStorage?: HudStorage | null;
+  /**
+   * Runs the Simulator panel's simulations (default `runSimulation`: a module worker, or the main
+   * thread in chunks where none can start). Tests inject their own.
+   */
+  simRunner?: SimRunner;
 }
 
 /**
@@ -150,6 +157,7 @@ export function GameView({
   hudStorage,
   loadDb = loadItemDb,
   onReload = reloadPage,
+  simRunner,
 }: GameViewProps) {
   const [store] = useState<SetupStorage | null>(() => (storage === undefined ? browserStorage() : storage));
   const [hudStore] = useState<HudStorage | null>(() => (hudStorage !== undefined ? hudStorage : store));
@@ -241,6 +249,9 @@ export function GameView({
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
   const priority = nextFight.spec.priority;
+  // The Simulator's labels of the next fight's setup (memoized strings: the panel is memoized too).
+  const nextGear = useMemo(() => gearName(config), [config]);
+  const nextPreset = useMemo(() => activePresetName(config, SETUP_PRESETS, nextFight.catalog), [config, nextFight.catalog]);
   const fightPreset = useMemo(() => activePresetName(fight.config, SETUP_PRESETS, fight.catalog), [fight]);
   const fightGear = useMemo(() => gearName(fight.config), [fight.config]);
   const itemDescriptionsOfFight = useMemo(() => itemDescriptions(fight.catalog), [fight]);
@@ -424,6 +435,14 @@ export function GameView({
           hints={gearHints}
         />
         <CombatTextSettings settings={hudSettings} onChange={changeHudSettings} />
+        <SimulatorPanel
+          config={config}
+          db={db}
+          dbStatus={itemDb.status}
+          gearName={nextGear}
+          presetName={nextPreset}
+          runner={simRunner}
+        />
         <CharacterStats spec={nextFight.spec} />
         <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} unmodelled={UNMODELLED_SETS} />
         <details className="panel priority">

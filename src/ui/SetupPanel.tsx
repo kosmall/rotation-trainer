@@ -9,7 +9,9 @@ import { DEFAULT_SETUP, normalizeSetup, SETUP_LIMITS } from '../setup/defaults';
 import { isGearEffectId } from '../setup/gearEffects';
 import type { SetupConfig, SetupPresetId, TimedSetting } from '../setup/types';
 import { initials } from './format';
+import { ItemUseEditor } from './ItemUseEditor';
 import { ITEM_SLOT_KEYS } from './keys';
+import { NumberField } from './NumberField';
 import { SpellIcon } from './SpellIcon';
 
 /** The distance input's range in yards (the setup's limits; 28 yd is the default, target.ts). */
@@ -49,6 +51,20 @@ function gearOf(config: SetupConfig): Pick<SetupConfig, 'gear' | 'gearPresetId'>
   if (config.gear !== undefined) out.gear = config.gear;
   if (config.gearPresetId !== undefined) out.gearPresetId = config.gearPresetId;
   return out;
+}
+
+/** The rotation's item-use fields, only those it has. */
+function itemUseOf(rotation: RotationConfig): Pick<RotationConfig, 'itemUse' | 'itemUseOrder'> {
+  const out: Pick<RotationConfig, 'itemUse' | 'itemUseOrder'> = {};
+  if (rotation.itemUse !== undefined) out.itemUse = rotation.itemUse;
+  if (rotation.itemUseOrder !== undefined) out.itemUseOrder = rotation.itemUseOrder;
+  return out;
+}
+
+/** The config without its item-use rules and order (the default rules). */
+function withoutItemUse(config: SetupConfig): SetupConfig {
+  const { itemUse: _rules, itemUseOrder: _order, ...rotation } = config.rotation;
+  return { ...config, rotation };
 }
 
 /** The rotation preset whose values `rotation` has, or 'custom'. */
@@ -124,63 +140,6 @@ const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: strin
     hint: `The modelled effects of the items you wear (Gear panel), the potions and the rune. Use the on-use effects, the potions and the rune from the item row (${ITEM_SLOT_KEYS.map((k) => k.toUpperCase()).join(' ')}), in the order listed here; the bot uses them too. One potion per 2 min (shared cooldown). Procs and pre-pull effects work by themselves. Item effects are on top of the item stats already in the gear.`,
   },
 ];
-
-/**
- * A number typed into an input, clamped to [min, max], or null when there is none (empty or
- * not a number): the caller then keeps its last valid value. Never NaN.
- */
-function parseClamped(raw: string, min: number, max: number): number | null {
-  if (raw.trim() === '') return null;
-  const value = Number(raw);
-  if (Number.isNaN(value)) return null;
-  return Math.min(Math.max(value, min), max);
-}
-
-interface NumberFieldProps {
-  id?: string;
-  label?: string;
-  /** Shown text; '' for none (with a placeholder). */
-  value: string;
-  min: number;
-  max: number;
-  step?: number | 'any';
-  integer?: boolean;
-  disabled?: boolean;
-  placeholder?: string;
-  onValue(value: number): void;
-}
-
-/**
- * A number input controlled by `value`. While typing, the typed text stays as typed (a draft):
- * each valid number is clamped and passed on at once; an empty or invalid text is not passed on.
- * On blur, or when `value` changes from outside (a preset, Reset), the field shows `value` again.
- */
-function NumberField({ id, label, value, min, max, step = 'any', integer = false, disabled, placeholder, onValue }: NumberFieldProps) {
-  // `shows`: the value the draft goes with (what this field passed on, or `value` when nothing was).
-  const [draft, setDraft] = useState<{ text: string; shows: string } | null>(null);
-  if (draft !== null && draft.shows !== value) setDraft(null); // changed from outside
-  return (
-    <input
-      id={id}
-      aria-label={label}
-      type="number"
-      inputMode={integer ? 'numeric' : 'decimal'}
-      min={min}
-      max={max}
-      step={step}
-      disabled={disabled}
-      placeholder={placeholder}
-      value={draft !== null && draft.shows === value ? draft.text : value}
-      onChange={(e) => {
-        const parsed = parseClamped(e.target.value, min, max);
-        const next = parsed === null ? null : integer ? Math.round(parsed) : parsed;
-        setDraft({ text: e.target.value, shows: next === null ? value : String(next) });
-        if (next !== null) onValue(next);
-      }}
-      onBlur={() => setDraft(null)}
-    />
-  );
-}
 
 /** A small icon tile: the initials underneath, the icon file over them when it loads. */
 function BuffIcon({ icon, name, kind = 'spell' }: { icon: string; name: string; kind?: 'spell' | 'item' }) {
@@ -321,6 +280,11 @@ export function SetupPanel({
 
   const presetName = activePresetName(config, presets, catalog);
   const presetDescription = Object.values(presets).find((p) => p.name === presetName)?.description;
+  // "Custom" only because of the item-use rules: say which preset the rest matches.
+  const presetBesidesItemUse =
+    presetName === CUSTOM_PRESET_NAME && (config.rotation.itemUse !== undefined || config.rotation.itemUseOrder !== undefined)
+      ? activePresetName(withoutItemUse(config), presets, catalog)
+      : CUSTOM_PRESET_NAME;
   const rotationPreset = rotationPresetOf(config.rotation);
   const autoLifeTap = lifeTap === 'auto';
   const warlockBuffs = catalog.filter((b) => groupOf(b) === 'warlock');
@@ -392,6 +356,11 @@ export function SetupPanel({
             </span>
           </p>
           {presetDescription && <p className="hint setup-preset-description">{presetDescription}</p>}
+          {presetBesidesItemUse !== CUSTOM_PRESET_NAME && (
+            <p className="hint">
+              {presetBesidesItemUse}, except the item-use rules (Rotation: Reset all item rules to default).
+            </p>
+          )}
           <div className="setup-preset-buttons">
             {Object.entries(presets).map(([presetId, p]) => (
               <button
@@ -402,7 +371,13 @@ export function SetupPanel({
                 onClick={(e) => {
                   e.currentTarget.blur(); // keep Space/R for the fight
                   // Ruling F-2: a preset keeps the chosen fight length; it keeps the gear too (the Gear panel sets it).
-                  emit({ ...p.config, fightDurationSec: config.fightDurationSec, ...gearOf(config) });
+                  // The item-use rules are kept too (no preset has any; Reset all in Rotation clears them).
+                  emit({
+                    ...p.config,
+                    rotation: { ...p.config.rotation, ...itemUseOf(config.rotation) },
+                    fightDurationSec: config.fightDurationSec,
+                    ...gearOf(config),
+                  });
                 }}
               >
                 {p.name}
@@ -517,7 +492,8 @@ export function SetupPanel({
               onChange={(e) => {
                 const next = e.target.value;
                 if (!Object.hasOwn(ROTATION_PRESETS, next)) return;
-                emit({ ...config, rotation: { ...ROTATION_PRESETS[next as RotationPresetId].config } });
+                // The preset sets the spell rotation; the item-use rules are kept (the preset has none).
+                emit({ ...config, rotation: { ...ROTATION_PRESETS[next as RotationPresetId].config, ...itemUseOf(config.rotation) } });
               }}
             >
               {ROTATION_PRESET_IDS.map((p) => (
@@ -600,6 +576,8 @@ export function SetupPanel({
             />
             Auto (Shadow Bolt cost)
           </label>
+
+          <ItemUseEditor catalog={catalog} config={config} onChange={emit} />
         </Group>
 
         <Group title="Distance">

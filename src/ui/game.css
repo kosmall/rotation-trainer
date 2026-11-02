@@ -1906,3 +1906,316 @@ button.primary {
   padding: 0 4px;
   color: var(--muted);
 }
+
+/* Text for assistive technology only (a table caption the visible heading already names). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Item-use rules editor (Setup panel, Rotation group). */
+.item-use {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.setup-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.item-use-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-use-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.item-use-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.item-use-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.item-use-state {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.item-use-custom {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.item-use-moves {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.item-use-moves button {
+  font: inherit;
+  font-size: 0.75rem;
+  min-width: 26px;
+  min-height: 24px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.item-use-moves button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.item-use-fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.item-use-fields span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.item-use-fields select,
+.item-use-fields input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.item-use-moves button:focus-visible,
+.item-use-fields select:focus-visible,
+.item-use-fields input:focus-visible,
+.sim-panel input:focus-visible,
+.sim-panel button:focus-visible,
+.sim-panel summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.item-use-summary {
+  margin: 0;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+/* Simulator panel. */
+.sim-buttons .sim-run:not(:disabled) {
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.sim-buttons button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sim-progress {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.sim-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+.sim-status {
+  margin: 0;
+  min-height: 1.2em;
+}
+
+.sim-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-border);
+  min-width: 0;
+}
+
+.sim-headline {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.sim-headline strong {
+  font-size: 1.15rem;
+}
+
+.sim-settings {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.sim-link {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sim-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  margin: 0;
+}
+
+.sim-stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 1px dotted var(--panel-border);
+  min-width: 0;
+}
+
+.sim-stats dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.sim-stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sim-histogram {
+  margin: 0;
+}
+
+.sim-histogram svg {
+  display: block;
+  width: 100%;
+  height: 80px;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.sim-histogram rect {
+  fill: var(--accent);
+}
+
+.sim-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-section h4 {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+}
+
+.sim-table-wrap {
+  overflow-x: auto;
+}
+
+.sim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-table th,
+.sim-table td {
+  padding: 2px 3px;
+  text-align: right;
+  border-bottom: 1px solid var(--panel-border);
+  white-space: nowrap;
+}
+
+.sim-table th:first-child,
+.sim-table td:first-child {
+  text-align: left;
+  white-space: normal;
+}
+
+.sim-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.sim-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 0.78rem;
+}
+
+.sim-section .hint,
+.sim-result .hint {
+  margin: 2px 0 0;
+}
+
+.sim-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.sim-note p {
+  margin: 0 0 4px;
+}
+
+@media (pointer: coarse), (max-width: 700px) {
+  .item-use-moves button,
+  .sim-link {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
