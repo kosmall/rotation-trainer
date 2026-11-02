@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { destructionWarlock } from '../src/data/classes/warlock/destruction.ts';
 import { SACRIFICE_SUCCUBUS_OPTION, WARLOCK_ARMOR_OPTIONS } from '../src/data/classes/warlock/buffs.ts';
 import { warlockSetAuras } from '../src/data/classes/warlock/sets.ts';
-import { SETUP_CATALOG as FULL_SETUP_CATALOG } from '../src/setup/defaults.ts';
+import { STATIC_SETUP_CATALOG } from '../src/setup/defaults.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'icons', 'spells');
@@ -40,9 +40,11 @@ const PLACEHOLDER_ICON = 'classic_temp';
  */
 const ICON_FROM_ITEM = new Map([[28499, 22832]]);
 
-// The setup catalog's buffs with spell icons: the gear's item effects (`iconKind: 'item'`, derived
-// from the worn gear) carry the item's icon, which the item half below fetches from the database.
-const SETUP_CATALOG = FULL_SETUP_CATALOG.filter((b) => b.iconKind !== 'item');
+// The setup catalog's gear-independent buffs (spell icons). The gear's item effects are derived
+// from the worn gear (src/setup/gearEffects.ts, never in a catalog constant) and carry the item's
+// icon (`iconKind: 'item'`), which the item half below fetches from the database; the filter
+// keeps any such entry out should one ever be added.
+const SETUP_CATALOG = STATIC_SETUP_CATALOG.filter((b) => b.iconKind !== 'item');
 // The setup catalog's buffs and the auras they apply (debuffs, timed buffs).
 const buffAuras = SETUP_CATALOG.flatMap((b) =>
   [b.effect.targetAura, b.effect.selfAura, ...(b.effect.auras ?? [])].filter((a) => a !== undefined),

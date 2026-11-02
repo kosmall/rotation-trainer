@@ -15,17 +15,21 @@ import { ITEM_SLOT_COUNT, SPELL_SLOT_COUNT, type BuffDef, type SpecData } from '
 import { Simulation } from '../../src/engine/sim';
 import type { LogEvent, SimSnapshot, SpellDef, TargetData } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
-import { DEFAULT_SETUP, SETUP_CATALOG } from '../../src/setup/defaults';
+import { DEFAULT_SETUP, setupCatalogFor } from '../../src/setup/defaults';
+import { DEFAULT_GEAR } from '../../src/setup/gear';
 import { gearItemRules, isGearEffectId } from '../../src/setup/gearEffects';
 import type { SetupConfig } from '../../src/setup/types';
 
+
+/** The author's gear catalog: the gear-independent entries and the derived Icon and Band (as the app builds it for the default gear; gear item effects Task 3). */
+const CATALOG = setupCatalogFor(DEFAULT_GEAR);
 /** The gear's item rules (the Icon: derived since gear item effects Task 2, the burst rule). */
-const GEAR_RULES = gearItemRules(SETUP_CATALOG.filter((b) => isGearEffectId(b.id)));
+const GEAR_RULES = gearItemRules(CATALOG.filter((b) => isGearEffectId(b.id)));
 /** `buildItemSteps` with the author's gear rules, as applySetup passes them. */
 const buildItemSteps = (ids: readonly string[], heroismEndMs: number | null) => buildStaticItemSteps(ids, heroismEndMs, GEAR_RULES);
 
 deepFreeze(destructionWarlock);
-deepFreeze(SETUP_CATALOG);
+deepFreeze(CATALOG);
 
 const NEVER_MISS: TargetData = { ...BOSS_TARGET, missPct: 0, minMissPct: 0 };
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -40,7 +44,7 @@ const DARK_RUNE = 'use-dark-rune';
 const ITEM_IDS = [ICON, DESTRUCTION, SUPER_MANA, DARK_RUNE];
 
 function catalogBuff(id: string): BuffDef {
-  const b = SETUP_CATALOG.find((x) => x.id === id);
+  const b = CATALOG.find((x) => x.id === id);
   if (!b) throw new Error(`no buff ${id}`);
   return b;
 }
@@ -56,7 +60,7 @@ function config(p: Partial<SetupConfig> = {}): SetupConfig {
 }
 
 const apply = (p: Partial<SetupConfig> = {}) =>
-  applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config: config(p) });
+  applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config: config(p) });
 
 function fight(
   applied: ReturnType<typeof apply>,
@@ -107,7 +111,7 @@ function baseSnapshot(): SimSnapshot {
 
 describe('item actions: catalog', () => {
   it('catalog: Icon, Destruction Potion, Super Mana Potion and Dark Rune carry an item action; none has timed; ids unique; cooldown groups; mana ranges; item/onGcd/castTime/manaCost/icon/source', () => {
-    const withAction = SETUP_CATALOG.filter((b) => b.effect.action !== undefined);
+    const withAction = CATALOG.filter((b) => b.effect.action !== undefined);
     // Catalog order: the cooldowns (common/buffs.ts) before the warlock's gear (warlock/buffs.ts).
     expect(withAction.map((b) => b.id)).toEqual(['destruction-potion', 'super-mana-potion', 'dark-rune', ICON_BUFF]);
     // At most one action per item slot: applySetup can always bind every enabled action.
@@ -185,7 +189,7 @@ describe('item actions: catalog', () => {
 
   it('the actions are deep-frozen and share no object with the spec', () => {
     const specSpells = new Set<SpellDef>(destructionWarlock.spells);
-    for (const b of SETUP_CATALOG.filter((x) => x.effect.action)) {
+    for (const b of CATALOG.filter((x) => x.effect.action)) {
       const a = b.effect.action!;
       expect(Object.isFrozen(a), b.id).toBe(true);
       expect(a.sharedCooldown === undefined || Object.isFrozen(a.sharedCooldown), b.id).toBe(true);
@@ -340,7 +344,7 @@ describe('item actions in a fight', () => {
 
 describe('item actions: bot rules (buildItemSteps)', () => {
   it('buildItemSteps is pure, follows the given order, ignores unknown ids, and has a rule for every catalog action', () => {
-    const all = SETUP_CATALOG.flatMap((b) => (b.effect.action ? [b.effect.action.id] : []));
+    const all = CATALOG.flatMap((b) => (b.effect.action ? [b.effect.action.id] : []));
     expect([...Object.keys(ITEM_RULES), ...Object.keys(GEAR_RULES)].sort()).toEqual([...all].sort());
     expect(Object.keys(GEAR_RULES)).toEqual([ICON]);
     expect(buildStaticItemSteps([ICON], null)).toEqual([]); // no static rule for a gear item

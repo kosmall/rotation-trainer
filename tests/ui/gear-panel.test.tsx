@@ -524,13 +524,17 @@ describe('Gear panel', () => {
     expect(gearPanel().textContent).toContain('Corruptor Raiment (2)');
   });
 
-  it('warns when the Icon or Band is enabled in the setup but not worn', async () => {
+  it('an enabled effect of an item no longer worn is inactive: no warning, not listed, not applied (gear item effects Task 3)', async () => {
+    // Stage 2a warned here ("enabled but not worn: the fight still counts its effect"); since the
+    // effects are derived from the worn gear, such an id is inactive (design spec §2 B).
     const { storage } = memoryStorage({ ...structuredClone(DEFAULT_SETUP), enabledBuffs: ['band-of-the-eternal-sage'] });
     render(<GameView storage={storage} loadDb={loadDb} />);
     await openGear();
-    expect(gearPanel().textContent).not.toMatch(/not worn/);
+    const items = () => screen.getByRole('group', { name: 'Items and cooldowns' });
+    expect(within(items()).getByRole('checkbox', { name: 'Band of the Eternal Sage' })).toBeTruthy();
     fireEvent.click(presetButton('T6'));
-    expect(gearPanel().textContent).toMatch(/Band of the Eternal Sage.*not worn/);
+    expect(gearPanel().textContent).not.toMatch(/not worn/);
+    expect(within(items()).queryByRole('checkbox', { name: 'Band of the Eternal Sage' })).toBeNull();
   });
 
   it('every offered preset is matched by deep equality, whatever the key order', async () => {

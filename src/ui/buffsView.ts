@@ -7,6 +7,9 @@ import type { BuffDef, SpecData } from '../data/types';
 import type { AuraDef, AuraView, ScheduledAura } from '../engine/types';
 import { remainingText, secondsText } from './format';
 
+/** Where an icon file lives: public/icons/spells/ or public/icons/items/ (`SpellIcon` `kind`). */
+export type IconKind = 'spell' | 'item';
+
 /** An aura on the player now. */
 export interface ActiveBuffView {
   auraId: string;
@@ -14,6 +17,8 @@ export interface ActiveBuffView {
   name: string;
   /** Icon file name; null when the aura is unknown (the tile shows initials). */
   icon: string | null;
+  /** 'item' when the icon is an item icon (public/icons/items/: a gear item effect's aura); absent: a spell icon. */
+  iconKind?: 'item';
   /** The catalog entry's description, else the name. */
   description: string;
   /** Stacks (when more than one), else charges (when any), else null. */
@@ -29,6 +34,7 @@ export interface UpcomingBuffView {
   auraId: string;
   name: string;
   icon: string | null;
+  iconKind?: 'item';
   /** Fight time it applies at (the engine's rule: floored, at least 0). */
   startsAtMs: number;
   /** `startsAtMs - nowMs`; before the start (`ready`) the time does not run, so it is `startsAtMs`. */
@@ -40,6 +46,7 @@ export interface PermanentBuffView {
   id: string;
   name: string;
   icon: string;
+  iconKind?: 'item';
   description: string;
 }
 
@@ -54,7 +61,10 @@ export interface BuffViewInput {
   selfAuras: Record<string, AuraView>;
   /** The running fight's spec (its auras: names and icons). */
   spec: SpecData;
-  /** The buff catalog (`SETUP_CATALOG`): names and descriptions of the auras that come from a buff. */
+  /**
+   * The fight's catalog (the gear-independent entries and the worn gear's derived ones,
+   * `setupCatalogFor`): names, descriptions and icon kinds of the auras that come from an entry.
+   */
   catalog: readonly BuffDef[];
   /** The running fight's `AppliedSetup.sim.scheduledAuras`. */
   scheduled: readonly ScheduledAura[];
@@ -95,8 +105,12 @@ interface AuraLabel {
   def: AuraDef | undefined;
   name: string;
   icon: string | null;
+  /** `{ iconKind: 'item' }` for an item icon, else `{}` (a spell icon). */
+  kind: { iconKind?: 'item' };
   description: string;
 }
+
+const iconKindOf = (b: BuffDef | undefined): { iconKind?: 'item' } => (b?.iconKind === 'item' ? { iconKind: 'item' } : {});
 
 function labeller(spec: SpecData, catalog: readonly BuffDef[]): (auraId: string) => AuraLabel {
   const sources = auraSources(catalog);
@@ -105,7 +119,7 @@ function labeller(spec: SpecData, catalog: readonly BuffDef[]): (auraId: string)
     const def = defs.get(auraId);
     const buff = sources.get(auraId);
     const name = buff?.name ?? def?.name ?? auraId;
-    return { def, name, icon: def?.icon ?? buff?.icon ?? null, description: buff?.description ?? name };
+    return { def, name, icon: def?.icon ?? buff?.icon ?? null, kind: iconKindOf(buff), description: buff?.description ?? name };
   };
 }
 
@@ -169,13 +183,13 @@ export function buildBuffViews(input: BuffViewInput): BuffViews {
 
   const active: ActiveBuffView[] = [];
   for (const view of Object.values(selfAuras)) {
-    const { def, name, icon, description } = label(view.auraId);
+    const { def, name, icon, kind, description } = label(view.auraId);
     if (def?.hidden) continue; // the snapshot leaves them out already
     const endLasts = atEnd.get(view.auraId);
     if (phase === 'ended' && endLasts !== undefined && view.remainingMs >= endLasts) continue; // applied at the end
     const count = view.stacks > 1 ? view.stacks : view.charges > 0 ? view.charges : null;
     const remainingMs = Math.max(0, Math.min(view.remainingMs, fightLeftMs));
-    active.push({ auraId: view.auraId, name, icon, description, count, remainingMs });
+    active.push({ auraId: view.auraId, name, icon, ...kind, description, count, remainingMs });
   }
 
   const upcoming: UpcomingBuffView[] = [];
@@ -184,9 +198,9 @@ export function buildBuffViews(input: BuffViewInput): BuffViews {
       if (e.on !== 'self') continue;
       const atMs = plannedAtMs(e, fightDurationMs);
       if (atMs === null || atMs >= fightDurationMs || (phase === 'running' && atMs <= nowMs)) continue; // at the end: no effect
-      const { def, name, icon } = label(e.auraId);
+      const { def, name, icon, kind } = label(e.auraId);
       if (def?.hidden) continue;
-      upcoming.push({ auraId: e.auraId, name, icon, startsAtMs: atMs, inMs: phase === 'ready' ? atMs : atMs - nowMs });
+      upcoming.push({ auraId: e.auraId, name, icon, ...kind, startsAtMs: atMs, inMs: phase === 'ready' ? atMs : atMs - nowMs });
     }
     upcoming.sort((a, b) => a.startsAtMs - b.startsAtMs); // stable: ties keep the setup order
   }
@@ -194,7 +208,7 @@ export function buildBuffViews(input: BuffViewInput): BuffViews {
   const enabled = new Set(enabledBuffIds);
   const permanent: PermanentBuffView[] = catalog
     .filter((b) => enabled.has(b.id) && isPermanent(b))
-    .map((b) => ({ id: b.id, name: b.name, icon: b.icon, description: b.description }));
+    .map((b) => ({ id: b.id, name: b.name, icon: b.icon, ...iconKindOf(b), description: b.description }));
 
   return { active, upcoming, permanent };
 }

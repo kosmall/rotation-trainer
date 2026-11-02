@@ -9,7 +9,7 @@ import type { ItemDb } from '../data/items/types';
 import type { EquippedItem } from '../engine/types';
 import type { BuffDef } from '../data/types';
 import { normalizeGear, normalizeGearShape } from './gear';
-import { authorGearEffects, deriveGearEffects, EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, LEGACY_ITEM_BUFF_IDS } from './gearEffects';
+import { deriveGearEffects, EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, LEGACY_ITEM_BUFF_IDS } from './gearEffects';
 import type { SetupConfig, TimedSetting } from './types';
 
 /**
@@ -28,14 +28,12 @@ export function buildSetupCatalog(): readonly BuffDef[] {
 export const STATIC_SETUP_CATALOG: readonly BuffDef[] = buildSetupCatalog();
 
 /**
- * The catalog of the default (author's) gear: `STATIC_SETUP_CATALOG` followed by the author's item
- * effects (Icon of the Silver Crescent `item:29370`, Band of the Eternal Sage `item:29305`),
- * derived from the embedded author records (`authorGearEffects`, no item database needed: first
- * paint). The app and the storage use it until the Setup panel lists the worn gear's effects
- * (`setupCatalogFor`, gear item effects Task 3). `applySetup` takes only its gear-independent
- * entries and derives the item entries from the config's own gear.
+ * The gear-independent catalog under its stage 1.5 name (the same array as
+ * `STATIC_SETUP_CATALOG`): storage and `normalizeSetup` need no gear entries (well-formed gear
+ * effect ids are kept whether worn or not). The gear's item entries are never in a constant: the
+ * Setup panel and `applySetup` derive them from the worn gear (`setupCatalogFor`).
  */
-export const SETUP_CATALOG: readonly BuffDef[] = Object.freeze([...STATIC_SETUP_CATALOG, ...authorGearEffects()]);
+export const SETUP_CATALOG: readonly BuffDef[] = STATIC_SETUP_CATALOG;
 
 /**
  * The catalog for a gear: `STATIC_SETUP_CATALOG` followed by the worn items' effects
@@ -120,39 +118,51 @@ function normalizeFightDuration(v: unknown): number {
   return Math.round(Math.min(max, Math.max(min, v)));
 }
 
-/** Two buffs that cannot be enabled together: same exclusive group, or groups `EXCLUDES` pairs. */
-function conflicts(a: Pick<BuffDef, 'exclusiveGroup'>, b: Pick<BuffDef, 'exclusiveGroup'>): boolean {
-  const ga = a.exclusiveGroup;
-  const gb = b.exclusiveGroup;
-  if (ga === undefined || gb === undefined) return false;
-  if (ga === gb) return true;
-  const excludes = (g: string, other: string) => Object.hasOwn(EXCLUDES, g) && EXCLUDES[g]!.includes(other);
-  return excludes(ga, gb) || excludes(gb, ga);
-}
+/** At most this many enabled gear effect ids that are not in the catalog are kept (the last ones). */
+export const MAX_STORED_ITEM_EFFECT_IDS = 32;
 
 /**
  * Catalog ids and well-formed gear effect ids (`isGearEffectId`: `item:<id>[:<n>]`, kept whether
- * or not the item is worn now: an id of an item taken off stays saved, inactive), each once, in
- * saved order; the stage F ids `icon-of-the-silver-crescent` / `band-of-the-eternal-sage` become
+ * or not the item is worn now: an id of an item taken off stays saved, inactive; at most
+ * `MAX_STORED_ITEM_EFFECT_IDS` of those not in `catalog`, the last ones), each once, in saved
+ * order; the stage F ids `icon-of-the-silver-crescent` / `band-of-the-eternal-sage` become
  * `item:29370` / `item:29305` (`LEGACY_ITEM_BUFF_IDS`). A buff enabled later replaces an earlier one
  * it conflicts with (exclusive group, flask vs elixirs both ways). A repeated id counts at its
- * last position.
+ * last position. Linear time: one pass from the end (an entry survives when no later entry has its
+ * id or conflicts with it, whether that later entry survives or not: the stage 1.5 rule).
  */
 function normalizeEnabled(v: unknown, catalog: readonly BuffDef[]): string[] {
   if (!Array.isArray(v)) return [];
   const byId = new Map(catalog.map((b) => [b.id, b]));
-  const out: Pick<BuffDef, 'id' | 'exclusiveGroup'>[] = [];
-  for (const raw of v) {
+  const seenIds = new Set<string>();
+  const laterGroups = new Set<string>();
+  // Groups an entry later in the list excludes (`EXCLUDES`, one direction).
+  const excludedByLater = new Set<string>();
+  const kept: string[] = [];
+  let looseItems = 0;
+  for (let i = v.length - 1; i >= 0; i--) {
+    const raw: unknown = v[i];
     if (typeof raw !== 'string') continue;
     const id = Object.hasOwn(LEGACY_ITEM_BUFF_IDS, raw) ? LEGACY_ITEM_BUFF_IDS[raw]! : raw;
-    const b: Pick<BuffDef, 'id' | 'exclusiveGroup'> | undefined = byId.get(id) ?? (isGearEffectId(id) ? { id } : undefined);
-    if (!b) continue;
-    for (let i = out.length - 1; i >= 0; i--) {
-      if (out[i]!.id === b.id || conflicts(out[i]!, b)) out.splice(i, 1);
+    const inCatalog = byId.get(id);
+    if (!inCatalog && !isGearEffectId(id)) continue;
+    const group = inCatalog?.exclusiveGroup;
+    const conflicted =
+      group !== undefined &&
+      (laterGroups.has(group) ||
+        excludedByLater.has(group) ||
+        (Object.hasOwn(EXCLUDES, group) && EXCLUDES[group]!.some((g) => laterGroups.has(g))));
+    const survives = !seenIds.has(id) && !conflicted && (inCatalog !== undefined || looseItems < MAX_STORED_ITEM_EFFECT_IDS);
+    seenIds.add(id);
+    if (group !== undefined) {
+      laterGroups.add(group);
+      if (Object.hasOwn(EXCLUDES, group)) for (const g of EXCLUDES[group]!) excludedByLater.add(g);
     }
-    out.push(b);
+    if (!survives) continue;
+    if (inCatalog === undefined) looseItems++;
+    kept.push(id);
   }
-  return out.map((b) => b.id);
+  return kept.reverse();
 }
 
 /** One entry per timed catalog buff: the saved values clamped, the catalog default otherwise. */

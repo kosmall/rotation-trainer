@@ -266,8 +266,8 @@ describe('deriveGearEffects', () => {
         expect({ ...fields(mine), name: mine!.name, icon: mine!.icon }).toEqual({ ...fields(rec), name: rec.name, icon: rec.icon });
       }
     }
-    // The catalog's author entries are that derivation.
-    expect(shape(SETUP_CATALOG.filter((b) => isGearEffectId(b.id)))).toEqual(shape(deriveGearEffects(DEFAULT_GEAR, db)));
+    // The default gear's catalog without the database (first paint) holds that derivation.
+    expect(shape(setupCatalogFor(DEFAULT_GEAR).filter((b) => isGearEffectId(b.id)))).toEqual(shape(deriveGearEffects(DEFAULT_GEAR, db)));
   });
 
   it('fresh per call, deep-frozen, sharing no object with the database or another call', () => {
@@ -441,7 +441,10 @@ describe('golden and migration', () => {
       ...Array.from({ length: 5000 }, (_, i) => `item:${i + 1}`),
     ];
     const n = normalizeSetup({ ...structuredClone(DEFAULT_SETUP), enabledBuffs: junk }, SETUP_CATALOG);
-    expect(n.enabledBuffs.slice(0, 3)).toEqual(['item:29370:2', 'item:27683', 'heroism']);
+    // At most 32 item ids that are not catalog ids are kept, the last ones (gear item effects Task 3).
+    expect(n.enabledBuffs).toEqual(['heroism', ...Array.from({ length: 32 }, (_, i) => `item:${5000 - 31 + i}`)]);
+    const few = normalizeSetup({ ...structuredClone(DEFAULT_SETUP), enabledBuffs: junk.slice(0, 19) }, SETUP_CATALOG);
+    expect(few.enabledBuffs).toEqual(['item:29370:2', 'item:27683', 'heroism']);
     expect(n.enabledBuffs.every((id) => SETUP_CATALOG.some((b) => b.id === id) || isGearEffectId(id))).toBe(true);
     expect(() => apply(config({ enabledBuffs: n.enabledBuffs }))).not.toThrow();
     expect(() => apply(config({ enabledBuffs: n.enabledBuffs }), false)).not.toThrow();
@@ -648,5 +651,49 @@ describe('describeGear reads the structured effects', () => {
     expect(d.unmodelledEffects.some((l) => l.startsWith("Quagmirran's Eye"))).toBe(false);
     expect(d.modelledEffects).toContain("Quagmirran's Eye");
     expect(describeGear(DEFAULT_GEAR, db).modelledEffects).toEqual(['Band of the Eternal Sage', 'Icon of the Silver Crescent']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 carry: normalizeEnabled bounds, the modelled-effect validator
+// ---------------------------------------------------------------------------
+
+describe('normalizeEnabled bounds (gear item effects Task 3)', () => {
+  const norm = (enabledBuffs: unknown[]) => normalizeSetup({ ...structuredClone(DEFAULT_SETUP), enabledBuffs }, SETUP_CATALOG).enabledBuffs;
+
+  it('keeps at most 32 item ids that are not in the catalog, the last ones; catalog ids are not counted', () => {
+    const ids = Array.from({ length: 100 }, (_, i) => `item:${i + 1}`);
+    const out = norm(['heroism', ...ids, 'arcane-brilliance']);
+    expect(out).toEqual(['heroism', ...ids.slice(-32), 'arcane-brilliance']);
+    // With the gear's catalog the worn items' ids are catalog ids: never dropped by the cap.
+    const catalog = setupCatalogFor(DEFAULT_GEAR, db);
+    const withWorn = normalizeSetup({ ...structuredClone(DEFAULT_SETUP), enabledBuffs: ['item:29370', ...ids, 'item:29305'] }, catalog).enabledBuffs;
+    expect(withWorn).toEqual(['item:29370', ...ids.slice(-32), 'item:29305']);
+  });
+
+  it('linear time: 30 000 ids (also repeated and conflicting) normalize in well under a second, same result as the old rule on a small list', () => {
+    const big = Array.from({ length: 30000 }, (_, i) => (i % 3 === 0 ? `item:${(i % 500) + 1}` : i % 3 === 1 ? 'flask-of-supreme-power' : 'elixir-of-major-shadow-power'));
+    const t0 = performance.now();
+    const out = norm(big);
+    expect(performance.now() - t0).toBeLessThan(500);
+    expect(out.filter((id) => id.startsWith('item:'))).toHaveLength(32);
+    // Last wins: the list ends with an elixir, so the flask (a conflict) is gone.
+    expect(out).toContain('elixir-of-major-shadow-power');
+    expect(out).not.toContain('flask-of-supreme-power');
+    // Duplicates count at their last position, conflicts: the later one wins (the stage 1.5 rule).
+    expect(norm(['arcane-brilliance', 'heroism', 'arcane-brilliance'])).toEqual(['heroism', 'arcane-brilliance']);
+    expect(norm(['elixir-of-major-shadow-power', 'flask-of-supreme-power'])).toEqual(['flask-of-supreme-power']);
+    expect(norm(['flask-of-supreme-power', 'elixir-of-major-shadow-power'])).toEqual(['elixir-of-major-shadow-power']);
+  });
+
+  it('hasModelledGearEffect uses the derivation validators: a malformed effect is not modelled', async () => {
+    const { hasModelledGearEffect } = await import('../../src/setup/gearEffects');
+    expect(hasModelledGearEffect(db.items[29370]!)).toBe(true);
+    expect(hasModelledGearEffect(db.items[29305]!)).toBe(true);
+    expect(hasModelledGearEffect(db.items[25653]!)).toBe(false); // Riding Crop: text only
+    const broken = { ...db.items[29370]!, useEffects: [{ ...db.items[29370]!.useEffects![0]!, durationMs: -1 }] } as ItemRecord;
+    expect(hasModelledGearEffect(broken)).toBe(false);
+    const brokenDb = { ...db, items: { ...db.items, 29370: broken } } as ItemDb;
+    expect(describeGear(DEFAULT_GEAR, brokenDb).modelledEffects).toEqual(['Band of the Eternal Sage']);
   });
 });

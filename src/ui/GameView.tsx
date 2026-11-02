@@ -5,13 +5,14 @@ import { offeredGearPresets } from '../data/classes/warlock/gearPresets';
 import { UNMODELLED_SETS } from '../data/classes/warlock/sets';
 import { loadItemDb } from '../data/items/db';
 import type { ItemDb } from '../data/items/types';
-import type { SpecData } from '../data/types';
+import type { BuffDef, SpecData } from '../data/types';
 import { activeSetBonuses } from '../engine/sets';
 import { computeStats } from '../engine/stats';
 import type { EquippedItem, RawStats, SimSnapshot, SpellDef, SpellModifier } from '../engine/types';
 import { applySetup } from '../setup/applySetup';
-import { normalizeSetup, SETUP_CATALOG } from '../setup/defaults';
+import { normalizeSetup, SETUP_CATALOG, setupCatalogFor, STATIC_SETUP_CATALOG } from '../setup/defaults';
 import { gearNeedsDb, setupGear } from '../setup/gear';
+import { EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, unmodelledGearEffects } from '../setup/gearEffects';
 import { SETUP_PRESETS } from '../setup/presets';
 import { browserStorage, loadSetup, saveSetup } from '../setup/storage';
 import type { SetupStorage } from '../setup/storage';
@@ -21,7 +22,7 @@ import type { SlotFlash } from './ActionBar';
 import { CastBar } from './CastBar';
 import { formatDps, formatInt, secondsText } from './format';
 import { CUSTOM_GEAR_NAME, GearPanel, type GearDbStatus } from './GearPanel';
-import { itemBuffNotes, matchingPreset } from './gearView';
+import { itemEffectHints, matchingPreset } from './gearView';
 import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
@@ -35,10 +36,15 @@ import { useSimulation } from './useSimulation';
 /** How long a rejected press shows its reason on the slot. */
 const FLASH_MS = 700;
 
-/** The item bar's tooltips: each item action's catalog description. */
-const ITEM_DESCRIPTIONS: Readonly<Record<string, string>> = Object.fromEntries(
-  SETUP_CATALOG.flatMap((b) => (b.effect.action ? [[b.effect.action.id, b.description]] : [])),
-);
+/** The item row's tooltips: each item action's catalog description, by action id. */
+function itemDescriptions(catalog: readonly BuffDef[]): Readonly<Record<string, string>> {
+  return Object.fromEntries(catalog.flatMap((b) => (b.effect.action ? [[b.effect.action.id, b.description]] : [])));
+}
+
+/** The item actions whose icon is an item icon (the gear's on-use effects; potions use spell icons). */
+function itemIconActions(catalog: readonly BuffDef[]): ReadonlySet<string> {
+  return new Set(catalog.flatMap((b) => (b.iconKind === 'item' && b.effect.action ? [b.effect.action.id] : [])));
+}
 
 /** Fields that take typed text or arrow keys: every key typed into them is theirs, never a hotkey. */
 const TEXT_TARGETS =
@@ -62,6 +68,12 @@ interface NextFight extends AppliedSetup {
    * cannot build (`gearNeedsDb`) is left out (the author's gear) until the item database has loaded.
    */
   config: SetupConfig;
+  /**
+   * The fight's catalog: the gear-independent entries and the item effects of the fight's gear
+   * (`setupCatalogFor`, from the database, or from the embedded author records before it loads).
+   * The Setup panel lists it; the item row, the buffs panel and preset matching read it.
+   */
+  catalog: readonly BuffDef[];
 }
 
 /** Reloads the page (never throws: a sandboxed frame may refuse it). */
@@ -191,18 +203,37 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
     const fightConfig = config.gear !== undefined && db === null && gearNeedsDb(config.gear) ? withoutGear(config) : config;
     const build = (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[]) =>
       gear === undefined || db === null ? buildSpec(warlock, gear) : buildSpec(warlock, gear, db);
-    return { config: fightConfig, ...applySetup({ buildSpec: build, catalog: SETUP_CATALOG, config: fightConfig }) };
+    return {
+      config: fightConfig,
+      // "Items and cooldowns" follows the worn gear: its effects, derived (never a fixed list).
+      catalog: setupCatalogFor(setupGear(fightConfig), db),
+      ...applySetup({ buildSpec: build, catalog: STATIC_SETUP_CATALOG, config: fightConfig, db }),
+    };
   }, [buildSpec, config, db]);
   const { snapshot, fight, cast, cancel, reset, start } = useSimulation(nextFight);
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
   const priority = nextFight.spec.priority;
-  const fightPreset = useMemo(() => activePresetName(fight.config, SETUP_PRESETS, SETUP_CATALOG), [fight.config]);
+  const fightPreset = useMemo(() => activePresetName(fight.config, SETUP_PRESETS, fight.catalog), [fight]);
   const fightGear = useMemo(() => gearName(fight.config), [fight.config]);
-  const gearBuffNotes = useMemo(
-    () => itemBuffNotes(setupGear(config), config.enabledBuffs, SETUP_CATALOG, itemNameIn(db)),
-    [config, db],
+  const itemDescriptionsOfFight = useMemo(() => itemDescriptions(fight.catalog), [fight]);
+  const itemIconsOfFight = useMemo(() => itemIconActions(fight.catalog), [fight]);
+  // The Gear panel's hints (shown once the database has loaded: then the next fight wears `config`'s gear).
+  const gearHints = useMemo(
+    () => itemEffectHints(nextFight.catalog.filter((b) => isGearEffectId(b.id)), config.enabledBuffs),
+    [nextFight, config.enabledBuffs],
   );
+  const unmodelledItemEffects = useMemo(
+    () => unmodelledGearEffects(setupGear(nextFight.config), db ?? EMBEDDED_GEAR_EFFECT_SOURCE),
+    [nextFight, db],
+  );
+  // A stored gear the database must build: until it has loaded the next fight wears My gear.
+  const itemsNote =
+    db === null && config.gear !== undefined && gearNeedsDb(config.gear)
+      ? itemDb.status === 'error'
+        ? 'The item database could not load: the next fight uses My gear, and these are its effects.'
+        : 'Loading the item database: until then the next fight uses My gear, and these are its effects.'
+      : undefined;
   // The edit differs from what the running (or ended) fight uses; toggling a buff on and off again does not count.
   const pending = snapshot.phase !== 'ready' && JSON.stringify(fight.config) !== JSON.stringify(config);
   const [flash, setFlash] = useState<SlotFlash | null>(null);
@@ -251,7 +282,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
       buildBuffViews({
         selfAuras: snapshot.selfAuras,
         spec: fight.spec,
-        catalog: SETUP_CATALOG,
+        catalog: fight.catalog,
         scheduled: fight.sim.scheduledAuras,
         enabledBuffIds: fight.config.enabledBuffs,
         nowMs: snapshot.nowMs,
@@ -266,7 +297,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isHotkeyBlocked(event)) return; // e.g. digits or Z typed into a number field, Space on a focused <summary>
-      const slot = keyToSlot(event.key); // 1-9, 0, -, = and the item row's Z X C V (either case)
+      const slot = keyToSlot(event.key); // 1-9, 0, -, = and the item row's keys (ITEM_SLOT_KEYS, either case)
       const handled = slot !== undefined || event.key === 'Escape' || event.key === ' ' || event.key === 'r' || event.key === 'R';
       if (!handled) return;
       event.preventDefault();
@@ -300,7 +331,14 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
         <div className="player">
           <CastBar spec={spec} snapshot={snapshot} />
           <ManaBar snapshot={snapshot} />
-          <ActionBar spec={spec} snapshot={snapshot} flash={flash} onPress={pressSlot} descriptions={ITEM_DESCRIPTIONS} />
+          <ActionBar
+            spec={spec}
+            snapshot={snapshot}
+            flash={flash}
+            onPress={pressSlot}
+            descriptions={itemDescriptionsOfFight}
+            itemIcons={itemIconsOfFight}
+          />
           {/* Below the bars, so they never move while buffs come and go. */}
           <PlayerBuffsPanel
             active={buffViews.active}
@@ -313,12 +351,14 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
       </main>
       <aside className="game-side">
         <SetupPanel
-          catalog={SETUP_CATALOG}
+          catalog={nextFight.catalog}
           config={config}
           presets={SETUP_PRESETS}
           onChange={changeConfig}
           pending={pending}
           fightEnded={snapshot.phase === 'ended'}
+          unmodelledItemEffects={unmodelledItemEffects}
+          itemsNote={itemsNote}
         />
         <GearPanel
           gear={setupGear(config)}
@@ -330,8 +370,7 @@ export function GameView({ buildSpec = buildDestructionWarlock, storage, loadDb 
           onReload={onReload}
           pending={pending}
           fightEnded={snapshot.phase === 'ended'}
-          warnings={gearBuffNotes.warnings}
-          hints={gearBuffNotes.hints}
+          hints={gearHints}
         />
         <CharacterStats spec={nextFight.spec} />
         <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} unmodelled={UNMODELLED_SETS} />

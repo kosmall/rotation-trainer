@@ -87,7 +87,7 @@ export const SETUP_PRESETS: Readonly<Record<SetupPresetId, { name: string; descr
     'raid-log': {
       name: 'Raid as in my log',
       description:
-        "Approximate. From the Naj'entus log: Moonkin Aura, Mana Spring Totem, Judgement of Wisdom, Heroism at 6.4 s, Destruction Potion and Icon of the Silver Crescent on the item bar (the log used them at 7.5 s and 30.2 s: now your choice), Band of the Eternal Sage, the Shadow Bolt + Curse of Doom rotation. From the design spec: Improved Shadow Bolt from others. Guessed to match the log's intellect, spirit and Life Tap: Arcane Brilliance, Gift of the Wild, Blessing of Kings, Wrath of Air Totem, Flask of Pure Death, Blackened Basilisk, Superior Wizard Oil.",
+        "Approximate. From the Naj'entus log: Moonkin Aura, Mana Spring Totem, Judgement of Wisdom, Heroism at 6.4 s, Destruction Potion and Icon of the Silver Crescent on the item row (the log used them at 7.5 s and 30.2 s: now your choice), Band of the Eternal Sage, the Shadow Bolt + Curse of Doom rotation. From the design spec: Improved Shadow Bolt from others. Guessed to match the log's intellect, spirit and Life Tap: Arcane Brilliance, Gift of the Wild, Blessing of Kings, Wrath of Air Totem, Flask of Pure Death, Blackened Basilisk, Superior Wizard Oil.",
       config: RAID_LOG_SETUP,
     },
   });

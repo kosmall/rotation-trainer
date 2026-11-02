@@ -4,7 +4,8 @@ import type { SpecData } from '../../src/data/types';
 import { createRng } from '../../src/engine/rng';
 import type { AuraView, ScheduledAura } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
-import { DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG } from '../../src/setup/defaults';
+import { DEFAULT_SETUP, normalizeSetup, setupCatalogFor } from '../../src/setup/defaults';
+import { DEFAULT_GEAR } from '../../src/setup/gear';
 import {
   barFraction,
   buffTimeText,
@@ -40,19 +41,22 @@ const ENABLED = [
   BAND,
 ];
 
+/** The fight's catalog for the author's gear (static entries, then the derived Icon and Band; gear item effects Task 3). */
+const CATALOG = setupCatalogFor(DEFAULT_GEAR);
+
 const config = normalizeSetup(
   {
     ...structuredClone(DEFAULT_SETUP),
     enabledBuffs: ENABLED,
     timed: { ...DEFAULT_SETUP.timed, heroism: { startSec: 12, durationSec: 40 } },
   },
-  SETUP_CATALOG,
+  CATALOG,
 );
-const applied = applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config });
+const applied = applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config });
 const spec: SpecData = applied.spec;
 
 const catalogDescription = (id: string) => {
-  const b = SETUP_CATALOG.find((x) => x.id === id);
+  const b = CATALOG.find((x) => x.id === id);
   if (!b) throw new Error(`no buff ${id}`);
   return b.description;
 };
@@ -71,7 +75,7 @@ function views(p: Partial<BuffViewInput>) {
   return buildBuffViews({
     selfAuras: {},
     spec,
-    catalog: SETUP_CATALOG,
+    catalog: CATALOG,
     scheduled: applied.sim.scheduledAuras,
     enabledBuffIds: config.enabledBuffs,
     nowMs: 0,
@@ -107,6 +111,7 @@ describe('buildBuffViews: active', () => {
         // The item's name (the AuraDef is 'Blessing of the Silver Crescent').
         name: 'Icon of the Silver Crescent',
         icon: 'inv_weapon_shortblade_23', // the item's icon (stage F: the buff's inv_trinket_naxxramas06)
+        iconKind: 'item', // served from public/icons/items/ (gear item effects Task 3)
         description: catalogDescription(ICON),
         count: null,
         remainingMs: 8000,
@@ -124,6 +129,7 @@ describe('buildBuffViews: active', () => {
         auraId: BAND_AURA,
         name: 'Band of the Eternal Sage',
         icon: 'inv_jewelry_ring_55', // the item's icon (stage F: the buff's spell_holy_mindvision)
+        iconKind: 'item',
         description: catalogDescription(BAND),
         count: 2,
         remainingMs: 4000,
@@ -255,14 +261,14 @@ describe('buildBuffViews: permanent', () => {
     const { permanent } = views({});
     expect(permanent).toEqual(
       ['arcane-brilliance', 'blessing-of-kings', 'flask-of-supreme-power'].map((id) => {
-        const b = SETUP_CATALOG.find((x) => x.id === id);
+        const b = CATALOG.find((x) => x.id === id);
         return { id, name: b?.name, icon: b?.icon, description: b?.description };
       }),
     );
 
     // The whole real catalog enabled: the raid/party/individual buffs and the consumables that
     // only change stats or modifiers, in catalog order.
-    const all = views({ enabledBuffIds: SETUP_CATALOG.map((b) => b.id) }).permanent.map((p) => p.id);
+    const all = views({ enabledBuffIds: CATALOG.map((b) => b.id) }).permanent.map((p) => p.id);
     expect(all).toEqual([
       'arcane-brilliance',
       'gift-of-the-wild',

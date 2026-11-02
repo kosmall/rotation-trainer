@@ -30,14 +30,16 @@ interface ActionBarProps {
   onPress(slot: number): void;
   /** Tooltip text per spell id (the item actions' catalog descriptions). */
   descriptions?: Readonly<Record<string, string>>;
+  /** Spell ids whose icon is an item icon (public/icons/items/: the gear's on-use effects); the rest use spell icons. */
+  itemIcons?: ReadonlySet<string>;
 }
 
 /**
  * The spell row (slots 0-11, keys 1-9, 0, -, =; an unbound slot shows as empty) and, under it, the
- * item row "Items" (slots 12-15, keys Z X C V) with only the bound item slots, nothing when no item
- * action is enabled.
+ * item row "Items" (slots 12-17, keys `ITEM_SLOT_KEYS`: Z X C V B N) with only the bound item
+ * slots, nothing when no item action is enabled.
  */
-export function ActionBar({ spec, snapshot, flash, onPress, descriptions }: ActionBarProps) {
+export function ActionBar({ spec, snapshot, flash, onPress, descriptions, itemIcons }: ActionBarProps) {
   const gcdLeftMs = snapshot.phase === 'running' ? Math.max(0, snapshot.gcdEndsAtMs - snapshot.nowMs) : 0;
   // Measured against the current GCD length (a haste change mid-GCD only shifts the sweep).
   const gcdFraction = Math.min(1, gcdLeftMs / Math.max(1, snapshot.gcdMs));
@@ -48,6 +50,7 @@ export function ActionBar({ spec, snapshot, flash, onPress, descriptions }: Acti
       spell={spell}
       hotkey={hotkey}
       description={descriptions?.[spell.id]}
+      iconKind={itemIcons?.has(spell.id) ? 'item' : 'spell'}
       snapshot={snapshot}
       gcdFraction={spell.onGcd ? gcdFraction : 0}
       flash={flash?.slot === slot ? flash : null}
@@ -92,13 +95,15 @@ interface SpellSlotProps {
   hotkey: string;
   /** Tooltip text under the name (an item's effect). */
   description?: string;
+  /** Where the icon file lives (`SpellIcon` `kind`). */
+  iconKind: 'spell' | 'item';
   snapshot: SimSnapshot;
   gcdFraction: number;
   flash: SlotFlash | null;
   onPress(): void;
 }
 
-function SpellSlot({ spell, hotkey, description, snapshot, gcdFraction, flash, onPress }: SpellSlotProps) {
+function SpellSlot({ spell, hotkey, description, iconKind, snapshot, gcdFraction, flash, onPress }: SpellSlotProps) {
   const cooldownMs = snapshot.cooldownRemainingMs[spell.id] ?? 0;
   // Effective values (talents, gear, auras, haste) from the snapshot.
   const { manaCost, castTimeMs } = snapshot.spells[spell.id] ?? { manaCost: spell.manaCost, castTimeMs: spell.castTimeMs };
@@ -123,7 +128,7 @@ function SpellSlot({ spell, hotkey, description, snapshot, gcdFraction, flash, o
       <span className="slot-initials" aria-hidden="true">
         {initials(spell.name)}
       </span>
-      <SpellIcon icon={spell.icon} className="slot-icon" />
+      <SpellIcon icon={spell.icon} kind={iconKind} className="slot-icon" />
       {gcdFraction > 0 && (
         <span className="slot-gcd" aria-hidden="true" style={{ '--sweep': `${gcdFraction * 360}deg` } as CSSProperties} />
       )}

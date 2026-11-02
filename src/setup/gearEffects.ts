@@ -71,10 +71,11 @@ function statsText(stats: Partial<RawStats> | undefined): string {
     .join(', ');
 }
 
-const TRIGGER_TEXT: Readonly<Record<ItemProcTrigger, string>> = {
-  cast: 'each completed spell (Curse of the Elements excepted, misses included)',
-  hit: 'each landed damaging spell (Life Tap, Curse of the Elements and misses never)',
-  crit: 'each critical hit of a damaging spell',
+/** A proc's trigger in words (the Setup panel's description line; rulings E-1, E-2): short, then the rule. */
+const TRIGGER_TEXT: Readonly<Record<ItemProcTrigger, { short: string; rule: string }>> = {
+  cast: { short: 'on spell cast', rule: 'Any completed spell rolls, misses included; Curse of the Elements never.' },
+  hit: { short: 'on spell hit', rule: 'A landed damaging spell rolls; Life Tap, Curse of the Elements and misses never.' },
+  crit: { short: 'on spell crit', rule: 'A critical hit of a damaging spell rolls.' },
 };
 
 /** The trigger rule of a proc (rulings E-1, E-2; `ItemProcTrigger`). Hooks never run on DoT ticks or items. */
@@ -136,6 +137,21 @@ function validProc(p: unknown): p is ItemProcEffect {
     (p.trigger === 'cast' || p.trigger === 'hit' || p.trigger === 'crit') &&
     cleanStats(p.stats) !== undefined
   );
+}
+
+/**
+ * Whether an item record has a modelled effect: a `useEffects` or `procEffects` entry that
+ * `deriveGearEffects` turns into a setup entry (the same validators). Never throws.
+ */
+export function hasModelledGearEffect(item: Pick<ItemRecord, 'useEffects' | 'procEffects'>): boolean {
+  try {
+    return (
+      (Array.isArray(item.useEffects) && item.useEffects.some(validUse)) ||
+      (Array.isArray(item.procEffects) && item.procEffects.some(validProc))
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** One worn item's modelled effects, numbered (n = 1 first). */
@@ -243,7 +259,7 @@ export function deriveGearEffects(gear: readonly (EquippedItem | null)[], source
         icon: item.icon,
         iconKind: 'item',
         group: 'item',
-        description: `Before the pull: ${statsText(stats)} for ${secs(u.durationMs)}, up the whole fight (an exclusive party buff; no item action). Its equip stats are already in the gear.`,
+        description: `Before the pull, whole fight: ${statsText(stats)} (lasts ${secs(u.durationMs)}; an exclusive party buff; no item action). Its equip stats are already in the gear.`,
         source: sourceText(item),
         effect: { selfAura },
       });
@@ -257,7 +273,7 @@ export function deriveGearEffects(gear: readonly (EquippedItem | null)[], source
       iconKind: 'item',
       group: 'item',
       description:
-        `On use (item bar): ${statsText(stats)} for ${secs(u.durationMs)}. ${secs(u.cooldownMs)} cooldown` +
+        `On use (item row): ${statsText(stats)} for ${secs(u.durationMs)}; ${secs(u.cooldownMs)} cooldown` +
         (group ? `; other items of its category wait ${secs(group.ms)}.` : '; no shared cooldown.') +
         ' Its equip stats are already in the gear.',
       source: sourceText(item),
@@ -304,9 +320,9 @@ export function deriveGearEffects(gear: readonly (EquippedItem | null)[], source
       iconKind: 'item',
       group: 'item',
       description:
-        `Proc on ${TRIGGER_TEXT[trigger]}: ${num(chance * 100)}% chance to give ${statsText(stats)} for ${secs(p.durationMs)}` +
-        (icdId !== undefined ? `, then not again for ${secs(p.icdMs)} (${secs(p.icdMs)} internal cooldown).` : '; a proc while it is up refreshes it.') +
-        ' DoT ticks never proc it. Its equip stats are already in the gear.',
+        `Proc ${TRIGGER_TEXT[trigger].short}: ${num(chance * 100)}% chance, ${statsText(stats)} for ${secs(p.durationMs)}` +
+        (icdId !== undefined ? `; ${secs(p.icdMs)} internal cooldown.` : '; no internal cooldown (a proc while it is up refreshes it).') +
+        ` ${TRIGGER_TEXT[trigger].rule} DoT ticks never proc it. Its equip stats are already in the gear.`,
       source: sourceText(item),
       effect: { auras, hooks },
     });

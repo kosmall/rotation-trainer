@@ -4,7 +4,8 @@ import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruct
 import type { WarlockOptions } from '../../src/data/classes/warlock/destruction';
 import type { SpecData } from '../../src/data/types';
 import { applySetup } from '../../src/setup/applySetup';
-import { DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG } from '../../src/setup/defaults';
+import { DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG, setupCatalogFor } from '../../src/setup/defaults';
+import { DEFAULT_GEAR } from '../../src/setup/gear';
 import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
@@ -86,9 +87,10 @@ describe('Item bar', () => {
     ]);
     expect(itemButtons().map((b) => b.querySelector('.slot-key')?.textContent)).toEqual(['Z', 'X', 'C', 'V']);
     // Icons and tooltips with the item's description.
-    for (const b of SETUP_CATALOG.filter((x) => x.effect.action)) {
+    for (const b of setupCatalogFor(DEFAULT_GEAR).filter((x) => x.effect.action)) {
       const button = itemButton(b.name);
-      expect(button.querySelector('img')?.getAttribute('src'), b.id).toContain(`/icons/spells/${b.icon}.jpg`);
+      // The gear's on-use effects show the item icon (public/icons/items/), the potions and the rune spell icons.
+      expect(button.querySelector('img')?.getAttribute('src'), b.id).toContain(`/icons/${b.iconKind === 'item' ? 'items' : 'spells'}/${b.icon}.jpg`);
       expect(button.getAttribute('title'), b.id).toContain(b.description);
     }
     expect(spellRow.querySelectorAll('.slot')).toHaveLength(12);

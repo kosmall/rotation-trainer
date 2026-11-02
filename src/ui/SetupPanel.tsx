@@ -6,6 +6,7 @@ import { ROTATION_PRESETS } from '../data/classes/warlock/rotation';
 import type { CurseChoice, RotationConfig, RotationPresetId } from '../data/classes/warlock/rotation';
 import type { BuffDef } from '../data/types';
 import { DEFAULT_SETUP, normalizeSetup, SETUP_LIMITS } from '../setup/defaults';
+import { isGearEffectId } from '../setup/gearEffects';
 import type { SetupConfig, SetupPresetId, TimedSetting } from '../setup/types';
 import { initials } from './format';
 import { ITEM_SLOT_KEYS } from './keys';
@@ -59,13 +60,15 @@ function rotationPresetOf(rotation: RotationConfig): RotationPresetId | 'custom'
 /**
  * What decides a fight, as a comparable string: the enabled buffs as a set, the start and length
  * of the ENABLED timed buffs only (a disabled buff's timing changes nothing), the rotation, the
- * distance and the warlock options. The fight length decides a fight too, but preset matching
- * ignores it: the presets keep the player's chosen length (ruling F-2), so "Raid as in my log"
- * in a 90 s fight is still that preset.
+ * distance and the warlock options. An enabled gear item effect counts only when `catalog` (the
+ * worn gear's, `setupCatalogFor`) has it: the id of an item not worn is inactive. The fight length
+ * decides a fight too, but preset matching ignores it: the presets keep the player's chosen length
+ * (ruling F-2), so "Raid as in my log" in a 90 s fight is still that preset; the gear likewise.
  */
 function fightKey(config: SetupConfig, catalog: readonly BuffDef[]): string {
   const c = normalizeSetup(config, catalog);
-  const enabled = [...c.enabledBuffs].sort();
+  const ids = new Set(catalog.map((b) => b.id));
+  const enabled = c.enabledBuffs.filter((id) => !isGearEffectId(id) || ids.has(id)).sort();
   const timed = enabled.flatMap((id) => {
     const t = c.timed[id];
     return t ? [[id, t.startSec, t.durationSec]] : [];
@@ -87,7 +90,8 @@ type BuffGroupId = 'fight' | 'raid' | 'consumables' | 'debuffs' | 'items' | 'war
 
 /**
  * The panel group a catalog buff is listed in: timed buffs (Heroism) in "Fight"; item actions
- * (used from the item bar, potions and runes too) and item procs in "Items and cooldowns".
+ * (used from the item row: the potions, the rune and the gear's on-use effects) and the gear's
+ * other effects (group 'item': procs, pre-pull) in "Items and cooldowns".
  */
 function groupOf(buff: BuffDef): BuffGroupId {
   if (buff.timed) return 'fight';
@@ -117,7 +121,7 @@ const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: strin
   {
     id: 'items',
     title: 'Items and cooldowns',
-    hint: 'Use the Icon, the potions and the rune from the item bar (Z X C V), in the order listed here; the bot uses them too. One potion per 2 min (shared cooldown). The Band procs by itself. Item effects are on top of the item stats already in the gear.',
+    hint: `The modelled effects of the items you wear (Gear panel), the potions and the rune. Use the on-use effects, the potions and the rune from the item row (${ITEM_SLOT_KEYS.map((k) => k.toUpperCase()).join(' ')}), in the order listed here; the bot uses them too. One potion per 2 min (shared cooldown). Procs and pre-pull effects work by themselves. Item effects are on top of the item stats already in the gear.`,
   },
 ];
 
@@ -179,11 +183,11 @@ function NumberField({ id, label, value, min, max, step = 'any', integer = false
 }
 
 /** A small icon tile: the initials underneath, the icon file over them when it loads. */
-function BuffIcon({ icon, name }: { icon: string; name: string }) {
+function BuffIcon({ icon, name, kind = 'spell' }: { icon: string; name: string; kind?: 'spell' | 'item' }) {
   return (
     <span className="setup-icon" aria-hidden="true">
       {initials(name)}
-      {icon !== '' && <SpellIcon icon={icon} className="setup-icon-image" />}
+      {icon !== '' && <SpellIcon icon={icon} kind={kind} className="setup-icon-image" />}
     </span>
   );
 }
@@ -194,6 +198,7 @@ function OptionRow({
   name,
   radioGroup,
   icon,
+  iconKind,
   title,
   description,
   checked,
@@ -204,6 +209,8 @@ function OptionRow({
   name?: string;
   radioGroup?: string;
   icon: string;
+  /** 'item' for an item icon (public/icons/items/: the gear's effects). */
+  iconKind?: 'spell' | 'item';
   title: string;
   description: string;
   checked: boolean;
@@ -221,7 +228,7 @@ function OptionRow({
           aria-describedby={descId}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <BuffIcon icon={icon} name={name ?? title} />
+        <BuffIcon icon={icon} kind={iconKind} name={name ?? title} />
         <span className="setup-buff-name">{title}</span>
       </label>
       <p id={descId} className="setup-buff-desc" title={description}>
@@ -248,7 +255,10 @@ function Group({ title, count, children }: { title: string; count?: number; chil
 }
 
 export interface SetupPanelProps {
-  /** Every buff the setup can enable (`SETUP_CATALOG`). */
+  /**
+   * Every buff the setup can enable: the gear-independent entries and the worn gear's item effects
+   * (`setupCatalogFor(gear, db)`), so "Items and cooldowns" follows the gear.
+   */
   catalog: readonly BuffDef[];
   /** The current setup (normalized). The panel shows it and keeps no copy of it. */
   config: SetupConfig;
@@ -260,13 +270,18 @@ export interface SetupPanelProps {
   pending?: boolean;
   /** The fight is over: the pending note then says "finished" instead of "in progress". */
   fightEnded?: boolean;
+  /** "<item>: <effect>" for every effect of the worn items the trainer does not model (`unmodelledGearEffects`). */
+  unmodelledItemEffects?: readonly string[];
+  /** A note under "Items and cooldowns" (e.g. the item database is still loading). */
+  itemsNote?: string;
 }
 
 /**
  * The collapsed "Setup" panel: presets and "Reset to defaults", the active preset's name, then
  * the "Fight" group (fight length; Heroism / Bloodlust with its start second and duration, warned
  * when it starts at or after the end), one collapsible group per kind of buff (raid and party,
- * consumables, target debuffs, items used from the item bar and item procs), the warlock options,
+ * consumables, target debuffs, the worn gear's item effects with the potions and the rune, the
+ * not-modelled effects of the gear and the item row overflow), the warlock options,
  * the rotation and the distance from the target. Presets keep the chosen fight length and the
  * gear (the Gear panel's); "Reset to defaults" resets both too (the author's gear). Fully controlled: it shows `config` and passes every edit to
  * `onChange` as a new config normalized for `catalog` (exclusive buffs resolved, the later one
@@ -281,6 +296,8 @@ export function SetupPanel({
   disabled = false,
   pending = false,
   fightEnded = false,
+  unmodelledItemEffects = [],
+  itemsNote,
 }: SetupPanelProps) {
   const id = useId();
   const lifeTap = config.rotation.lifeTapBelowMana;
@@ -309,12 +326,12 @@ export function SetupPanel({
   const warlockBuffs = catalog.filter((b) => groupOf(b) === 'warlock');
   const fightBuffs = catalog.filter((b) => groupOf(b) === 'fight');
   const fightLengthSec = config.fightDurationSec;
-  // The item bar key of each enabled item action: applySetup binds them in catalog order.
-  const itemKeys = new Map(
-    catalog
-      .filter((b) => b.effect.action && enabled.has(b.id))
-      .map((b, i) => [b.id, ITEM_SLOT_KEYS[i]?.toUpperCase()] as const),
-  );
+  // The item row key of each enabled item action: applySetup binds them in catalog order, the
+  // first ITEM_SLOT_KEYS.length; the rest are left out (undefined here).
+  const enabledActions = catalog.filter((b) => b.effect.action && enabled.has(b.id));
+  const itemKeys = new Map(enabledActions.map((b, i) => [b.id, ITEM_SLOT_KEYS[i]?.toUpperCase()] as const));
+  const unbound = enabledActions.slice(ITEM_SLOT_KEYS.length);
+  const rowFull = `not on the item row (${ITEM_SLOT_KEYS.length} slots, all taken)`;
 
   const buffRow = (b: BuffDef) => {
     const t = b.timed ? timedOf(b) : null;
@@ -322,6 +339,7 @@ export function SetupPanel({
       <OptionRow
         key={b.id}
         icon={b.icon}
+        iconKind={b.iconKind === 'item' ? 'item' : 'spell'}
         title={b.name}
         description={b.description}
         checked={enabled.has(b.id)}
@@ -354,7 +372,10 @@ export function SetupPanel({
             )}
           </div>
         )}
-        {itemKeys.get(b.id) && <p className="setup-item-key">Item bar: {itemKeys.get(b.id)}</p>}
+        {itemKeys.get(b.id) && <p className="setup-item-key">Item row: {itemKeys.get(b.id)}</p>}
+        {itemKeys.has(b.id) && itemKeys.get(b.id) === undefined && (
+          <p className="setup-item-key setup-warn">Not on the item row ({ITEM_SLOT_KEYS.length} slots, all taken): no effect.</p>
+        )}
       </OptionRow>
     );
   };
@@ -426,7 +447,33 @@ export function SetupPanel({
           return (
             <Group key={g.id} title={g.title} count={buffs.filter((b) => enabled.has(b.id)).length}>
               <p className="hint">{g.hint}</p>
+              {g.id === 'items' && pending && (
+                <p className="setup-pending">
+                  The {fightEnded ? 'finished' : 'running'} fight keeps its gear and item effects: this list is for the next fight
+                  (press R).
+                </p>
+              )}
+              {g.id === 'items' && itemsNote && <p className="hint">{itemsNote}</p>}
               <ul className="setup-buffs">{buffs.map(buffRow)}</ul>
+              {g.id === 'items' && unbound.length > 0 && (
+                <ul className="setup-warnings" aria-label="Item row overflow">
+                  {unbound.map((b) => (
+                    <li key={b.id} className="setup-warn">
+                      {b.name}: {rowFull}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {g.id === 'items' && unmodelledItemEffects.length > 0 && (
+                <>
+                  <p className="hint setup-unmodelled-title">Not modelled effects of your gear:</p>
+                  <ul className="setup-unmodelled" aria-label="Not modelled effects of your gear">
+                    {unmodelledItemEffects.map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </Group>
           );
         })}

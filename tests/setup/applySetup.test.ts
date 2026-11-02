@@ -23,8 +23,9 @@ import { Simulation } from '../../src/engine/sim';
 import { computeStats } from '../../src/engine/stats';
 import type { LogEvent, ScheduledAura, SpecHooks, TargetData } from '../../src/engine/types';
 import { applySetup, composeHooks } from '../../src/setup/applySetup';
-import { buildSetupCatalog, DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG, STATIC_SETUP_CATALOG } from '../../src/setup/defaults';
+import { buildSetupCatalog, DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG, setupCatalogFor, STATIC_SETUP_CATALOG } from '../../src/setup/defaults';
 import { authorGearEffects } from '../../src/setup/gearEffects';
+import { DEFAULT_GEAR } from '../../src/setup/gear';
 
 // The Icon and the Band are derived from the author's gear since gear item effects Task 2 (stage F
 // hand ids: 'icon-of-the-silver-crescent' / 'band-of-the-eternal-sage' for entry and aura,
@@ -98,8 +99,11 @@ function expectScaled(a: number, b: number, mult: number): void {
   expect(Math.abs(a - b * mult), `${a} vs ${b} x ${mult}`).toBeLessThanOrEqual(1.5);
 }
 
+/** The author's gear catalog (static entries, then the derived Icon and Band), as the app builds it for the default gear. */
+const AUTHOR_CATALOG = setupCatalogFor(DEFAULT_GEAR);
+
 function catalogBuff(id: string): BuffDef {
-  const b = SETUP_CATALOG.find((x) => x.id === id);
+  const b = AUTHOR_CATALOG.find((x) => x.id === id);
   if (!b) throw new Error(`no buff ${id}`);
   return b;
 }
@@ -109,17 +113,20 @@ function catalogBuff(id: string): BuffDef {
 // ---------------------------------------------------------------------------
 
 describe('setup catalog, DEFAULT_SETUP and SETUP_PRESETS', () => {
-  it("the catalog is commonBuffs + consumables + debuffs + cooldowns, in that order, then the author's gear item effects (Icon, Band), with unique ids", () => {
+  it("the catalog is commonBuffs + consumables + debuffs + cooldowns, in that order; the author's gear item effects (Icon, Band) follow only in the gear's catalog, with unique ids", () => {
     const expected = [...commonBuffs, ...consumables, ...debuffs, ...cooldowns];
     expect(STATIC_SETUP_CATALOG).toEqual(expected);
     STATIC_SETUP_CATALOG.forEach((b, i) => expect(b).toBe(expected[i]));
     expect(buildSetupCatalog()).toEqual(expected);
-    SETUP_CATALOG.slice(0, expected.length).forEach((b, i) => expect(b).toBe(expected[i]));
-    expect(SETUP_CATALOG.slice(expected.length).map((b) => b.id)).toEqual([ICON, BAND]);
-    expect(SETUP_CATALOG.slice(expected.length).map((b) => b.description)).toEqual(authorGearEffects().map((b) => b.description));
-    const ids = SETUP_CATALOG.map((b) => b.id);
+    // Gear item effects Task 3: no constant holds gear entries; SETUP_CATALOG is the static catalog.
+    expect(SETUP_CATALOG).toBe(STATIC_SETUP_CATALOG);
+    AUTHOR_CATALOG.slice(0, expected.length).forEach((b, i) => expect(b).toBe(expected[i]));
+    expect(AUTHOR_CATALOG.slice(expected.length).map((b) => b.id)).toEqual([ICON, BAND]);
+    expect(AUTHOR_CATALOG.slice(expected.length).map((b) => b.description)).toEqual(authorGearEffects().map((b) => b.description));
+    const ids = AUTHOR_CATALOG.map((b) => b.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(Object.isFrozen(SETUP_CATALOG)).toBe(true);
+    expect(Object.isFrozen(AUTHOR_CATALOG)).toBe(true);
   });
 
   it('DEFAULT_SETUP: no buffs, dot rotation, 28 yd, Fel Armor and the Succubus sacrifice; timed defaults from the catalog', () => {

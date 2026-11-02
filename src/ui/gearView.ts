@@ -1,13 +1,14 @@
 // What the Gear panel shows about items, gems and enchants: slot labels, short stat texts, the
 // picker candidates (only what the trainer models), markers, the meta gem status and the notes
-// about the setup's item buffs. Pure; nothing here mutates its inputs or the item database.
+// about the worn items' effects. Pure; nothing here mutates its inputs or the item database.
 
 import type { GearPreset } from '../data/classes/warlock/gearPresets';
-import { MODELLED_ITEM_EFFECTS, metaGemModifiers } from '../data/classes/warlock/items';
+import { metaGemModifiers } from '../data/classes/warlock/items';
 import { ITEM_SLOTS, professionName } from '../data/items/db';
 import type { EnchantRecord, GemRecord, ItemDb, ItemRecord, SlotKey } from '../data/items/types';
 import type { BuffDef } from '../data/types';
 import { countGemColor, gemFitsSocket, metaRequirementMet, type MetaColorCounts } from '../engine/gear';
+import { hasModelledGearEffect } from '../setup/gearEffects';
 import type { EquippedItem, GemColor, RawStats } from '../engine/types';
 
 type GearList = readonly (EquippedItem | null)[];
@@ -89,21 +90,27 @@ export function matchingPreset(gear: GearList, presets: readonly GearPreset[]): 
 /** A profession's name (src/data/items/db.ts, shared with the importer). */
 export { professionName };
 
-/** The item has an effect the trainer does not model (the Icon and the Band are modelled by the setup). */
-export const hasUnmodelledEffect = (item: ItemRecord): boolean =>
-  (item.effects?.length ?? 0) > 0 && !Object.hasOwn(MODELLED_ITEM_EFFECTS, item.id);
+/** The item has an effect the trainer does not model: a text effect (`ItemRecord.effects`). */
+export const hasUnmodelledEffect = (item: ItemRecord): boolean => (item.effects?.length ?? 0) > 0;
 
-/** Nothing but an effect (no modelled stat): hidden from the item picker unless asked for. */
-export const isEffectOnly = (item: ItemRecord): boolean => !hasModelledStats(item.stats) && (item.effects?.length ?? 0) > 0;
+/** The item has a modelled effect (on use, proc or pre-pull): the Setup panel lists it while worn. */
+export const hasModelledEffect = (item: ItemRecord): boolean => hasModelledGearEffect(item);
 
-/** Short markers of an item: faction, profession, effects. */
+/**
+ * Nothing the trainer models: no modelled stat and no modelled effect, only an unmodelled one.
+ * Hidden from the item picker unless asked for (a stat-less trinket with an on-use effect is shown).
+ */
+export const isEffectOnly = (item: ItemRecord): boolean =>
+  !hasModelledStats(item.stats) && !hasModelledEffect(item) && hasUnmodelledEffect(item);
+
+/** Short markers of an item: faction, profession, effects (an item can have a modelled and an unmodelled one). */
 export function itemMarkers(item: ItemRecord): string[] {
   const out: string[] = [];
   if (item.faction === 'horde') out.push('Horde only');
   if (item.faction === 'alliance') out.push('Alliance only');
   if (item.requiredProfession !== undefined) out.push(professionName(item.requiredProfession));
+  if (hasModelledEffect(item)) out.push('Effect: Setup panel');
   if (hasUnmodelledEffect(item)) out.push('Effect not modelled');
-  else if (Object.hasOwn(MODELLED_ITEM_EFFECTS, item.id)) out.push('Effect: Setup panel');
   return out;
 }
 
@@ -202,29 +209,22 @@ export function professionNotes(gear: GearList, db: ItemDb): string[] {
 }
 
 /**
- * The setup's item buffs (Icon of the Silver Crescent, Band of the Eternal Sage) are enabled in
- * the Setup panel, independently of the gear: a warning for each one enabled while its item is not
- * worn, a hint for each worn item whose effect is not enabled.
+ * The Gear panel's hints about the worn items' modelled effects (`gearEntries`: the setup entries
+ * derived from the gear, `deriveGearEffects`): one per entry that is not enabled, since it counts
+ * only when enabled in the Setup panel. An enabled id of an item no longer worn is inactive and
+ * needs no note (it is neither applied nor listed).
  */
-export function itemBuffNotes(
-  gear: GearList,
-  enabledBuffs: readonly string[],
-  catalog: readonly BuffDef[],
-  itemName: (id: number) => string,
-): { warnings: string[]; hints: string[] } {
-  const warnings: string[] = [];
-  const hints: string[] = [];
-  for (const [itemId, buffId] of Object.entries(MODELLED_ITEM_EFFECTS)) {
-    const id = Number(itemId);
-    const buff = catalog.find((b) => b.id === buffId);
-    if (!buff) continue;
-    const worn = gear.some((e) => e?.id === id);
-    const enabled = enabledBuffs.includes(buffId);
-    if (enabled && !worn) {
-      warnings.push(`${buff.name} is enabled in the Setup panel but ${itemName(id)} is not worn: the fight still counts its effect.`);
-    } else if (worn && !enabled) {
-      hints.push(`${itemName(id)}: its effect counts only when enabled in Setup, Items and cooldowns.`);
-    }
-  }
-  return { warnings, hints };
+export function itemEffectHints(gearEntries: readonly BuffDef[], enabledBuffs: readonly string[]): string[] {
+  const enabled = new Set(enabledBuffs);
+  return gearEntries
+    .filter((b) => !enabled.has(b.id))
+    .map((b) => `${b.name}: its effect counts only when enabled in Setup, Items and cooldowns.`);
+}
+
+/** "Icon of the Silver Crescent (on use), Band of the Eternal Sage (proc)", or "none": the modelled effects of a gear's entries. */
+export function itemEffectsText(gearEntries: readonly BuffDef[]): string {
+  if (gearEntries.length === 0) return 'none';
+  return gearEntries
+    .map((b) => `${b.name} (${b.effect.action ? 'on use' : b.effect.hooks ? 'proc' : 'before the pull'})`)
+    .join(', ');
 }

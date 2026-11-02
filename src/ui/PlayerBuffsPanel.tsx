@@ -7,6 +7,7 @@ import {
   timeLeftWords,
   type ActiveBuffView,
   type AuraTotals,
+  type IconKind,
   type PermanentBuffView,
   type UpcomingBuffView,
 } from './buffsView';
@@ -40,11 +41,11 @@ export function useAuraTotals(active: readonly ActiveBuffView[]): ReadonlyMap<st
 }
 
 /** The icon over an initials tile in a school-neutral colour (a missing file leaves the tile). */
-function BuffIcon({ name, icon, count }: { name: string; icon: string | null; count?: number | null }) {
+function BuffIcon({ name, icon, kind, count }: { name: string; icon: string | null; kind?: IconKind; count?: number | null }) {
   return (
     <span className="buff-icon" aria-hidden="true">
       {initials(name)}
-      {icon !== null && <SpellIcon icon={icon} className="buff-image" />}
+      {icon !== null && <SpellIcon icon={icon} kind={kind} className="buff-image" />}
       {count != null && <span className="buff-count">{count}</span>}
     </span>
   );
@@ -82,7 +83,7 @@ export function PlayerBuffsPanel({ active, upcoming, permanent, totals, phase }:
                 aria-label={`${b.name}, ${timeLeftWords(b.remainingMs)}`}
                 title={`${b.name}: ${b.description}`}
               >
-                <BuffIcon name={b.name} icon={b.icon} count={b.count} />
+                <BuffIcon name={b.name} icon={b.icon} kind={b.iconKind} count={b.count} />
                 <span className="buff-name">{b.name}</span>
                 <span className="buff-time">{buffTimeText(b.remainingMs)}</span>
                 <span className="buff-bar" aria-hidden="true">
@@ -99,7 +100,7 @@ export function PlayerBuffsPanel({ active, upcoming, permanent, totals, phase }:
           <ul className="buffs-upcoming" aria-label="Upcoming buffs">
             {upcoming.map((u, i) => (
               <li key={`${u.auraId}-${u.startsAtMs}-${i}`} className="buff-upcoming">
-                <BuffIcon name={u.name} icon={u.icon} />
+                <BuffIcon name={u.name} icon={u.icon} kind={u.iconKind} />
                 <span className="buff-upcoming-text">
                   {u.name} {phase === 'ready' ? `at ${secondsText(u.startsAtMs)} s` : `in ${secondsText(u.inMs)} s`}
                 </span>
@@ -114,7 +115,7 @@ export function PlayerBuffsPanel({ active, upcoming, permanent, totals, phase }:
           <ul className="buffs-permanent" aria-label="Setup buffs">
             {permanent.map((p) => (
               <li key={p.id} className="buff-permanent" aria-label={p.name} title={`${p.name}: ${p.description}`}>
-                <BuffIcon name={p.name} icon={p.icon} />
+                <BuffIcon name={p.name} icon={p.icon} kind={p.iconKind} />
               </li>
             ))}
           </ul>

@@ -652,7 +652,7 @@ export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     // No exclusive group (stage 1.5 had 'potion'): it may be enabled together with Super Mana
     // Potion; their shared cooldown makes the choice in the fight.
     description:
-      "On use (item bar): +120 spell power and +2% spell crit for 15 s (author's log: 15 s). 2 min cooldown, shared with Super Mana Potion: one potion per 2 min.",
+      "On use (item row): +120 spell power and +2% spell crit for 15 s (author's log: 15 s). 2 min cooldown, shared with Super Mana Potion: one potion per 2 min.",
     // db.json consumable 22839 (Potion): SpellDamage 120, SpellCritRating 44.153846 (= 2 x
     // CRIT_RATING_PER_PCT 22.076923: exactly 2%), buffDuration 15, categoryId 4,
     // categoryCooldownDuration 120; consumes.go makePotionActivationSpellInternal ->
@@ -693,7 +693,7 @@ export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     wowheadId: 28499,
     group: 'consumable',
     description:
-      'On use (item bar): restores 1800 to 3000 mana. 2 min cooldown, shared with Destruction Potion: one potion per 2 min.',
+      'On use (item row): restores 1800 to 3000 mana. 2 min cooldown, shared with Destruction Potion: one potion per 2 min.',
     // db.json consumable 22832 (Potion): categoryId 4, categoryCooldownDuration 120, effect 847151
     // (spellEffects: spellId 28499, ResourceGain mana, minEffectSize 1799, effectSpread 1201:
     // wowsims gains min + rand x spread); wowsims/tbc consumes.go "Restores 1800 to 3000 mana.
@@ -720,7 +720,7 @@ export const cooldowns: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     wowheadId: 27869,
     group: 'consumable',
     description:
-      'On use (item bar): restores 900 to 1500 mana. 2 min cooldown (shared with Demonic Rune). Its cost of 600 to 1000 health is not simulated (the trainer has no health, as for Life Tap).',
+      'On use (item row): restores 900 to 1500 mana. 2 min cooldown (shared with Demonic Rune). Its cost of 600 to 1000 health is not simulated (the trainer has no health, as for Life Tap).',
     // Wowhead TBC item=20520 Dark Rune "Restores 900 to 1500 mana at the cost of 600 to 1000 life.
     // (2 Min Cooldown)" (use spell 27869). wowsims/tbc consumes.go makeConjuredActivation: item
     // 20520, 900 + rand x 600, its own conjured cooldown 2 min. tbc-new db.json lists only Demonic

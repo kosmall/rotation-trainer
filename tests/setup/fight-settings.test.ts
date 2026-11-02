@@ -13,34 +13,38 @@ import { BOSS_TARGET } from '../../src/data/common/target';
 import { Simulation } from '../../src/engine/sim';
 import type { LogEvent, SimSnapshot } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
-import { DEFAULT_SETUP, normalizeSetup, SETUP_CATALOG, SETUP_LIMITS } from '../../src/setup/defaults';
+import { DEFAULT_SETUP, normalizeSetup, setupCatalogFor, SETUP_LIMITS } from '../../src/setup/defaults';
+import { DEFAULT_GEAR } from '../../src/setup/gear';
 import { SETUP_PRESETS } from '../../src/setup/presets';
 import { gearItemRules, isGearEffectId } from '../../src/setup/gearEffects';
 import type { SetupConfig } from '../../src/setup/types';
 
+
+/** The author's gear catalog: the gear-independent entries and the derived Icon and Band (as the app builds it for the default gear; gear item effects Task 3). */
+const CATALOG = setupCatalogFor(DEFAULT_GEAR);
 deepFreeze(destructionWarlock);
-deepFreeze(SETUP_CATALOG);
+deepFreeze(CATALOG);
 
 // The Icon is derived from the author's gear since gear item effects Task 2 (stage F ids: entry
 // 'icon-of-the-silver-crescent', action 'use-icon-of-the-silver-crescent'); its bot rule comes
 // with the gear (`gearItemRules`), as applySetup passes it.
 const ICON = 'use-item-29370';
 const ICON_BUFF = 'item:29370';
-const GEAR_RULES = gearItemRules(SETUP_CATALOG.filter((b) => isGearEffectId(b.id)));
+const GEAR_RULES = gearItemRules(CATALOG.filter((b) => isGearEffectId(b.id)));
 const buildItemSteps = (ids: readonly string[], heroismEndMs: number | null) => buildStaticItemSteps(ids, heroismEndMs, GEAR_RULES);
 const DESTRUCTION = 'use-destruction-potion';
 const SUPER_MANA = 'use-super-mana-potion';
 const DARK_RUNE = 'use-dark-rune';
 const ITEM_IDS = [ICON, DESTRUCTION, SUPER_MANA, DARK_RUNE];
 
-const norm = (input: unknown) => normalizeSetup(input, SETUP_CATALOG);
+const norm = (input: unknown) => normalizeSetup(input, CATALOG);
 
 function config(p: Partial<SetupConfig> = {}): SetupConfig {
   return deepFreeze({ ...structuredClone(DEFAULT_SETUP), ...p });
 }
 
 const apply = (p: Partial<SetupConfig> = {}) =>
-  applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config: config(p) });
+  applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config: config(p) });
 
 /** A fight exactly as the UI builds it from the applied setup (useSimulation), with a fixed seed. */
 function fight(applied: ReturnType<typeof apply>, seed = 1): Simulation {
@@ -142,7 +146,7 @@ describe('fight length: config and normalizeSetup', () => {
 describe('fight length: applySetup', () => {
   it('applySetup returns durationMs = fightDurationSec x 1000 (default 60000)', () => {
     expect(apply().sim.durationMs).toBe(60000);
-    expect(applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config: DEFAULT_SETUP }).sim.durationMs).toBe(60000);
+    expect(applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config: DEFAULT_SETUP }).sim.durationMs).toBe(60000);
     expect(apply({ fightDurationSec: 30 }).sim.durationMs).toBe(30000);
     expect(apply({ fightDurationSec: 600 }).sim.durationMs).toBe(600000);
   });

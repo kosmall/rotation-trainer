@@ -6,6 +6,7 @@ import type { ItemDb, ItemRecord } from '../data/items/types';
 import { gemFitsSocket, socketMatches } from '../engine/gear';
 import type { EquippedItem, GemColor } from '../engine/types';
 import { describeGear, normalizeGear, RING_LIMIT_CATEGORIES, type Gear } from '../setup/gear';
+import { deriveGearEffects } from '../setup/gearEffects';
 import { exportWowSimsGear, parseWowSimsExport } from '../setup/wowsimsGear';
 import { initials } from './format';
 import {
@@ -14,6 +15,7 @@ import {
   gemsForSocket,
   hasUnmodelledEffect,
   isEffectOnly,
+  itemEffectsText,
   itemMarkers,
   matchingPreset,
   metaStatus,
@@ -53,7 +55,7 @@ export interface GearPanelProps {
   /** The running fight was built with another setup: the new gear applies after R. */
   pending?: boolean;
   fightEnded?: boolean;
-  /** Warnings from the rest of the setup (an item buff enabled while its item is not worn). */
+  /** Warnings from the rest of the setup (none today: an enabled effect of an item not worn is simply inactive). */
   warnings?: readonly string[];
   /** Hints from the rest of the setup (a worn item whose effect is not enabled). */
   hints?: readonly string[];
@@ -261,6 +263,9 @@ function GearBody({ gear, presets, db, active, onChange, note, setNote, pending,
   const meta = useMemo(() => metaStatus(gear, db), [gear, db]);
   const professions = useMemo(() => professionNotes(gear, db), [gear, db]);
   const notes = [...warnings, ...description.warnings, ...description.unmodelledSets, ...description.unmodelledEffects];
+  // The modelled item effects of each preset and of the worn gear (the Setup panel lists the worn ones).
+  const presetEffects = useMemo(() => new Map(presets.map((p) => [p.id, itemEffectsText(deriveGearEffects(p.gear, db))])), [presets, db]);
+  const wornEffects = useMemo(() => itemEffectsText(deriveGearEffects(gear, db)), [gear, db]);
   const edit = (change: (g: Gear) => void) => {
     const g = normalizeGear(gear, db);
     change(g);
@@ -277,12 +282,16 @@ function GearBody({ gear, presets, db, active, onChange, note, setNote, pending,
           </span>
         </p>
         {active?.note && <p className="hint setup-preset-description">{active.note}</p>}
+        <p className="hint gear-effects-line">
+          Item effects: {wornEffects}
+          {wornEffects !== 'none' && ' (Setup, Items and cooldowns)'}.
+        </p>
         <div className="setup-preset-buttons" role="group" aria-label="Gear presets">
           {presets.map((p) => (
             <button
               key={p.id}
               type="button"
-              title={`Phase ${p.phase}. ${p.note ?? p.source}`}
+              title={`Phase ${p.phase}. ${p.note ?? p.source} Item effects: ${presetEffects.get(p.id) ?? 'none'}.`}
               aria-pressed={active?.id === p.id}
               onClick={(e) => {
                 e.currentTarget.blur(); // keep Space/R for the fight
@@ -296,7 +305,8 @@ function GearBody({ gear, presets, db, active, onChange, note, setNote, pending,
         <p className="hint">Presets set only the gear. The Setup presets keep it; Reset to defaults there restores My gear.</p>
         {pending && (
           <p className="setup-pending">
-            The {fightEnded ? 'finished' : 'running'} fight keeps its gear: the new one applies from the next fight (press R).
+            The {fightEnded ? 'finished' : 'running'} fight keeps its gear and item effects: the new gear applies from the next fight (press
+            R).
           </p>
         )}
         {note && <p className="gear-note" role="status">{note}</p>}

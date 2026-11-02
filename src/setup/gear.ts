@@ -12,7 +12,7 @@ import type { ItemDb, ItemRecord, SlotKey } from '../data/items/types';
 import { countGemColor, gemFitsSocket, metaRequirementMet, socketMatches, type MetaColorCounts } from '../engine/gear';
 import type { EquippedItem, GemDef, RawStats } from '../engine/types';
 import { ITEM_SLOT_COUNT, type BuffDef } from '../data/types';
-import { enabledSetupEntries } from './gearEffects';
+import { enabledSetupEntries, hasModelledGearEffect } from './gearEffects';
 import type { SetupConfig } from './types';
 
 /** A gear: one entry per slot of `ITEM_SLOTS` (WowSimsExporter order), null for an empty slot. */
@@ -221,7 +221,7 @@ export interface GearDescription {
    * modelled (src/setup/gearEffects.ts) and never listed here.
    */
   unmodelledEffects: string[];
-  /** The worn items with a modelled effect (a `useEffects` or `procEffects` entry), by name, slot order. */
+  /** The worn items with a modelled effect (`hasModelledGearEffect`: what `deriveGearEffects` derives), by name, slot order. */
   modelledEffects: string[];
   /**
    * With `enabled`: one line per enabled item effect whose item action does not fit the item row
@@ -267,7 +267,7 @@ export function describeGear(
       setPieces.set(item.setId, s);
     }
     for (const effect of item.effects ?? []) unmodelledEffects.push(`${item.name}: ${effect}`);
-    if ((item.useEffects?.length ?? 0) + (item.procEffects?.length ?? 0) > 0) modelledEffects.push(item.name);
+    if (hasModelledGearEffect(item)) modelledEffects.push(item.name);
     if (item.faction === 'horde') {
       warnings.push(`${item.name} is a Horde-only item; the trainer's character is a Gnome (Alliance).`);
     }

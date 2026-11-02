@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
-import { DEFAULT_SETUP, SETUP_CATALOG, SETUP_LIMITS } from '../../src/setup/defaults';
+import { DEFAULT_SETUP, setupCatalogFor, SETUP_LIMITS } from '../../src/setup/defaults';
+import { DEFAULT_GEAR } from '../../src/setup/gear';
 import { SETUP_PRESETS } from '../../src/setup/presets';
 import type { SetupConfig, SetupPresetId } from '../../src/setup/types';
 import type { BuffDef } from '../../src/data/types';
@@ -46,8 +47,11 @@ const durationInput = (buffName: string) =>
 const activePreset = () => screen.getByLabelText('Active preset').textContent;
 const fightLengthInput = () => screen.getByRole('spinbutton', { name: 'Fight length (s)' }) as HTMLInputElement;
 
+/** The catalog GameView passes for the author's gear: the static entries, then the derived Icon and Band (gear item effects Task 3). */
+const CATALOG = setupCatalogFor(DEFAULT_GEAR);
+
 const buff = (id: string): BuffDef => {
-  const b = SETUP_CATALOG.find((x) => x.id === id);
+  const b = CATALOG.find((x) => x.id === id);
   if (!b) throw new Error(`no buff ${id}`);
   return b;
 };
@@ -79,7 +83,7 @@ function Harness({
   const [config, setConfig] = useState<SetupConfig>(() => structuredClone(initial));
   return (
     <SetupPanel
-      catalog={SETUP_CATALOG}
+      catalog={CATALOG}
       config={config}
       presets={presets}
       onChange={(c) => {
@@ -196,7 +200,7 @@ describe('SetupPanel', () => {
       ...structuredClone(DEFAULT_SETUP),
       rotation: { ...DEFAULT_SETUP.rotation, lifeTapBelowMana },
     });
-    const props = { catalog: SETUP_CATALOG, presets: SETUP_PRESETS, onChange };
+    const props = { catalog: CATALOG, presets: SETUP_PRESETS, onChange };
     const { rerender } = render(<SetupPanel {...props} config={withLifeTap('auto')} />);
     rerender(<SetupPanel {...props} config={withLifeTap(1234)} />);
     expect(lifeTapInput().value).toBe('1234');
@@ -233,7 +237,7 @@ describe('SetupPanel', () => {
 
   it('disabled disables every control', () => {
     render(
-      <SetupPanel catalog={SETUP_CATALOG} config={DEFAULT_SETUP} presets={SETUP_PRESETS} onChange={() => {}} disabled />,
+      <SetupPanel catalog={CATALOG} config={DEFAULT_SETUP} presets={SETUP_PRESETS} onChange={() => {}} disabled />,
     );
     for (const el of [
       presetSelect(),
@@ -269,12 +273,14 @@ describe('SetupPanel', () => {
     for (const name of ['Fight', 'Raid and party', 'Consumables', 'Target debuffs', 'Items and cooldowns', 'Warlock options', 'Rotation', 'Distance']) {
       expect(screen.getByRole('group', { name }), name).toBeTruthy();
     }
-    for (const b of SETUP_CATALOG) {
+    for (const b of CATALOG) {
       const group = screen.getByRole('group', { name: expectedGroup(b) });
       const box = within(group).getByRole('checkbox', { name: b.name }) as HTMLInputElement;
       expect(box.checked, b.id).toBe(false);
       // Its icon (with the initials tile underneath as the fallback) and its description.
-      expect(box.closest('.setup-buff')?.querySelector('img')?.getAttribute('src'), b.id).toContain(`/icons/spells/${b.icon}.jpg`);
+      expect(box.closest('.setup-buff')?.querySelector('img')?.getAttribute('src'), b.id).toContain(
+        `/icons/${b.iconKind === 'item' ? 'items' : 'spells'}/${b.icon}.jpg`, // gear item effects: item icons
+      );
       expect(box.getAttribute('aria-describedby'), b.id).toBeTruthy();
       expect(document.getElementById(box.getAttribute('aria-describedby') as string)?.textContent).toBe(b.description);
     }
@@ -331,7 +337,7 @@ describe('SetupPanel', () => {
     expect(startInput(heroism.name).value).toBe(String(heroism.timed?.defaultStartSec));
     expect(durationInput(heroism.name).value).toBe(String(heroism.timed?.durationSec));
     // Every timed buff has both inputs.
-    for (const b of SETUP_CATALOG.filter((x) => x.timed)) {
+    for (const b of CATALOG.filter((x) => x.timed)) {
       expect(startInput(b.name).value).toBe(String(DEFAULT_SETUP.timed[b.id]?.startSec));
       expect(durationInput(b.name).value).toBe(String(DEFAULT_SETUP.timed[b.id]?.durationSec));
     }
@@ -462,7 +468,7 @@ describe('SetupPanel', () => {
     for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', 'Icon of the Silver Crescent', 'Band of the Eternal Sage']) {
       expect(within(items).getByRole('checkbox', { name })).toBeTruthy();
     }
-    expect(items.textContent).toContain('item bar (Z X C V)');
+    expect(items.textContent).toContain('item row (Z X C V B N)'); // 6 slots since gear item effects
     expect(items.textContent).not.toMatch(/you do not press/i);
   });
 
@@ -473,12 +479,12 @@ describe('SetupPanel', () => {
     expect(keyOf('Dark Rune')).toBeNull();
     fireEvent.click(checkbox('Icon of the Silver Crescent'));
     fireEvent.click(checkbox('Dark Rune'));
-    expect(keyOf('Dark Rune')).toBe('Item bar: Z');
-    expect(keyOf('Icon of the Silver Crescent')).toBe('Item bar: X');
+    expect(keyOf('Dark Rune')).toBe('Item row: Z');
+    expect(keyOf('Icon of the Silver Crescent')).toBe('Item row: X');
     fireEvent.click(checkbox('Destruction Potion'));
-    expect(keyOf('Destruction Potion')).toBe('Item bar: Z');
-    expect(keyOf('Dark Rune')).toBe('Item bar: X');
-    expect(keyOf('Icon of the Silver Crescent')).toBe('Item bar: C');
+    expect(keyOf('Destruction Potion')).toBe('Item row: Z');
+    expect(keyOf('Dark Rune')).toBe('Item row: X');
+    expect(keyOf('Icon of the Silver Crescent')).toBe('Item row: C');
     expect(keyOf('Super Mana Potion')).toBeNull();
     expect(keyOf('Band of the Eternal Sage')).toBeNull(); // a proc, never pressed
     fireEvent.click(checkbox('Band of the Eternal Sage'));

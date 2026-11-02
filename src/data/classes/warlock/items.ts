@@ -8,8 +8,8 @@ import type { ItemRecord } from '../../items/types';
 // for any gear; these tables are the embedded copy of the default gear's records, so the default
 // setup (and the first paint) is built without waiting for the database chunk. They hold the same
 // values as the database (tests/data/item-db.test.ts compares them field by field), and they carry
-// what the database cannot: the hand-modelled meta gem effect (`metaGemModifiers`) and which item
-// effects the setup catalog models (`MODELLED_ITEM_EFFECTS`).
+// what the database cannot: the hand-modelled meta gem effect (`metaGemModifiers`), and the effect
+// records of the author's items for the first paint (`authorItemEffects`).
 //
 // Source unless noted: github.com/wowsims/tbc-new master @ 91f869a, assets/database/db.json
 // (`items[]`, `gems[]`, `enchants[]` by `effectId`), cross-checked against github.com/wowsims/tbc
@@ -131,7 +131,7 @@ export const items: Record<number, ItemDef> = {
     slot: 'trinket',
     stats: {},
   },
-  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is a setup entry (warlockItemBuffs 'icon-of-the-silver-crescent'): when enabled, an item action on the item bar, used by the player.
+  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is derived from its db.json record (src/setup/gearEffects.ts, entry 'item:29370'): when enabled, an item action on the item row, used by the player.
   29370: {
     id: 29370,
     name: 'Icon of the Silver Crescent',
@@ -190,18 +190,6 @@ const chaoticSkyfireModifiers: SpellModifier[] = [
  */
 export const metaGemModifiers: Readonly<Record<number, readonly SpellModifier[]>> = {
   34220: chaoticSkyfireModifiers,
-};
-
-/**
- * Worn items whose effect the setup models, by item id -> the derived catalog id (src/setup/
- * gearEffects.ts `deriveGearEffects`: `item:<itemId>`). Kept for the Gear panel's markers and the
- * "enabled but not worn" note (src/ui/gearView.ts) until they read the structured effects
- * (`useEffects`/`procEffects`) themselves (gear item effects Task 3). `describeGear` no longer uses
- * it: any item with a structured effect is modelled.
- */
-export const MODELLED_ITEM_EFFECTS: Readonly<Record<number, string>> = {
-  29370: 'item:29370',
-  29305: 'item:29305',
 };
 
 /**
