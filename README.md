@@ -137,6 +137,32 @@ przed startem, a w trwającej walce dopiero po `R`. Kliknięcie „Setup buffs�
 `Spacja` i `Enter` zwijają i rozwijają listę, pozostałe klawisze działają jak zwykle. Czytnik
 ekranu czyta każdy wpis jako „Nazwa, N seconds left”.
 
+## Combat text (HUD)
+
+Nad areną unoszą się teksty jak w addonie MikScrollingBattleText (własna implementacja inspirowana
+jego funkcjami):
+
+- **Outgoing** (po prawej, nad celem): Twoje obrażenia w kolorze szkoły, krytyki większe z „!” i
+  krótkim „pop”, ticki DoT mniejsze i jaśniejsze, pudła „Miss”.
+- **Notifications** (po lewej, nad paskami postaci): buff włączony „+Heroism / Bloodlust” (zielony)
+  i wygasły „-Heroism / Bloodlust” (czerwony), proc „Band of the Eternal Sage!” (złoty), zysk many
+  „+1,622 Mana” (niebieski; regeneracja nie, drobne zyski łączone), użycie przedmiotu „Destruction
+  Potion”, gotowy cooldown „Curse of Doom ready” i „Low Mana” po zejściu poniżej progu.
+
+Panel **Combat text** (pod panelem Gear, zwinięty) ustawia: cały HUD (`Show combat text`), każdą
+kategorię osobno (debuffy na celu domyślnie wyłączone), animację (`Straight up` prosto w górę albo
+`Parabola` po łuku), czas życia tekstu, rozmiar czcionki i krytyków, ikony i nazwy czarów, próg
+obrażeń, scalanie ticków i drobnych zysków many, limit tekstów na ekranie (krytyki i proce nigdy nie
+giną) i próg „Low Mana”. Pola liczbowe przyjmują wartość z zakresu od razu, a poza zakresem jest
+przycinana po wyjściu z pola; `Reset combat text to defaults` przywraca domyślne. Zmiany działają od
+razu, także w trwającej walce, i są zapamiętane w przeglądarce (osobno od setupu). Klawisze wpisane w
+pola liczbowe i listę wyboru nie rzucają czarów.
+
+HUD tylko czyta walkę: wynik, log i DPS są identyczne z HUD i bez niego. Wyłączysz go
+odznaczając `Show combat text`. Jest dekoracją (czytnik ekranu go pomija, nie łapie kliknięć); przy
+systemowym ograniczeniu animacji teksty nie przesuwają się, tylko pojawiają się i gasną. Reset (`R`)
+czyści ekran, a po końcu walki nie pojawiają się nowe teksty (te na ekranie dogasają).
+
 ## Panel Setup
 
 Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następną walkę:
