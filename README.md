@@ -66,7 +66,7 @@ uruchamiać.
 |---|---|
 | `1`-`9`, `0`, `-`, `=` | sloty paska akcji 1-12 (pierwszy czar startuje też walkę) |
 | `8` | Conflagrate, tylko gdy build ma ten talent (domyślny build go nie ma: slot pusty) |
-| `Z`, `X`, `C`, `V`, `B`, `N` | 6 slotów paska przedmiotów **Items** (tylko włączone przedmioty; wielkość litery bez znaczenia, użycie przedmiotu też startuje walkę) |
+| `Z`, `X`, `C`, `V`, `B`, `N` | 6 slotów paska przedmiotów **Items** (zawsze trinkety on-use i inne efekty on-use z noszonego ekwipunku, potem włączone mikstury i runa; wielkość litery bez znaczenia, użycie przedmiotu też startuje walkę) |
 | `Esc` | przerywa rzucanie (i czyści kolejkę, także zakolejkowany przedmiot; użycia przedmiotu nie cofa) |
 | `Spacja` | start walki |
 | `R` | reset walki |
@@ -92,12 +92,19 @@ effects of your gear”: efekty noszonych przedmiotów, których trener nie licz
 przedmiotów (ładuje się po otwarciu panelu Gear albo od razu, gdy zapisany ekwipunek jej
 potrzebuje) „My gear” ma swoje efekty z kopii wbudowanej w aplikację.
 
-Włączone efekty on-use, mikstury i runa pojawiają się na pasku **Items** pod paskiem czarów, w
-kolejności z panelu: pierwszy włączony pod `Z`, następne pod `X`, `C`, `V`, `B`, `N` (przy każdym
-włączonym panel pokazuje „Item row: Z” itp.). Pasek ma 6 slotów; siódmy włączony efekt nie trafia na
-pasek, nie działa, a panel ostrzega („not on the item row”). Prawdziwy ekwipunek ma najwyżej 5
-akcji (2 trinkety on-use, 2 mikstury, runa). Procki i efekt przed walką działają same. Używasz ich
-klawiszem albo myszą, tak jak czarów.
+Efekty on-use noszonych przedmiotów są na pasku **Items** pod paskiem czarów **zawsze**, także przed
+startem walki i bez włączania: najpierw trinket 1, potem trinket 2, potem inne sloty w kolejności
+slotów; za nimi włączone mikstury i runa (w kolejności z panelu). Pierwszy jest pod `Z`, następne pod
+`X`, `C`, `V`, `B`, `N` (panel pokazuje przy nich „Item row: Z” itp.). Przy efekcie on-use pole
+wyboru nazywa się „Use automatically (bot, simulator)” (podpowiedź: „Always available on the item
+bar (Z X C V B N); tick to let the bot and the simulator use it, with the rule below”): zaznaczone
+znaczy tylko tyle, że bot i Simulator używają go same według reguły z „Item use”; niezaznaczony
+przedmiot nadal możesz użyć klawiszem. Domyślnie nic nie jest zaznaczone, więc bot nie używa Icon of
+the Silver Crescent z „My gear” (wyniki domyślnego setupu bez zmian). Pasek ma 6 slotów; co się nie
+mieści (najpierw odpadają mikstury i runa), nie trafia na pasek, nie działa, a panel ostrzega („not
+on the item row”). Prawdziwy ekwipunek ma najwyżej 5 akcji (2 trinkety on-use, 2 mikstury, runa).
+Procki i efekt przed walką trzeba włączyć; potem działają same. Przedmioty z paska używasz klawiszem
+albo myszą, tak jak czarów.
 
 | Przedmiot | Efekt | Cooldown |
 |---|---|---|
@@ -211,8 +218,9 @@ Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następn
   - Target debuffs: debuffy celu od innych graczy. Curse of the Elements i Improved Shadow Bolt
     od raidu nie sumują się z Twoimi.
   - Items and cooldowns: Destruction Potion, Super Mana Potion, Dark Rune oraz efekty
-    noszonych przedmiotów (dla „My gear”: Icon of the Silver Crescent na pasku Items i Band of the
-    Eternal Sage, proc losowany w walce, nic nie wciskasz); patrz „Pasek przedmiotów” wyżej.
+    noszonych przedmiotów (dla „My gear”: Icon of the Silver Crescent, zawsze na pasku Items,
+    zaznaczony „Use automatically” także dla bota, i Band of the Eternal Sage, proc losowany w
+    walce, nic nie wciskasz); patrz „Pasek przedmiotów” wyżej.
     Heroism jest w grupie Fight.
   - Warlock options: Fel Armor albo Demon Armor, poświęcony Succubus.
 - **Rotacja:** presety rotacji „DoT rotation” (domyślna) i „Shadow Bolt spam + curse” (jak w
@@ -220,8 +228,8 @@ Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następn
   Tapa („Auto” albo liczba). Panel Priority pokazuje listę priorytetów dla tych ustawień.
   Wybór presetu rotacji nie zmienia reguł użycia przedmiotów (poniżej).
 - **Item use** (w grupie Rotation): kiedy bot (i Simulator) używa każdego włączonego przedmiotu z
-  paska Items (Destruction Potion, Super Mana Potion, Dark Rune, trinkety on-use z gearu; tylko
-  włączone). Jeden wiersz na przedmiot: wyzwalacz („Whenever ready”, „At the pull only”, „From a
+  paska Items (Destruction Potion, Super Mana Potion, Dark Rune, trinkety on-use z gearu z
+  zaznaczonym „Use automatically”; tylko te, choć niezaznaczone trinkety też są na pasku). Jeden wiersz na przedmiot: wyzwalacz („Whenever ready”, „At the pull only”, „From a
   second on”, „With Heroism”, „While a buff is up” z wyborem buffa: Heroism albo buff innego
   włączonego przedmiotu, „Mana below”, „Mana missing”, „In the last seconds”, „Never (bot)”) z
   parametrem, opcjonalne okno „Not before / Not after (s)”, strzałki kolejności (wyżej = ważniejszy)
@@ -271,7 +279,8 @@ modułu, więc pomaga tylko przeładowanie strony; setup jest zapisany).
   cooldowns”. W liście przedmiotów znacznik „Effect: Setup panel” oznacza efekt zamodelowany,
   „Effect not modelled” niezamodelowany (przedmiot może mieć oba).
 - **Uwagi:** efekty przedmiotów i bonusy setów, których trener nie modeluje, wymagane profesje,
-  przedmioty hordy oraz podpowiedź przy każdym noszonym efekcie, który nie jest włączony w Setup. Panel „Set bonuses”
+  przedmioty hordy oraz podpowiedź przy każdym noszonym efekcie, który nie jest włączony w Setup
+  (dla efektu on-use: jest na pasku Items, ale bot i Simulator go nie używają). Panel „Set bonuses”
   pokazuje też bonusy niezamodelowane (np. Corruptor Raiment 4-piece, oznaczony „Not modelled”).
 - **Import z WowSimsExporter:**
   1. W grze wpisz `/wse export` (addon WowSimsExporter): okno pokaże zaznaczony tekst, skopiuj go `Ctrl+C`.
@@ -372,8 +381,9 @@ regułami przedmiotów, długość walki, odległość) wiele razy botem i pokaz
   końcem walki, się nie liczy
 - buffy, debuffy celu, consumables, Heroism i efekty noszonych przedmiotów (procki na cast, hit
   albo crit z szansą i ICD, efekt przed walką), gdy są włączone w panelu Setup
-- przedmioty używane z paska Items (mikstury, Dark Rune, trinkety on-use z ekwipunku) z
-  własnymi i dzielonymi cooldownami (kategorie jak w wowsims)
+- przedmioty używane z paska Items (mikstury, Dark Rune, trinkety on-use z ekwipunku, które są
+  na pasku zawsze) z własnymi i dzielonymi cooldownami (kategorie jak w wowsims); bot i Simulator
+  używają tylko włączonych
 - długość walki 10-600 s
 
 ## Czego DPS nie uwzględnia
