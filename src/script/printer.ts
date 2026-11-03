@@ -1,10 +1,10 @@
 // Canonical printer of rotation script expressions: single spaces around binary operators, no
 // redundant parentheses, numbers without exponent, strings in single quotes with \' and \\
-// escaped, `has` ids bare when they read as a path. For every AST the parser can produce,
+// escaped, the ids of `has` and the other id functions bare when they read as a path. For every AST the parser can produce,
 // parseExpr(printExpr(x)) deep-equals x.
 
 import { PATH_RE } from './lexer';
-import type { Expr } from './types';
+import { ID_ARG_FUNCTIONS, type Expr } from './types';
 
 /**
  * A finite number in plain decimal (no exponent): JavaScript's shortest round-trip digits, with
@@ -57,8 +57,8 @@ export function printExpr(e: Expr): string {
     case 'cmp':
       return `${wrap(e.left, isBinary(e.left))} ${e.op} ${wrap(e.right, isBinary(e.right))}`;
     case 'call': {
-      const args = e.args.map((a) =>
-        e.fn === 'has' && a.kind === 'str' && PATH_RE.test(a.value) ? a.value : printExpr(a),
+      const args = e.args.map((a, i) =>
+        i === 0 && ID_ARG_FUNCTIONS.includes(e.fn) && a.kind === 'str' && PATH_RE.test(a.value) ? a.value : printExpr(a),
       );
       return `${e.fn}(${args.join(', ')})`;
     }

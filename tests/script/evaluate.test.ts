@@ -166,6 +166,8 @@ describe('variables', () => {
       'target.aura.<id>.active', 'target.aura.<id>.remaining', 'target.aura.<id>.stacks', 'target.aura.<id>.charges',
       'cd.<id>.ready', 'cd.<id>.remaining', 'cast.<id>.count', 'use.<id>.count', 'casting', 'casting.<id>',
       'inflight.<id>', 'gcd.remaining', 'heroism.active', 'heroism.over', 'fight.last(N)', 'has(id)',
+      // The basic rotation's functions (Task 2): tests/script/builtins.test.ts.
+      'dotRefreshDue(id)', 'finisherWindow()', 'manaCost(id)', 'minGap(id, N)',
     ];
     expect(VARIABLE_DOCS.map((d) => d.name).sort()).toEqual([...covered].sort());
   });

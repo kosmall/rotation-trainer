@@ -1,4 +1,6 @@
 import type { SimSnapshot } from '../../../engine/types';
+import { PATH_RE } from '../../../script/lexer';
+import { formatNumber, quoteString } from '../../../script/printer';
 import type { PriorityStep } from '../../types';
 
 // The item-use rules (simulator Task 1, spec §2 A): WHEN the bot (and the "Priority" panel) uses
@@ -139,8 +141,21 @@ export function defaultItemUseRule(a: ItemUseAction, heroismEndMs: number | null
  * only when no cast is in progress, when nothing is queued yet, or when it is the queued spell
  * itself (the bot then stops at its step and keeps the queue). Applies to every rule.
  */
-function itemPressFree(s: SimSnapshot, spellId: string): boolean {
+export function itemPressFree(s: SimSnapshot, spellId: string): boolean {
   return s.cast === null || s.queuedSpellId === null || s.queuedSpellId === spellId;
+}
+
+/**
+ * The minimum-gap check of an item-use rule (`ItemUseRule.minGapSec`), or null when there is none
+ * (a gap of 0 or less, or an item without a cooldown): at least `minGapSec` seconds since the last
+ * use of `spellId`, read as elapsed = `cooldownMs` - its cooldown left (a lower bound, see
+ * `ItemUseRule`), the gap capped at the cooldown. The script function `minGap(id, N)` runs this.
+ */
+export function minGapCheck(spellId: string, cooldownMs: number, minGapSec: number): ((s: SimSnapshot) => boolean) | null {
+  if (!(minGapSec > 0 && cooldownMs > 0)) return null;
+  // Elapsed since the last use = cooldown - remaining; a gap over the cooldown is capped at it.
+  const gapMs = Math.min(minGapSec * 1000, cooldownMs);
+  return (s) => cooldownMs - (Object.hasOwn(s.cooldownRemainingMs, spellId) ? s.cooldownRemainingMs[spellId]! : 0) >= gapMs;
 }
 
 const fmtSec = (sec: number) => `${Number(sec.toFixed(1))} s`;
@@ -234,13 +249,10 @@ export function compileItemUseRule(
     checks.push((s) => s.nowMs <= toMs);
     extra.push(`not after ${fmtSec(rule.notAfterSec)}`);
   }
-  if (rule.minGapSec !== undefined && rule.minGapSec > 0 && a.cooldownMs > 0) {
-    // Elapsed since the last use = cooldown - remaining (a lower bound, see `ItemUseRule`);
-    // a gap over the cooldown is capped at it.
-    const gapMs = Math.min(rule.minGapSec * 1000, a.cooldownMs);
-    const cooldownMs = a.cooldownMs;
-    checks.push((s) => cooldownMs - (Object.hasOwn(s.cooldownRemainingMs, spellId) ? s.cooldownRemainingMs[spellId]! : 0) >= gapMs);
-    extra.push(`at least ${fmtSec(gapMs / 1000)} after its last use`);
+  const gap = rule.minGapSec !== undefined ? minGapCheck(spellId, a.cooldownMs, rule.minGapSec) : null;
+  if (gap !== null) {
+    checks.push(gap);
+    extra.push(`at least ${fmtSec(Math.min(rule.minGapSec! * 1000, a.cooldownMs) / 1000)} after its last use`);
   }
   const hint = `${triggerText(rule.trigger, a, ctx)}${extra.length > 0 ? `, ${extra.join(', ')}` : ''}: ${a.effect}. ${a.cooldown}`;
   const wanted = checks.length === 0 ? trigger : (s: SimSnapshot) => checks.every((c) => c(s)) && trigger(s);
@@ -268,6 +280,25 @@ function compileStep(a: ItemUseAction, rule: ItemUseRule, ctx: ItemUseContext): 
  * Pure: reads only its arguments; every call returns new step objects.
  */
 export function compileItemUse(actions: readonly ItemUseAction[], config: ItemUseConfig, ctx: ItemUseContext): PriorityStep[] {
+  const steps: PriorityStep[] = [];
+  for (const { action, rule } of itemUseRulesInOrder(actions, config, (a) => defaultItemUseRule(a, ctx.heroismEndMs))) {
+    const step = compileStep(action, rule, ctx);
+    if (step !== null) steps.push(step);
+  }
+  return steps;
+}
+
+/**
+ * The actions in step order with their rules, as `compileItemUse` compiles them (`never` rules
+ * included): the ids of `config.itemUseOrder` that are actions first, in that order, then the
+ * other actions in the given order (each action once, by `id`); the rule of an action is its own
+ * normalized `config.itemUse` entry, else `defaultRule(action)`.
+ */
+export function itemUseRulesInOrder(
+  actions: readonly ItemUseAction[],
+  config: ItemUseConfig,
+  defaultRule: (a: ItemUseAction) => ItemUseRule,
+): { action: ItemUseAction; rule: ItemUseRule }[] {
   const byId = new Map<string, ItemUseAction>();
   for (const a of actions) if (!byId.has(a.id)) byId.set(a.id, a);
   const ordered: ItemUseAction[] = [];
@@ -282,14 +313,62 @@ export function compileItemUse(actions: readonly ItemUseAction[], config: ItemUs
   for (const a of byId.values()) if (!placed.has(a.id)) ordered.push(a);
 
   const rules = config.itemUse;
-  const steps: PriorityStep[] = [];
-  for (const a of ordered) {
+  return ordered.map((a) => {
     const stored = typeof rules === 'object' && rules !== null && Object.hasOwn(rules, a.id) ? normalizeItemUseRule(rules[a.id]) : null;
-    const step = compileStep(a, stored ?? defaultItemUseRule(a, ctx.heroismEndMs), ctx);
-    if (step !== null) steps.push(step);
-  }
-  return steps;
+    return { action: a, rule: stored ?? defaultRule(a) };
+  });
 }
+
+/**
+ * The rule as a rotation script condition (src/script, Part J; `convertToScript`) that is true
+ * exactly when `compileItemUseRule`'s `wanted` is, or null for `never` (no step). The `use` rule's
+ * item queue gate is the compiler's own (every `use` step has it). Parts, in this order and joined
+ * by `&&` (a blank result means always):
+ * `notBeforeSec` -> `time.elapsedMs >= <sec x 1000>`, `notAfterSec` -> `time.elapsedMs <= <sec x 1000>`,
+ * `minGapSec` > 0 -> `minGap(<id>, <sec>)`, then the trigger: `ready` -> nothing,
+ * `pull` -> `time.elapsedMs < 1500`, `at` -> `time.elapsedMs >= <sec x 1000>`,
+ * `with-heroism` -> `heroism.active || heroism.over`, `with-buff` -> `self.aura.<id>.active`,
+ * `mana-below` -> `mana < <mana>`, `mana-missing` -> `mana.missing >= <amount>`,
+ * `fight-end` -> `fight.last(<sec>)`. The numbers are the very doubles the compiled rule compares
+ * (`sec x 1000` computed here as there, printed in their shortest round-trip form).
+ */
+export function itemUseRuleCondition(entryId: string, rule: ItemUseRule): string | null {
+  const t = rule.trigger;
+  if (t.kind === 'never') return null;
+  const parts: string[] = [];
+  if (rule.notBeforeSec !== undefined) parts.push(`time.elapsedMs >= ${formatNumber(rule.notBeforeSec * 1000)}`);
+  if (rule.notAfterSec !== undefined) parts.push(`time.elapsedMs <= ${formatNumber(rule.notAfterSec * 1000)}`);
+  if (rule.minGapSec !== undefined && rule.minGapSec > 0) parts.push(`minGap(${idArg(entryId)}, ${formatNumber(rule.minGapSec)})`);
+  switch (t.kind) {
+    case 'ready':
+      break;
+    case 'pull':
+      parts.push(`time.elapsedMs < ${formatNumber(PULL_WINDOW_MS)}`);
+      break;
+    case 'at':
+      parts.push(`time.elapsedMs >= ${formatNumber(t.sec * 1000)}`);
+      break;
+    case 'with-heroism':
+      parts.push(parts.length > 0 ? '(heroism.active || heroism.over)' : 'heroism.active || heroism.over');
+      break;
+    case 'with-buff':
+      parts.push(`self.aura.${t.auraId}.active`);
+      break;
+    case 'mana-below':
+      parts.push(`mana < ${formatNumber(t.mana)}`);
+      break;
+    case 'mana-missing':
+      parts.push(`mana.missing >= ${formatNumber(t.amount)}`);
+      break;
+    case 'fight-end':
+      parts.push(`fight.last(${formatNumber(t.lastSec)})`);
+      break;
+  }
+  return parts.join(' && ');
+}
+
+/** An id as a function argument: bare when it reads as a path, else quoted. */
+const idArg = (id: string) => (PATH_RE.test(id) ? id : quoteString(id));
 
 // ---------------------------------------------------------------------------
 // Normalization (untrusted data)

@@ -57,7 +57,7 @@ class Issues {
 }
 
 /** The def names an expression references. */
-function defRefs(e: Expr, out: Set<string>): Set<string> {
+export function defRefs(e: Expr, out: Set<string>): Set<string> {
   switch (e.kind) {
     case 'def':
       out.add(e.name);

@@ -7,7 +7,7 @@
 
 import type { SpecData } from '../data/types';
 import type { AuraView, SimSnapshot } from '../engine/types';
-import type { ScriptContext, ScriptExt, ValueType } from './types';
+import type { ScriptContext, ScriptExt, ScriptItemAction, ScriptRotationFacts, ValueType } from './types';
 
 export type Reader = (s: SimSnapshot, x: ScriptExt) => boolean | number | string;
 
@@ -49,10 +49,37 @@ export const VARIABLE_DOCS: readonly VariableDoc[] = Object.freeze([
   { name: 'heroism.over', type: 'bool', description: 'Heroism has ended in this fight, or the fight has none (as the item-use rule with-heroism).' },
   { name: 'fight.last(N)', type: 'bool', description: 'In the last N seconds of the fight (time.remaining <= N).' },
   { name: 'has(id)', type: 'bool', description: 'The spell or item action <id> is in this build and gear (a constant of the fight).' },
+  {
+    name: 'dotRefreshDue(id)',
+    type: 'bool',
+    description:
+      "The basic rotation's refresh rule of DoT spell <id> (immolate, corruption, ...): not being cast, not in flight, its DoT has at most the spell's unhasted cast time left, and the fight lasts at least that cast time + a full DoT (talents and gear included).",
+  },
+  {
+    name: 'finisherWindow()',
+    type: 'num',
+    description: "The basic rotation's Shadowburn finisher window in seconds: Shadow Bolt's unhasted cast time after the talents + its flight time at the fight's distance.",
+  },
+  { name: 'manaCost(id)', type: 'num', description: "Spell <id>'s mana cost after the talents (no auras), as Life Tap 'auto' uses Shadow Bolt's." },
+  {
+    name: 'minGap(id, N)',
+    type: 'bool',
+    description:
+      'At least N seconds since item action <id> was last used, as the item-use rules estimate it: its own cooldown - the cooldown left, N capped at the cooldown (true when N <= 0 or the item has no cooldown).',
+  },
 ]);
 
 export const STATIC_NAMES = Object.freeze(['time.elapsed', 'time.remaining', 'time.elapsedMs', 'mana', 'mana.pct', 'mana.missing', 'mana.max', 'casting', 'gcd.remaining', 'heroism.active', 'heroism.over']);
-export const FUNCTION_NAMES = Object.freeze(['fight.last', 'has']);
+export const FUNCTION_NAMES = Object.freeze(['fight.last', 'has', 'dotRefreshDue', 'finisherWindow', 'manaCost', 'minGap']);
+/** How each function is written (error messages). */
+export const FUNCTION_USAGE: Readonly<Record<string, string>> = Object.freeze({
+  'fight.last': 'fight.last(N)',
+  has: 'has(id)',
+  dotRefreshDue: 'dotRefreshDue(id)',
+  finisherWindow: 'finisherWindow()',
+  manaCost: 'manaCost(id)',
+  minGap: 'minGap(id, N)',
+});
 const AURA_FIELDS = ['active', 'remaining', 'stacks', 'charges'] as const;
 const FAMILY_TEMPLATES: Readonly<Record<string, string>> = {
   self: 'self.aura.<id>.active|remaining|stacks|charges',
@@ -110,21 +137,39 @@ export function closest(name: string, candidates: readonly string[]): string | u
 
 /**
  * A context from a built spec: its non-item spells, its visible auras and its item actions
- * (`itemActions` given, else each item spell with its own id as the entry id), plus the fight's
- * Heroism end (applySetup's `heroismEndMs`).
+ * (`itemActions` given, else each item spell with its own id as the entry id and its spell's
+ * cooldown), plus the fight's Heroism end (applySetup's `heroismEndMs`), the basic rotation's
+ * facts for the built-in functions (`rotation`, optional) and display names (the spells' names,
+ * then `names`).
  */
 export function scriptContextOf(
   spec: Pick<SpecData, 'spells' | 'auras'>,
-  opts: { heroismEndMs: number | null; itemActions?: readonly { id: string; spellId: string }[] },
+  opts: {
+    heroismEndMs: number | null;
+    itemActions?: readonly ScriptItemAction[];
+    rotation?: ScriptRotationFacts;
+    names?: Readonly<Record<string, string>>;
+  },
 ): ScriptContext {
   const spellIds = spec.spells.filter((s) => !s.item).map((s) => s.id);
   const auraIds = [...new Set(spec.auras.filter((a) => !a.hidden).map((a) => a.id))];
-  const itemActions = opts.itemActions ?? spec.spells.filter((s) => s.item).map((s) => ({ id: s.id, spellId: s.id }));
-  return { spellIds, auraIds, itemActions: itemActions.map((a) => ({ id: a.id, spellId: a.spellId })), heroismEndMs: opts.heroismEndMs };
+  const itemActions =
+    opts.itemActions ?? spec.spells.filter((s) => s.item).map((s) => ({ id: s.id, spellId: s.id, cooldownMs: s.cooldownMs }));
+  const names: Record<string, string> = {};
+  for (const s of spec.spells) if (!Object.hasOwn(names, s.id)) names[s.id] = s.name;
+  if (opts.names !== undefined) for (const [k, v] of Object.entries(opts.names)) names[k] = v;
+  return {
+    spellIds,
+    auraIds,
+    itemActions: itemActions.map((a) => ({ id: a.id, spellId: a.spellId, ...(a.cooldownMs !== undefined && { cooldownMs: a.cooldownMs }) })),
+    heroismEndMs: opts.heroismEndMs,
+    ...(opts.rotation !== undefined && { rotation: opts.rotation }),
+    names,
+  };
 }
 
 /** The item action of an entry id or action spell id, if the context has it. */
-export function itemActionOf(ctx: ScriptContext, id: string): { id: string; spellId: string } | undefined {
+export function itemActionOf(ctx: ScriptContext, id: string): ScriptItemAction | undefined {
   return ctx.itemActions.find((a) => a.id === id || a.spellId === id);
 }
 
@@ -288,7 +333,7 @@ export function resolveVar(path: string, ctx: ScriptContext): Resolved {
     );
   }
   if (FUNCTION_NAMES.includes(path)) {
-    return { ok: false, message: `'${path}' is a function: write ${path === 'has' ? 'has(id)' : `${path}(N)`}` };
+    return { ok: false, message: `'${path}' is a function: write ${FUNCTION_USAGE[path]}` };
   }
   if (own(FAMILY_TEMPLATES, head)) {
     return { ok: false, message: `unknown variable '${path}' (expected ${FAMILY_TEMPLATES[head]})` };

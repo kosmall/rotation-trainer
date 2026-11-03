@@ -5,7 +5,7 @@
 // Part J.
 
 import { tokenize, type Token } from './lexer';
-import { SCRIPT_LIMITS, type CmpOp, type Expr } from './types';
+import { ID_ARG_FUNCTIONS, SCRIPT_LIMITS, type CmpOp, type Expr } from './types';
 
 export type ParseResult = { ok: true; ast: Expr } | { ok: false; error: { pos: number; message: string } };
 
@@ -176,7 +176,7 @@ class Parser {
     const args: Expr[] = [];
     if (this.peek().type !== 'rparen') {
       for (;;) {
-        args.push(this.parseArg(name.value));
+        args.push(this.parseArg(name.value, args.length));
         const t = this.peek();
         if (t.type === 'comma') {
           this.next();
@@ -191,11 +191,11 @@ class Parser {
     return this.at({ kind: 'call', fn: name.value, args }, name.pos);
   }
 
-  /** A call argument; for `has`, a bare id (a path followed by ',' or ')') is a string. */
-  private parseArg(fn: string): Expr {
+  /** A call argument; the first argument of an id function (`ID_ARG_FUNCTIONS`) is a string when it is a bare id (a path followed by ',' or ')'). */
+  private parseArg(fn: string, index: number): Expr {
     const t = this.peek();
     const after = this.tokens[this.i + 1];
-    if (fn === 'has' && t.type === 'ident' && after !== undefined && (after.type === 'rparen' || after.type === 'comma')) {
+    if (index === 0 && ID_ARG_FUNCTIONS.includes(fn) && t.type === 'ident' && after !== undefined && (after.type === 'rparen' || after.type === 'comma')) {
       this.next();
       return this.at({ kind: 'str', value: t.value }, t.pos);
     }

@@ -6,7 +6,8 @@
 // reported through the optional sink (validate.ts); compilation never throws.
 
 import type { Expr, ScriptContext, ScriptExt, ValueType } from './types';
-import { closest, contextHas, FUNCTION_NAMES, resolveVar, type Reader } from './vars';
+import { minGapCheck } from '../data/classes/warlock/itemUse';
+import { closest, contextHas, FUNCTION_NAMES, itemActionOf, resolveVar, unknownItem, type Reader } from './vars';
 
 export type { Reader } from './vars';
 
@@ -26,6 +27,10 @@ export interface Compiled {
 }
 
 const FALSE: Reader = () => false;
+const ZERO: Reader = () => 0;
+const UNAVAILABLE = 'is not available here (no basic-rotation facts in this context)';
+/** The end of the warning `has()` gives for an absent id: has() is designed to test absent ids, so this warning never deactivates a rule (compile.ts). */
+export const HAS_ABSENT_WARNING = 'has() is false';
 const INVALID: Compiled = Object.freeze({ type: null, read: FALSE });
 
 export const TYPE_NAMES: Readonly<Record<ValueType, string>> = Object.freeze({
@@ -219,13 +224,100 @@ export class ExprCompiler {
       const present = contextHas(this.ctx, arg.value);
       if (!present) {
         const pool = [...this.ctx.spellIds, ...this.ctx.itemActions.map((a) => a.id)];
-        sink?.warning(arg, `'${arg.value}' is not a spell or item of this setup: has() is false`, closest(arg.value, pool));
+        sink?.warning(arg, `'${arg.value}' is not a spell or item of this setup: ${HAS_ABSENT_WARNING}`, closest(arg.value, pool));
       }
       return { type: 'bool', read: present ? () => true : FALSE };
     }
+    if (e.fn === 'dotRefreshDue' || e.fn === 'manaCost') return this.rotationIdCall(e, sink);
+    if (e.fn === 'finisherWindow') {
+      if (e.args.length !== 0) {
+        for (const a of e.args) this.compile(a, sink);
+        sink?.error(e, 'finisherWindow() takes no argument');
+        return { type: 'num', read: ZERO };
+      }
+      const facts = this.ctx.rotation;
+      if (facts === undefined) {
+        sink?.warning(e, `finisherWindow() ${UNAVAILABLE}: it reads 0`);
+        return { type: 'num', read: ZERO };
+      }
+      const sec = facts.finisherWindowMs / 1000;
+      return { type: 'num', read: () => sec };
+    }
+    if (e.fn === 'minGap') return this.minGap(e, sink);
     for (const a of e.args) this.compile(a, sink);
     sink?.error(e, `unknown function '${e.fn}'`, closest(e.fn, FUNCTION_NAMES));
     return INVALID;
+  }
+
+  /** `dotRefreshDue(id)` (true/false) and `manaCost(id)` (a number): the basic rotation's rules (`ScriptContext.rotation`). */
+  private rotationIdCall(e: Extract<Expr, { kind: 'call' }>, sink?: IssueSink): Compiled {
+    const isDot = e.fn === 'dotRefreshDue';
+    const fallback: Compiled = isDot ? { type: 'bool', read: FALSE } : { type: 'num', read: ZERO };
+    const arg = e.args[0];
+    if (e.args.length !== 1 || arg === undefined || arg.kind !== 'str') {
+      sink?.error(e, `${e.fn}(id) needs one spell id, for example ${isDot ? 'dotRefreshDue(immolate)' : "manaCost('shadow-bolt')"}`);
+      return fallback;
+    }
+    const facts = this.ctx.rotation;
+    if (facts === undefined) {
+      sink?.warning(e, `${e.fn}() ${UNAVAILABLE}: it reads ${isDot ? 'false' : '0'}`);
+      return fallback;
+    }
+    const id = arg.value;
+    if (isDot) {
+      const due = facts.dotRefreshDue(id);
+      if (due === undefined) {
+        sink?.warning(arg, `'${id}' is no DoT spell of this build: dotRefreshDue() is false`, closest(id, this.ctx.spellIds));
+        return fallback;
+      }
+      return { type: 'bool', read: due };
+    }
+    const cost = facts.manaCost(id);
+    if (cost === undefined) {
+      sink?.warning(arg, `unknown spell '${id}': manaCost() is 0`, closest(id, this.ctx.spellIds));
+      return fallback;
+    }
+    return { type: 'num', read: () => cost };
+  }
+
+  /** `minGap(id, N)`: the item-use rules' minimum gap (itemUse.ts `minGapCheck`). */
+  private minGap(e: Extract<Expr, { kind: 'call' }>, sink?: IssueSink): Compiled {
+    const fallback: Compiled = { type: 'bool', read: FALSE };
+    const [idArg, nArg] = e.args;
+    if (e.args.length !== 2 || idArg === undefined || nArg === undefined || idArg.kind !== 'str') {
+      for (const a of e.args) if (a.kind !== 'str') this.compile(a, sink);
+      sink?.error(e, 'minGap(id, N) needs an item id and a number of seconds, for example minGap(item:29370, 30)');
+      return fallback;
+    }
+    const n = this.compile(nArg, sink);
+    if (n.type === null) return fallback;
+    if (n.type !== 'num') {
+      sink?.error(e, `minGap(id, N) needs a number of seconds, got ${TYPE_NAMES[n.type]}`);
+      return fallback;
+    }
+    const item = itemActionOf(this.ctx, idArg.value);
+    if (item === undefined) {
+      const unknown = unknownItem(this.ctx, idArg.value)!;
+      sink?.warning(idArg, `${unknown.message}: minGap() is false`, unknown.suggestion);
+      return fallback;
+    }
+    const cooldownMs = item.cooldownMs ?? 0;
+    const spellId = item.spellId;
+    if (nArg.kind === 'num') {
+      const check = minGapCheck(spellId, cooldownMs, nArg.value);
+      return { type: 'bool', read: check ?? (() => true) };
+    }
+    const sec = n.read as (s: Parameters<Reader>[0], x: ScriptExt) => number;
+    // The same arithmetic as minGapCheck, with N read at run time.
+    return {
+      type: 'bool',
+      read: (s, x) => {
+        const v = sec(s, x);
+        if (!(v > 0 && cooldownMs > 0)) return true;
+        const gapMs = Math.min(v * 1000, cooldownMs);
+        return cooldownMs - (Object.hasOwn(s.cooldownRemainingMs, spellId) ? s.cooldownRemainingMs[spellId]! : 0) >= gapMs;
+      },
+    };
   }
 }
 

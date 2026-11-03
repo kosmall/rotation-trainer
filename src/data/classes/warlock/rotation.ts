@@ -1,6 +1,8 @@
 import { activeSetBonuses } from '../../../engine/sets';
 import { projectileTravelMs } from '../../../engine/travel';
 import type { SimSnapshot, SpellModifier } from '../../../engine/types';
+import { formatNumber } from '../../../script/printer';
+import type { ScriptRotationFacts, ScriptRule } from '../../../script/types';
 import type { PriorityStep, SpecData } from '../../types';
 import type { ItemUseRule } from './itemUse';
 import { warlockAuras } from './auras';
@@ -217,6 +219,36 @@ export function shadowburnFinisherWindowMs(distanceYd: number, talents: Rotation
   return talentCastTimeMs('shadow-bolt', talents) + projectileTravelMs(spellDef('shadow-bolt').missileSpeed, distanceYd);
 }
 
+/**
+ * The basic rotation's setup-derived rules for the script functions (src/script, Part J):
+ * `dotRefreshDue(id)` is `dotRefreshDue` above for every DoT spell of the build (Immolate,
+ * Corruption, the ticking curses; the DoT's duration with `dotExtraTicks`), `finisherWindow()`
+ * is `shadowburnFinisherWindowMs(distanceYd, talents)`, `manaCost(id)` the talents' cost
+ * (`talentManaCost`). The same code and numbers as `buildPriority(config, distanceYd,
+ * dotExtraTicks, talents)`, so a converted script (src/script/convert.ts) plays its rules exactly.
+ * A spell the build lacks (a talent spell without its talent) has none.
+ */
+export function rotationScriptFacts(
+  distanceYd: number,
+  dotExtraTicks: DotExtraTicks = {},
+  talents: RotationTalents = AUTHOR_TALENTS,
+): ScriptRotationFacts {
+  const dots = new Map<string, (s: SimSnapshot) => boolean>();
+  for (const spell of DOT_SPELLS) {
+    if (!spellAvailable(spell.id, talents)) continue;
+    const auraId = spell.applyAura!.auraId;
+    const extra = Object.hasOwn(dotExtraTicks, spell.id) ? (dotExtraTicks[spell.id] ?? 0) : 0;
+    dots.set(spell.id, dotRefreshDue(spell.id, auraId, dotDurationMs(auraId, extra), talents));
+  }
+  const costs = new Map<string, number>();
+  for (const spell of allSpells) if (spellAvailable(spell.id, talents)) costs.set(spell.id, talentManaCost(spell.id, talents));
+  return {
+    dotRefreshDue: (spellId) => dots.get(spellId),
+    finisherWindowMs: shadowburnFinisherWindowMs(distanceYd, talents),
+    manaCost: (spellId) => costs.get(spellId),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Steps
 // ---------------------------------------------------------------------------
@@ -282,6 +314,52 @@ export function rotationWarnings(config: RotationConfig, talents: RotationTalent
   return buildSteps(config, 0, {}, talents)
     .filter((s) => !spellAvailable(s.spellId, talents))
     .map((s) => `${s.label}: ${spellDef(s.spellId).name} is not available with these talents; the step is skipped.`);
+}
+
+/**
+ * `buildPriority`'s steps as rotation script rules (src/script, Part J; `convertToScript`), in the
+ * same order, each `if` true exactly when the step's `when` is (labels and comments are added by
+ * the converter). A step whose spell the build lacks is kept (the script compiler leaves the rule
+ * out for that build, as `buildPriority` does, with a warning), so the script follows a later
+ * talent change like the basic rotation. Translations:
+ * - curse: `!target.aura.<curse>.active`; Curse of Doom also `&& time.remaining >= 60` (its
+ *   duration: the long-fight rule);
+ * - Shadowburn finisher: `time.remaining <= finisherWindow()` (cast time after the talents +
+ *   flight at the fight's distance, in seconds; exact, see Part J);
+ * - Immolate / Corruption: `dotRefreshDue(<spell>)` (the refresh rule with the in-cast and in-flight
+ *   guards, the talents' cast time and the gear's extra ticks: the same closure);
+ * - Life Tap: 'auto' -> `mana < manaCost(shadow-bolt)`, a number -> `mana < <number>`;
+ * - Shadow Bolt: no condition.
+ * Throws like `buildPriority` on an invalid config.
+ */
+export function rotationScriptRules(config: RotationConfig): ScriptRule[] {
+  const { lifeTapBelowMana } = config;
+  if (typeof lifeTapBelowMana === 'number' && !(lifeTapBelowMana >= 0)) {
+    throw new RangeError(`lifeTapBelowMana must be 'auto' or a number >= 0, got ${lifeTapBelowMana}`);
+  }
+  if (config.curse !== 'none' && !Object.hasOwn(CURSE_STEPS, config.curse)) {
+    throw new RangeError(`unknown curse '${String(config.curse)}'`);
+  }
+  const rules: ScriptRule[] = [];
+  if (config.curse !== 'none') {
+    const { spellId, auraId } = CURSE_STEPS[config.curse];
+    const notUp = `!target.aura.${auraId}.active`;
+    rules.push({
+      action: 'cast',
+      id: spellId,
+      if: config.curse === 'doom' ? `${notUp} && time.remaining >= ${formatNumber(auraDurationMs(auraId) / 1000)}` : notUp,
+    });
+  }
+  if (config.shadowburnFinisher) rules.push({ action: 'cast', id: 'shadowburn', if: 'time.remaining <= finisherWindow()' });
+  if (config.immolate) rules.push({ action: 'cast', id: 'immolate', if: 'dotRefreshDue(immolate)' });
+  if (config.corruption) rules.push({ action: 'cast', id: 'corruption', if: 'dotRefreshDue(corruption)' });
+  rules.push({
+    action: 'cast',
+    id: 'life-tap',
+    if: lifeTapBelowMana === 'auto' ? 'mana < manaCost(shadow-bolt)' : `mana < ${formatNumber(lifeTapBelowMana)}`,
+  });
+  rules.push({ action: 'cast', id: 'shadow-bolt' });
+  return rules;
 }
 
 function buildSteps(config: RotationConfig, distanceYd: number, dotExtraTicks: DotExtraTicks, talents: RotationTalents): PriorityStep[] {
