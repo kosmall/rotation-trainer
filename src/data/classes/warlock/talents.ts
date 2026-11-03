@@ -1,6 +1,20 @@
 import type { SpellModifier } from '../../../engine/types';
 import { DESTRUCTION_SPELL_IDS } from './spells';
 
+// The talent tree data and the validating codec (pure, never throws) live in talentTree.ts;
+// re-exported here for the modules that already import talents from this file.
+export {
+  TALENT_POINTS_MAX,
+  TALENT_TREE,
+  canAddPoint,
+  canRemovePoint,
+  decodeTalents,
+  encodeTalents,
+  talentById,
+  validateTalents,
+} from './talentTree';
+export type { DecodedTalents, TalentCheck, TalentDef, TalentRanks } from './talentTree';
+
 // The author's Destruction Warlock talent build (stage 1: fixed) and its spell modifiers, used by
 // destruction.ts (the spec) and rotation.ts (the priority's talent cast times and Shadow Bolt
 // cost). A module of its own so that neither of those two imports the other.
@@ -17,9 +31,10 @@ export const destructionTalentString = '000000000000000000000-205013013320010000
 /**
  * Talent order per tree, as the string encodes it: wowsims tbc-new
  * ui/sim/talents/trees/warlock.json `talents[].fieldName` (same order as proto/warlock.proto
- * WarlockTalents fields 1-64).
+ * WarlockTalents fields 1-64). Kept by hand: tests/data/talent-tree.test.ts checks that the generated
+ * TALENT_TREE (talentTree.json) has exactly this order.
  */
-const TALENT_ORDER: readonly (readonly string[])[] = [
+export const TALENT_ORDER: readonly (readonly string[])[] = [
   [
     'suppression', 'improvedCorruption', 'improvedCurseOfWeakness', 'improvedDrainSoul',
     'improvedLifeTap', 'soulSiphon', 'improvedCurseOfAgony', 'felConcentration', 'amplifyCurse',
@@ -42,7 +57,10 @@ const TALENT_ORDER: readonly (readonly string[])[] = [
   ],
 ];
 
-/** Splits a Wowhead/wowsims talent string into per-tree ranks and point totals. */
+/**
+ * Splits a Wowhead/wowsims talent string into per-tree ranks and point totals. Throws on a
+ * malformed string (trusted constants only); untrusted strings go through `decodeTalents`.
+ */
 export function parseTalentString(talents: string): {
   trees: number[][];
   points: [number, number, number];
