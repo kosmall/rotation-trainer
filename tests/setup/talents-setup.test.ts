@@ -311,3 +311,32 @@ describe('import and export of the talent string', () => {
     expect(exportTalents({ nope: 3, __proto__: { bane: 5 } } as never)).toBe(exportTalents({}));
   });
 });
+
+describe('stage 2b final review: Malediction with the raid Curse of the Elements', () => {
+  // Rulings S1/S2: the own aura multiplies by 1 under the raid debuff, so one effect applies. With
+  // Malediction the own curse (1.10 + 0.01 x rank) is the stronger one: it must still count
+  // (core/debuffs.go CurseOfElementsAura; the catalog text: "only the strongest applies").
+  const AFFLICTION = talentPresetById('affliction')!.talents;
+  const coeOf = (c: SetupConfig) => {
+    const { spec } = applySetup({
+      buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t),
+      catalog: STATIC_SETUP_CATALOG,
+      config: c,
+    });
+    const own = spec.auras.find((a) => a.id === 'curse-of-the-elements')!.damageTakenMult!.mult;
+    const raidOn = c.enabledBuffs.includes('raid-curse-of-the-elements');
+    return { own, total: own * (raidOn ? 1.1 : 1) };
+  };
+
+  it('the Affliction preset (Malediction 3/3) under the raid curse: x1.13 in total, not x1.10', () => {
+    expect(decodeTalents(AFFLICTION).ranks.malediction).toBe(3);
+    const raid = coeOf(config({ talents: AFFLICTION, enabledBuffs: ['raid-curse-of-the-elements'] }));
+    expect(raid.total).toBeCloseTo(1.13, 12);
+    expect(coeOf(config({ talents: AFFLICTION, enabledBuffs: [] })).own).toBeCloseTo(1.13, 12);
+  });
+
+  it('without Malediction the own curse under the raid one still multiplies by exactly 1 (stage 1.5 behaviour)', () => {
+    expect(coeOf(config({ enabledBuffs: ['raid-curse-of-the-elements'] })).own).toBe(1);
+    expect(coeOf(config({ talents: NIGHTFALL, enabledBuffs: ['raid-curse-of-the-elements'] })).own).toBe(1);
+  });
+});

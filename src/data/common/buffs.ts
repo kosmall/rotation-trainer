@@ -477,7 +477,7 @@ export const debuffs: readonly BuffDef[] = deepFreeze<BuffDef[]>([
     wowheadId: 27228,
     group: 'debuff',
     description:
-      "x1.10 arcane, fire, frost and shadow damage taken, from another warlock (unimproved: no Malediction; wowsims' improved option is x1.13). Not in your curse slot, so your own curse does not remove it; your own Curse of the Elements then adds nothing (one 10% effect in total).",
+      "x1.10 arcane, fire, frost and shadow damage taken, from another warlock (unimproved: no Malediction; wowsims' improved option is x1.13). Not in your curse slot, so your own curse does not remove it; your own Curse of the Elements then adds nothing (one 10% effect in total), unless your Malediction makes it the stronger one (then yours counts).",
     // CurseOfElementsAura(target, -1, ranks 0): multiplier 1.10 + 0.01 x 0 on Arcane, Fire, Frost,
     // Shadow; exclusive effect "CurseOfElements" shared with the self curse (only the strongest
     // applies). Wowhead TBC spell=27228 "increasing Arcane, Fire, Frost, and Shadow damage taken

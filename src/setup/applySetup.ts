@@ -71,7 +71,8 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *     object is kept.
  * - The spec's own auras that a raid debuff replaces (`neutralizeOwnAuras`: own Curse of the
  *   Elements under the raid one, own Shadow Vulnerability under `isb-from-others`) multiply by 1,
- *   so one x1.1 / one x1.2 applies (rulings S1, S2).
+ *   so one x1.1 / one x1.2 applies (rulings S1, S2); an own aura stronger than the raid one (the
+ *   own curse with Malediction, stage 2b) keeps only its excess (own / raid), so the stronger applies.
  * - `scheduledAuras`: each `targetAura` on the target at 0 with no duration override (its own
  *   1 h duration; the end of the fight cuts it, ruling S3); each timed `selfAura` on the player at
  *   `startSec` for `durationSec` (from `config.timed`, else the catalog default), in ms; a
@@ -173,7 +174,13 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
     const rule = itemRuleOf(a.id, gearRules);
     return rule === undefined ? [] : [itemUseActionOf(actionEntryIds[i]!, a.id, rule)];
   });
-  const auras = [...neutralizeOwnAuras(base.auras, enabled.map((b) => b.id)), ...extraAuras];
+  // The raid debuffs' multipliers: an own aura stronger than the raid one (Malediction) keeps the excess.
+  const raidMults: Record<string, number> = {};
+  for (const b of enabled) {
+    const m = b.effect.targetAura?.damageTakenMult?.mult;
+    if (m !== undefined) raidMults[b.id] = m;
+  }
+  const auras = [...neutralizeOwnAuras(base.auras, enabled.map((b) => b.id), raidMults), ...extraAuras];
   const auraNames: Record<string, string> = {};
   for (const a of auras) if (!Object.hasOwn(auraNames, a.id)) auraNames[a.id] = a.name;
   const itemSteps = compileItemUse(itemActions, config.rotation, { heroismEndMs, auraNames });

@@ -33,12 +33,30 @@ export const NEUTRALIZED_BY: Readonly<Record<string, readonly string[]>> = Objec
  * consumption kept, so the aura still shows and still spends its charges as before). Every other
  * def is returned as is (same object). Pure: the input array and its defs are never mutated;
  * unknown buff ids are ignored.
+ * `raidMults` (buff id -> the raid debuff's own multiplier, e.g. 1.1 for the raid Curse of the
+ * Elements): when the own aura is the stronger one (Malediction: 1.10 + 0.01 x rank, stage 2b), it
+ * keeps the excess, own / raid, so the two together give the own multiplier ("only the strongest
+ * applies", rulings S1/S2). An own aura not stronger than the raid one (every build without
+ * Malediction, Improved Shadow Bolt at any rank) still multiplies by exactly 1.
  */
-export function neutralizeOwnAuras(auras: readonly AuraDef[], enabledBuffIds: readonly string[]): AuraDef[] {
-  const neutral = new Set(enabledBuffIds.flatMap((id) => (Object.hasOwn(NEUTRALIZED_BY, id) ? NEUTRALIZED_BY[id]! : [])));
-  return auras.map((a) =>
-    neutral.has(a.id) && a.damageTakenMult ? { ...a, damageTakenMult: { ...a.damageTakenMult, mult: 1 } } : a,
-  );
+export function neutralizeOwnAuras(
+  auras: readonly AuraDef[],
+  enabledBuffIds: readonly string[],
+  raidMults: Readonly<Record<string, number>> = {},
+): AuraDef[] {
+  // Own aura id -> the strongest raid multiplier replacing it (1 when unknown: plain neutralizing).
+  const neutral = new Map<string, number>();
+  for (const id of enabledBuffIds) {
+    if (!Object.hasOwn(NEUTRALIZED_BY, id)) continue;
+    const raid = Object.hasOwn(raidMults, id) ? raidMults[id]! : 1;
+    for (const own of NEUTRALIZED_BY[id]!) neutral.set(own, Math.max(neutral.get(own) ?? 1, raid));
+  }
+  return auras.map((a) => {
+    const raid = neutral.get(a.id);
+    if (raid === undefined || !a.damageTakenMult) return a;
+    const mult = raid > 1 && a.damageTakenMult.mult > raid ? a.damageTakenMult.mult / raid : 1;
+    return { ...a, damageTakenMult: { ...a.damageTakenMult, mult } };
+  });
 }
 
 /** What the setup panel shows for one warlock option. */
