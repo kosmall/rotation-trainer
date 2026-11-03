@@ -1302,3 +1302,41 @@ TBC rules (Wowhead TBC talent calculator): 61 points at level 70 (`TALENT_POINTS
 ### Icons
 
 `npm run icons` downloads the 63 distinct talent icons from `https://wow.zamimg.com/images/wow/icons/large/<icon>.jpg` into `public/icons/talents/` (sequential, 150 ms apart, 3 attempts; only files starting with the JPEG signature are written; present files are kept; exit 1 on a missing icon or over budget). 122 191 bytes in total, budget 150 000 (checked by the script and by `tests/data/talent-tree.test.ts`, which also checks that the folder holds exactly the talent icons). `talentIconPath(icon)` gives `icons/talents/<icon>.jpg`, relative to the app's base URL (the UI prefixes `import.meta.env.BASE_URL`, like `itemIconUrl`).
+
+### Talent effects (Task 2: `src/data/classes/warlock/talentEffects.ts`)
+
+Every talent is in exactly one of two tables (tested): `TALENT_EFFECTS` (its effect at a rank in the engine's primitives: spell modifiers, stat multipliers, aura overrides, hooks, available spells, `armorMult`) or `UNMODELLED_TALENTS` (the reason). `effectsForBuild(ranks)` is pure and never throws: own keys only, unknown keys ignored, integer ranks clamped to 0..maxRank, anything else 0; every call returns new arrays and objects (the hook objects are shared, frozen and stateless so equal builds have the same `hooks`). Effects apply in tree order Destruction, Affliction, Demonology, which reproduces the stage 1 modifier list of the author's build exactly (same objects' values, same order, same floats: pinned literally in `tests/data/talent-effects.test.ts`, with every bot log and golden mean unchanged). Sources: wowsims tbc-new @ 91f869a `sim/warlock/talents.go` (function named), `spell_data_auto_gen.go` (rank values), `core/debuffs.go`, `armors.go`, `lifetap.go`; checked against the Wowhead TBC tooltips (the tree's descriptions).
+
+**Modelled (23)**
+
+| Talent | Per rank (max) | Primitive | Source |
+|---|---|---|---|
+| Improved Shadow Bolt | debuff x(1 + 0.04 r) (5: x1.2) | hook on a Shadow Bolt crit + `shadow-vulnerability` aura (5/5 = auras.ts def; lower ranks replace it) | applyImprovedShadowBolt, core/debuffs.go ImprovedShadowBoltAura; Wowhead 17803 |
+| Cataclysm | mana cost x(1 - 0.01 r) (5: x0.95) | Destruction spells | applyCataclysm |
+| Bane | -100 ms x r (5: -500) | Shadow Bolt, Immolate (Soul Fire part: no Soul Fire) | applyBane |
+| Devastation | +r% crit (5: +5) | Destruction spells | applyDevastation |
+| Shadowburn | the spell | available + bar slot 5 | applyShadowburn |
+| Improved Immolate | direct x(1 + 0.05 r) (5: x1.25) | Immolate direct only | applyImprovedImmolate (WarlockSpellImmolate, not ImmolateDot); Wowhead "initial damage" |
+| Ruin | crit bonus +0.5 (x2.0) | Destruction spells | applyRuin |
+| Emberstorm | fire x(1 + 0.02 r) direct and periodic; Incinerate -2% x r of 2500 ms | | applyEmberstorm |
+| Backlash | +r% crit (3: +3) | all spells (proc not modelled: needs incoming hits) | applyBacklash |
+| Conflagrate | the spell | available + bar slot 8 (ruling R17 closed) | applyConflagrate |
+| Shadow and Flame | coefficient +0.04 r (5: +0.2) | Shadow Bolt, Incinerate | applyShadowAndFlame |
+| Improved Corruption | -400 ms x r (5: instant) | Corruption | applyImprovedCorruption |
+| Improved Life Tap | +582 x 0.1 x r mana (2: +116.4) | hook: a second Life Tap gain (base part only, as wowsims; UNVERIFIED whether the 0.8 x power part is increased in game) | lifetap.go |
+| Improved Curse of Agony | periodic x(1 + 0.05 r) (2: x1.1) | Curse of Agony | applyImprovedCurseOfAgony |
+| Empowered Corruption | coefficient +0.12 r over the DoT (3: +0.36, 0.936 -> 1.296) | `corruption` aura override | applyEmpoweredCorruption (0.02 x r per tick x 6); Wowhead "36%". wowsims only applies it with Improved Corruption (apparent slip): not copied |
+| Shadow Mastery | x(1 + 0.02 r) direct and periodic (5: x1.1) | Shadow Bolt, Corruption, Curse of Agony, Shadowburn (wowsims WarlockShadowDamage; Curse of Doom is not in it: UNVERIFIED) | applyShadowMastery |
+| Contagion | periodic x(1 + 0.01 r) (5: x1.05) | Corruption, Curse of Agony | applyContagion |
+| Malediction | Curse of the Elements 1.10 + 0.01 r (3: 1.13) | own `curse-of-the-elements` aura override (the raid CoE keeps 1.1) | core/debuffs.go CurseOfElementsAura |
+| Demonic Embrace | spirit x(1 - 0.01 r) (5: x0.95) | stat multiplier | applyDemonicEmbrace |
+| Fel Intellect | max mana x(1 + 0.01 r) (3: x1.03) | stat multiplier | applyFelIntellect |
+| Demonic Aegis | Fel Armor x(1 + 0.1 r) (3: 130 spell power) | `armorMult` | armors.go |
+| Demonic Sacrifice | shadow x1.15 direct and periodic (Succubus) | modifiers, only with `sacrificeSuccubus` | applyDemonicSacrifice |
+| Demonic Tactics | +r% crit (5: +5) | all spells | applyDemonicTactics |
+
+Stacking: the engine multiplies matching damage multipliers; wowsims adds its DamageDone_Flat bonuses on one spell. Builds combining two on one spell are slightly high here (Corruption with Shadow Mastery 5 + Contagion 5: x1.155 vs x1.15; Immolate direct with Improved Immolate 5 + Emberstorm 5: x1.375 vs x1.35). The author's build has no such pair.
+
+**Unmodelled (41)**, reasons in `UNMODELLED_TALENTS` (shown by the editor): Suppression (needs a per-spell hit modifier, the engine has none: the main gap for Affliction builds); Nightfall (procs on DoT ticks, hooks never run on ticks); spells not in the model: Improved Curse of Weakness, Improved Drain Soul, Soul Siphon, Amplify Curse, Siphon Life, Curse of Exhaustion, Dark Pact, Improved Howl of Terror, Unstable Affliction, Improved Subjugate Demon, Improved Searing Pain, Pyroclasm, Shadowfury, Master Conjuror (stones); the pet (not simulated): Improved Imp, Improved Voidwalker, Improved Sayaad, Unholy Power, Mana Feed, Master Demonologist, Soul Link, Demonic Knowledge, Summon Felguard, Improved Firebolt, Improved Lash of Pain; no effect on the simulated damage: Fel Concentration, Grim Reach, Shadow Embrace, Improved Healthstone, Improved Health Funnel, Fel Domination, Fel Stamina, Master Summoner, Demonic Resilience, Aftermath, Intensity, Destructive Reach, Nether Protection, Soul Leech. The author's build has points in 8 of them (Improved Healthstone, Improved Voidwalker, Fel Domination, Fel Stamina, Master Summoner, Intensity, Destructive Reach, Nether Protection), none of which changes the simulated damage.
+
+**Spec and priority.** `buildDestructionWarlock(options, gear?, db?, talents?)`: `talents` is a talent string (decoded with `decodeTalents`; malformed = no talents) or a rank map, absent = the author's. Talent spells (`TALENT_SPELL_IDS` in spells.ts: Conflagrate, Shadowburn) are in `spells` and on the bar only when talented; casting one otherwise gives the engine's existing `'unknown-spell'` (no new CastResult reason). The author's spec no longer lists Conflagrate in `spells` (it was never castable by the bot or bound). `buildPriority(config, distance, dotExtraTicks?, talents?)` reads the unhasted cast times (DoT refresh windows, Shadowburn finisher window: no Bane 3000 + flight), the Shadow Bolt cost for Life Tap 'auto' (no Cataclysm: 420) and the available spells from `talents` (`RotationTalents`: the build's modifiers and talent spells; absent = the author's, rule for rule the old list); steps whose spell the build lacks are dropped and `rotationWarnings(config, talents)` returns one message per dropped step for the UI. `applySetup` does not pass talents yet (Task 3).
