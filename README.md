@@ -270,7 +270,7 @@ modułu, więc pomaga tylko przeładowanie strony; setup jest zapisany).
   1. W grze wpisz `/wse export` (addon WowSimsExporter): okno pokaże zaznaczony tekst, skopiuj go `Ctrl+C`.
   2. W panelu Gear rozwiń „Import” i wklej tekst (albo plik `*.gear.json` z wowsims).
   3. Przeczytaj raport: ile slotów wypełniono, ostrzeżenia, nieznane ID przedmiotów, gemów i
-     enchantów. Talenty z eksportu nie są stosowane (etap 2b).
+     enchantów. Talenty z eksportu nie są tu stosowane: wklej ten sam eksport w panelu Talents.
   4. Kliknij „Apply import”. Przycisk działa tylko, gdy coś da się założyć.
 - **Eksport:** „Export” pokazuje ekwipunek jako plik gear wowsims (ID przedmiotów); „Copy” kopiuje
   go do schowka (albo zaznacza tekst do skopiowania `Ctrl+C`).
@@ -280,9 +280,44 @@ zaczęła, bierze ją od razu, trwająca zachowuje swój ekwipunek do `R` (panel
 DPS podaje „Gear: …” walki). „Stats at the pull” pokazuje statystyki z nowym ekwipunkiem od razu.
 Pisanie w polach wyszukiwania, importu i eksportu nie uruchamia skrótów klawiszowych.
 
+## Panel Talents
+
+Zwijany panel **Talents** (pod panelem Gear) ustawia talenty następnej walki. Domyślnie to build
+autora z eksportu („My build (export)”, 0/21/40).
+
+- **Drzewka:** trzy drzewa (Affliction, Demonology, Destruction) jedno pod drugim, talenty w
+  siatce wierszy i kolumn jak w grze, z ikoną i rangą „r/max”. Kliknięcie (albo `Enter`/`Spacja`
+  na talencie) dodaje punkt, prawy klik albo `Shift+Enter` odejmuje; na telefonie służą do tego
+  przyciski „−” i „+” w karcie talentu. Linie łączą talent z wymaganym talentem (prerequisite).
+  Nad drzewami: punkty per drzewo i pozostałe (np. „0 / 21 / 40 · 0 left”).
+- **Blokady:** nie da się wziąć talentu bez 5 punktów na każdy wiersz powyżej w tym drzewie, bez
+  wymaganego talentu na pełnej randze ani ponad 61 punktów; nie da się też odjąć punktu, od którego
+  zależy inny talent. Powód widać w linii stanu panelu (i w nazwie przycisku dla czytników ekranu).
+- **Karta talentu:** po najechaniu (albo fokusie) pokazuje opis obecnej i następnej rangi (opisy
+  ładują się osobno przy pierwszym otwarciu panelu) oraz czy talent jest zamodelowany.
+  Niezamodelowane talenty mają znak „!” i przerywaną ramkę; podsumowanie mówi, ile punktów buildu
+  trener modeluje, a lista „Not modelled talents” podaje powody. Gdy rotacja z Setup ma krok, którego
+  build nie ma (np. Shadowburn finisher bez Shadowburn), panel to pokazuje, a krok jest pomijany.
+- **Presety:** „My build (export)” oraz buildy z wowsims: „Destruction”, „Destro/Nightfall”,
+  „Affliction”, „Demo/Ruin”, „Demonology Felguard” (wowsims ma jeden build na wszystkie fazy).
+  Wciśnięty jest preset równy buildowi, inaczej „Custom”. „Reset to my build” przywraca build autora.
+  Presety panelu Setup zachowują talenty, a „Reset to defaults” przywraca build autora.
+- **Import:** wklej ciąg talentów (np. `-20500301332101-50500051220051053105` z wowsims) albo cały
+  eksport WowSimsExporter (`/wse export`). „Apply talents” działa tylko dla poprawnego buildu;
+  błędny ciąg pokazuje listę naruszeń i nic nie zmienia.
+- **Eksport:** pełny ciąg talentów (format WowSimsExporter), „Copy talent string” kopiuje go do
+  schowka (albo zaznacza tekst do `Ctrl+C`).
+
+Talenty zapisują się razem z setupem. Zmiana działa od następnej walki: walka, która się nie
+zaczęła, bierze ją od razu, trwająca zachowuje swoje talenty do `R` (notka pod DPS podaje
+„Talents: …” walki). „Stats at the pull”, lista Priority i symulator używają nowego buildu od razu;
+pasek akcji po następnej walce: z talentem Conflagrate slot `8` to Conflagrate (bot go nie używa,
+rzucasz go sam, gdy Immolate jest na celu). Pisanie w polach importu i eksportu nie uruchamia
+skrótów klawiszowych.
+
 ## Symulator
 
-Zwijany panel **Simulator** (pod Combat text) gra setup **następnej walki** (gear, buffy, rotacja z
+Zwijany panel **Simulator** (pod Combat text) gra setup **następnej walki** (gear, talenty, buffy, rotacja z
 regułami przedmiotów, długość walki, odległość) wiele razy botem i pokazuje średni DPS.
 
 - **Runs**: liczba walk, 1-100 000 (domyślnie 1000; poza zakresem poprawiane przy wyjściu z pola).
