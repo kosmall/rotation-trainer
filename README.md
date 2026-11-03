@@ -295,7 +295,8 @@ regułami przedmiotów, długość walki, odległość) wiele razy botem i pokaz
   bierze **migawkę** setupu z chwili kliknięcia: zmiany w trakcie liczenia nie wpływają na wynik,
   a wynik ma opis ustawień, z których powstał (gear, preset setupu, rotacja, reguły przedmiotów,
   długość walki, okno kolejki, liczba walk, seed). Gdy przeglądarka nie uruchomi workera, liczy w
-  głównym wątku małymi porcjami (ten sam wynik).
+  głównym wątku małymi porcjami (ten sam wynik). Kod symulatora wczytuje się dopiero przy
+  pierwszym Run (osobny plik), więc nie spowalnia startu strony.
 - **Wynik**: średni DPS, σ, błąd standardowy średniej, 95% przedział ufności średniej, min, max,
   mediana, percentyle 5/25/75/95, histogram, tabela czarów (udział, obrażenia, rzuty, crit, miss),
   średnie użycia przedmiotów, uptime DoT-ów i buffów, zużyta mana i liczba Life Tapów. „Copy
@@ -373,4 +374,4 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/bot` | bot grający listę priorytetów (punkt odniesienia DPS) |
 | `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, Web Worker i jego klient |
 | `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup z edytorem reguł przedmiotów, panel Gear, panel Simulator, podsumowanie walki |
-| `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `ui` oraz `smoke.test.ts` |
+| `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |

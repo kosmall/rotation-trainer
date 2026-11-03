@@ -159,6 +159,11 @@ Jeden spec, osobny plan implementacji i commit na etap:
    mana i powiadomienia nad areną, z panelem „Combat text”. **Zrobione**: specyfikacja
    `2026-10-30-scrolling-combat-text-design.md`, plan `../plans/2026-10-30-scrolling-combat-text.md`;
    reguły i ustawienia w `docs/data-sources.md`, „Part G: combat text HUD”.
+   2e. Symulator wielu walk (średni DPS ± σ, błąd standardowy, percentyle, histogram; Web Worker)
+   i konfigurowalne reguły użycia przedmiotów i consumables przez bota (nowy element, poza
+   pierwotną listą). **Zrobione** (panel Simulator, edytor „Item use” w Setup → Rotation):
+   specyfikacja `2026-11-02-simulator-design.md`, plan `../plans/2026-11-02-simulator.md`;
+   reguły, statystyki i koszty w `docs/data-sources.md`, „Part H: simulator and item-use rules”.
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla
