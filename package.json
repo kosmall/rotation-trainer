@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "icons": "tsx scripts/fetch-icons.mjs",
-    "db:build": "node scripts/build-item-db.mjs"
+    "db:build": "node scripts/build-item-db.mjs",
+    "talents:build": "node scripts/build-talent-tree.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
