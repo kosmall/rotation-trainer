@@ -105,6 +105,13 @@ export interface PriorityStep {
 export interface SpecData {
   id: string;
   name: string;
+  /**
+   * The class the spec belongs to ("Warlock"), for the UI's spec chip and class tokens
+   * (`data-class` on `<html>`). Display only: the engine never reads it. Absent: the last word of `name`.
+   */
+  readonly className?: string;
+  /** The spec's icon (a spell icon name in public/icons/spells), for the UI's spec chip. Display only. */
+  readonly icon?: string;
   spells: SpellDef[];
   auras: AuraDef[];
   modifiers: SpellModifier[];

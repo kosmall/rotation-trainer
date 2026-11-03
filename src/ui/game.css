@@ -2,12 +2,12 @@
   --bg: #f3f1ec;
   --panel: #ffffff;
   --panel-border: #d8d3c8;
-  --text: #1d1b18;
+  --legacy-text: #1d1b18;
   --muted: #6b655b;
   --accent: #7b4fc4;
   --health: #2f9a3a;
-  --mana: #2f63c4;
-  --cast: #d9a21b;
+  --legacy-mana: #2f63c4;
+  --legacy-cast: #d9a21b;
   --track: #e2ddd2;
   --overlay: rgba(243, 241, 236, 0.95);
   --bar-track: #47443d;
@@ -24,12 +24,12 @@
     --bg: #15141a;
     --panel: #201f27;
     --panel-border: #34323d;
-    --text: #ebe8f0;
+    --legacy-text: #ebe8f0;
     --muted: #9c97a8;
     --accent: #a77ff0;
     --health: #3fae4a;
-    --mana: #3c74e0;
-    --cast: #e0ae2a;
+    --legacy-mana: #3c74e0;
+    --legacy-cast: #e0ae2a;
     --track: #2c2a34;
     --overlay: rgba(21, 20, 26, 0.95);
     --bar-track: #2c2a34;
@@ -46,7 +46,7 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
+  color: var(--legacy-text);
 }
 
 .app {
@@ -178,7 +178,7 @@ kbd {
 }
 
 .mana-bar .bar-fill {
-  background: var(--mana);
+  background: var(--legacy-mana);
 }
 
 .bar-text {
@@ -333,7 +333,7 @@ button.primary {
 
 .cast-bar-fill {
   height: 100%;
-  background: var(--cast);
+  background: var(--legacy-cast);
 }
 
 .cast-bar-name,
@@ -542,7 +542,7 @@ button.primary {
 }
 
 .bonus.active {
-  color: var(--text);
+  color: var(--legacy-text);
 }
 
 .bonus-pieces {
@@ -617,7 +617,7 @@ button.primary {
   width: 100%;
   min-width: 0;
   font: inherit;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -692,7 +692,7 @@ button.primary {
 .setup-preset-buttons button {
   font: inherit;
   font-size: 0.8rem;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -718,7 +718,7 @@ button.primary {
   margin: 0;
   padding: 4px 6px;
   border-radius: 4px;
-  border-left: 3px solid var(--cast);
+  border-left: 3px solid var(--legacy-cast);
   background: var(--track);
 }
 
@@ -859,7 +859,7 @@ button.primary {
   width: 100%;
   min-width: 0;
   font: inherit;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -903,13 +903,13 @@ button.primary {
   margin: 0 0 0 46px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text);
+  color: var(--legacy-text);
 }
 
 .setup-warn {
   flex-basis: 100%;
   margin: 0;
-  color: var(--text);
+  color: var(--legacy-text);
   font-weight: 600;
 }
 
@@ -933,7 +933,7 @@ button.primary {
 /* The setup's name in front of the DPS note. */
 .setup-tag {
   font-weight: 600;
-  color: var(--text);
+  color: var(--legacy-text);
   margin-right: 6px;
 }
 
@@ -1202,7 +1202,7 @@ button.primary {
 .picker button {
   font: inherit;
   font-size: 0.8rem;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -1322,7 +1322,7 @@ button.primary {
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.4;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--track);
   white-space: nowrap;
 }
@@ -1385,7 +1385,7 @@ button.primary {
   border-radius: 4px;
 }
 .gem-dot.socket-prismatic {
-  border-color: var(--text);
+  border-color: var(--legacy-text);
 }
 
 .gem-dot {
@@ -1399,7 +1399,7 @@ button.primary {
 
 .gear-socket-bonus {
   font-size: 0.72rem;
-  color: var(--text);
+  color: var(--legacy-text);
 }
 
 .gear-socket-bonus-off {
@@ -1447,7 +1447,7 @@ button.primary {
   margin: 0;
   padding: 4px 6px;
   border-radius: 4px;
-  border-left: 3px solid var(--cast);
+  border-left: 3px solid var(--legacy-cast);
   background: var(--track);
 }
 
@@ -1469,7 +1469,7 @@ button.primary {
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.72rem;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -1518,7 +1518,7 @@ button.primary {
   border-radius: 8px;
   border: 1px solid var(--panel-border);
   background: var(--panel);
-  color: var(--text);
+  color: var(--legacy-text);
   font-size: 0.85rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
@@ -1552,7 +1552,7 @@ button.primary {
 .picker-filters input[type='search'],
 .picker-filters select {
   font: inherit;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -2019,7 +2019,7 @@ button.primary {
   font-size: 0.75rem;
   min-width: 26px;
   min-height: 24px;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -2049,7 +2049,7 @@ button.primary {
   width: 100%;
   min-width: 0;
   font: inherit;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--bg);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -2371,7 +2371,7 @@ button.primary {
 
 .talent-has-points,
 .talent-full {
-  border-color: var(--cast);
+  border-color: var(--legacy-cast);
 }
 
 .talent-locked .talent-icon {
@@ -2411,7 +2411,7 @@ button.primary {
 
 .talent-full .talent-rank {
   color: #1d1b18;
-  background: var(--cast);
+  background: var(--legacy-cast);
 }
 
 .talent-unmodelled-mark {
@@ -2461,7 +2461,7 @@ button.primary {
 .talent-card button,
 .talent-io > button {
   font: inherit;
-  color: var(--text);
+  color: var(--legacy-text);
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 4px;

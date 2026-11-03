@@ -256,6 +256,10 @@ export function buildDestructionWarlock(
   return {
     id: 'destruction-warlock',
     name: 'Destruction Warlock',
+    // Display only (the UI's spec chip): the class name and the spec's icon, which the redesign
+    // prototype shows for Destruction (docs/design/prototype/index.html, `.spec-chip`).
+    className: 'Warlock',
+    icon: 'spell_shadow_shadowbolt',
     spells,
     auras: setAuras.length > 0 ? [...talentAuras, ...setAuras] : (talentAuras as SpecData['auras']),
     modifiers,

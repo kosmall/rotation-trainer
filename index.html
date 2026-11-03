@@ -1,9 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-class="warlock">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TBC Rotation Trainer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#221c31" />
+    <title>Rotation Trainer</title>
+    <script>
+      // The theme before the first paint (no flash): the saved choice (rotation-trainer:ui:v1, the
+      // same rules as src/ui/theme/theme.ts), else the system preference. Storage can throw.
+      (function () {
+        var theme = null;
+        try {
+          var prefs = JSON.parse(localStorage.getItem('rotation-trainer:ui:v1') || 'null');
+          if (prefs && prefs.version === 1 && (prefs.theme === 'dark' || prefs.theme === 'light')) theme = prefs.theme;
+        } catch (e) {}
+        if (!theme) {
+          try {
+            theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          } catch (e) {
+            theme = 'dark';
+          }
+        }
+        document.documentElement.dataset.theme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'light' ? '#fbfaff' : '#221c31');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

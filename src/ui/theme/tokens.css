@@ -1,0 +1,163 @@
+/*
+ * Design tokens (UI redesign spec §4), ported from the prototype's :root blocks
+ * (docs/design/prototype/styles.css). Dark "Nether" is the default; light "Moonstone" applies to
+ * Setup and Report only: the arena keeps the world's dark tokens in both themes (decision D3).
+ * The dark block also matches [data-theme='dark'] so these tokens win over the legacy :root
+ * rules of game.css (which use their own --legacy-* names for the overlapping ones).
+ */
+
+:root,
+:root[data-theme='dark'] {
+  /* Named palette */
+  --nether-ink: #15121f; /* page */
+  --voidstone: #221c31; /* frames, panels */
+  --voidstone-2: #2c2540; /* raised: hover, selected row */
+  --rule: #3d3454; /* dividers that separate groups */
+  --bronze: #c9a66b; /* trim: frame borders, the active mode, item slots */
+  --parchment: #efe6d2; /* primary text */
+  --dim: #b4aac6; /* secondary text */
+  --fel: #74d14f; /* ready, positive, health */
+  /* Functional */
+  --mana: #4a86ff;
+  --cast: #e8b13a;
+  --danger: #ff7366;
+  --gold: #ffd36b; /* procs, focus */
+  --school-shadow: #b48cff;
+  --school-fire: #ff8f45;
+  /* Chart marks: one step darker than the text colours (validated lightness band on the surface) */
+  --mark-shadow: #9a6ff0;
+  --mark-fire: #e0702a;
+  --quality-epic: #c58af5;
+  --quality-rare: #5aa2ff;
+  --focus: #ffd36b;
+  /* Class tokens: swapped per class by [data-class] on <html> */
+  --class: #8788ee; /* Warlock */
+  --class-soft: rgba(135, 136, 238, 0.16);
+  --resource: var(--mana);
+  --resource-name: 'Mana';
+
+  --surface: var(--voidstone);
+  --surface-2: var(--voidstone-2);
+  --text: var(--parchment);
+  --text-dim: var(--dim);
+  --trim: var(--bronze);
+  --page: var(--nether-ink);
+  --code-bg: #1a1527;
+  /* Text on a class-coloured button */
+  --on-class: #14101f;
+
+  /* Type */
+  --font-display: 'Marcellus', 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  --font-ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-num: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  --font-code: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;
+  --t-12: 0.75rem;
+  --t-13: 0.8125rem;
+  --t-15: 0.9375rem;
+  --t-18: 1.125rem;
+  --t-22: 1.375rem;
+  --t-28: 1.75rem;
+  --t-36: 2.25rem;
+  --t-56: 3.5rem;
+
+  /* Space, radius, depth */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --r-frame: 2px;
+  --r-control: 4px;
+  --cut: 8px; /* the cut-stone corners of game frames (clip-path) */
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  --float: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t-list: 120ms;
+
+  --header-h: 56px;
+  --tabbar-h: 56px;
+  color-scheme: dark;
+}
+
+/* Light ("Moonstone"): Setup and Report only; the arena stays in the world's dark. */
+:root[data-theme='light'] {
+  --page: #ecebf2;
+  --surface: #fbfaff;
+  --surface-2: #f0eef7;
+  --rule: #d6d2e3;
+  --text: #1c1828;
+  --text-dim: #575069;
+  --trim: #85652f;
+  --class: #5557c8;
+  --class-soft: rgba(85, 87, 200, 0.12);
+  --on-class: #fff;
+  --fel: #276f1a;
+  --danger: #b3261e;
+  --gold: #8a5d00;
+  --focus: #5557c8;
+  --school-shadow: #6c3fc9;
+  --school-fire: #a2470c;
+  --mark-shadow: #6c3fc9;
+  --mark-fire: #a2470c;
+  --quality-epic: #8a2fc9;
+  --quality-rare: #1d63c4;
+  --code-bg: #f3f1f9;
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(28, 24, 40, 0.06);
+  color-scheme: light;
+}
+
+/* The arena is always the dark world: a `.world-dark` subtree gets the dark tokens back. */
+:root[data-theme='light'] .world-dark {
+  --page: var(--nether-ink);
+  --surface: var(--voidstone);
+  --surface-2: var(--voidstone-2);
+  --rule: #3d3454;
+  --text: var(--parchment);
+  --text-dim: var(--dim);
+  --trim: var(--bronze);
+  --class: #8788ee;
+  --class-soft: rgba(135, 136, 238, 0.16);
+  --on-class: #14101f;
+  --fel: #74d14f;
+  --danger: #ff7366;
+  --gold: #ffd36b;
+  --focus: #ffd36b;
+  --school-shadow: #b48cff;
+  --school-fire: #ff8f45;
+  --mark-shadow: #9a6ff0;
+  --mark-fire: #e0702a;
+  --quality-epic: #c58af5;
+  --quality-rare: #5aa2ff;
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+/* Class tokens (stage 5 swaps them per class; the prototype's examples). */
+:root[data-class='mage'] {
+  --class: #3fc7eb;
+  --class-soft: rgba(63, 199, 235, 0.14);
+}
+:root[data-class='rogue'] {
+  --class: #fff468;
+  --resource: #ffd84a;
+  --resource-name: 'Energy';
+}
+
+@media (max-width: 899px) {
+  :root,
+  :root[data-theme] {
+    --header-h: 52px;
+  }
+}
+
+/* Reduced motion: entrances and pulses become instant; information (cooldown sweeps) stays. */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  :root[data-theme] {
+    --t-list: 1ms;
+  }
+}

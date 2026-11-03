@@ -18,6 +18,9 @@
     "scenario:ids": "tsx scripts/scenario-ids.ts"
   },
   "dependencies": {
+    "@fontsource/barlow": "5.3.0",
+    "@fontsource/barlow-semi-condensed": "5.3.0",
+    "@fontsource/marcellus": "5.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

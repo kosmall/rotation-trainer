@@ -1,0 +1,421 @@
+/*
+ * The app shell (UI redesign Task 1): base rules, skip link, header, mode links, spec chip, status
+ * chips, theme button, mobile tab bar, shortcuts dialog. Ported from the prototype's "Top bar",
+ * "Buttons" and "Responsive" sections (docs/design/prototype/styles.css). Base rules stay minimal
+ * while the legacy layout (game.css) is on the Fight screen.
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + var(--s2));
+}
+@media (pointer: fine) {
+  html {
+    overscroll-behavior: none;
+  }
+}
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+  font: 400 var(--t-15) / 1.45 var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a,
+input,
+select,
+summary {
+  touch-action: manipulation;
+}
+.num,
+.tnum {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: absolute;
+  left: var(--s4);
+  top: -60px;
+  z-index: 50;
+  padding: var(--s2) var(--s3);
+  background: var(--surface);
+  border: 2px solid var(--focus);
+  color: var(--text);
+}
+.skip:focus {
+  top: var(--s2);
+}
+
+/* <main> takes focus on a mode change (tabindex -1): its ring (keyboard only) sits inside the edge. */
+.shell-main:focus-visible {
+  outline-offset: -2px;
+}
+.shell-main {
+  display: block;
+  min-height: calc(100vh - var(--header-h));
+  /* The page colour of the theme (the legacy game.css sets its own body background). */
+  background: var(--page);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 36px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--bevel);
+  transition:
+    background-color var(--t-list) ease,
+    border-color var(--t-list) ease;
+}
+.btn:hover {
+  border-color: var(--trim);
+}
+.btn.small {
+  min-height: 32px;
+  padding: 0 var(--s2);
+  font-size: var(--t-13);
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 0 var(--s4);
+  padding-left: max(var(--s4), env(safe-area-inset-left));
+  padding-right: max(var(--s4), env(safe-area-inset-right));
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--text);
+  text-decoration: none;
+  flex: none;
+}
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  color: var(--trim);
+}
+.brand-name {
+  font: 400 var(--t-18) / 1 var(--font-display);
+  letter-spacing: 0.01em;
+}
+.modes {
+  display: flex;
+  align-self: stretch;
+  gap: var(--s1);
+}
+.modes a {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s4);
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--t-list) ease;
+}
+.modes a:hover {
+  color: var(--text);
+}
+.modes a[aria-current='page'] {
+  color: var(--text);
+  border-bottom-color: var(--trim);
+}
+.modes svg {
+  width: 18px;
+  height: 18px;
+}
+.spec-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 3px var(--s2) 3px 3px;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  font-weight: 600;
+  font-size: var(--t-13);
+}
+.spec-chip img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+}
+.spec-chip b {
+  color: var(--class);
+  font-weight: 700;
+}
+.status {
+  display: flex;
+  gap: var(--s2);
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  overflow: hidden;
+}
+.status li {
+  min-width: 0;
+}
+.status a {
+  display: block;
+  max-width: 24ch;
+  padding: 4px var(--s2);
+  border-radius: var(--r-control);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--t-13);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+  transition:
+    background-color var(--t-list) ease,
+    border-color var(--t-list) ease;
+}
+.status a:hover {
+  border-color: var(--rule);
+  background: var(--surface-2);
+}
+.status small {
+  display: block;
+  color: var(--text-dim);
+  font-size: var(--t-12);
+}
+.status .status-value {
+  font-family: var(--font-ui);
+}
+.status .pending {
+  box-shadow: inset 2px 0 0 var(--gold);
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--r-control);
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--t-list) ease;
+}
+.icon-btn:hover {
+  border-color: var(--trim);
+}
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Mobile tab bar (the modes move to the bottom, within thumb reach) */
+.tabbar {
+  display: none;
+}
+
+/* ---------- Interim views (Task 1) ---------- */
+.view.placeholder {
+  max-width: 75ch;
+  padding: var(--s6) var(--s4);
+  margin: 0 auto;
+}
+.view.placeholder h1 {
+  margin: 0 0 var(--s3);
+  font: 400 var(--t-28) / 1.2 var(--font-display);
+  text-wrap: balance;
+}
+.view.placeholder p {
+  color: var(--text-dim);
+  text-wrap: pretty;
+}
+.view.placeholder a {
+  color: var(--class);
+}
+.view-loading {
+  padding: var(--s5) var(--s4);
+  color: var(--text-dim);
+}
+
+/* ---------- Dialog (shortcuts sheet) ---------- */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--s4);
+  background: rgba(10, 8, 16, 0.6);
+  overscroll-behavior: contain;
+}
+.dialog {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 2 * var(--s4));
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--s5);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  box-shadow: var(--float);
+}
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+.dialog h2 {
+  margin: 0;
+  font: 400 var(--t-22) / 1.2 var(--font-display);
+}
+.dialog h3 {
+  margin: var(--s4) 0 var(--s2);
+  font-size: var(--t-13);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.shortcut-list {
+  margin: 0;
+  display: grid;
+  gap: var(--s2);
+}
+.shortcut-list > div {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr;
+  gap: var(--s3);
+  align-items: center;
+}
+.shortcut-list dd {
+  margin: 0;
+}
+.shell-main kbd,
+.dialog kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 5px;
+  text-align: center;
+  font: 700 var(--t-12) / 1.5 var(--font-num);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+}
+.keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1279px) {
+  .status li:nth-child(n + 4) {
+    display: none;
+  }
+}
+@media (max-width: 899px) {
+  .status,
+  .modes,
+  .spec-chip span {
+    display: none;
+  }
+  .spec-chip {
+    margin-left: auto;
+    padding-right: 3px;
+  }
+  .tabbar {
+    display: flex;
+    position: fixed;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+    border-top: 1px solid var(--rule);
+  }
+  .tabbar a {
+    flex: 1;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 6px 0 8px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: var(--t-12);
+    font-weight: 600;
+    min-height: 52px;
+  }
+  .tabbar a[aria-current='page'] {
+    color: var(--text);
+    box-shadow: inset 0 2px 0 var(--trim);
+  }
+  .tabbar svg {
+    width: 22px;
+    height: 22px;
+  }
+  body {
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  }
+  .shell-main {
+    min-height: calc(100vh - var(--header-h) - var(--tabbar-h));
+  }
+}
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .status a,
+  .btn {
+    min-height: 44px;
+  }
+}
+@media (forced-colors: active) {
+  .status .pending {
+    border-left: 2px solid Highlight;
+  }
+}
