@@ -149,6 +149,9 @@ Jeden spec, osobny plan implementacji i commit na etap:
    `2026-10-30-gear-stage-2a-design.md`, plan `../plans/2026-10-30-gear-stage-2a.md`; dane,
    reguły i uproszczenia w `docs/data-sources.md`, „Part E: gear”.
    2b. Gotowe „najlepsze talenty" na fazę i edytor drzewka talentów (zakładka Talents).
+   **Zrobione** (panel Talents): specyfikacja `2026-11-03-talents-stage-2b-design.md`, plan
+   `../plans/2026-11-03-talents-stage-2b.md`; efekty talentów (24 zamodelowane, 40 z powodem),
+   presety, import/eksport i uproszczenia w `docs/data-sources.md`, „Part I: talents”.
    2c. Keybindy konfigurowalne. (Raid buffy, consumables, zapis w `localStorage` i konfigurowalna
    rotacja zostały przeniesione do etapu 1.5: `2026-10-29-realism-and-setup-design.md`,
    razem z czasem lotu pocisków; wykonywane przed 2a/2b. Po etapie 1.5, też przed 2a/2b:

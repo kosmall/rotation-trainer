@@ -183,7 +183,7 @@ Multiplier stacking: each spell has at most one additive damage talent in this b
 | Backlash (proc part) | 3/3 | instant Shadow Bolt after being hit; the dummy never attacks (its +3% crit is modeled) |
 | Demonic Embrace (stamina part) | 5/5 | stamina/health not simulated |
 
-No Conflagrate talent in this build: the spell is defined in `spells.ts` (for the stage 2b talent editor) but is neither bound to a key (slot 8 is empty) nor in the priority (ruling R17). Nightfall-style procs are not in the build either (and DoT ticks cannot trigger hooks).
+No Conflagrate talent in this build: the spell is defined in `spells.ts` (for the stage 2b talent editor) but is neither bound to a key (slot 8 is empty) nor in the priority (ruling R17). *Stage 2b: a build with the Conflagrate talent has it on slot 8 (R17 closed); the bot still never casts it. See "Part I: talents".* Nightfall-style procs are not in the build either (and DoT ticks cannot trigger hooks).
 
 ### Priority (shadow Destruction)
 
@@ -218,7 +218,7 @@ The action bar binds Curse of the Elements (key 4), Curse of Agony (key 9) and C
 
 ### Open questions
 
-1. Conflagrate is not in the author's build. Ruling R17: unbound; SpellDef kept for stage 2b.
+1. Conflagrate is not in the author's build. Ruling R17: unbound; SpellDef kept for stage 2b. *Closed by stage 2b: bound to slot 8 only with the talent (Part I).*
 2. Resolved (ruling R22): curses are mutually exclusive through `AuraDef.exclusiveGroup` (see "Curses: one per target" above).
 3. Which pet the author sacrifices (Succubus assumed, +15% shadow).
 4. Incinerate's bonus 111-128 base damage while Immolate is up (`incinerate.go`) needs conditional damage in `SpellDef`.
@@ -384,7 +384,7 @@ The difference is only visible when a buff or debuff starts or ends during a mis
 
 ### Spell queue and missiles
 
-`queuePressRejection` accepts a queued spell that requires a target aura while the spell being cast applies it, but does not look at missiles already in flight: such a queued spell is dropped at fire time (`missing-aura`) if the missile has not landed. For the warlock data this never matters: the only missile spells (Shadow Bolt, Incinerate) apply no aura through `applyAura` (Shadow Bolt's Improved Shadow Bolt comes from a hook, and nothing requires it), and the one aura requirement (Conflagrate needs Immolate) involves a spell without a missile; Conflagrate is also unbound (ruling R17).
+`queuePressRejection` accepts a queued spell that requires a target aura while the spell being cast applies it, but does not look at missiles already in flight: such a queued spell is dropped at fire time (`missing-aura`) if the missile has not landed. For the warlock data this never matters: the only missile spells (Shadow Bolt, Incinerate) apply no aura through `applyAura` (Shadow Bolt's Improved Shadow Bolt comes from a hook, and nothing requires it), and the one aura requirement (Conflagrate needs Immolate) involves a spell without a missile; Conflagrate is also unbound (ruling R17; since stage 2b bound to slot 8 only with the talent, and never cast by the bot).
 
 ### Effect on the bot (stage 1.5 Task 2)
 
@@ -1255,7 +1255,7 @@ Checks run on the whole feature (c121206..HEAD), beyond the unit tests: the equi
 
 ## Part I: talents
 
-Stage 2b (plan `docs/superpowers/plans/2026-11-03-talents-stage-2b.md`, spec `docs/superpowers/specs/2026-11-03-talents-stage-2b-design.md`). Task 1: the tree data, the talent string codec and validation (below). Tasks 2-5 add their sections.
+Stage 2b (plan `docs/superpowers/plans/2026-11-03-talents-stage-2b.md`, spec `docs/superpowers/specs/2026-11-03-talents-stage-2b-design.md`). Complete (Tasks 1-5): the tree data, the talent string codec and validation (Task 1), the talent effects (Task 2), the setup, presets, import/export and the engine's per-spell hit modifier (Task 3), the Talents panel (Task 4) and the final review with the known simplifications (Task 5, at the end of this part).
 
 ### Tree data (`src/data/classes/warlock/talentTree.json`)
 
@@ -1329,7 +1329,7 @@ Every talent is in exactly one of two tables (tested): `TALENT_EFFECTS` (its eff
 | Empowered Corruption | coefficient +0.12 r over the DoT (3: +0.36, 0.936 -> 1.296) | `corruption` aura override | applyEmpoweredCorruption (0.02 x r per tick x 6); Wowhead "36%". wowsims only applies it with Improved Corruption (apparent slip): not copied |
 | Shadow Mastery | x(1 + 0.02 r) direct and periodic (5: x1.1) | Shadow Bolt, Corruption, Curse of Agony, Shadowburn (wowsims WarlockShadowDamage; Curse of Doom is not in it: UNVERIFIED) | applyShadowMastery |
 | Contagion | periodic x(1 + 0.01 r) (5: x1.05) | Corruption, Curse of Agony | applyContagion |
-| Malediction | Curse of the Elements 1.10 + 0.01 r (3: 1.13) | own `curse-of-the-elements` aura override (the raid CoE keeps 1.1) | core/debuffs.go CurseOfElementsAura |
+| Malediction | Curse of the Elements 1.10 + 0.01 r (3: 1.13) | own `curse-of-the-elements` aura override (the raid CoE keeps 1.1; with the raid CoE enabled the own one keeps its excess 1.13 / 1.1, so the stronger applies: Task 5 fix) | core/debuffs.go CurseOfElementsAura |
 | Demonic Embrace | spirit x(1 - 0.01 r) (5: x0.95) | stat multiplier | applyDemonicEmbrace |
 | Fel Intellect | max mana x(1 + 0.01 r) (3: x1.03) | stat multiplier | applyFelIntellect |
 | Demonic Aegis | Fel Armor x(1 + 0.1 r) (3: 130 spell power) | `armorMult` | armors.go |
@@ -1338,9 +1338,54 @@ Every talent is in exactly one of two tables (tested): `TALENT_EFFECTS` (its eff
 
 Stacking: the engine multiplies matching damage multipliers; wowsims adds its DamageDone_Flat bonuses on one spell. Builds combining two on one spell are slightly high here (Corruption with Shadow Mastery 5 + Contagion 5: x1.155 vs x1.15; Immolate direct with Improved Immolate 5 + Emberstorm 5: x1.375 vs x1.35). The author's build has no such pair.
 
-**Unmodelled (40)**, reasons in `UNMODELLED_TALENTS` (shown by the editor): Nightfall (procs on DoT ticks, hooks never run on ticks); spells not in the model: Improved Curse of Weakness, Improved Drain Soul, Soul Siphon, Amplify Curse, Siphon Life, Curse of Exhaustion, Dark Pact, Improved Howl of Terror, Unstable Affliction, Improved Subjugate Demon, Improved Searing Pain, Pyroclasm, Shadowfury, Master Conjuror (stones); the pet (not simulated): Improved Imp, Improved Voidwalker, Improved Sayaad, Unholy Power, Mana Feed, Master Demonologist, Soul Link, Demonic Knowledge, Summon Felguard, Improved Firebolt, Improved Lash of Pain; no effect on the simulated damage: Fel Concentration, Grim Reach, Shadow Embrace, Improved Healthstone, Improved Health Funnel, Fel Domination, Fel Stamina, Master Summoner, Demonic Resilience, Aftermath, Intensity, Destructive Reach, Nether Protection, Soul Leech. The author's build has points in 8 of them (Improved Healthstone, Improved Voidwalker, Fel Domination, Fel Stamina, Master Summoner, Intensity, Destructive Reach, Nether Protection), none of which changes the simulated damage.
+**Unmodelled (40)**, each with the reason the editor shows (`UNMODELLED_TALENTS`, verbatim); 24 + 40 = 64, tested. Reviewed in Task 5 against talents.go and the tooltips: every reason is accurate. Plain modifiers among them, left out on purpose: Master Demonologist (Succubus out: +2% x rank all damage; Felguard: +1% x rank) and Soul Link (+5% all damage) apply only while the demon is out, i.e. with `sacrificeSuccubus: false`, and the spec keeps the pet out of scope (spec §1); see "Known simplifications" below.
 
-**Spec and priority.** `buildDestructionWarlock(options, gear?, db?, talents?)`: `talents` is a talent string (decoded with `decodeTalents`; malformed = no talents) or a rank map, absent = the author's. Talent spells (`TALENT_SPELL_IDS` in spells.ts: Conflagrate, Shadowburn) are in `spells` and on the bar only when talented; casting one otherwise gives the engine's existing `'unknown-spell'` (no new CastResult reason). The author's spec no longer lists Conflagrate in `spells` (it was never castable by the bot or bound). `buildPriority(config, distance, dotExtraTicks?, talents?)` reads the unhasted cast times (DoT refresh windows, Shadowburn finisher window: no Bane 3000 + flight), the Shadow Bolt cost for Life Tap 'auto' (no Cataclysm: 420) and the available spells from `talents` (`RotationTalents`: the build's modifiers and talent spells; absent = the author's, rule for rule the old list); steps whose spell the build lacks are dropped and `rotationWarnings(config, talents)` returns one message per dropped step for the UI. `applySetup` does not pass talents yet (Task 3).
+| Tree | Talent | Max | Reason |
+|---|---|---|---|
+| Affliction | Improved Curse of Weakness | 2 | Its spell is not in the model (spec §1: no new spells from talents): Curse of Weakness. |
+| Affliction | Improved Drain Soul | 2 | Its spell is not in the model (spec §1: no new spells from talents): Drain Soul; its threat reduction has no effect either. |
+| Affliction | Soul Siphon | 2 | Its spell is not in the model (spec §1: no new spells from talents): Drain Life / Drain Soul. |
+| Affliction | Fel Concentration | 5 | No effect on the damage the trainer simulates: pushback protection for Drain spells (not in the model). |
+| Affliction | Amplify Curse | 1 | Its spell is not in the model (spec §1: no new spells from talents): Amplify Curse is a cooldown spell of its own. |
+| Affliction | Grim Reach | 2 | No effect on the damage the trainer simulates: spell range. |
+| Affliction | Nightfall | 2 | Procs from Corruption ticks: hooks never run on DoT ticks. |
+| Affliction | Shadow Embrace | 5 | No effect on the damage the trainer simulates: reduces the target's physical damage. |
+| Affliction | Siphon Life | 1 | Its spell is not in the model (spec §1: no new spells from talents): Siphon Life. |
+| Affliction | Curse of Exhaustion | 1 | Its spell is not in the model (spec §1: no new spells from talents): Curse of Exhaustion. |
+| Affliction | Dark Pact | 1 | Its spell is not in the model (spec §1: no new spells from talents): Dark Pact (drains the pet's mana). |
+| Affliction | Improved Howl of Terror | 2 | Its spell is not in the model (spec §1: no new spells from talents): Howl of Terror. |
+| Affliction | Unstable Affliction | 1 | Its spell is not in the model (spec §1: no new spells from talents): Unstable Affliction. |
+| Demonology | Improved Healthstone | 2 | No effect on the damage the trainer simulates: Healthstone healing. |
+| Demonology | Improved Imp | 3 | Needs the pet, which is not simulated (spec §1): the Imp's spells. |
+| Demonology | Improved Health Funnel | 2 | No effect on the damage the trainer simulates: Health Funnel. |
+| Demonology | Improved Voidwalker | 3 | Needs the pet, which is not simulated (spec §1): the Voidwalker's spells. |
+| Demonology | Improved Sayaad | 3 | Needs the pet, which is not simulated (spec §1): the Succubus' spells. |
+| Demonology | Fel Domination | 1 | No effect on the damage the trainer simulates: faster pet summons. |
+| Demonology | Fel Stamina | 3 | No effect on the damage the trainer simulates: health only (the pets' stamina: no pet). |
+| Demonology | Master Summoner | 2 | No effect on the damage the trainer simulates: faster, cheaper pet summons. |
+| Demonology | Unholy Power | 5 | Needs the pet, which is not simulated (spec §1): the pets' damage. |
+| Demonology | Improved Subjugate Demon | 2 | Its spell is not in the model (spec §1: no new spells from talents): Subjugate Demon. |
+| Demonology | Master Conjuror | 2 | Firestone and Spellstone are not in the model. |
+| Demonology | Mana Feed | 3 | Needs the pet, which is not simulated (spec §1): gives mana to the pet. |
+| Demonology | Master Demonologist | 5 | Needs the pet, which is not simulated (spec §1): its effect lasts only while the demon is out; with the Succubus sacrificed it gives nothing. |
+| Demonology | Demonic Resilience | 3 | No effect on the damage the trainer simulates: crits taken and the pet's damage taken. |
+| Demonology | Soul Link | 1 | Needs the pet, which is not simulated (spec §1): +5% damage only while the demon is out (wowsims applies it unconditionally, a TODO there). |
+| Demonology | Demonic Knowledge | 3 | Needs the pet, which is not simulated (spec §1): spell damage from the active demon's stamina and intellect. |
+| Demonology | Summon Felguard | 1 | Needs the pet, which is not simulated (spec §1): the Felguard. |
+| Destruction | Aftermath | 5 | No effect on the damage the trainer simulates: a chance to daze the target (wowsims skips it too). |
+| Destruction | Improved Firebolt | 2 | Needs the pet, which is not simulated (spec §1): the Imp's Firebolt. |
+| Destruction | Improved Lash of Pain | 2 | Needs the pet, which is not simulated (spec §1): the Succubus' Lash of Pain. |
+| Destruction | Intensity | 2 | No effect on the damage the trainer simulates: pushback protection (no damage taken in the model). |
+| Destruction | Destructive Reach | 2 | No effect on the damage the trainer simulates: spell range and threat. |
+| Destruction | Improved Searing Pain | 3 | Its spell is not in the model (spec §1: no new spells from talents): Searing Pain. |
+| Destruction | Pyroclasm | 2 | Its spell is not in the model (spec §1: no new spells from talents): Rain of Fire, Hellfire and Soul Fire (its stun). |
+| Destruction | Nether Protection | 3 | No effect on the damage the trainer simulates: procs when hit by spells (no damage taken in the model). |
+| Destruction | Soul Leech | 3 | No effect on the damage the trainer simulates: heals the warlock (health is not modelled). |
+| Destruction | Shadowfury | 1 | Its spell is not in the model (spec §1: no new spells from talents): Shadowfury. |
+
+The author's build has points in 8 of them (Improved Healthstone, Improved Voidwalker, Fel Domination, Fel Stamina, Master Summoner, Intensity, Destructive Reach, Nether Protection), none of which changes the simulated damage.
+
+**Spec and priority.** `buildDestructionWarlock(options, gear?, db?, talents?)`: `talents` is a talent string (decoded with `decodeTalents`; malformed = no talents) or a rank map, absent = the author's. Talent spells (`TALENT_SPELL_IDS` in spells.ts: Conflagrate, Shadowburn) are in `spells` and on the bar only when talented; casting one otherwise gives the engine's existing `'unknown-spell'` (no new CastResult reason). The author's spec no longer lists Conflagrate in `spells` (it was never castable by the bot or bound). `buildPriority(config, distance, dotExtraTicks?, talents?)` reads the unhasted cast times (DoT refresh windows, Shadowburn finisher window: no Bane 3000 + flight), the Shadow Bolt cost for Life Tap 'auto' (no Cataclysm: 420) and the available spells from `talents` (`RotationTalents`: the build's modifiers and talent spells; absent = the author's, rule for rule the old list); steps whose spell the build lacks are dropped and `rotationWarnings(config, talents)` returns one message per dropped step for the UI. `applySetup` passes the setup's talents since Task 3 (below). A well-formed string that breaks a rule (row, prerequisite, too many points) is still built as read, ranks clamped to the maximum: the setup never stores such a string (`normalizeSetup` drops it), so only direct callers can meet it.
 
 ### Setup, presets and import (Task 3)
 
@@ -1364,3 +1409,44 @@ The tooltip texts (two thirds of the old talentTree.json) moved to `src/data/cla
 ### Talents panel (Task 4, UI)
 
 `src/ui/TalentsPanel.tsx` with the pure view model `src/ui/talentView.ts`. Every edit goes through `canAddPoint` / `canRemovePoint`, then `validateTalents` of the whole build, and leaves as a full-width string (`encodeTalents`); GameView puts it into `SetupConfig.talents` and runs `normalizeSetup` (the author's build is stored as no field). Import accepts a bare talent string or a WowSimsExporter JSON (`talents`, own property only; a non-warlock `class` is refused) through `applyImportedTalents`; the text is capped at `IMPORT_MAX_CHARS`. Presets are matched by equal ranks in all 64 talents. The rotation warnings are `rotationWarnings(config.rotation, rotationTalentsFor(config.talents))`. The descriptions chunk (`talentDescriptions-*.js`, 23.6 kB, gzip 3.9 kB) loads when the panel first opens. Main chunk with the panel and the tree structure now in it: 427.55 -> about 444 kB (gzip 132.94 -> about 137.6 kB). Wiring: GameView's spec builder forwards the talents to `buildSpec`; the Setup panel's preset click is `applySetupPreset` (keeps the talents) and preset matching compares `setupFightKey` of the config with that of `applySetupPreset(preset, config without its item-use rules)`; the Simulator's result label has "Talents: <preset or Custom>"; the DPS note shows the fight's talents.
+
+### The bot and Conflagrate
+
+The priority (`buildPriority`) has no Conflagrate step: the bot never casts it, in the game's bot and in the simulator. A build with the Conflagrate talent (the Destruction and Destro/Nightfall presets) has the spell on bar slot 8 for the player (it needs Immolate on the target and consumes it, 10 s cooldown), so the simulator's DPS of such a build leaves Conflagrate out and is lower than wowsims' (e.g. Destro/Nightfall about 1270 vs the author's build about 1390 at 2000 runs, default setup). The rotation scripts follow-up (`docs/superpowers/specs/2026-11-03-rotation-scripts-and-scenarios-design.md`) lets the player add it. The README says so in "Panel Talents".
+
+### Known simplifications and follow-ups
+
+- **Pet.** Not simulated (spec §1). Demonic Sacrifice is always the Succubus' (shadow x1.15) when `sacrificeSuccubus` is on, whatever the build (the Demonology Felguard preset sacrifices a Succubus here; wowsims keeps the Felguard out). With the pet kept (`sacrificeSuccubus: false`) Master Demonologist (+10% damage with the Succubus at 5/5, +5% with the Felguard) and Soul Link (+5%) would be plain damage multipliers, and Demonic Knowledge needs the pet's stamina and intellect: all unmodelled (follow-up with a pet model).
+- **Spells from talents.** Shadowburn and Conflagrate only. Shadowfury, Unstable Affliction, Siphon Life, Amplify Curse, Dark Pact, Curse of Exhaustion and the talents of spells outside the model (Drain Life/Soul, Searing Pain, Rain of Fire/Hellfire/Soul Fire, Howl of Terror, Subjugate Demon, stones) are unmodelled with a reason; an Affliction build therefore simulates well below its real damage (Affliction preset about 1220 with the DoT rotation).
+- **Nightfall.** Procs on Corruption ticks; hooks never run on DoT ticks (a stage 1 engine rule). Unmodelled.
+- **Stacking.** Damage bonuses on one spell multiply (engine) where wowsims adds them (`DamageDone_Flat`): Corruption with Shadow Mastery 5 + Contagion 5 x1.155 vs x1.15; Immolate's direct part with Improved Immolate 5 + Emberstorm 5 x1.375 vs x1.35. The author's build has no such pair.
+- **Shadow Mastery and Curse of Doom.** wowsims' `WarlockShadowDamage` mask leaves Curse of Doom out (followed; the tooltip says "your Shadow spells": UNVERIFIED).
+- **Empowered Corruption** is applied without Improved Corruption (wowsims requires it, an apparent slip; the tooltip has no such condition).
+- **Instant Corruption and the refresh rule.** With Improved Corruption 5/5 the refresh rule's cast time is 0 ms, so Corruption is recast only after it has fallen off (and only while a full 18 s DoT fits): in a 60 s fight about 2 casts instead of the author's about 3. That is the APL rule applied as written (wowsims evaluates it only when the player is free, with the same effect); a better rule (refresh before a Shadow Bolt that would outlast it) is for the rotation scripts.
+- **Bot behaviour per build.** The bot plays the Setup rotation with the build's numbers (cast times, Shadow Bolt cost, Shadowburn window, available spells); it does not change its rotation per spec (an Affliction build still fills with Shadow Bolt). A rotation step whose spell the build lacks is dropped and listed (`rotationWarnings`), never an error.
+- **Talent strings in `buildDestructionWarlock`.** A well-formed string that breaks a rule is built as read (ranks clamped); the setup and the import never pass one (validated first).
+
+### Final review (Task 5)
+
+Whole-stage review of `8748f9b..HEAD` against the plan's Review Focus. Results:
+
+- **Golden values and logs.** The pinned values are unchanged (1425.1766666666667 / 1428.3350000000003, raid-log 2294.108333333333, Icon+Band 1379.2966666666666 / 1373.4900000000002) and so are the 23 pinned scenarios. An independent comparison in scratch copies of `8748f9b` and of the stage's head ran 28 new random scenarios (gear preset or the author's gear, rotation preset, queue window 0-700 ms, fight length 10-300 s, distance 0-40 yd, random buffs and warlock options). It compared 84 bot fights (full JSON log hash and length, RNG draw count, DPS) and 84 simulator runs (`runOnce` samples), and they were byte-identical.
+- **Talent values.** Every one of the 24 modelled talents was re-derived from talents.go, `spell_data_auto_gen.go` (rank values: Suppression 2 x r flat hit percent, Improved Corruption -400 ms x r, Improved Curse of Agony 5% x r, Empowered Corruption 2 x r per tick (0.12 x r over 6 ticks), Shadow Mastery 2% x r, Contagion 1% x r, Malediction 1 x r, Improved Life Tap 10% x r, Emberstorm 2% x r and -2% x r cast time, Improved Immolate 5% x r, Shadow and Flame 4% x r, Demonic Aegis 10% x r, Cataclysm -1% x r, Bane -100 ms x r, Devastation, Backlash and Demonic Tactics r percent), armors.go, lifetap.go, core/debuffs.go and the Wowhead tooltips. Every value, unit (percent vs fraction, ms) and spell mask matches; Suppression's mask is wowsims' `WarlockAfflictionSpells` restricted to the modelled spells. The `hitPctDelta` engine addition computes `max(minMiss, missPct - (hitPct + delta))`, so a talent's hit beyond the cap never goes below the target's minimum miss. One defect was fixed: Malediction under the raid Curse of the Elements (below).
+- **Validation.** The tree structure (64 talents: tree, row, column, maximum rank, prerequisite) equals the wowsims tree JSON. A fuzz of 58 hostile strings, rank maps and ids (including a throwing proxy, `__proto__`, 100k characters, unicode digits, NaN and Infinity ranks, and 5000 unknown keys) never threw or hung, and messages stay at 200 characters or fewer. A brute-force rule check over 200 random valid builds x 64 talents agrees with `canRemovePoint` / `canAddPoint` / `validateTalents` for all 12 800 checks (a permanent test since Task 5).
+- **Builds.** Each of the six presets, an all-zero build and the author's variants were simulated with both rotation presets, the Succubus sacrificed and kept (200 runs each), and none crashed. The DPS ranks as expected: the Destruction preset is about 1400, the author's build 1387, Destro/Nightfall 1270, Demo/Ruin 1275, Affliction 1220, Felguard 1150 and all zero 730. Shadowburn is on slot 5 and Conflagrate on slot 8 only when talented. Without Shadowburn the finisher step is dropped with a warning.
+- **Simulator.** The equivalence test of the core run against the hand-built game fight now covers three presets (Destro/Nightfall, Affliction, Demonology Felguard), at windows 400 and 0, with and without the busy item setup.
+- **UI.** The end-to-end Playwright run against `vite preview` checked these, with no console errors or failed requests:
+  - opening the panel loads the descriptions chunk (not before);
+  - all 64 talent buttons are shown, and every preset button is pressed alone and shows its points;
+  - right click, Shift+Enter and Enter edit points, and a removal or add that breaks a rule is refused with the reason;
+  - the hover card shows the rank text;
+  - typing `1 r 2` into the import field does not start or reset the fight;
+  - hostile and invalid imports are refused, a valid one applies;
+  - the export string, a reload and the stored setup keep the build;
+  - a Setup preset keeps the talents and Reset to defaults restores the author's build;
+  - at 390 px there is no horizontal scroll, and the card's − button is 40 x 32 px and works by tap.
+- **Bundle (production build).** Before the stage (`8748f9b`) the main chunk was 408.09 kB (gzip 127.36) and the simulator worker 82.91 kB. Now the main chunk is 444.56 kB (gzip 137.77) and the worker 102.70 kB: the tree structure, the codec and the effects. The descriptions are a 23.56 kB lazy chunk. Talent icons are 122 191 of 150 000 bytes.
+- **Hygiene.** The only change in `src/engine` is `hitPctDelta` (types.ts plus three lines in sim.ts). No wall clock is read and no `Math.random` is used in the new code. Nothing under `.superpowers/` is committed. Stale R17 / "Conflagrate unbound" texts are updated.
+
+**Fixed: Malediction under the raid Curse of the Elements.** `neutralizeOwnAuras` (rulings S1/S2) set the own curse to x1 whenever the raid curse was enabled, so a build with Malediction (the Affliction preset, 3/3) got x1.10 instead of x1.13. It now takes the raid debuff's multiplier (`applySetup` passes them): an own aura stronger than the raid one keeps the excess (own / raid), and any other stays at exactly 1. Every build without Malediction, and Improved Shadow Bolt at any rank, is unchanged and byte-identical. Tested in tests/setup/talents-setup.test.ts.
+

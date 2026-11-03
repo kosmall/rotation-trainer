@@ -26,6 +26,11 @@ na każdą fazę (Pre-Raid, T4, T5, T6, Zul'Aman, Sunwell Plateau) oraz importem
 WowSimsExporter i eksportem do formatu wowsims. Domyślny ekwipunek to nadal Twój eksport, z tymi
 samymi wynikami co w etapie 1.
 
+**Etap 2b (talenty):** panel **Talents** z edytorem trzech drzewek Warlocka (dane z wowsims, opisy z
+Wowhead), gotowymi buildami z wowsims, importem i eksportem ciągu talentów. Efekty talentów są
+danymi (24 zamodelowane, 40 oznaczonych jako niezamodelowane z powodem); talenty zmieniają liczby
+walki, bota i symulatora. Domyślny build to nadal Twój eksport (0/21/40), z tymi samymi wynikami.
+
 ## Uruchomienie
 
 Wymaga Node.js (z npm).
@@ -37,8 +42,9 @@ npm test           # wszystkie testy (Vitest)
 npm run typecheck  # sprawdzenie typów (tsc)
 npm run build      # typecheck + build produkcyjny do dist/
 npm run preview    # podgląd builda z dist/: http://localhost:4173
-npm run icons      # (tylko po dodaniu czarów, buffów lub przedmiotów) pobiera ikony do public/icons/spells/ i public/icons/items/
+npm run icons      # (tylko po dodaniu czarów, buffów, przedmiotów lub talentów) pobiera ikony do public/icons/spells/, public/icons/talents/ i public/icons/items/
 npm run db:build -- <katalog klonu wowsims/tbc-new>  # odtwarza bazę przedmiotów src/data/items/db.json
+npm run talents:build -- <katalog klonu wowsims/tbc-new>  # odtwarza drzewka talentów (talentTree.json, talentDescriptions.json)
 ```
 
 Ikony czarów, aur, buffów, debuffów, przedmiotów i opcji warlocka są już w repo
@@ -59,14 +65,15 @@ uruchamiać.
 | Klawisz | Działanie |
 |---|---|
 | `1`-`9`, `0`, `-`, `=` | sloty paska akcji 1-12 (pierwszy czar startuje też walkę) |
-| `8` | celowo pusty: postać nie ma talentu Conflagrate |
+| `8` | Conflagrate, tylko gdy build ma ten talent (domyślny build go nie ma: slot pusty) |
 | `Z`, `X`, `C`, `V`, `B`, `N` | 6 slotów paska przedmiotów **Items** (tylko włączone przedmioty; wielkość litery bez znaczenia, użycie przedmiotu też startuje walkę) |
 | `Esc` | przerywa rzucanie (i czyści kolejkę, także zakolejkowany przedmiot; użycia przedmiotu nie cofa) |
 | `Spacja` | start walki |
 | `R` | reset walki |
 
 Pasek: 1 Shadow Bolt, 2 Immolate, 3 Corruption, 4 Curse of the Elements, 5 Shadowburn,
-6 Life Tap, 7 Incinerate, 9 Curse of Agony, 0 Curse of Doom. Na celu może być tylko **jedna**
+6 Life Tap, 7 Incinerate, 8 Conflagrate, 9 Curse of Agony, 0 Curse of Doom. Shadowburn i
+Conflagrate są tylko z talentem (bez niego slot jest pusty). Na celu może być tylko **jedna**
 klątwa: rzucenie innej zastępuje obecną (wybierz jedną).
 
 Klawisze nie działają, gdy piszesz w polu tekstowym lub liczbowym panelu Setup (np. `Z` w polu
@@ -292,7 +299,7 @@ autora z eksportu („My build (export)”, 0/21/40).
   Nad drzewami: punkty per drzewo i pozostałe (np. „0 / 21 / 40 · 0 left”).
 - **Blokady:** nie da się wziąć talentu bez 5 punktów na każdy wiersz powyżej w tym drzewie, bez
   wymaganego talentu na pełnej randze ani ponad 61 punktów; nie da się też odjąć punktu, od którego
-  zależy inny talent. Powód widać w linii stanu panelu (i w nazwie przycisku dla czytników ekranu).
+  zależy inny talent albo bez którego talent niżej straciłby wymagane punkty wiersza. Powód widać w linii stanu panelu (i w nazwie przycisku dla czytników ekranu).
 - **Karta talentu:** po najechaniu (albo fokusie) pokazuje opis obecnej i następnej rangi (opisy
   ładują się osobno przy pierwszym otwarciu panelu) oraz czy talent jest zamodelowany.
   Niezamodelowane talenty mają znak „!” i przerywaną ramkę; podsumowanie mówi, ile punktów buildu
@@ -310,8 +317,8 @@ autora z eksportu („My build (export)”, 0/21/40).
 
 Talenty zapisują się razem z setupem. Zmiana działa od następnej walki: walka, która się nie
 zaczęła, bierze ją od razu, trwająca zachowuje swoje talenty do `R` (notka pod DPS podaje
-„Talents: …” walki). „Stats at the pull”, lista Priority i symulator używają nowego buildu od razu;
-pasek akcji po następnej walce: z talentem Conflagrate slot `8` to Conflagrate (bot go nie używa,
+„Talents: …” walki). „Stats at the pull”, lista Priority i symulator używają nowego buildu od razu,
+pasek akcji razem z walką, która go używa: z talentem Conflagrate slot `8` to Conflagrate (bot go nie używa,
 rzucasz go sam, gdy Immolate jest na celu). Pisanie w polach importu i eksportu nie uruchamia
 skrótów klawiszowych.
 
@@ -358,8 +365,9 @@ regułami przedmiotów, długość walki, odległość) wiele razy botem i pokaz
   Infusion i inne bonusy setów z presetów (lista w `docs/data-sources.md`, „Part E: gear”)
 - ekwipunek: przedmioty, klejnoty, bonusy za gniazda, enchanty, meta gem (z wymaganiem kolorów),
   bonusy setów z bazy wowsims (część niezamodelowana, oznaczona w panelu Gear)
-- talenty (Bane, Cataclysm, Devastation, Ruin, Emberstorm, Shadow and Flame, Demonic Sacrifice,
-  Backlash i inne; pełna lista w `docs/data-sources.md`)
+- talenty z panelu Talents: 24 zamodelowane (m.in. Bane, Cataclysm, Devastation, Ruin, Emberstorm,
+  Shadow and Flame, Demonic Sacrifice, Suppression, Improved Corruption, Shadow Mastery; tabela w
+  `docs/data-sources.md`, „Part I: talents”)
 - czas lotu Shadow Bolta i Incinerate (od odległości od celu); pocisk, który nie doleci przed
   końcem walki, się nie liczy
 - buffy, debuffy celu, consumables, Heroism i efekty noszonych przedmiotów (procki na cast, hit
@@ -377,7 +385,10 @@ modeluje zdrowia), bonus Incinerate przy Immolate, redukcja odporności z Curse 
 efekty przedmiotów z listy „Not modelled effects of your gear” (obrażenia, leczenie, mana, stacki,
 procki PPM i na tick DoT) oraz
 część bonusów setów (np. Corruptor Raiment, Wrath of Spellfire; panel Gear wypisuje te, które nosisz). Nie ma też
-sprawdzania zasięgu: Shadowburn działa z 28 yd. Domyślne założenia, zmienialne w Warlock options:
+sprawdzania zasięgu: Shadowburn działa z 28 yd. Talenty: 40 z 64 nie jest zamodelowanych (pet,
+czary spoza modelu jak Unstable Affliction czy Shadowfury, Nightfall; panel Talents podaje powód),
+a bot nie rzuca Conflagrate, więc buildy z takimi talentami (Affliction, Demonology) i z
+Conflagrate wychodzą niżej niż w grze. Domyślne założenia, zmienialne w Warlock options:
 poświęcony Succubus (+15% shadow) i Fel Armor (+130 spell power) przez całą walkę. Pełna lista:
 sekcja „What the DPS excludes” w `docs/data-sources.md`.
 
@@ -396,6 +407,9 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 - Etap 2a (gear): specyfikacja `docs/superpowers/specs/2026-10-30-gear-stage-2a-design.md`, plan
   `docs/superpowers/plans/2026-10-30-gear-stage-2a.md`; źródła, filtry, presety, import i
   uproszczenia: `docs/data-sources.md`, „Part E: gear”
+- Etap 2b (talenty): specyfikacja `docs/superpowers/specs/2026-11-03-talents-stage-2b-design.md`,
+  plan `docs/superpowers/plans/2026-11-03-talents-stage-2b.md`; tabela efektów talentów, powody
+  niezamodelowanych, presety i uproszczenia: `docs/data-sources.md`, „Part I: talents”
 - Źródło każdej liczby (wowsims, Wowhead), założenia i otwarte pytania: `docs/data-sources.md`
 - Decyzje projektowe (kolejka czarów): `docs/decisions/`
 

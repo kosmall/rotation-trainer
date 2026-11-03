@@ -255,7 +255,8 @@ const CURSE_STEPS: Record<Exclude<CurseChoice, 'none'>, { spellId: string; auraI
  * The order and rules come from tbc-new destruction.apl.json (assigned curse, Shadowburn as a
  * finisher, Immolate, Shadow Bolt, Life Tap when nothing else can be cast) plus Corruption from
  * old wowsims/tbc sim/warlock/rotations.go (`Rotation.Corruption && !CorruptionDot.IsActive()`,
- * before the main spell). Conflagrate is not listed: the author's build has no Conflagrate talent.
+ * before the main spell). Conflagrate is not listed (the bot never casts it): the author's build has
+ * no Conflagrate talent; a build with it gets the spell on bar slot 8 for the player (stage 2b).
  * `dotExtraTicks` (per spell id, `dotExtraTicksForSpec` of the fight's spec): the Immolate and
  * Corruption refresh rules count the DoT's extended duration (the fight must outlast cast time +
  * DoT); absent or empty, the list is the one without it, rule for rule.
