@@ -12,11 +12,19 @@ import { SPELL_QUEUE_WINDOW_MS } from '../data/common/ratings';
 import type { ItemDb } from '../data/items/types';
 import { gearNeedsDb } from '../setup/gear';
 import type { SetupConfig } from '../setup/types';
-import { runSimulation, type SimRunner } from '../sim-runner/client';
-import { SIM_LIMITS } from '../sim-runner/run';
+import type { SimRunner } from '../sim-runner/client';
+import { SIM_LIMITS } from '../sim-runner/limits';
 import type { SimRequest, SimResult } from '../sim-runner/types';
 import { formatDps, formatInt } from './format';
 import type { GearDbStatus } from './GearPanel';
+
+/**
+ * The default runner: `runSimulation` (a worker, or the main thread), loaded on the first Run so the
+ * simulator client and core stay out of the main chunk (a chunk that fails to load rejects: the
+ * panel shows the error and keeps the previous result).
+ */
+export const lazyRunSimulation: SimRunner = (request, options) =>
+  import('../sim-runner/client').then((m) => m.runSimulation(request, options));
 
 /** Runs offered at first (spec §2 B). */
 export const DEFAULT_RUNS = 1000;
@@ -161,7 +169,7 @@ export interface SimulatorPanelProps {
   presetName: string;
   /** The spell queue window of the fights (default: the game's, 400 ms). */
   spellQueueWindowMs?: number;
-  /** Runs the simulation (default `runSimulation`: a worker, or the main thread). Tests inject one. */
+  /** Runs the simulation (default `lazyRunSimulation`: a worker, or the main thread). Tests inject one. */
   runner?: SimRunner;
 }
 
@@ -185,7 +193,7 @@ export const SimulatorPanel = memo(function SimulatorPanel({
   gearName,
   presetName,
   spellQueueWindowMs = SPELL_QUEUE_WINDOW_MS,
-  runner = runSimulation,
+  runner = lazyRunSimulation,
 }: SimulatorPanelProps) {
   const id = useId();
   const [open, setOpen] = useState(false);

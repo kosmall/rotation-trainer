@@ -8,6 +8,7 @@ import { SETUP_STORAGE_KEY, type SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { formatDps } from '../../src/ui/format';
 import { GameView } from '../../src/ui/GameView';
+import panelSource from '../../src/ui/SimulatorPanel.tsx?raw';
 
 // The Simulator panel (simulator Task 3). jsdom has no Worker, so the default runner runs on the
 // main thread in chunks yielding with setTimeout(0): the fake timers must be advanced. A test that
@@ -354,5 +355,17 @@ describe('Simulator panel', () => {
     await runWith('5', '1');
     expect(calls[0]!.request.setup.rotation.itemUse).toEqual({ 'destruction-potion': { trigger: { kind: 'at', sec: 30 } } });
     expect(within(resultRegion()!).getByRole('list', { name: 'Result settings' }).textContent).toContain('Item rules: customised');
+  });
+
+  it('the default runner is loaded on the first Run (the client and core are not in the main chunk) and gives simulate()\'s result', async () => {
+    // Only type imports of the client and the core; the runner is a dynamic import().
+    expect(panelSource).not.toMatch(/^import (?!type )[^;]*'\.\.\/sim-runner\/(client|run|stats)'/m);
+    expect(panelSource).toContain("import('../sim-runner/client')");
+    render(<GameView storage={null} />);
+    openSimulator();
+    await runWith('20', '77');
+    const expected = await simulate({ setup: DEFAULT_SETUP, runs: 20, seed: 77, spellQueueWindowMs: 400 }, NO_YIELD);
+    expect(stat('Mean DPS')).toBe(formatDps(expected.meanDps));
+    expect(stat('Standard deviation (σ)')).toBe(formatDps(expected.stdDev));
   });
 });

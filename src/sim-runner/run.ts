@@ -15,14 +15,11 @@ import { normalizeSetup, SETUP_CATALOG, STATIC_SETUP_CATALOG } from '../setup/de
 import { gearNeedsDb } from '../setup/gear';
 import type { SetupConfig } from '../setup/types';
 import { createFightSimulation, type FightSettings } from './fight';
+import { SIM_LIMITS } from './limits';
 import { Aggregator } from './stats';
 import type { RunSample, SimOptions, SimRequest, SimResult, SpellTotals } from './types';
 
-/** Accepted ranges of the request's numbers (rounded, then clamped into them). */
-export const SIM_LIMITS = Object.freeze({
-  runs: Object.freeze({ min: 1, max: 100_000 }),
-  spellQueueWindowMs: Object.freeze({ min: 0, max: 1000 }),
-});
+export { SIM_LIMITS };
 
 /** Runs per chunk between yields to the event loop, unless `SimOptions.chunk` says otherwise. */
 export const DEFAULT_CHUNK = 50;
