@@ -1,0 +1,66 @@
+{
+  "$schema": "../scenario.schema.json",
+  "format": "rotation-trainer.scenario",
+  "version": 1,
+  "name": "Potion only in Heroism, Shadowburn kept for the end",
+  "description": "Destruction Potion only while Heroism is up (Heroism at 20 s); Shadowburn only in the last 5 seconds of the fight. Written from docs/scenario-format.md alone as a self-check of the document.",
+  "author": "rotation-trainer examples",
+  "createdAt": "2026-11-03T00:00:00.000Z",
+  "simulation": {
+    "runs": 1000,
+    "seed": 1
+  },
+  "setup": {
+    "enabledBuffs": [
+      "heroism",
+      "destruction-potion"
+    ],
+    "timed": {
+      "heroism": {
+        "startSec": 20,
+        "durationSec": 40
+      }
+    },
+    "fightDurationSec": 90
+  },
+  "script": {
+    "rules": [
+      {
+        "action": "use",
+        "id": "destruction-potion",
+        "if": "heroism.active",
+        "label": "Potion in Heroism"
+      },
+      {
+        "action": "cast",
+        "id": "curse-of-the-elements",
+        "if": "!target.aura.curse-of-the-elements.active"
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "fight.last(5)",
+        "label": "Shadowburn in the last 5 s"
+      },
+      {
+        "action": "cast",
+        "id": "immolate",
+        "if": "dotRefreshDue(immolate)"
+      },
+      {
+        "action": "cast",
+        "id": "corruption",
+        "if": "dotRefreshDue(corruption)"
+      },
+      {
+        "action": "cast",
+        "id": "life-tap",
+        "if": "mana < manaCost(shadow-bolt)"
+      },
+      {
+        "action": "cast",
+        "id": "shadow-bolt"
+      }
+    ]
+  }
+}

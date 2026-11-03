@@ -1,0 +1,65 @@
+{
+  "$schema": "../scenario.schema.json",
+  "format": "rotation-trainer.scenario",
+  "version": 1,
+  "name": "Shadowburn on cooldown, held for the finish",
+  "description": "Shadowburn whenever ready until the last 20 s (its 15 s cooldown comes back for the finisher); near the end, wait instead of starting a Shadow Bolt when Shadowburn is back within a second. A wait-rule example, not an improvement: on the default setup it loses DPS against the basic rotation (Shadowburn spends Improved Shadow Bolt charges); compare both with scenario:run.",
+  "author": "rotation-trainer examples",
+  "createdAt": "2026-11-03T00:00:00.000Z",
+  "simulation": {
+    "runs": 1000,
+    "seed": 1
+  },
+  "script": {
+    "rules": [
+      {
+        "action": "cast",
+        "id": "curse-of-the-elements",
+        "if": "!target.aura.curse-of-the-elements.active",
+        "label": "Curse of the Elements"
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "time.remaining <= finisherWindow()",
+        "label": "Shadowburn (finisher)",
+        "comment": "A Shadow Bolt started now would land after the end: finish with instant Shadowburn."
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "time.remaining >= 20",
+        "label": "Shadowburn on cooldown"
+      },
+      {
+        "action": "wait",
+        "if": "time.remaining <= 4 && !cd.shadowburn.ready && cd.shadowburn.remaining <= 1",
+        "label": "Hold for Shadowburn",
+        "comment": "Press nothing: Shadowburn is back within 1 s and a Shadow Bolt would not land in time."
+      },
+      {
+        "action": "cast",
+        "id": "immolate",
+        "if": "dotRefreshDue(immolate)",
+        "label": "Immolate"
+      },
+      {
+        "action": "cast",
+        "id": "corruption",
+        "if": "dotRefreshDue(corruption)",
+        "label": "Corruption"
+      },
+      {
+        "action": "cast",
+        "id": "life-tap",
+        "if": "mana < manaCost(shadow-bolt)",
+        "label": "Life Tap"
+      },
+      {
+        "action": "cast",
+        "id": "shadow-bolt",
+        "label": "Shadow Bolt"
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "../scenario.schema.json",
+  "format": "rotation-trainer.scenario",
+  "version": 1,
+  "name": "Conflagrate-aware Destruction",
+  "description": "A build with Conflagrate (the wowsims Destro/Nightfall preset): Conflagrate consumes an Immolate that is about to run out, then Immolate goes straight back up.",
+  "author": "rotation-trainer examples",
+  "createdAt": "2026-11-03T00:00:00.000Z",
+  "simulation": {
+    "runs": 1000,
+    "seed": 1
+  },
+  "setup": {
+    "talents": "150222201023000000000-0000000000000000000000-505020510200510531051"
+  },
+  "script": {
+    "rules": [
+      {
+        "action": "cast",
+        "id": "curse-of-the-elements",
+        "if": "!target.aura.curse-of-the-elements.active",
+        "label": "Curse of the Elements"
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "time.remaining <= finisherWindow()",
+        "label": "Shadowburn (finisher)",
+        "comment": "A Shadow Bolt started now would land after the end: finish with instant Shadowburn."
+      },
+      {
+        "action": "cast",
+        "id": "conflagrate",
+        "if": "target.aura.immolate.active && target.aura.immolate.remaining <= 3",
+        "label": "Conflagrate",
+        "comment": "Consumes Immolate: only when its last ticks are left."
+      },
+      {
+        "action": "cast",
+        "id": "immolate",
+        "if": "dotRefreshDue(immolate)",
+        "label": "Immolate"
+      },
+      {
+        "action": "cast",
+        "id": "corruption",
+        "if": "dotRefreshDue(corruption)",
+        "label": "Corruption"
+      },
+      {
+        "action": "cast",
+        "id": "life-tap",
+        "if": "mana < manaCost(shadow-bolt)",
+        "label": "Life Tap"
+      },
+      {
+        "action": "cast",
+        "id": "shadow-bolt",
+        "label": "Shadow Bolt"
+      }
+    ]
+  }
+}

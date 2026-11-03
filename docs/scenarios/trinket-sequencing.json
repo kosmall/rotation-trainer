@@ -1,0 +1,177 @@
+{
+  "$schema": "../scenario.schema.json",
+  "format": "rotation-trainer.scenario",
+  "version": 1,
+  "name": "Pipe, then Icon (trinket sequencing)",
+  "description": "Use trinket 1 (Dark Iron Smoking Pipe) only when Heroism and Improved Shadow Bolt are both up, then trinket 2 (Icon of the Silver Crescent) once the Pipe has been used. The rest is the basic DoT rotation.",
+  "author": "rotation-trainer examples",
+  "createdAt": "2026-11-03T00:00:00.000Z",
+  "simulation": {
+    "runs": 1000,
+    "seed": 1
+  },
+  "setup": {
+    "gear": [
+      {
+        "id": 31051,
+        "enchant": 3002,
+        "gems": [
+          34220,
+          32218
+        ]
+      },
+      {
+        "id": 32349,
+        "gems": []
+      },
+      {
+        "id": 31054,
+        "enchant": 2995,
+        "gems": [
+          32215,
+          32218
+        ]
+      },
+      {
+        "id": 32590,
+        "enchant": 2621,
+        "gems": []
+      },
+      {
+        "id": 30913,
+        "enchant": 2661,
+        "gems": []
+      },
+      {
+        "id": 32586,
+        "enchant": 2650,
+        "gems": []
+      },
+      {
+        "id": 31050,
+        "enchant": 2937,
+        "gems": [
+          32196
+        ]
+      },
+      {
+        "id": 30038,
+        "gems": [
+          24056,
+          32207
+        ]
+      },
+      {
+        "id": 31053,
+        "enchant": 2748,
+        "gems": [
+          28123
+        ]
+      },
+      {
+        "id": 28517,
+        "enchant": 2649,
+        "gems": [
+          28118,
+          33133
+        ]
+      },
+      {
+        "id": 29305,
+        "enchant": 2928,
+        "gems": []
+      },
+      {
+        "id": 32247,
+        "enchant": 2928,
+        "gems": []
+      },
+      {
+        "id": 281735,
+        "gems": []
+      },
+      {
+        "id": 29370,
+        "gems": []
+      },
+      {
+        "id": 32237,
+        "enchant": 2669,
+        "gems": []
+      },
+      {
+        "id": 33334,
+        "gems": []
+      },
+      {
+        "id": 29982,
+        "gems": []
+      }
+    ],
+    "enabledBuffs": [
+      "heroism"
+    ],
+    "timed": {
+      "heroism": {
+        "startSec": 10,
+        "durationSec": 40
+      }
+    },
+    "fightDurationSec": 90
+  },
+  "script": {
+    "rules": [
+      {
+        "action": "use",
+        "id": "item:281735",
+        "if": "heroism.active && target.aura.shadow-vulnerability.active",
+        "label": "Pipe in the burst",
+        "comment": "Trinket 1: only with Heroism and Improved Shadow Bolt (shadow-vulnerability) on the target."
+      },
+      {
+        "action": "use",
+        "id": "item:29370",
+        "if": "use.item:281735.count >= 1",
+        "label": "Icon after the Pipe",
+        "comment": "Trinket 2: once the Pipe has been used (the shared 20 s trinket cooldown delays it anyway)."
+      },
+      {
+        "action": "cast",
+        "id": "curse-of-the-elements",
+        "if": "!target.aura.curse-of-the-elements.active",
+        "label": "Curse of the Elements"
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "time.remaining <= finisherWindow()",
+        "label": "Shadowburn (finisher)",
+        "comment": "A Shadow Bolt started now would land after the end: finish with instant Shadowburn."
+      },
+      {
+        "action": "cast",
+        "id": "immolate",
+        "if": "dotRefreshDue(immolate)",
+        "label": "Immolate"
+      },
+      {
+        "action": "cast",
+        "id": "corruption",
+        "if": "dotRefreshDue(corruption)",
+        "label": "Corruption"
+      },
+      {
+        "action": "cast",
+        "id": "life-tap",
+        "if": "mana < manaCost(shadow-bolt)",
+        "label": "Life Tap"
+      },
+      {
+        "action": "cast",
+        "id": "shadow-bolt",
+        "label": "Shadow Bolt"
+      }
+    ]
+  },
+  "notes": "Both trinkets are worn but not enabled in setup.enabledBuffs: a script may use any worn on-use item (enabledBuffs only switches the basic rotation's automatic use)."
+}

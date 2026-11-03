@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kosmall/rotation-trainer/main/docs/scenario.schema.json",
+  "title": "Rotation trainer scenario (version 1)",
+  "description": "The structure of a rotation-trainer scenario file (docs/scenario-format.md). The condition strings (`if`, `defs`) and the ids are NOT checked by this schema: run `npm run scenario:validate -- <file>` for that. This schema is stricter than the app: the app ignores unknown fields with a warning and replaces out-of-range setup values with a warning.",
+  "type": "object",
+  "required": ["format", "version", "name", "script"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string", "maxLength": 500 },
+    "format": { "const": "rotation-trainer.scenario" },
+    "version": { "const": 1 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100, "pattern": "\\S" },
+    "description": { "type": "string", "maxLength": 2000 },
+    "author": { "type": "string", "maxLength": 100 },
+    "createdAt": { "type": "string", "maxLength": 64, "description": "ISO 8601 date and time." },
+    "updatedAt": { "type": "string", "maxLength": 64, "description": "ISO 8601 date and time." },
+    "simulation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runs": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+      }
+    },
+    "setup": { "$ref": "#/$defs/setup" },
+    "script": { "$ref": "#/$defs/script" },
+    "notes": { "type": "string", "maxLength": 10000 }
+  },
+  "$defs": {
+    "script": {
+      "type": "object",
+      "required": ["rules"],
+      "additionalProperties": false,
+      "properties": {
+        "rules": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/rule" } },
+        "defs": {
+          "type": "object",
+          "maxProperties": 50,
+          "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$" },
+          "additionalProperties": { "type": "string", "maxLength": 500, "description": "A condition, used as $name." }
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": ["action"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "enum": ["cast", "use", "wait"] },
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "description": "cast: a spell id; use: an item id such as item:29370 or destruction-potion." },
+        "if": { "type": "string", "maxLength": 500, "description": "A condition (docs/scenario-format.md section 3); absent or blank: always." },
+        "label": { "type": "string", "maxLength": 100 },
+        "comment": { "type": "string", "maxLength": 1000 },
+        "enabled": { "type": "boolean" }
+      },
+      "allOf": [
+        { "if": { "properties": { "action": { "const": "wait" } } }, "then": { "required": ["if"], "properties": { "if": { "pattern": "\\S" } } } },
+        { "if": { "properties": { "action": { "enum": ["cast", "use"] } } }, "then": { "required": ["id"] } }
+      ]
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": { "const": 1, "description": "Ignored." },
+        "talents": { "type": "string", "maxLength": 200, "description": "A talent preset id (destro-nightfall) or a talent string." },
+        "gear": {
+          "type": "array",
+          "minItems": 17,
+          "maxItems": 17,
+          "items": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/gearEntry" }] }
+        },
+        "gearPresetId": { "type": "string", "pattern": "^[a-z0-9-]{1,64}$" },
+        "enabledBuffs": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 128 } },
+        "timed": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "startSec": { "type": "number", "minimum": 0, "maximum": 600 },
+              "durationSec": { "type": "number", "minimum": 1, "maximum": 600 }
+            }
+          }
+        },
+        "distanceYd": { "type": "number", "minimum": 0, "maximum": 100 },
+        "fightDurationSec": { "type": "integer", "minimum": 10, "maximum": 600 },
+        "warlock": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "armor": { "enum": ["fel", "demon", "none"] },
+            "sacrificeSuccubus": { "type": "boolean" }
+          }
+        },
+        "rotation": {
+          "type": "object",
+          "description": "The basic rotation's settings (inactive while the scenario's script plays).",
+          "additionalProperties": false,
+          "properties": {
+            "curse": { "enum": ["elements", "agony", "doom", "none"] },
+            "immolate": { "type": "boolean" },
+            "corruption": { "type": "boolean" },
+            "shadowburnFinisher": { "type": "boolean" },
+            "lifeTapBelowMana": { "anyOf": [{ "const": "auto" }, { "type": "number", "minimum": 0, "maximum": 100000 }] },
+            "itemUse": { "type": "object" },
+            "itemUseOrder": { "type": "array", "maxItems": 32, "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "gearEntry": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "enchant": { "type": "integer", "minimum": 1 },
+        "gems": { "type": "array", "maxItems": 3, "items": { "type": "integer", "minimum": 0 } }
+      }
+    }
+  }
+}

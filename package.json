@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit",
     "icons": "tsx scripts/fetch-icons.mjs",
     "db:build": "node scripts/build-item-db.mjs",
-    "talents:build": "node scripts/build-talent-tree.mjs"
+    "talents:build": "node scripts/build-talent-tree.mjs",
+    "scenario:validate": "tsx scripts/scenario-validate.ts",
+    "scenario:run": "tsx scripts/scenario-run.ts",
+    "scenario:ids": "tsx scripts/scenario-ids.ts"
   },
   "dependencies": {
     "react": "19.3.1",

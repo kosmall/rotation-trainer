@@ -1,0 +1,81 @@
+{
+  "$schema": "../scenario.schema.json",
+  "format": "rotation-trainer.scenario",
+  "version": 1,
+  "name": "Potion and Icon in the Heroism window",
+  "description": "Heroism at 15 s: Destruction Potion as soon as Heroism is up, the Icon while the potion buff is up, so all three stack.",
+  "author": "rotation-trainer examples",
+  "createdAt": "2026-11-03T00:00:00.000Z",
+  "simulation": {
+    "runs": 1000,
+    "seed": 1
+  },
+  "setup": {
+    "enabledBuffs": [
+      "heroism",
+      "destruction-potion"
+    ],
+    "timed": {
+      "heroism": {
+        "startSec": 15,
+        "durationSec": 40
+      }
+    },
+    "fightDurationSec": 120
+  },
+  "script": {
+    "rules": [
+      {
+        "action": "use",
+        "id": "destruction-potion",
+        "if": "$burst",
+        "label": "Destruction Potion"
+      },
+      {
+        "action": "use",
+        "id": "item:29370",
+        "if": "self.aura.destruction-potion.active",
+        "label": "Icon with the potion"
+      },
+      {
+        "action": "cast",
+        "id": "curse-of-the-elements",
+        "if": "!target.aura.curse-of-the-elements.active",
+        "label": "Curse of the Elements"
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "time.remaining <= finisherWindow()",
+        "label": "Shadowburn (finisher)",
+        "comment": "A Shadow Bolt started now would land after the end: finish with instant Shadowburn."
+      },
+      {
+        "action": "cast",
+        "id": "immolate",
+        "if": "dotRefreshDue(immolate)",
+        "label": "Immolate"
+      },
+      {
+        "action": "cast",
+        "id": "corruption",
+        "if": "dotRefreshDue(corruption)",
+        "label": "Corruption"
+      },
+      {
+        "action": "cast",
+        "id": "life-tap",
+        "if": "mana < manaCost(shadow-bolt)",
+        "label": "Life Tap"
+      },
+      {
+        "action": "cast",
+        "id": "shadow-bolt",
+        "label": "Shadow Bolt"
+      }
+    ],
+    "defs": {
+      "burst": "heroism.active"
+    }
+  }
+}

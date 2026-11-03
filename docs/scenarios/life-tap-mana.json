@@ -1,0 +1,73 @@
+{
+  "$schema": "../scenario.schema.json",
+  "format": "rotation-trainer.scenario",
+  "version": 1,
+  "name": "Mana: potions, rune and early Life Taps",
+  "description": "A 3 minute fight: Super Mana Potion at 3000 missing mana, Dark Rune once the potion is on cooldown, and Life Tap a bit early when mana drops under 15% (rather than only when Shadow Bolt is unaffordable).",
+  "author": "rotation-trainer examples",
+  "createdAt": "2026-11-03T00:00:00.000Z",
+  "simulation": {
+    "runs": 500,
+    "seed": 1
+  },
+  "setup": {
+    "enabledBuffs": [
+      "super-mana-potion",
+      "dark-rune"
+    ],
+    "fightDurationSec": 180
+  },
+  "script": {
+    "rules": [
+      {
+        "action": "use",
+        "id": "super-mana-potion",
+        "if": "mana.missing >= 3000",
+        "label": "Super Mana Potion"
+      },
+      {
+        "action": "use",
+        "id": "dark-rune",
+        "if": "mana.missing >= 1500 && !cd.super-mana-potion.ready",
+        "label": "Dark Rune after the potion"
+      },
+      {
+        "action": "cast",
+        "id": "curse-of-the-elements",
+        "if": "!target.aura.curse-of-the-elements.active",
+        "label": "Curse of the Elements"
+      },
+      {
+        "action": "cast",
+        "id": "shadowburn",
+        "if": "time.remaining <= finisherWindow()",
+        "label": "Shadowburn (finisher)",
+        "comment": "A Shadow Bolt started now would land after the end: finish with instant Shadowburn."
+      },
+      {
+        "action": "cast",
+        "id": "immolate",
+        "if": "dotRefreshDue(immolate)",
+        "label": "Immolate"
+      },
+      {
+        "action": "cast",
+        "id": "corruption",
+        "if": "dotRefreshDue(corruption)",
+        "label": "Corruption"
+      },
+      {
+        "action": "cast",
+        "id": "life-tap",
+        "if": "mana < manaCost(shadow-bolt) || (mana.pct < 15 && time.remaining > 10)",
+        "label": "Life Tap",
+        "comment": "Early under 15% mana, except in the last 10 s."
+      },
+      {
+        "action": "cast",
+        "id": "shadow-bolt",
+        "label": "Shadow Bolt"
+      }
+    ]
+  }
+}
