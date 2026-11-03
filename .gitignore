@@ -6,3 +6,4 @@ coverage
 
 # ralph-loop plugin state
 .claude/ralph-loop.local.md
+.claude/worktrees/
