@@ -1468,7 +1468,7 @@ Plan `docs/superpowers/plans/2026-11-03-rotation-scripts-and-scenarios.md`, spec
 
 ### Scripts and rules
 
-A script is `{ rules: ScriptRule[]; defs?: Record<string, string> }`; a rule is `{ action: 'cast' | 'use' | 'wait'; id?; if?; label?; comment?; enabled? }`. `cast` takes a spell id (`shadow-bolt`), `use` an item catalog entry id (`item:29370`, `destruction-potion`; the action spell id `use-item-29370` is accepted too), `wait` takes no id and needs an `if`. An absent or blank `if` means always. `enabled: false` keeps the rule but skips it. Defs are named expressions used as `$name` (no cycles). How rules become bot steps is Task 2.
+A script is `{ rules: ScriptRule[]; defs?: Record<string, string> }`; a rule is `{ action: 'cast' | 'use' | 'wait'; id?; if?; label?; comment?; enabled? }`. `cast` takes a spell id (`shadow-bolt`), `use` an item catalog entry id (`item:29370`, `destruction-potion`; the action spell id `use-item-29370` is accepted too), `wait` takes no id and needs an `if`. An absent or blank `if` means always. `enabled: false` keeps the rule but skips it. Defs are named expressions used as `$name` (no cycles). How rules become bot steps: "Compiler" below (Task 2).
 
 ### Grammar (EBNF)
 
@@ -1480,8 +1480,8 @@ cmp        = unary [ cmpop unary ] ;            (* not chainable: a < b < c is a
 cmpop      = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
 unary      = "!" unary | primary ;
 primary    = number | string | "true" | "false" | defref | call | path | "(" expr ")" ;
-call       = path "(" [ arg { "," arg } ] ")" ;  (* fight.last(N), has(id) *)
-arg        = expr ;                             (* has: a bare path followed by "," or ")" is a string *)
+call       = path "(" [ arg { "," arg } ] ")" ;  (* fight.last(N), has(id), dotRefreshDue(id), finisherWindow(), manaCost(id), minGap(id, N) *)
+arg        = expr ;                             (* first argument of has, dotRefreshDue, manaCost, minGap: a bare path followed by "," or ")" is a string *)
 defref     = "$" defname ;
 defname    = ( letter | "_" ) { letter | digit | "_" | "-" } ;
 path       = letter { segchar } { "." segchar { segchar } } ;
@@ -1495,7 +1495,7 @@ string     = "'" { any char but "'" or "\" | "\'" | "\\" } "'" ;
 - Ids contain letters, digits, `-`, `:` (and `_`) but never `.`, so the dots of a path only separate segments and the variable is decided by its first segment and segment count: `self.aura.item-buff:35163:29370.active` is `self` / `aura` / the id / the field. A path starts with a letter (an id starting with a digit can be used in a later segment, or quoted in `has('...')`).
 - `true` / `false` are paths read as booleans (except as a bare `has(...)` argument, which is always an id string).
 - Whitespace (space, tab, newline, return) is free. Any other character, including non-ASCII letters, is an error.
-- Canonical form (`printExpr`): single spaces around binary operators, parentheses only where the structure needs them (an `&&` inside an `&&` keeps its parentheses, so the n-ary nesting survives), numbers in plain decimal (JavaScript's shortest digits, exponent expanded), strings in single quotes with `\'` and `\\`, `has` ids bare when they read as a path. `parseExpr(printExpr(x))` deep-equals `x` (200 random ASTs in the tests); positions are kept outside the AST (`positionOf`).
+- Canonical form (`printExpr`): single spaces around binary operators, parentheses only where the structure needs them (an `&&` inside an `&&` keeps its parentheses, so the n-ary nesting survives), numbers in plain decimal (JavaScript's shortest digits, exponent expanded), strings in single quotes with `\'` and `\\`, the id (first argument) of `has`, `dotRefreshDue`, `manaCost` and `minGap` bare when it reads as a path (`ID_ARG_FUNCTIONS`). `parseExpr(printExpr(x))` deep-equals `x` (200 random ASTs in the tests); positions are kept outside the AST (`positionOf`).
 - Limits: an expression is at most **500** characters; the AST is at most **20** deep (a leaf is 1, each `!`, comparison, `&&`/`||` chain or call adds 1) and parentheses, `!` and call arguments nest at most 20 levels (so recursion is bounded and hostile input cannot overflow the stack); scripts have at most **200** rules and **50** defs; labels 100 and comments 1000 characters. The lexer is one linear pass with no regular expression run over the input; 34 hostile inputs of about 10 000 characters, with the length limit lifted, parse (or fail) in tens of ms in total (the test bound is 1 s); with the limit they fail at once.
 
 ### Types
@@ -1529,6 +1529,10 @@ Three types: true/false, number, string. Nothing is coerced: `&&`, `||` and `!` 
 | `heroism.over` | true/false | `heroismEndMs === null \|\| nowMs >= heroismEndMs` |
 | `fight.last(N)` | true/false | `durationMs - nowMs <= N * 1000` (the item-use rule `fight-end`) |
 | `has(id)` | true/false | the spell or item action (entry or action id) is in this build and gear: a constant of the fight |
+| `dotRefreshDue(id)` | true/false | the basic rotation's DoT refresh rule (Task 2, "Built-in functions" below) |
+| `finisherWindow()` | number | the basic rotation's Shadowburn finisher window, seconds |
+| `manaCost(id)` | number | the spell's mana cost after the talents (no auras) |
+| `minGap(id, N)` | true/false | at least N s since the item action's last use, as the item-use rules estimate it |
 
 - `cd.<id>` takes a spell id, an item entry id or an item action id (an entry id reads its action's cooldown). `cast.<id>` counts spells only; item uses are in `use.<id>`.
 - `heroism.over` reproduces itemRules.ts / itemUse.ts exactly: the `with-heroism` item rule is `heroism.active || heroism.over`. `heroismEndMs` is applySetup's: the scheduled start + duration of the enabled Heroism, or null when it is disabled or starts at or after the fight's end ("not scheduled": then `heroism.over` is always true).
@@ -1544,8 +1548,83 @@ Three types: true/false, number, string. Nothing is coerced: `&&`, `||` and `!` 
 `validateScript(script, ctx)` returns `{ errors, warnings }` of `{ path, message, pos?, suggestion? }` and never throws (a script that cannot be read is one error with path `''`). Paths: `rules[2].if`, `rules[0].id`, `defs.burst`, `rules`, `defs`. Expression issues carry `pos` (0-based offset in that text) and start with `column N: ` (N = pos + 1), e.g. `rules[2].if` / `column 15: expected ')' but found end of input`. Suggestions are the closest known name (Levenshtein distance at most max(2, a third of the length); names over 100 characters get none). At most 200 issues of each kind.
 
 - **Errors** (the script is invalid): not an object; `rules` not an array; over 200 rules / 50 defs; a bad def name or text; a def cycle (`definition cycle: $a -> $b -> $a`, once, at its first def); an unknown `$name`; syntax errors; length and depth limits; unknown variables (`unknown variable 'mana.pt'`, suggestion `mana.pct`) and fields (`unknown field 'remainig' of target.aura.<id> (...)`); unknown functions; wrong argument types; type errors; an `if` that is not true/false; an unknown action; a `cast` / `use` rule without id; a `wait` rule without `if`; a field of the wrong type; a label or comment too long.
-- **Warnings** (the script stays valid; Task 2 drops the rule or the part reads false / 0): an id not in the context (`unknown spell 'shadow-blot'`, `unknown aura '...'`, `item 'item:29371' is not in this setup (not worn or not enabled)`, each with the closest id), a `cast` of an item action, `has()` of an absent id, a `casting == '...'` literal that is no spell, an unknown rule field (ignored).
+- **Warnings** (the script stays valid; the compiler leaves the rule out, see "Compiler" below; only `has()` of an absent id keeps it): an id not in the context (`unknown spell 'shadow-blot'`, `unknown aura '...'`, `item 'item:29371' is not in this setup (not worn or not enabled)`, each with the closest id), a `cast` of an item action, `has()` of an absent id, a `casting == '...'` literal that is no spell, an unknown rule field (ignored).
 
 ### Engine: read-only counters
 
 `SimSnapshot.castCounts` (completed non-item casts per spell id) and `useCounts` (item action uses per action id) are counted at `cast-complete` in `completeCast`: a cancelled or cut-off cast never counts, a queued spell counts when it completes, a missile spell counts at cast end (like the simulator's cast totals), an item at its use. They are frozen objects replaced by a new frozen copy at each completion (copy-on-write), so a snapshot costs one field read each. Nothing else changes: the 23 bot-equivalence scenarios (logs, RNG draws, means, golden values 1425.1766666666667 / 1428.3350000000003) pass unchanged, and the default 60 s run stays about 0.9-1.0 ms per run in the development container before and after (3 x 3000 runs each). Whole-snapshot literals in four tests gained the two empty fields (tests/engine/sim-core.test.ts, tests/ui/hud-model.test.ts, tests/data/item-use.test.ts, tests/fixtures/item-use-reference.ts).
+
+### Built-in functions (Task 2)
+
+The basic configurator's rules depend on numbers the setup derives (the talents' cast times and costs, the gear's extra DoT ticks, the distance). A text with those numbers folded in would be exact for one setup but go stale when the distance, talents or gear change, and the DoT rule needs a sum (cast time + DoT duration) the language cannot write. So four small functions run the very code of the basic rules; `applySetup` puts their inputs into the context (`ScriptContext.rotation` = rotation.ts `rotationScriptFacts(distanceYd, dotExtraTicks, talents)`, the same arguments `buildPriority` gets; `itemActions[].cooldownMs` = the item-use rule's cooldown). Without those facts in a context (e.g. `scriptContextOf` with no `rotation`) the three rotation functions give a warning and read false / 0.
+
+| Function | Type | Exactly |
+|---|---|---|
+| `dotRefreshDue(id)` | true/false | rotation.ts `dotRefreshDue` for the DoT spell `id` (Immolate, Corruption, the ticking curses): `casting != id`, no missile of `id` in flight, the DoT's remaining time <= the spell's unhasted cast time after the talents (Immolate 1500 / Corruption 2000 ms with the author's talents), and remaining fight time >= that cast time + the DoT's duration with the gear's extra ticks (Voidheart 4pc). Built by the same function, with the same arguments, as the basic step's `when`. Unknown or not a DoT of this build: a warning, false. |
+| `finisherWindow()` | number | `shadowburnFinisherWindowMs(distance, talents) / 1000`: Shadow Bolt's unhasted cast time after the talents + its flight at the fight's distance (3.9 s with the author's talents at 28 yd, 2.5 at 0 yd, 4.4 with no talents). |
+| `manaCost(id)` | number | the spell's base cost x the talents' cost multipliers, no auras (Shadow Bolt 399 with Cataclysm 5/5, else 420): rotation.ts `talentManaCost`. Unknown or not in this build: a warning, 0. |
+| `minGap(id, N)` | true/false | itemUse.ts `minGapCheck`: true when N <= 0 or the item has no cooldown; else `cooldown - cooldown left >= min(N x 1000, cooldown)` (elapsed since the last use, a lower bound; a gap over the cooldown is capped at it). N may be any number expression (the same arithmetic per call). An item not in the setup: a warning, false. |
+
+`dotRefreshDue`, `manaCost` and `minGap` take the id as their first argument, bare or quoted (`dotRefreshDue(immolate)`, `minGap('item:29370', 30)`); only the first argument can be a bare id (`minGap(item:29370, mana.pct)` reads `mana.pct` as a variable).
+
+### Compiler (`compileScript`, src/script/compile.ts)
+
+`compileScript(script, ctx) -> { steps: PriorityStep[]; keys; warnings; errors }`, pure, never throws:
+
+- The script is validated (`validateScript`). Each of the first 200 rules becomes one step, in order, unless it is **left out**, each with a warning `rules[i]: rule left out: <why>`: a rule with an error (any issue at `rules[i]` or below), `enabled: false`, a warning in its `id` or `if` (an id this build/gear/fight does not have: spell, aura, item, a function's id, a function unavailable in the context; spec §2 A "the rule is inactive", so a typo never silently reads false / 0 inside a live rule), or a reference to a def that has an error or such a warning (directly or through other defs). The only warning that does not deactivate is `has()` of an absent id (testing for an absent id is what `has()` is for). A script with no cast or use step left gets the warning `rules: no cast or use rule is active: the bot has nothing to press`.
+- `cast` presses the spell `id`; `use` presses the item action of the entry id (or action id) and carries the **item queue gate** of every basic item step (itemUse.ts `itemPressFree`: no cast in progress, nothing queued, or the item itself queued), so an item press never takes a queued spell's place; `wait` (`kind: 'wait'`, `spellId: ''`) presses nothing.
+- `when` is the compiled `if` (closures over constants and the snapshot). A blank `if` means always: no `when` on a `cast` step, the gate alone on a `use` step (a `wait` must have an `if`).
+- `label`: the rule's label, else the spell's / item's name (`ScriptContext.names`: the spec's spell names, the catalog entry names), else the id; 'Wait' for a wait. `hint`: the rule's comment, else `If <condition>` / `Press nothing while <condition>` / `Always`. `key` / `keys`: `rules[i]` (stable while the rules keep their order; Task 4's rule statistics).
+- A press the engine rejects falls through to the next step, exactly as before.
+
+**Wait steps in the bot** (src/bot/bot.ts): walking the steps, a `wait` step whose `when` holds ends the walk with no press. In the `ready` phase it is passed over: the fight's clock starts with the first accepted press, so there is no time to wait in (a `wait if time.elapsed < 5` above the rotation does not hold the pull: the bot casts at 0, then waits until 5 s).
+
+**Step skipping stays exact with scripts.** The argument of "Bot step skipping: proof summary" (Part H) holds unchanged, and in particular for conditions that change with time alone (`time.elapsed`, `time.remaining`, `fight.last(N)`, `gcd.remaining`, `cd.<id>.remaining`, aura `remaining`): the bot skips from step t only to the first grid step at or after `nextPressOpportunityMs()`, computed after the walk at t. That bound depends only on the engine's state (cast end, GCD end, cooldowns), never on the priority, and no press of ANY spell or item can be accepted before it. At a skipped step the walk would evaluate its conditions (pure functions of the snapshot: no effect) and then either (a) reach a wait step (no press: no effect), (b) reach the queued spell's step (no press), (c) press something that is rejected (no effect, no log), or (d) find nothing wanted. Whichever step a time-dependent condition selects, the outcome is one of these four no-ops, so it does not matter that the conditions are not evaluated there; the next step that can change anything is at or after the bound, and the bot walks it. Conditions read only the snapshot (counters `castCounts` / `useCounts` included) and context constants; the compiler builds no state. Evidence: `tests/script/script-bot-equivalence.test.ts` plays 200 random valid scripts (1-8 random cast / use / wait rules, random conditions over every variable and function, defs, disabled rules, Heroism at 0-30 s, Pipe + Icon + potions + rune, 20-60 s fights, 0 / 28 / 40 yd, windows 0 / 400) with the skipping bot and with a bot walking every step (`fullSteppingBot`: the pre-performance-wave bot plus the wait rule), at 10 ms and, for every 8th script, 1 ms: full logs, RNG draws, results and final snapshots identical. Mutations caught: a bound one step late, and a wait rule that differs from the reference (both fail the test).
+
+### Setup integration (`SetupConfig.script`)
+
+- `SetupConfig.script?: Script`. Absent (every stored config, the default setup, the presets): the basic rotation, nothing changes (the 23 bot-equivalence scenarios and golden values pass unchanged). Present with at least one rule (`scriptIsActive`): `applySetup` compiles it against the fight's context and its steps are `spec.priority`; `rotation` (fields and item-use rules) stays in the config, inactive. A script with only defs is inactive.
+- The context (`AppliedSetup.script.context`): the spec's non-item spells (a talent spell only with its talent) and visible auras (the buffs' and gear's included), **every bound item action** by its catalog entry id (worn on-use gear whether enabled or not: ruling T-1; enabled potions and rune) with its rule's cooldown, Heroism's end (`heroismEndMs`), `rotationScriptFacts`, and names. `AppliedSetup.script` also carries `active`, `keys`, `warnings`, `errors`; `AppliedSetup.basic` is the basic rotation (`itemActions`: the auto-used actions in fold order; `steps`: the basic priority), built whether or not a script plays, for "Convert to script".
+- `normalizeSetup` (`normalizeScript`, src/script/normalize.ts; untrusted input, never throws, idempotent): absent stays absent; not an object, or nothing left: no script. At most 200 rules (the first ones); a rule is kept only with a known action, an `id` (if any) that is a string of at most 128 characters and an `if` (if any) that is a string of at most 500 (otherwise the whole rule goes: a dropped condition would make it "always"); labels / comments cut to 100 / 1000; `enabled` kept when boolean; other fields dropped. At most 50 defs with a valid name (never `__proto__`) and a string of at most 500. Expressions are kept as written, so a typo survives storage and is reported where the script is used.
+- Preset matching: `setupFightKey` includes the script when there is one, so a config with a script never shows a preset's name; `applySetupPreset` does not carry the script over (a preset sets the rotation). The simulator (`prepareRun`) normalizes and applies the setup, so it plays the script with no change of its own. Setup storage keeps it (its 100 000-character cap is unchanged: a typical script is a few kB).
+- The game's "Priority" panel lists the compiled steps (keyed by `step.key`, since a script may press one spell in several rules).
+
+### Converter (`convertToScript`, src/script/convert.ts)
+
+`convertToScript(config, applied.basic)` writes the basic configuration as a script: first one `use` rule per automatically used item action in the basic step order (`itemUseOrder` first, then fold order; `itemUseRulesInOrder`), then the rotation (rotation.ts `rotationScriptRules`). Each rule carries the basic step's label and its hint as `comment`; conditions are in canonical form. Translations (each `if` is true exactly when the basic `when` is):
+
+| Basic rule | Script |
+|---|---|
+| curse (Elements, Agony) | `cast <curse> if !target.aura.<curse>.active` |
+| Curse of Doom | `!target.aura.curse-of-doom.active && time.remaining >= 60` (the long-fight rule: the fight must outlast the 60 s curse) |
+| Shadowburn finisher | `time.remaining <= finisherWindow()` |
+| Immolate / Corruption | `dotRefreshDue(immolate)` / `dotRefreshDue(corruption)` (in-cast and in-flight guards, the talents' cast time, the gear's extra ticks) |
+| Life Tap 'auto' / a number | `mana < manaCost(shadow-bolt)` / `mana < <number>` |
+| Shadow Bolt | no condition |
+| item queue gate | implicit in every `use` step (the compiler's) |
+| `notBeforeSec` / `notAfterSec` | `time.elapsedMs >= <sec x 1000>` / `time.elapsedMs <= <sec x 1000>` |
+| `minGapSec` > 0 | `minGap(<id>, <sec>)` |
+| trigger `ready` / `pull` / `at` | nothing / `time.elapsedMs < 1500` / `time.elapsedMs >= <sec x 1000>` |
+| `with-heroism` (also the burst items' default rule) | `heroism.active \|\| heroism.over` (with no Heroism in the fight `heroism.over` is always true: the basic default `ready`; the script stays right if Heroism is enabled later) |
+| `with-buff` / `mana-below` / `mana-missing` / `fight-end` | `self.aura.<id>.active` / `mana < <n>` / `mana.missing >= <n>` (mana items' default: their largest gain) / `fight.last(<sec>)` |
+| `never` | no rule |
+
+Parts are joined with `&&` in the order window, gap, trigger. Exactness of the numbers: every number is printed in its shortest round-trip form, and the comparisons use the same doubles as the basic rule (`sec x 1000` is computed in the converter as in the compiled rule; `fight.last(N)` multiplies the same N by 1000). `time.remaining` is `(durationMs - nowMs) / 1000` and the basic rules compare the integer ms `durationMs - nowMs` with an integer bound W (`60000`, the finisher window): division by 1000 is correctly rounded, hence monotonic, and maps distinct integers below 2^53 / 1000 to distinct doubles, so `x / 1000 <= W / 1000` exactly when `x <= W` (tested at every ms around the edge). A rule whose spell the build lacks (Shadowburn without the talent) is still written; the compiler leaves it out with a warning, as `buildPriority` leaves the step out (`rotationWarnings`), so the script follows a later talent change. A `with-buff` rule on an aura the fight does not have is left out the same way (its basic step can never be wanted).
+
+**Equivalence, proven** (`tests/script/convert-equivalence.test.ts`, 60 scenarios): the 23 pinned bot scenarios (default, Icon + Band, raid-log, consumables with and without Heroism, 300 s with every item, Quagmirran + Bloodgem, all 9 gear presets with every item effect enabled, sb-spam 60 s and 300 s at 0 yd, Life Tap 2000 at 40 yd, two item-rule sets, 10 s, Quagmirran 300 s), the talent presets Destruction, Destro/Nightfall and Affliction (alone and with every item, 120 s) and a build with no talents (no Shadowburn, 3 s Shadow Bolt; DoT and sb-spam), every curse at 10, 60 and 300 s and without DoTs, Immolate only, Corruption only, no finisher (also at 0 yd and 10 s with Doom), Life Tap 0 / 1234.5678 / 9000, distances 0 and 13.7, Heroism starting after the fight's end, and three item-rule sets covering every trigger kind with odd windows, gaps (0.001 s, over the cooldown) and orders. For each: the script validates with no error (warnings only for the cases above), the compiled steps equal the basic ones (spell, label, hint, order), every condition equals the basic one on 3000 random snapshots (target auras, casts, missiles and mana near the thresholds included), and the bot's fights over seeds 1-10 at windows 400 and 0 are identical: full log hash, log length, RNG draws and DPS per seed, and the mean. Golden means through the converted script: default 1425.1766666666667 / 1428.3350000000003, raid-log 2294.108333333333, Icon + Band 1379.2966666666666 / 1373.4900000000002. Mutations caught: dropping the `use` gate (25 scenarios fail), `>` instead of `>=` in the Doom rule (11 fail).
+
+### Measured cost (Task 2)
+
+Development container, Node 22 through tsx, `prepareRun` / `runOnce`, 3 x 3000 runs of 60 s, window 400 (this container measures the default slower than Task 1's: compare within a row group):
+
+| Case | ms per run |
+|---|---|
+| default, before Task 2 (HEAD 179b292) | 1.23-1.33 |
+| default, after (no script) | 1.25-1.35 |
+| the converted default script | 1.32-1.37 |
+| default + Heroism, basic | 1.64-1.81 |
+| a typical 8-rule script (Icon with Heroism and ISB, curse, finisher, `dotRefreshDue`, Corruption, a wait, Life Tap with `||`, Shadow Bolt) + Heroism | 1.64-1.67 |
+| the same script without Heroism | 1.55-1.68 |
+
+A script costs about 5% over the basic list it replaces (one closure call per condition node; a true/false condition's reader is the step's `when` itself); `applySetup` validates and compiles the script once per fight setup, not per run.
+
