@@ -4,6 +4,8 @@
 import { DEFAULT_WARLOCK_OPTIONS, type WarlockOptions } from '../data/classes/warlock/destruction';
 import { normalizeItemUse, normalizeItemUseOrder, type ItemUseRule } from '../data/classes/warlock/itemUse';
 import { ROTATION_PRESETS, type CurseChoice, type RotationConfig } from '../data/classes/warlock/rotation';
+import { decodeTalents, encodeTalents, TALENT_STRING_MAX_LENGTH } from '../data/classes/warlock/talentTree';
+import { destructionTalentString } from '../data/classes/warlock/talents';
 import { commonBuffs, consumables, cooldowns, debuffs, deepFreeze, EXCLUDES } from '../data/common/buffs';
 import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
 import type { ItemDb } from '../data/items/types';
@@ -251,6 +253,23 @@ function normalizeGearFields(input: Rec, db: ItemDb | undefined): Pick<SetupConf
   return out;
 }
 
+/**
+ * `talents` of a config, only when it is a valid build other than the author's: a string of at
+ * most `TALENT_STRING_MAX_LENGTH` characters that `decodeTalents` reads without a format or rule
+ * error, stored in its full-width form (`encodeTalents`, so a wowsims short string and the same
+ * build written out in full are one value). Anything else (not a string, malformed, a broken rule,
+ * too long, the author's build in any spelling) leaves it absent: the author's build. An invalid
+ * build is never repaired into another one.
+ */
+function normalizeTalentsField(input: Rec): Pick<SetupConfig, 'talents'> {
+  const raw = own(input, 'talents');
+  if (typeof raw !== 'string' || raw.length > TALENT_STRING_MAX_LENGTH) return {};
+  const decoded = decodeTalents(raw);
+  if (decoded.errors.length > 0) return {};
+  const talents = encodeTalents(decoded.ranks);
+  return talents === destructionTalentString ? {} : { talents };
+}
+
 function normalizeWarlock(v: unknown): WarlockOptions {
   const w = isRecord(v) ? v : {};
   const armor = own(w, 'armor');
@@ -291,6 +310,9 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  *   array: the author's gear); without it (the database is a lazy chunk, this function is
  *   synchronous) only its shape (`normalizeGearShape`), and the caller runs `normalizeGear` once
  *   the database has loaded. `gearPresetId`: kept when a string of `[a-z0-9-]`, 1-64 characters.
+ * - `talents` (stage 2b): absent stays absent (the author's build). Present: kept, in its
+ *   full-width form, only when it is a valid build (`decodeTalents` without errors, at most 200
+ *   characters) other than the author's; otherwise dropped (the author's build), never repaired.
  */
 export function normalizeSetup(input: unknown, catalog: readonly BuffDef[], db?: ItemDb): SetupConfig {
   try {
@@ -304,6 +326,7 @@ export function normalizeSetup(input: unknown, catalog: readonly BuffDef[], db?:
       warlock: normalizeWarlock(own(input, 'warlock')),
       fightDurationSec: normalizeFightDuration(own(input, 'fightDurationSec')),
       ...normalizeGearFields(input, db),
+      ...normalizeTalentsField(input),
     };
   } catch {
     // A hostile getter or proxy: nothing of it is trusted.

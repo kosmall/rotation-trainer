@@ -104,7 +104,7 @@ function readDb(v: unknown): ItemDb | null {
  *   the database loads; a simulator result must not silently be another gear's).
  * - The setup is applied once exactly as GameView applies it (`applySetup` with
  *   `STATIC_SETUP_CATALOG`, the spec built with the database only when there is a gear and a
- *   database), and one Simulation is built and started to read the start mana (this also
+ *   database, and with the setup's talents: `SetupConfig.talents`), and one Simulation is built and started to read the start mana (this also
  *   surfaces data errors here rather than in the first run).
  */
 export function prepareRun(request: SimRequest): RunFactory {
@@ -124,8 +124,10 @@ export function prepareRun(request: SimRequest): RunFactory {
   if (config.gear !== undefined && db === null && gearNeedsDb(config.gear)) {
     throw new Error('Simulation request: this gear needs the item database (pass request.db)');
   }
-  const buildSpec = (w: WarlockOptions, gear?: readonly (EquippedItem | null)[]) =>
-    gear === undefined || db === null ? buildDestructionWarlock(w, gear) : buildDestructionWarlock(w, gear, db);
+  const buildSpec = (w: WarlockOptions, gear?: readonly (EquippedItem | null)[], talents?: string) =>
+    gear === undefined || db === null
+      ? buildDestructionWarlock(w, gear, undefined, talents)
+      : buildDestructionWarlock(w, gear, db, talents);
   const fight = applySetup({ buildSpec, catalog: STATIC_SETUP_CATALOG, config, db });
 
   const probe = createFightSimulation(fight, seed, spellQueueWindowMs);

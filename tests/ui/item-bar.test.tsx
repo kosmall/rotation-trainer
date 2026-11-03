@@ -255,7 +255,7 @@ describe('Item actions in the fight', () => {
       { ...structuredClone(DEFAULT_SETUP), enabledBuffs: ['icon-of-the-silver-crescent', 'super-mana-potion'] },
       SETUP_CATALOG,
     );
-    const { spec } = applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config });
+    const { spec } = applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: SETUP_CATALOG, config });
     render(<GameView storage={storedSetup(config)} />);
     const names = spec.keybinds.slice(12).filter((id) => id !== '').map((id) => spec.spells.find((s) => s.id === id)?.name);
     expect(names).toEqual([SMP, ICON]);

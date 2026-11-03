@@ -356,7 +356,7 @@ describe('Target debuffs: own aura under the raid one', () => {
   };
   const specFor = (enabledBuffs: string[]) =>
     applySetup({
-      buildSpec: buildDestructionWarlock,
+      buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t),
       catalog: SETUP_CATALOG,
       config: normalizeSetup({ ...structuredClone(DEFAULT_SETUP), enabledBuffs }, SETUP_CATALOG),
     }).spec;

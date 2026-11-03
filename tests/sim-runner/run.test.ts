@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
 import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
+import { talentPresetById } from '../../src/data/classes/warlock/talentPresets';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
 import { BOSS_TARGET } from '../../src/data/common/target';
 import { itemDbSync } from '../../src/data/items/dbSync';
@@ -9,6 +10,7 @@ import type { LogEvent } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
 import { DEFAULT_SETUP, STATIC_SETUP_CATALOG } from '../../src/setup/defaults';
 import type { SetupConfig } from '../../src/setup/types';
+import { createFightSimulation } from '../../src/sim-runner/fight';
 import { mixSeed, prepareRun, runOnce, runWithSeed, SIM_LIMITS, simulate } from '../../src/sim-runner/run';
 import type { SimRequest } from '../../src/sim-runner/types';
 import { HEAD_BOTS } from '../fixtures/item-use-reference-data';
@@ -36,7 +38,8 @@ const QUAG: SetupConfig = scenarios().quagBloodgem!;
  */
 function manualFight(config: SetupConfig, seed: number, spellQueueWindowMs: number, withDb = false) {
   const applied = applySetup({
-    buildSpec: (w, g) => (g === undefined || !withDb ? buildDestructionWarlock(w, g) : buildDestructionWarlock(w, g, db)),
+    buildSpec: (w, g, t) =>
+      g === undefined || !withDb ? buildDestructionWarlock(w, g, undefined, t) : buildDestructionWarlock(w, g, db, t),
     catalog: STATIC_SETUP_CATALOG,
     config,
     db: withDb ? db : null,
@@ -103,6 +106,30 @@ describe('runOnce and runWithSeed', () => {
     for (const i of [0, 4]) {
       const m = manualFight(QUAG, mixSeed(9, i), SPELL_QUEUE_WINDOW_MS, true);
       expect(runOnce(f, i).dps).toBe(m.dps);
+    }
+  });
+
+  it('a non-default talent build (Destro/Nightfall preset): the core run equals the hand-built game fight exactly, logs included', () => {
+    const talents = talentPresetById('destro-nightfall')!.talents;
+    for (const setup of [{ ...structuredClone(DEFAULT_SETUP), talents } as SetupConfig, { ...structuredClone(BUSY), talents } as SetupConfig]) {
+      for (const w of WINDOWS) {
+        const f = prepareRun(request({ setup, db, seed: 4242, spellQueueWindowMs: w }));
+        // The simulator really plays the build: Conflagrate bound, Fel Armor without Demonic Aegis.
+        expect(f.config.talents).toBe(talents);
+        expect(f.fight.spec.keybinds[7]).toBe('conflagrate');
+        expect(f.fight.spec.statBonuses.spellPower).not.toBe(prepareRun(request({ setup: { ...setup, talents: undefined }, db })).fight.spec.statBonuses.spellPower);
+        for (const i of [0, 3]) {
+          const seed = mixSeed(4242, i);
+          const m = manualFight(setup, seed, w, true);
+          const s = runOnce(f, i);
+          expect(s.dps, `window ${w} run ${i}`).toBe(m.dps);
+          expect(s.damageTotal).toBe(m.damageTotal);
+          // The same fight event for event: a fresh core Simulation with the run's seed.
+          const core = createFightSimulation(f.fight, seed, w);
+          runBot(core, f.fight.spec.priority);
+          expect(JSON.stringify(core.log())).toBe(JSON.stringify(m.log));
+        }
+      }
     }
   });
 

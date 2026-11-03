@@ -1,6 +1,7 @@
 // Gear import and export in the wowsims formats (stage 2a, design spec §3). Pure and
 // framework-free: nothing here throws, mutates its inputs or the item database, or applies
-// anything (the caller decides; stage 2b applies the talents).
+// anything (the caller decides). The export's talent string goes through `applyImportedTalents`
+// (the talent validator) before a caller may put it into the setup (stage 2b).
 //
 // Import accepts two shapes:
 // - the WowSimsExporter addon export (the author's: docs/samples/wowsimsexporter-destruction-
@@ -13,6 +14,8 @@
 //   `exportWowSimsGear` writes): `{ items: [...] }`, `{}` for an empty slot.
 // An item entry is `{ id, enchant?, gems? }`; a gem 0 (or null) is an empty socket.
 
+import { talentRanksOf } from '../data/classes/warlock/talentEffects';
+import { decodeTalents, encodeTalents, type TalentRanks } from '../data/classes/warlock/talentTree';
 import { ITEM_SLOTS, logicalSlot, PROFESSION_NAMES } from '../data/items/db';
 import type { ItemDb } from '../data/items/types';
 import { gemFitsSocket } from '../engine/gear';
@@ -346,4 +349,39 @@ export function exportWowSimsGear(gear: readonly (EquippedItem | null)[]): strin
   });
   if (lines.length === 0) return '{\n\t"items": []\n}\n';
   return `{\n\t"items": [\n${lines.map((l) => `\t\t${l}`).join(',\n')}\n\t]\n}\n`;
+}
+
+/** What `applyImportedTalents` decides: the build to apply, or why there is none. */
+export type ImportedTalents = { ok: true; talents: string } | { ok: false; errors: string[] };
+
+const NO_TALENTS = 'The export has no talent string.';
+
+/**
+ * The talent build of an import (`parseWowSimsExport`'s `talents`), checked by the talent
+ * validator: a valid build gives its full-width string (`encodeTalents`; the author's export
+ * gives `destructionTalentString`), to be put into `SetupConfig.talents` (normalizeSetup stores
+ * it, or nothing for the author's build); a missing, malformed or rule-breaking string gives the
+ * violations (`decodeTalents` errors, stable English sentences) and nothing to apply: the build in
+ * use stays. Pure; never throws, whatever `result` is.
+ */
+export function applyImportedTalents(result: Pick<ImportResult, 'talents'>): ImportedTalents {
+  let raw: unknown;
+  try {
+    raw = typeof result === 'object' && result !== null && Object.hasOwn(result, 'talents') ? result.talents : undefined;
+  } catch {
+    raw = undefined;
+  }
+  if (typeof raw !== 'string') return { ok: false, errors: [NO_TALENTS] };
+  const decoded = decodeTalents(raw);
+  if (decoded.errors.length > 0) return { ok: false, errors: decoded.errors };
+  return { ok: true, talents: encodeTalents(decoded.ranks) };
+}
+
+/**
+ * A build's talent string for export (the WowSimsExporter / wowsims `talents` format, full width:
+ * 21/22/21 digits, `encodeTalents`). Any rank map: unknown keys are ignored and ranks clamped to
+ * 0..max (`talentRanksOf`). Copying it into the clipboard is the caller's.
+ */
+export function exportTalents(ranks: TalentRanks): string {
+  return encodeTalents(talentRanksOf(ranks));
 }

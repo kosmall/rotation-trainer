@@ -52,7 +52,7 @@ const config = normalizeSetup(
   },
   CATALOG,
 );
-const applied = applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config });
+const applied = applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: CATALOG, config });
 const spec: SpecData = applied.spec;
 
 const catalogDescription = (id: string) => {

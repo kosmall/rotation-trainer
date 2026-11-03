@@ -60,7 +60,7 @@ function config(p: Partial<SetupConfig> = {}): SetupConfig {
 }
 
 const apply = (p: Partial<SetupConfig> = {}) =>
-  applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config: config(p) });
+  applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: CATALOG, config: config(p) });
 
 function fight(
   applied: ReturnType<typeof apply>,

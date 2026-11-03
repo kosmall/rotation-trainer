@@ -270,5 +270,20 @@ export function buildDestructionWarlock(
   };
 }
 
+/**
+ * What `buildPriority` reads from a build (`RotationTalents`: every talent modifier, Demonic
+ * Sacrifice included (it changes no rule number), and the talent spells), the same value
+ * `buildDestructionWarlock` builds its own priority with. Undefined for the author's build (absent,
+ * or a string or rank map equal to it): `buildPriority`'s default, the stage 1 list rule for rule.
+ * `talents` as in `buildDestructionWarlock` (untrusted; a malformed string means no talents).
+ */
+export function rotationTalentsFor(talents?: string | TalentRanks): RotationTalents | undefined {
+  if (talents === undefined) return undefined;
+  const ranks = talentRanksOf(typeof talents === 'string' ? decodeTalents(talents).ranks : talents);
+  if (encodeTalents(ranks) === encodeTalents(AUTHOR_RANKS)) return undefined;
+  const fx = effectsForBuild(ranks);
+  return { modifiers: fx.modifiers, spells: fx.spells };
+}
+
 /** The stage 1 spec: Fel Armor and the Succubus sacrificed (`DEFAULT_WARLOCK_OPTIONS`). */
 export const destructionWarlock: SpecData = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS);

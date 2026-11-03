@@ -60,7 +60,7 @@ const buildWithDb = (w: typeof DEFAULT_WARLOCK_OPTIONS, g?: readonly (EquippedIt
 function apply(c: SetupConfig, withDb = true) {
   return withDb
     ? applySetup({ buildSpec: buildWithDb, catalog: SETUP_CATALOG, config: c, db })
-    : applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config: c });
+    : applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: SETUP_CATALOG, config: c });
 }
 
 function botRuns(c: SetupConfig, withDb = true) {

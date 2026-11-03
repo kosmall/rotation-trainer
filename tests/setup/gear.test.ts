@@ -490,7 +490,7 @@ describe('SetupConfig.gear', () => {
     for (const out of [normalizeSetup(stored, SETUP_CATALOG), normalizeSetup(stored, SETUP_CATALOG, db)]) {
       expect(out.gear).toBeUndefined();
       expect(setupGear(out)).toEqual(DEFAULT_GEAR);
-      const { spec } = applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config: out });
+      const { spec } = applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: SETUP_CATALOG, config: out });
       expect(spec.setup.stats).toBe(destructionWarlock.setup.stats);
     }
     // The presets keep the author's gear.

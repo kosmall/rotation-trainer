@@ -40,17 +40,26 @@ export interface SetupConfig {
   gear?: (EquippedItem | null)[];
   /** The gear preset the gear came from, for its label (`[a-z0-9-]`, up to 64 characters). */
   gearPresetId?: string;
+  /**
+   * The talent build (stage 2b) as a full-width talent string (`encodeTalents`: 21/22/21 digits).
+   * Absent (every config saved before stage 2b, the default setup, the setup presets): the
+   * author's build (`destructionTalentString`). `normalizeSetup` keeps only a valid build
+   * (`decodeTalents` without errors) other than the author's; anything else leaves it absent.
+   */
+  talents?: string;
 }
 
 export type SetupPresetId = 'none' | 'raid-log';
 
 export interface ApplySetupInput {
   /**
-   * Builds the spec for the warlock options and the config's gear (`buildDestructionWarlock`,
-   * bound to the item database when the gear needs it: src/setup/gear.ts `gearNeedsDb`).
-   * `gear` is undefined for a config without gear (the author's).
+   * Builds the spec for the warlock options, the config's gear and its talents
+   * (`buildDestructionWarlock(warlock, gear, db, talents)`, bound to the item database when the
+   * gear needs it: src/setup/gear.ts `gearNeedsDb`). `gear` is undefined for a config without gear
+   * (the author's), `talents` for a config without talents (the author's build). Every caller must
+   * forward `talents`: the priority `applySetup` builds follows them.
    */
-  buildSpec(warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[]): SpecData;
+  buildSpec(warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], talents?: string): SpecData;
   /**
    * The buff catalog (`SETUP_CATALOG`, `STATIC_SETUP_CATALOG` or `setupCatalogFor(...)`): only its
    * gear-independent entries are used; the item entries are derived from `config.gear`.

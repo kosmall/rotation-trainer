@@ -44,7 +44,7 @@ function config(p: Partial<SetupConfig> = {}): SetupConfig {
 }
 
 const apply = (p: Partial<SetupConfig> = {}) =>
-  applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config: config(p) });
+  applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: CATALOG, config: config(p) });
 
 /** A fight exactly as the UI builds it from the applied setup (useSimulation), with a fixed seed. */
 function fight(applied: ReturnType<typeof apply>, seed = 1): Simulation {
@@ -146,7 +146,7 @@ describe('fight length: config and normalizeSetup', () => {
 describe('fight length: applySetup', () => {
   it('applySetup returns durationMs = fightDurationSec x 1000 (default 60000)', () => {
     expect(apply().sim.durationMs).toBe(60000);
-    expect(applySetup({ buildSpec: buildDestructionWarlock, catalog: CATALOG, config: DEFAULT_SETUP }).sim.durationMs).toBe(60000);
+    expect(applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: CATALOG, config: DEFAULT_SETUP }).sim.durationMs).toBe(60000);
     expect(apply({ fightDurationSec: 30 }).sim.durationMs).toBe(30000);
     expect(apply({ fightDurationSec: 600 }).sim.durationMs).toBe(600000);
   });

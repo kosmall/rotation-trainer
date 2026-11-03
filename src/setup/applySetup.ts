@@ -4,6 +4,7 @@
 // catalog, only auras, modifiers, stats and hooks.
 
 import { neutralizeOwnAuras } from '../data/classes/warlock/buffs';
+import { rotationTalentsFor } from '../data/classes/warlock/destruction';
 import { itemRuleOf, itemUseActionOf } from '../data/classes/warlock/itemRules';
 import { compileItemUse, type ItemUseAction } from '../data/classes/warlock/itemUse';
 import { buildPriority, dotExtraTicksForSpec } from '../data/classes/warlock/rotation';
@@ -52,7 +53,8 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
 
 /**
  * The spec and the `SimConfig` fields for `config`:
- * - `spec` = `buildSpec(config.warlock, config.gear)` (no gear: the author's), then for each
+ * - `spec` = `buildSpec(config.warlock, config.gear, config.talents)` (no gear: the author's; no
+ *   talents: the author's build), then for each
  *   enabled entry of `enabledSetupEntries(catalog, config, db)` (the gear-independent catalog's
  *   in catalog order, then the worn gear's derived item effects; unknown enabled ids and ids of
  *   items not worn are ignored; item actions past the 6th are left out):
@@ -81,8 +83,10 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   `ITEM_RULES`, or `gearItemRules(the gear's entries)`), keyed by their entry ids,
  *   config.rotation (its `itemUse` / `itemUseOrder`; absent: the default rules, the same steps
  *   as `buildItemSteps`), { heroismEndMs: Heroism's end in ms or null, auraNames }),
- *   ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)]` (no item: the rotation
- *   alone). Rules of entries that are not bound actions are ignored (and kept in the config).
+ *   ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks, rotationTalentsFor(config.talents))]`
+ *   (no item: the rotation alone). The talents decide the rule numbers (cast times for the DoT
+ *   refresh and the Shadowburn finisher windows, Shadow Bolt's cost for Life Tap 'auto') and drop
+ *   the steps whose spell the build lacks; the author's build gives the stage 1 list. Rules of entries that are not bound actions are ignored (and kept in the config).
  *   `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included: e.g. Voidheart
  *   4pc gives `{ corruption: 1, immolate: 1 }`, so the DoT refresh rules count the longer DoTs;
  *   `{}` otherwise, the list unchanged). Heroism's end is its scheduled start + duration; null
@@ -93,7 +97,7 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  * threshold.
  */
 export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput): AppliedSetup {
-  const base = buildSpec(config.warlock, config.gear);
+  const base = buildSpec(config.warlock, config.gear, config.talents);
   const { enabled, gearEntries } = enabledSetupEntries(catalog, config, db);
 
   const statBonuses: Partial<RawStats> = { ...base.statBonuses };
@@ -183,7 +187,10 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
       statBonuses,
       setup: { ...base.setup, ...(statMultipliers !== undefined && { statMultipliers }) },
       keybinds: withItemRow(base.keybinds, actionIds),
-      priority: [...itemSteps, ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)],
+      priority: [
+        ...itemSteps,
+        ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks, rotationTalentsFor(config.talents)),
+      ],
       hooks: buffHooks.length > 0 ? composeHooks(base.hooks, ...buffHooks) : base.hooks,
     },
     sim: { scheduledAuras, distanceFromTarget: config.distanceYd, durationMs },

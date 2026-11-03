@@ -1,8 +1,11 @@
 // Ready-made setups for the setup panel (stage 1.5 Part C, design spec §4.3).
 
-import { ROTATION_PRESETS } from '../data/classes/warlock/rotation';
+import { ROTATION_PRESETS, type RotationConfig } from '../data/classes/warlock/rotation';
+import { destructionTalentString } from '../data/classes/warlock/talents';
 import { deepFreeze } from '../data/common/buffs';
-import { DEFAULT_SETUP } from './defaults';
+import type { BuffDef } from '../data/types';
+import { DEFAULT_SETUP, normalizeSetup } from './defaults';
+import { isGearEffectId } from './gearEffects';
 import type { SetupConfig, SetupPresetId } from './types';
 
 /**
@@ -94,3 +97,55 @@ export const SETUP_PRESETS: Readonly<Record<SetupPresetId, { name: string; descr
       config: RAID_LOG_SETUP,
     },
   });
+
+/**
+ * The talent build a (normalized) config plays: its `talents`, or the author's build
+ * (`destructionTalentString`) when it has none.
+ */
+export function setupTalents(config: Pick<SetupConfig, 'talents'>): string {
+  return config.talents ?? destructionTalentString;
+}
+
+/**
+ * The config a setup preset gives when chosen while `current` is the setup (ruling F-2: a preset
+ * sets the buffs, the rotation and the distance but keeps the player's own choices): the preset's
+ * config with the current fight length, gear (`gear`, `gearPresetId`), item-use rules
+ * (`rotation.itemUse` / `itemUseOrder`) and talents (`talents`; absent stays absent, the author's
+ * build). "Reset to defaults" is `DEFAULT_SETUP` instead: no talents, the author's build. Pure: a
+ * new object; the fields it copies are shared with its inputs (normalize before storing).
+ */
+export function applySetupPreset(preset: SetupConfig, current: SetupConfig): SetupConfig {
+  const itemUse: Pick<RotationConfig, 'itemUse' | 'itemUseOrder'> = {};
+  if (current.rotation.itemUse !== undefined) itemUse.itemUse = current.rotation.itemUse;
+  if (current.rotation.itemUseOrder !== undefined) itemUse.itemUseOrder = current.rotation.itemUseOrder;
+  const { gear: _gear, gearPresetId: _gearPresetId, talents: _talents, ...rest } = preset;
+  return {
+    ...rest,
+    rotation: { ...preset.rotation, ...itemUse },
+    fightDurationSec: current.fightDurationSec,
+    ...(current.gear !== undefined && { gear: current.gear }),
+    ...(current.gearPresetId !== undefined && { gearPresetId: current.gearPresetId }),
+    ...(current.talents !== undefined && { talents: current.talents }),
+  };
+}
+
+/**
+ * What decides a fight, as a comparable string, for preset matching: the enabled buffs as a set
+ * (a gear item effect only when `catalog`, the worn gear's, has it), the start and length of the
+ * enabled timed buffs, the rotation, the distance, the warlock options and, only when the build
+ * is not the author's, the talents (so the key of every config without talents is the stage 2a
+ * one). The fight length and the gear are left out: the presets keep them (`applySetupPreset`).
+ * Compare a config with `applySetupPreset(preset, config)` to match a preset: the talents are
+ * then kept on both sides. The Setup panel's own key (src/ui/SetupPanel.tsx `fightKey`) is the
+ * same without the talents part.
+ */
+export function setupFightKey(config: SetupConfig, catalog: readonly BuffDef[]): string {
+  const c = normalizeSetup(config, catalog);
+  const ids = new Set(catalog.map((b) => b.id));
+  const enabled = c.enabledBuffs.filter((id) => !isGearEffectId(id) || ids.has(id)).sort();
+  const timed = enabled.flatMap((id) => {
+    const t = c.timed[id];
+    return t ? [[id, t.startSec, t.durationSec]] : [];
+  });
+  return JSON.stringify([enabled, timed, c.rotation, c.distanceYd, c.warlock, ...(c.talents !== undefined ? [{ talents: c.talents }] : [])]);
+}

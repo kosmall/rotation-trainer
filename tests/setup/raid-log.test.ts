@@ -51,7 +51,7 @@ const INT_TOLERANCE = 0.05;
 const raidLog = SETUP_PRESETS['raid-log'].config;
 const none = SETUP_PRESETS.none.config;
 
-const apply = (config: SetupConfig) => applySetup({ buildSpec: buildDestructionWarlock, catalog: SETUP_CATALOG, config });
+const apply = (config: SetupConfig) => applySetup({ buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t), catalog: SETUP_CATALOG, config });
 
 /**
  * The character at the pull, as the Simulation builds it (and as the UI's "Stats at the pull"
