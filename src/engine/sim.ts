@@ -146,6 +146,7 @@ interface SpellMods {
   damageMult: number;
   dotDamageMult: number;
   critPctDelta: number;
+  hitPctDelta: number;
   critMultDelta: number;
   coeffDelta: number;
   /** Sum of `dotExtraTicks`; `dotExtraTicksOf` turns it into a whole tick count. */
@@ -166,6 +167,7 @@ function foldModifiers(spell: SpellDef, modifiers: readonly SpellModifier[]): Sp
     damageMult: 1,
     dotDamageMult: 1,
     critPctDelta: 0,
+    hitPctDelta: 0,
     critMultDelta: 0,
     coeffDelta: 0,
     dotExtraTicks: 0,
@@ -177,6 +179,7 @@ function foldModifiers(spell: SpellDef, modifiers: readonly SpellModifier[]): Sp
     mods.damageMult *= m.damageMult ?? 1;
     mods.dotDamageMult *= m.dotDamageMult ?? 1;
     mods.critPctDelta += m.critPctDelta ?? 0;
+    mods.hitPctDelta += m.hitPctDelta ?? 0;
     mods.critMultDelta += m.critMultDelta ?? 0;
     mods.coeffDelta += m.coeffDelta ?? 0;
     mods.dotExtraTicks += m.dotExtraTicks ?? 0;
@@ -704,7 +707,8 @@ export class Simulation {
   private resolveSpell(spell: SpellDef): void {
     const mods = this.modsFor(spell);
     const outcome = rollOutcome(this.rng, {
-      missPct: effectiveMissPct(this.target, this.stats.hitPct),
+      // + 0 without a hit modifier: the same number as before it existed.
+      missPct: effectiveMissPct(this.target, this.stats.hitPct + mods.hitPctDelta),
       critPct: this.stats.critPct + mods.critPctDelta,
       canMiss: spell.canMiss,
       canCrit: spell.canCrit,

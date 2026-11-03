@@ -9,7 +9,7 @@ import { TALENT_TREE } from './talentTree';
 // (`UNMODELLED_TALENTS`: why not). Never both, never neither (tests/data/talent-effects.test.ts).
 // Source unless noted: github.com/wowsims/tbc-new master @ 91f869a, sim/warlock/talents.go (the
 // apply<Talent> function named in each entry) and sim/warlock/spell_data_auto_gen.go (the talent's
-// row: `Value` per rank), checked against the Wowhead TBC tooltips (talentTree.json descriptions).
+// row: `Value` per rank), checked against the Wowhead TBC tooltips (talentDescriptions.json).
 // See docs/data-sources.md, "Part I: talents", Task 2, for the table and the decisions.
 //
 // Stacking note: the engine multiplies matching `damageMult` / `dotDamageMult` factors, while
@@ -129,6 +129,14 @@ export const TALENT_EFFECTS: Readonly<Record<string, (rank: number) => TalentEff
   shadowAndFlame: ranked((rank) => ({ modifiers: [{ spellIds: ['shadow-bolt', 'incinerate'], coeffDelta: 0.04 * rank }] })),
 
   // --- Affliction ---
+  // Suppression 5 (applySuppression: SpellMod_BonusHit_Percent, spell_data_auto_gen.go Suppression
+  // 18174-18178 Value 2 x rank, ClassMask WarlockAfflictionSpells = Corruption, Curse of Agony,
+  // Curse of Doom, Curse of Recklessness, Curse of the Elements, Drain Life, Seed of Corruption,
+  // Death Coil (warlock.go); Wowhead 18178 "resist your Affliction spells by 10%"): +2% hit x rank
+  // on the modelled ones: Corruption and the curses of Agony, Doom and the Elements.
+  suppression: ranked((rank) => ({
+    modifiers: [{ spellIds: ['corruption', 'curse-of-agony', 'curse-of-doom', 'curse-of-the-elements'], hitPctDelta: 2 * rank }],
+  })),
   // Improved Corruption 5 (applyImprovedCorruption): CastTime_Flat -400 ms x rank on Corruption
   // (Wowhead 17814 "by 2 sec").
   improvedCorruption: ranked((rank) => ({ modifiers: [{ spellIds: ['corruption'], castTimeMsDelta: -400 * rank }] })),
@@ -194,8 +202,6 @@ const NO_SPELL = 'Its spell is not in the model (spec §1: no new spells from ta
 /** Talents left out, with the reason (shown by the talent editor and docs/data-sources.md). */
 export const UNMODELLED_TALENTS: Readonly<Record<string, string>> = Object.freeze({
   // Affliction
-  suppression:
-    'Needs a per-spell hit modifier: +2% hit x rank on Affliction spells (wowsims SpellMod_BonusHit_Percent); the engine has none yet.',
   improvedCurseOfWeakness: `${NO_SPELL}: Curse of Weakness.`,
   improvedDrainSoul: `${NO_SPELL}: Drain Soul; its threat reduction has no effect either.`,
   soulSiphon: `${NO_SPELL}: Drain Life / Drain Soul.`,

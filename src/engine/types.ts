@@ -31,6 +31,12 @@ export interface SpellModifier {
   damageMult?: number;
   dotDamageMult?: number;
   critPctDelta?: number;
+  /**
+   * Hit chance bonus in percent for matching spells (wowsims `SpellMod_BonusHit_Percent`, e.g.
+   * Suppression), summed over the matching modifiers like `critPctDelta`; the hit roll uses the
+   * caster's hit plus it, before the target's minimum miss chance (`effectiveMissPct`).
+   */
+  hitPctDelta?: number;
   critMultDelta?: number;
   /** Added to `DirectEffect.coeff` (direct damage only; DoT ticks use `AuraDef.tick.coeffTotal`). */
   coeffDelta?: number;

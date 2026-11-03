@@ -212,6 +212,11 @@ const MAX_RANK: Record<string, [number, (fx: TalentEffect) => void]> = {
   conflagrate: [1, (fx) => expect(fx).toEqual({ spells: ['conflagrate'] })],
   shadowAndFlame: [5, (fx) => expect(fx.modifiers).toEqual([{ spellIds: ['shadow-bolt', 'incinerate'], coeffDelta: 0.2 }])],
   // Affliction
+  // Suppression 5 (applySuppression: SpellMod_BonusHit_Percent, Value 2 x rank, ClassMask
+  // WarlockAfflictionSpells; of the modelled spells Corruption, the curses of Agony, Doom, Elements).
+  suppression: [5, (fx) => expect(fx.modifiers).toEqual([
+    { spellIds: ['corruption', 'curse-of-agony', 'curse-of-doom', 'curse-of-the-elements'], hitPctDelta: 10 },
+  ])],
   improvedCorruption: [5, (fx) => expect(fx.modifiers).toEqual([{ spellIds: ['corruption'], castTimeMsDelta: -2000 }])],
   improvedLifeTap: [2, (fx) => {
     expect(runHooks(fx.hooks!, 'life-tap', 'hit').mana).toEqual([582 * 0.1 * 2]);
@@ -248,7 +253,8 @@ describe('TALENT_EFFECTS and UNMODELLED_TALENTS', () => {
     expect(modelled.filter((id) => unmodelled.includes(id))).toEqual([]);
     expect(modelled.sort()).toEqual(Object.keys(MAX_RANK).sort());
     for (const [id, reason] of Object.entries(UNMODELLED_TALENTS)) expect(reason.length, id).toBeGreaterThan(15);
-    for (const id of ['suppression', 'nightfall', 'masterDemonologist', 'soulLink', 'unstableAffliction', 'shadowfury', 'soulLeech']) {
+    expect(UNMODELLED_TALENTS.suppression).toBeUndefined();
+    for (const id of ['nightfall', 'masterDemonologist', 'soulLink', 'unstableAffliction', 'shadowfury', 'soulLeech']) {
       expect(UNMODELLED_TALENTS[id], id).toBeDefined();
     }
   });
@@ -384,5 +390,33 @@ describe('talents in the spec and the bot', () => {
       expect.any(Number),
       expect.closeTo(116.4, 9),
     ]);
+  });
+
+  it('Suppression 5/5: +10% hit on Corruption and the curses only (same first draw: misses only ever disappear)', () => {
+    const author = decodeTalents(destructionTalentString).ranks;
+    const plain = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS, undefined, undefined, author);
+    const supp = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS, undefined, undefined, { ...author, suppression: 5 });
+    // The author's gear is near the hit cap against the boss: a target 15% harder to hit shows it.
+    const target: TargetData = { ...BOSS_TARGET, missPct: BOSS_TARGET.missPct + 15 };
+    const missed = (spec: SpecData, spellId: string, seed: number) => {
+      const s = new Simulation({ spec, target, seed, infiniteMana: true });
+      s.cast(spellId);
+      s.advanceTo(4000);
+      return s.log().some((e) => e.type === 'miss' && e.spellId === spellId);
+    };
+    for (const spellId of ['corruption', 'curse-of-the-elements', 'curse-of-agony']) {
+      let before = 0;
+      let after = 0;
+      for (const seed of range(300)) {
+        const a = missed(plain, spellId, seed);
+        const b = missed(supp, spellId, seed);
+        if (b) expect(a, `${spellId} seed ${seed}`).toBe(true);
+        before += a ? 1 : 0;
+        after += b ? 1 : 0;
+      }
+      expect(after, spellId).toBeLessThan(before * 0.6);
+      expect(before, spellId).toBeGreaterThan(20);
+    }
+    for (const seed of range(100)) expect(missed(supp, 'shadow-bolt', seed)).toBe(missed(plain, 'shadow-bolt', seed));
   });
 });
