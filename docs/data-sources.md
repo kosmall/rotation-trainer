@@ -1450,3 +1450,91 @@ Whole-stage review of `8748f9b..HEAD` against the plan's Review Focus. Results:
 
 **Fixed: Malediction under the raid Curse of the Elements.** `neutralizeOwnAuras` (rulings S1/S2) set the own curse to x1 whenever the raid curse was enabled, so a build with Malediction (the Affliction preset, 3/3) got x1.10 instead of x1.13. It now takes the raid debuff's multiplier (`applySetup` passes them): an own aura stronger than the raid one keeps the excess (own / raid), and any other stays at exactly 1. Every build without Malediction, and Improved Shadow Bolt at any rank, is unchanged and byte-identical. Tested in tests/setup/talents-setup.test.ts.
 
+
+## Part J: rotation scripts
+
+Plan `docs/superpowers/plans/2026-11-03-rotation-scripts-and-scenarios.md`, spec `docs/superpowers/specs/2026-11-03-rotation-scripts-and-scenarios-design.md` (§2 A, §3). Task 1: the script language (`src/script/{types,lexer,parser,printer,evaluate,vars,validate}.ts`) and the engine's read-only counters. No game numbers are introduced: every value a script reads comes from the engine's snapshot or the setup.
+
+### Scripts and rules
+
+A script is `{ rules: ScriptRule[]; defs?: Record<string, string> }`; a rule is `{ action: 'cast' | 'use' | 'wait'; id?; if?; label?; comment?; enabled? }`. `cast` takes a spell id (`shadow-bolt`), `use` an item catalog entry id (`item:29370`, `destruction-potion`; the action spell id `use-item-29370` is accepted too), `wait` takes no id and needs an `if`. An absent or blank `if` means always. `enabled: false` keeps the rule but skips it. Defs are named expressions used as `$name` (no cycles). How rules become bot steps is Task 2.
+
+### Grammar (EBNF)
+
+```
+expr       = or ;
+or         = and { "||" and } ;                 (* flat n-ary node *)
+and        = cmp { "&&" cmp } ;                 (* flat n-ary node *)
+cmp        = unary [ cmpop unary ] ;            (* not chainable: a < b < c is an error *)
+cmpop      = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+unary      = "!" unary | primary ;
+primary    = number | string | "true" | "false" | defref | call | path | "(" expr ")" ;
+call       = path "(" [ arg { "," arg } ] ")" ;  (* fight.last(N), has(id) *)
+arg        = expr ;                             (* has: a bare path followed by "," or ")" is a string *)
+defref     = "$" defname ;
+defname    = ( letter | "_" ) { letter | digit | "_" | "-" } ;
+path       = letter { segchar } { "." segchar { segchar } } ;
+segchar    = letter | digit | "_" | "-" | ":" ;
+number     = [ "-" ] digit { digit } [ "." digit { digit } ] ;   (* at most 15 digits before the point *)
+string     = "'" { any char but "'" or "\" | "\'" | "\\" } "'" ;
+```
+
+- Precedence, tightest first: `!`, comparisons, `&&`, `||`. `!a == b` is `(!a) == b`; write `!(a == b)` for the other.
+- There is no arithmetic, so `-` only starts a negative number (`-` then a digit, where a token starts) and is otherwise a plain id character: `a-5` is one name, write `x > -5` (spaces optional around operators: `x>-5` works).
+- Ids contain letters, digits, `-`, `:` (and `_`) but never `.`, so the dots of a path only separate segments and the variable is decided by its first segment and segment count: `self.aura.item-buff:35163:29370.active` is `self` / `aura` / the id / the field. A path starts with a letter (an id starting with a digit can be used in a later segment, or quoted in `has('...')`).
+- `true` / `false` are paths read as booleans (except as a bare `has(...)` argument, which is always an id string).
+- Whitespace (space, tab, newline, return) is free. Any other character, including non-ASCII letters, is an error.
+- Canonical form (`printExpr`): single spaces around binary operators, parentheses only where the structure needs them (an `&&` inside an `&&` keeps its parentheses, so the n-ary nesting survives), numbers in plain decimal (JavaScript's shortest digits, exponent expanded), strings in single quotes with `\'` and `\\`, `has` ids bare when they read as a path. `parseExpr(printExpr(x))` deep-equals `x` (200 random ASTs in the tests); positions are kept outside the AST (`positionOf`).
+- Limits: an expression is at most **500** characters; the AST is at most **20** deep (a leaf is 1, each `!`, comparison, `&&`/`||` chain or call adds 1) and parentheses, `!` and call arguments nest at most 20 levels (so recursion is bounded and hostile input cannot overflow the stack); scripts have at most **200** rules and **50** defs; labels 100 and comments 1000 characters. The lexer is one linear pass with no regular expression run over the input; 34 hostile inputs of about 10 000 characters, with the length limit lifted, parse (or fail) in tens of ms in total (the test bound is 1 s); with the limit they fail at once.
+
+### Types
+
+Three types: true/false, number, string. Nothing is coerced: `&&`, `||` and `!` take true/false values; `<`, `<=`, `>`, `>=` take two numbers; `==` and `!=` take two values of the same type. A rule's `if` must be true/false. A def may be of any type (its type flows to where it is used). Type errors are validation errors (`cd.x.remaining < 'a'`, `mana && heroism.active`, `heroism.active == 1`); compiled anyway, an ill-typed part reads as false.
+
+### Variables (units: seconds as numbers, except `time.elapsedMs`)
+
+| Variable | Type | Meaning (from the snapshot) |
+|---|---|---|
+| `time.elapsed` | number | `nowMs / 1000` |
+| `time.remaining` | number | `(durationMs - nowMs) / 1000` |
+| `time.elapsedMs` | number | `nowMs` (the only ms variable) |
+| `mana` | number | `mana` |
+| `mana.pct` | number | `100 * mana / maxMana` (0 when max mana is 0) |
+| `mana.missing` | number | `maxMana - mana` |
+| `mana.max` | number | `maxMana` (with the active self auras) |
+| `self.aura.<id>.active` | true/false | the visible self aura is up (`selfAuras` has it) |
+| `self.aura.<id>.remaining` | number | its `remainingMs / 1000`; **0 when it is not up** |
+| `self.aura.<id>.stacks` / `.charges` | number | its stacks / charges; **0 when it is not up** |
+| `target.aura.<id>.active` / `.remaining` / `.stacks` / `.charges` | as above | the same on the target (`targetAuras`); `shadow-vulnerability` is Improved Shadow Bolt |
+| `cd.<id>.ready` | true/false | `cooldownRemainingMs[id] <= 0`: own and shared cooldown, **not the GCD**; false for an id the fight does not have |
+| `cd.<id>.remaining` | number | `cooldownRemainingMs[id] / 1000`; 0 when ready or unknown |
+| `cast.<id>.count` | number | completed casts of the spell so far (`castCounts`; 0 when none) |
+| `use.<id>.count` | number | uses of the item action so far (`useCounts`; entry id or action id; 0 when none) |
+| `casting` | string | id of the spell being cast, `''` when none |
+| `casting.<id>` | true/false | `cast.spellId == id` |
+| `inflight.<id>` | true/false | a missile of the spell is flying (`inFlight`) |
+| `gcd.remaining` | number | `max(0, gcdEndsAtMs - nowMs) / 1000` |
+| `heroism.active` | true/false | the `heroism` self aura is up |
+| `heroism.over` | true/false | `heroismEndMs === null \|\| nowMs >= heroismEndMs` |
+| `fight.last(N)` | true/false | `durationMs - nowMs <= N * 1000` (the item-use rule `fight-end`) |
+| `has(id)` | true/false | the spell or item action (entry or action id) is in this build and gear: a constant of the fight |
+
+- `cd.<id>` takes a spell id, an item entry id or an item action id (an entry id reads its action's cooldown). `cast.<id>` counts spells only; item uses are in `use.<id>`.
+- `heroism.over` reproduces itemRules.ts / itemUse.ts exactly: the `with-heroism` item rule is `heroism.active || heroism.over`. `heroismEndMs` is applySetup's: the scheduled start + duration of the enabled Heroism, or null when it is disabled or starts at or after the fight's end ("not scheduled": then `heroism.over` is always true).
+- Sequences use the counters: "trinket 2 after trinket 1" is `use.item:29370.count >= 1`. There is no other script state.
+- Hidden auras (internal cooldowns) are not in the snapshot, so they always read as not up.
+
+### Context (`ScriptContext`) and ids
+
+`{ spellIds; auraIds; itemActions: { id (catalog entry id), spellId (action id) }[]; heroismEndMs }` of the CURRENT build, gear, talents and buffs (`scriptContextOf(spec, { heroismEndMs, itemActions })` builds one from a spec; Task 2 builds it from the applied setup with the catalog entry ids). Ids in expressions are checked against it at validation time. At run time nothing is checked: an id the snapshot does not have reads as false / 0, and every lookup is an own-property lookup, so `__proto__`, `constructor` and the like are ordinary unknown ids. Compiled expressions are closures over constants and the snapshot (no allocation per call; `ext`, the second argument, is reserved and unused: pass `EMPTY_EXT`).
+
+### Validation and error format
+
+`validateScript(script, ctx)` returns `{ errors, warnings }` of `{ path, message, pos?, suggestion? }` and never throws (a script that cannot be read is one error with path `''`). Paths: `rules[2].if`, `rules[0].id`, `defs.burst`, `rules`, `defs`. Expression issues carry `pos` (0-based offset in that text) and start with `column N: ` (N = pos + 1), e.g. `rules[2].if` / `column 15: expected ')' but found end of input`. Suggestions are the closest known name (Levenshtein distance at most max(2, a third of the length); names over 100 characters get none). At most 200 issues of each kind.
+
+- **Errors** (the script is invalid): not an object; `rules` not an array; over 200 rules / 50 defs; a bad def name or text; a def cycle (`definition cycle: $a -> $b -> $a`, once, at its first def); an unknown `$name`; syntax errors; length and depth limits; unknown variables (`unknown variable 'mana.pt'`, suggestion `mana.pct`) and fields (`unknown field 'remainig' of target.aura.<id> (...)`); unknown functions; wrong argument types; type errors; an `if` that is not true/false; an unknown action; a `cast` / `use` rule without id; a `wait` rule without `if`; a field of the wrong type; a label or comment too long.
+- **Warnings** (the script stays valid; Task 2 drops the rule or the part reads false / 0): an id not in the context (`unknown spell 'shadow-blot'`, `unknown aura '...'`, `item 'item:29371' is not in this setup (not worn or not enabled)`, each with the closest id), a `cast` of an item action, `has()` of an absent id, a `casting == '...'` literal that is no spell, an unknown rule field (ignored).
+
+### Engine: read-only counters
+
+`SimSnapshot.castCounts` (completed non-item casts per spell id) and `useCounts` (item action uses per action id) are counted at `cast-complete` in `completeCast`: a cancelled or cut-off cast never counts, a queued spell counts when it completes, a missile spell counts at cast end (like the simulator's cast totals), an item at its use. They are frozen objects replaced by a new frozen copy at each completion (copy-on-write), so a snapshot costs one field read each. Nothing else changes: the 23 bot-equivalence scenarios (logs, RNG draws, means, golden values 1425.1766666666667 / 1428.3350000000003) pass unchanged, and the default 60 s run stays about 0.9-1.0 ms per run in the development container before and after (3 x 3000 runs each). Whole-snapshot literals in four tests gained the two empty fields (tests/engine/sim-core.test.ts, tests/ui/hud-model.test.ts, tests/data/item-use.test.ts, tests/fixtures/item-use-reference.ts).
