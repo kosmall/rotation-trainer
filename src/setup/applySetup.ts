@@ -82,11 +82,12 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   config.rotation (its `itemUse` / `itemUseOrder`; absent: the default rules, the same steps
  *   as `buildItemSteps`), { heroismEndMs: Heroism's end in ms or null, auraNames }),
  *   ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks)]` (no item: the rotation
- *   alone); rules of entries that are not bound actions are ignored (kept in the config), where `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included:
- *   e.g. Voidheart 4pc gives `{ corruption: 1, immolate: 1 }`, so the DoT refresh rules count the
- *   longer DoTs; `{}` otherwise, the list unchanged). Heroism's
- *   end is its scheduled start + duration; null when Heroism is disabled or starts at or after
- *   the fight's end (it never comes up, so the item rules treat it as not enabled);
+ *   alone). Rules of entries that are not bound actions are ignored (and kept in the config).
+ *   `dotExtraTicks = dotExtraTicksForSpec(spec)` (the built spec, buffs included: e.g. Voidheart
+ *   4pc gives `{ corruption: 1, immolate: 1 }`, so the DoT refresh rules count the longer DoTs;
+ *   `{}` otherwise, the list unchanged). Heroism's end is its scheduled start + duration; null
+ *   when Heroism is disabled or starts at or after the fight's end (it never comes up, so the
+ *   item rules treat it as not enabled);
  *   `distanceFromTarget = config.distanceYd`; `durationMs = config.fightDurationSec x 1000`.
  * Expects a normalized config (`normalizeSetup`): buildPriority throws on an invalid Life Tap
  * threshold.

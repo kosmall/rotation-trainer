@@ -331,4 +331,13 @@ describe('item-use: normalization', () => {
     expect(normalizeItemUseOrder('x', known)).toBeUndefined();
     expect(normalizeItemUseOrder([], known)).toBeUndefined();
   });
+
+  it('an own __proto__ key never becomes the result prototype, even with a permissive id check', () => {
+    const v = JSON.parse('{"__proto__": {"trigger": {"kind": "ready"}}, "dark-rune": {"trigger": {"kind": "pull"}}}');
+    const once = normalizeItemUse(v, () => true)!;
+    expect(Object.getPrototypeOf(once)).toBe(Object.prototype);
+    expect('trigger' in once).toBe(false);
+    expect(once).toEqual({ 'dark-rune': { trigger: { kind: 'pull' } } });
+    expect(normalizeItemUse(once, () => true)).toEqual(once);
+  });
 });

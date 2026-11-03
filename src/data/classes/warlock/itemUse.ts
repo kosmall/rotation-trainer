@@ -376,7 +376,7 @@ export function normalizeItemUseRule(v: unknown): ItemUseRule | null {
 /**
  * The stored rules, validated: only own keys for which `isKnownId` holds (catalog item actions and
  * gear effect ids; prototype keys never pass), each rule through `normalizeItemUseRule` (invalid
- * rules dropped: the default applies), at most `ITEM_USE_LIMITS.maxEntries` rules (the first ones
+ * rules dropped: the default applies; `__proto__` never passes), at most `ITEM_USE_LIMITS.maxEntries` rules (the first ones
  * in key order). A rule equal to its default for every fight (`isDefaultRule`) is dropped, so a
  * config that only spells out the defaults equals one without them. Returns undefined when nothing
  * is left (the field is then absent). Never throws; idempotent.
@@ -392,7 +392,8 @@ export function normalizeItemUse(
     let n = 0;
     for (const id of Object.keys(v)) {
       if (n >= ITEM_USE_LIMITS.maxEntries) break;
-      if (!isKnownId(id)) continue;
+      // `__proto__` would set the result's prototype, whatever `isKnownId` says.
+      if (id === '__proto__' || !isKnownId(id)) continue;
       const rule = normalizeItemUseRule(v[id]);
       if (rule === null || isDefaultRule(id, rule)) continue;
       out[id] = rule;
