@@ -6,6 +6,7 @@ import {
   canAddPoint,
   canRemovePoint,
   decodeTalents,
+  loadTalentDescriptions,
   encodeTalents,
   talentById,
   talentIconPath,
@@ -56,7 +57,8 @@ describe('talent tree data (generated from wowsims tbc-new)', () => {
         expect(d.maxRank).toBeGreaterThanOrEqual(1);
         expect(d.maxRank).toBeLessThanOrEqual(5);
         expect(d.wowheadIds, d.id).toHaveLength(d.maxRank);
-        expect(d.descriptions, d.id).toHaveLength(d.maxRank);
+        // The descriptions live in talentDescriptions.json (loaded lazily, below), not in the tree.
+        expect('descriptions' in d, d.id).toBe(false);
         for (const id of d.wowheadIds) expect(Number.isInteger(id) && id > 0, `${d.id} ${id}`).toBe(true);
         expect(d.name).not.toBe('');
         expect(d.icon, d.id).toMatch(/^[a-z0-9_]+$/);
@@ -98,15 +100,19 @@ describe('talent tree data (generated from wowsims tbc-new)', () => {
       'Suppression', 0, 1, 5, [18174, 18175, 18176, 18177, 18178],
     ]);
     expect(s.icon).toBe('spell_shadow_unsummonbuilding');
-    expect(s.descriptions[0]).toBe('Reduces the chance for enemies to resist your Affliction spells by 2%.');
+    expect('descriptions' in s).toBe(false);
     expect(talentById('ruin')).toMatchObject({ name: 'Ruin', tree: 2, row: 4, col: 2, maxRank: 1 });
     // Emberstorm rank 3 = 17956 (talents.ts, Task 12a).
     expect(talentById('emberstorm')?.wowheadIds[2]).toBe(17956);
     expect(talentById('shadowfury')).toMatchObject({ row: 8, col: 1, maxRank: 1, prereq: 'shadowAndFlame' });
   });
 
-  it('descriptions are plain text; unavailable tooltips are counted (empty strings)', () => {
-    const descriptions = all.flatMap((d) => d.descriptions);
+  it('descriptions (talentDescriptions.json, loaded lazily) are plain text, one per rank; unavailable tooltips are counted (empty strings)', async () => {
+    const byId = await loadTalentDescriptions();
+    expect(Object.keys(byId).sort()).toEqual([...ids].sort());
+    for (const d of all) expect(byId[d.id], d.id).toHaveLength(d.maxRank);
+    expect(byId.suppression![0]).toBe('Reduces the chance for enemies to resist your Affliction spells by 2%.');
+    const descriptions = all.flatMap((d) => byId[d.id]!);
     expect(descriptions).toHaveLength(all.reduce((n, d) => n + d.maxRank, 0));
     for (const text of descriptions) {
       expect(text).not.toMatch(/[<>]|&[a-z]+;|&#\d+;|<!--/);
@@ -115,6 +121,19 @@ describe('talent tree data (generated from wowsims tbc-new)', () => {
     const empty = descriptions.filter((text) => text === '').length;
     // Pinned count of ranks whose Wowhead tooltip was unavailable when the generator ran.
     expect(empty).toBe(0);
+    // One loaded object, shared and frozen; prototype keys are not talents.
+    expect(await loadTalentDescriptions()).toBe(byId);
+    expect(Object.isFrozen(byId)).toBe(true);
+    expect(Object.hasOwn(byId, '__proto__')).toBe(false);
+  });
+
+  it('the tree structure stays small: no description text in talentTree.json, nor a static import of the descriptions', () => {
+    const tree = new TextDecoder().decode(fs.readFileSync(new URL('../../src/data/classes/warlock/talentTree.json', import.meta.url)));
+    expect(tree).not.toContain('"descriptions"');
+    expect(tree.length).toBeLessThan(15000);
+    const source = new TextDecoder().decode(fs.readFileSync(new URL('../../src/data/classes/warlock/talentTree.ts', import.meta.url)));
+    expect(source).not.toMatch(/^import .*talentDescriptions/m);
+    expect(source).toContain("import('./talentDescriptions.json')");
   });
 
   it('records its source (wowsims commit and Wowhead)', () => {

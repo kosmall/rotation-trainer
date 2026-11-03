@@ -1,4 +1,7 @@
-// Generates the Warlock talent tree (src/data/classes/warlock/talentTree.json) from a local clone of
+// Generates the Warlock talent tree (src/data/classes/warlock/talentTree.json: the structure, which
+// the codec, the effects, the setup and the simulator worker import) and the talent descriptions
+// (talentDescriptions.json: the tooltip text per rank, loaded lazily by the talent editor, stage 2b
+// Task 3) from a local clone of
 // github.com/wowsims/tbc-new (MIT licence) and Wowhead's TBC tooltip API. Run by hand when the
 // source changes; the output is committed (neither the clone nor the network is needed at runtime):
 //
@@ -16,8 +19,8 @@
 // rank, sequential with a pause and retries: `icon` of the rank 1 spell (the talent's icon) and the
 // tooltip's description (`<div class="q">` blocks, HTML stripped to plain text). A rank whose
 // tooltip stays unavailable gets an empty description (counted and printed; tests pin the count).
-// Without --refresh the descriptions and icons already in the committed JSON are reused (keyed by
-// spell id), so a second run is byte-identical and makes no request; only new spell ids are asked.
+// Without --refresh the descriptions and icons already in the committed JSON files are reused (keyed
+// by spell id), so a second run is byte-identical and makes no request; only new spell ids are asked.
 // Exits 1 when the clone data is malformed or an icon cannot be resolved.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outPath = join(root, 'src', 'data', 'classes', 'warlock', 'talentTree.json');
+const descriptionsPath = join(root, 'src', 'data', 'classes', 'warlock', 'talentDescriptions.json');
 const args = process.argv.slice(2);
 const refresh = args.includes('--refresh');
 const clone = args.find((a) => !a.startsWith('--'));
@@ -123,8 +127,11 @@ const known = new Map(); // spell id -> description
 const knownIcons = new Map(); // talent id -> icon
 if (!refresh && existsSync(outPath)) {
   const previous = JSON.parse(readFileSync(outPath, 'utf8'));
+  const previousDescriptions = existsSync(descriptionsPath) ? JSON.parse(readFileSync(descriptionsPath, 'utf8')).descriptions : {};
   for (const d of previous.trees.flatMap((t) => t.talents)) {
-    d.wowheadIds.forEach((id, i) => known.set(id, d.descriptions[i]));
+    // Before stage 2b Task 3 the descriptions were in the tree file itself.
+    const texts = Object.hasOwn(previousDescriptions, d.id) ? previousDescriptions[d.id] : d.descriptions;
+    if (Array.isArray(texts)) d.wowheadIds.forEach((id, i) => typeof texts[i] === 'string' && known.set(id, texts[i]));
     knownIcons.set(d.id, d.icon);
   }
 }
@@ -193,7 +200,8 @@ for (const tree of trees) {
 const commit = commitOf(clone);
 const sourceText =
   `wowsims/tbc-new @ ${commit} ui/sim/talents/trees/warlock.json (MIT licence); ` +
-  'icons and descriptions: Wowhead TBC tooltips (nether.wowhead.com/tbc/tooltip/spell/<id>)';
+  'icons: Wowhead TBC tooltips (nether.wowhead.com/tbc/tooltip/spell/<id>); descriptions: talentDescriptions.json';
+const descriptionsSource = 'Wowhead TBC tooltips (nether.wowhead.com/tbc/tooltip/spell/<id>), one per rank, plain text';
 const talentLine = (d, t) =>
   JSON.stringify({
     id: d.fieldName,
@@ -205,7 +213,6 @@ const talentLine = (d, t) =>
     ...(d.prereq ? { prereq: d.prereq } : {}),
     icon: d.icon,
     wowheadIds: d.spellIds,
-    descriptions: d.descriptions,
   });
 const out =
   `{"source":${JSON.stringify(sourceText)},\n"trees":[\n` +
@@ -213,8 +220,14 @@ const out =
     .map((tree, t) => `{"name":${JSON.stringify(tree.name)},"talents":[\n${tree.talents.map((d) => talentLine(d, t)).join(',\n')}\n]}`)
     .join(',\n') +
   '\n]}\n';
+const all = trees.flatMap((tree) => tree.talents);
+const descriptionsOut =
+  `{"source":${JSON.stringify(descriptionsSource)},\n"descriptions":{\n` +
+  all.map((d) => `${JSON.stringify(d.fieldName)}:${JSON.stringify(d.descriptions)}`).join(',\n') +
+  '\n}}\n';
 writeFileSync(outPath, out);
+writeFileSync(descriptionsPath, descriptionsOut);
 console.log(
-  `Wrote ${outPath}: 64 talents (21/22/21), ${requests} tooltip request(s), ` +
-    `${emptyDescriptions} rank(s) without a description, ${out.length} bytes.`,
+  `Wrote ${outPath} (${out.length} bytes) and ${descriptionsPath} (${descriptionsOut.length} bytes): ` +
+    `64 talents (21/22/21), ${requests} tooltip request(s), ${emptyDescriptions} rank(s) without a description.`,
 );
