@@ -31,15 +31,22 @@ import type { SimSnapshot } from '../engine/types';
  * call per step. So the fight (log, RNG draws, result) is exactly that of a walk at every step
  * (pinned in tests/bot/bot-equivalence.test.ts). `when` conditions must be pure functions of the
  * snapshot (they are never called at a skipped step).
+ *
+ * `onPress` (optional, read-only; rotation scripts Task 4, rule fires): called with the index in
+ * `priority` of the step whose press the engine just accepted (cast started or queued), right
+ * after `sim.cast` returned ok and before anything else happens. It cannot change the walk, the
+ * log or the RNG (it gets no access to the Simulation); the simulator uses it to attribute starts
+ * to rules (src/sim-runner/run.ts).
  */
 export function runBot(
   sim: Simulation,
   priority: readonly PriorityStep[],
   stepMs = 10,
+  onPress?: (stepIndex: number) => void,
 ): { dps: number; damageTotal: number } {
   if (!Number.isFinite(stepMs) || stepMs <= 0) throw new RangeError(`runBot needs a positive stepMs, got ${stepMs}`);
   for (let s = sim.snapshot(); s.phase !== 'ended'; s = sim.snapshot()) {
-    pressFirstCastable(sim, priority, s);
+    pressFirstCastable(sim, priority, s, onPress);
     if (sim.currentPhase() === 'ready') {
       throw new Error('runBot: no priority step can start the fight (every cast was rejected in ready)');
     }
@@ -60,8 +67,14 @@ function nextStepMs(nowMs: number, stepMs: number, opensAtMs: number): number {
   return opensAtMs > next ? next + Math.ceil((opensAtMs - next) / stepMs) * stepMs : next;
 }
 
-function pressFirstCastable(sim: Simulation, priority: readonly PriorityStep[], s: SimSnapshot): void {
-  for (const step of priority) {
+function pressFirstCastable(
+  sim: Simulation,
+  priority: readonly PriorityStep[],
+  s: SimSnapshot,
+  onPress: ((stepIndex: number) => void) | undefined,
+): void {
+  for (let i = 0; i < priority.length; i++) {
+    const step = priority[i]!;
     if (step.when && !step.when(s)) continue;
     if (step.kind === 'wait') {
       // No time passes before the first press: a wait cannot hold the pull.
@@ -69,6 +82,9 @@ function pressFirstCastable(sim: Simulation, priority: readonly PriorityStep[], 
       return;
     }
     if (step.spellId === s.queuedSpellId) return;
-    if (sim.cast(step.spellId).ok) return;
+    if (sim.cast(step.spellId).ok) {
+      onPress?.(i);
+      return;
+    }
   }
 }

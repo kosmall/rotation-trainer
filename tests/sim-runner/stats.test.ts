@@ -24,6 +24,7 @@ function sample(index: number, dps: number): RunSample {
     auraUpMs: {},
     manaSpent: 0,
     lifeTaps: 0,
+    ruleFires: [],
   };
 }
 

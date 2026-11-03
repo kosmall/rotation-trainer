@@ -4,9 +4,10 @@
 // to load), the same `simulate()` on the main thread in small chunks. Both give the same result
 // (`simulate` is independent of the chunk size). Framework-free.
 
+import { compare } from './compare';
 import { simulate } from './run';
-import type { SimRequest, SimResult } from './types';
-import type { FromWorker } from './worker';
+import type { CompareResult, SimRequest, SimResult } from './types';
+import { compareChunk, type CompareMessage, type FromWorker, type RunMessage } from './worker';
 
 export interface RunOptions {
   /** Called with the runs done so far and the total (after each chunk). */
@@ -60,12 +61,35 @@ function errorFrom(m: { name: string; message: string }): Error {
  * and message.
  */
 export function runSimulation(request: SimRequest, options: RunOptions = {}): Promise<SimResult> {
+  return runInWorker<SimResult>({ type: 'run', request }, () => runOnMainThread(request, options), options);
+}
+
+/**
+ * A paired comparison on the main thread (`compare`), in chunks of FALLBACK_CHUNK fights split
+ * over the scenarios.
+ */
+export function compareOnMainThread(requests: SimRequest[], options: RunOptions = {}): Promise<CompareResult> {
+  return compare(requests, { chunk: compareChunk(FALLBACK_CHUNK, requests), onProgress: options.onProgress, signal: options.signal });
+}
+
+/**
+ * Runs `compare(requests)` (2-5 scenarios, same runs and seed: compare.ts) in a new module worker,
+ * exactly like `runSimulation` (progress over the fights of all scenarios, abort terminates the
+ * worker, the same fallback to `compareOnMainThread`, a bad comparison rejects with its error).
+ * The result equals `compare(requests)` whichever path ran it.
+ */
+export function runComparison(requests: SimRequest[], options: RunOptions = {}): Promise<CompareResult> {
+  return runInWorker<CompareResult>({ type: 'compare', requests }, () => compareOnMainThread(requests, options), options);
+}
+
+/** The worker path shared by `runSimulation` and `runComparison`. */
+function runInWorker<T>(message: RunMessage | CompareMessage, onMainThread: () => Promise<T>, options: RunOptions): Promise<T> {
   const { onProgress, signal } = options;
   if (signal?.aborted) return Promise.reject(abortError());
   const worker = startWorker();
-  if (worker === null) return runOnMainThread(request, options);
+  if (worker === null) return onMainThread();
 
-  return new Promise<SimResult>((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     let started = false;
     let settled = false;
     const settle = () => {
@@ -75,7 +99,7 @@ export function runSimulation(request: SimRequest, options: RunOptions = {}): Pr
     };
     const fallback = () => {
       settle();
-      runOnMainThread(request, options).then(resolve, reject);
+      onMainThread().then(resolve, reject);
     };
     function onAbort() {
       if (settled) return;
@@ -97,7 +121,7 @@ export function runSimulation(request: SimRequest, options: RunOptions = {}): Pr
           break;
         case 'result':
           settle();
-          resolve(m.result);
+          resolve(m.result as T);
           break;
         case 'error':
           settle();
@@ -123,7 +147,7 @@ export function runSimulation(request: SimRequest, options: RunOptions = {}): Pr
       reject(new Error('The simulation worker sent a message that could not be read'));
     };
     try {
-      worker.postMessage({ type: 'run', request });
+      worker.postMessage(message);
     } catch {
       fallback(); // not cloneable (e.g. a proxy): the main thread reads it as is
     }

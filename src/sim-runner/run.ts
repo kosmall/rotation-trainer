@@ -13,6 +13,7 @@ import type { EquippedItem } from '../engine/types';
 import { applySetup } from '../setup/applySetup';
 import { normalizeSetup, SETUP_CATALOG, STATIC_SETUP_CATALOG } from '../setup/defaults';
 import { gearNeedsDb } from '../setup/gear';
+import type { PriorityStep } from '../data/types';
 import type { AppliedSetup, SetupConfig } from '../setup/types';
 import { createFightSimulation } from './fight';
 import { SIM_LIMITS } from './limits';
@@ -66,6 +67,45 @@ export interface RunFactory {
   /** Ids of the auras whose uptime is measured (every aura that is not `hidden`). */
   readonly visibleAuraIds: ReadonlySet<string>;
   readonly labels: SimResult['labels'];
+  /**
+   * The pressing rules of the priority list in list order (`ruleKeysOf`): the `SimResult.ruleFires`
+   * keys, their labels and the index of their step in `fight.spec.priority`.
+   */
+  readonly rules: readonly RuleSlot[];
+  /** Per priority step: its index in `rules`, or -1 for a wait step. */
+  readonly ruleOfStep: Int32Array;
+}
+
+/** One pressing rule of a fight's priority list (`RunFactory.rules`). */
+export interface RuleSlot {
+  key: string;
+  label: string;
+  step: number;
+}
+
+/**
+ * The pressing rules of `priority` (every step but `wait` steps), keyed: a script step by its rule
+ * key (`step.key`, `rules[i]`); a basic step by its item's catalog entry id when it presses one of
+ * `itemActions` (`destruction-potion`, `item:29370`), else by its spell id (`shadow-bolt`). A key
+ * already taken gets `#2`, `#3` (the basic list never repeats one).
+ */
+export function ruleKeysOf(
+  priority: readonly PriorityStep[],
+  itemActions: readonly { id: string; spellId: string }[],
+): { rules: RuleSlot[]; ruleOfStep: Int32Array } {
+  const rules: RuleSlot[] = [];
+  const ruleOfStep = new Int32Array(priority.length).fill(-1);
+  const taken = new Set<string>();
+  priority.forEach((step, i) => {
+    if (step.kind === 'wait') return;
+    const base = step.key ?? itemActions.find((a) => a.spellId === step.spellId)?.id ?? step.spellId;
+    let key = base;
+    for (let n = 2; taken.has(key); n++) key = `${base}#${n}`;
+    taken.add(key);
+    ruleOfStep[i] = rules.length;
+    rules.push({ key, label: step.label, step: i });
+  });
+  return { rules, ruleOfStep };
 }
 
 const describe = (v: unknown) => (typeof v === 'number' ? String(v) : typeof v);
@@ -153,7 +193,8 @@ export function prepareRun(request: SimRequest): RunFactory {
     visibleAuraIds.add(a.id);
     labels.auras[a.id] = a.name;
   }
-  return { runs, seed, spellQueueWindowMs, config, fight, startMana, itemActionIds, visibleAuraIds, labels };
+  const { rules, ruleOfStep } = ruleKeysOf(fight.spec.priority, fight.basic.itemActions);
+  return { runs, seed, spellQueueWindowMs, config, fight, startMana, itemActionIds, visibleAuraIds, labels, rules, ruleOfStep };
 }
 
 /** Run `index` of the request: the fight with seed `mixSeed(factory.seed, index)`. */
@@ -173,11 +214,39 @@ export function runOnce(factory: RunFactory, index: number): RunSample {
  *   ignored) to its `aura-fade`, or to the fight's end when still up;
  * - mana spent: start mana + every logged gain (`mana`) - the mana at the end; this is the sum
  *   of the completed casts' costs, except when a self aura that raised max mana fades with the
- *   bar above the new max (the engine clamps it without a log: counted as spent).
+ *   bar above the new max (the engine clamps it without a log: counted as spent);
+ * - rule fires: the bot reports each accepted press's step (`runBot`'s read-only `onPress`); the
+ *   log then tells when each press STARTED its cast or use. An accepted press logs at once either
+ *   its start (`cast-start`, or `cast-complete` of an instant / item action) or `queue`; a queued
+ *   spell starts later when its block ends (the same start events) or is dropped (`queue-drop`:
+ *   replaced, or rejected when it fires; a queued spell discarded at the fight end never starts).
+ *   Walking the log with the presses in order: a `queue` takes the next press as the pending one;
+ *   a `queue-drop` clears it; a start is the pending press's when one is pending for that spell,
+ *   else the next press's; a `cast-complete` while a cast is in progress is its completion, not a
+ *   start (nothing else can complete during a cast: every press is busy or queued then).
  */
 export function runWithSeed(factory: RunFactory, seed: number, index: number): RunSample {
   const sim = createFightSimulation(factory.fight, seed, factory.spellQueueWindowMs);
-  const { dps, damageTotal } = runBot(sim, factory.fight.spec.priority);
+  const priority = factory.fight.spec.priority;
+  const presses: number[] = [];
+  const { dps, damageTotal } = runBot(sim, priority, undefined, (step) => presses.push(step));
+  const ruleFires = new Array<number>(factory.rules.length).fill(0);
+  const { ruleOfStep } = factory;
+  let nextPress = 0;
+  let pending = -1;
+  let casting = false;
+  const started = (spellId: string) => {
+    let step: number | undefined;
+    if (pending >= 0 && priority[pending]!.spellId === spellId) {
+      step = pending;
+      pending = -1;
+    } else {
+      step = presses[nextPress++];
+    }
+    if (step === undefined) return;
+    const slot = ruleOfStep[step]!;
+    if (slot >= 0) ruleFires[slot]! += 1;
+  };
   const endMana = sim.snapshot().mana;
   const durationMs = factory.fight.sim.durationMs;
   const spells: Record<string, SpellTotals> = {};
@@ -190,8 +259,25 @@ export function runWithSeed(factory: RunFactory, seed: number, index: number): R
   let lifeTaps = 0;
   for (const e of sim.log()) {
     switch (e.type) {
+      case 'cast-start':
+        started(e.spellId!);
+        casting = true;
+        break;
+      case 'cast-cancel':
+        casting = false;
+        break;
+      case 'queue': {
+        const step = presses[nextPress++];
+        pending = step === undefined ? -1 : step;
+        break;
+      }
+      case 'queue-drop':
+        pending = -1;
+        break;
       case 'cast-complete': {
         const id = e.spellId!;
+        if (casting) casting = false;
+        else started(id);
         if (factory.itemActionIds.has(id)) itemUses[id] = (itemUses[id] ?? 0) + 1;
         else totals(id).casts += 1;
         if (id === LIFE_TAP_SPELL_ID) lifeTaps += 1;
@@ -246,6 +332,7 @@ export function runWithSeed(factory: RunFactory, seed: number, index: number): R
     auraUpMs,
     manaSpent: factory.startMana + gains - endMana,
     lifeTaps,
+    ruleFires,
   };
 }
 
@@ -279,6 +366,7 @@ export async function simulate(request: SimRequest, options: SimOptions = {}): P
     fightMs: factory.fight.sim.durationMs,
     spellQueueWindowMs: factory.spellQueueWindowMs,
     labels: factory.labels,
+    rules: factory.rules,
   });
   for (let i = 0; i < factory.runs; ) {
     const end = Math.min(factory.runs, i + chunk);

@@ -3,7 +3,7 @@
 // per-run DPS, and the `Aggregator` that folds per-run samples into a `SimResult`. Pure and
 // framework-free; the result depends only on the samples and the order they are added in.
 
-import type { Histogram, RunSample, SimResult, SpellSummary, SpellTotals } from './types';
+import type { Histogram, RuleFires, RunSample, SimResult, SpellSummary, SpellTotals } from './types';
 
 /**
  * Welford's online algorithm: count, mean and the sum of squared deviations M2, updated per value
@@ -74,6 +74,8 @@ export interface AggregatorInfo {
   fightMs: number;
   spellQueueWindowMs: number;
   labels: SimResult['labels'];
+  /** The pressing rules (`RunFactory.rules`): with them the result has `ruleFires`, else not. */
+  rules?: readonly { key: string; label: string }[];
 }
 
 /** Sums of `SpellTotals` over the runs. */
@@ -97,6 +99,7 @@ export class Aggregator {
   private readonly spells = new Map<string, SpellSums>();
   private readonly itemUses = new Map<string, number>();
   private readonly auraUpMs = new Map<string, number>();
+  private readonly ruleFires: Float64Array | null;
   private manaSpent = 0;
   private lifeTaps = 0;
   private min = Infinity;
@@ -105,6 +108,7 @@ export class Aggregator {
   constructor(info: AggregatorInfo) {
     this.info = info;
     this.dps = new Float64Array(info.runs);
+    this.ruleFires = info.rules !== undefined ? new Float64Array(info.rules.length) : null;
   }
 
   get count(): number {
@@ -135,6 +139,8 @@ export class Aggregator {
     }
     for (const [id, uses] of Object.entries(sample.itemUses)) addInto(this.itemUses, id, uses);
     for (const [id, ms] of Object.entries(sample.auraUpMs)) addInto(this.auraUpMs, id, ms);
+    const fires = this.ruleFires;
+    if (fires !== null) for (let k = 0; k < fires.length; k++) fires[k]! += sample.ruleFires?.[k] ?? 0;
   }
 
   result(): SimResult {
@@ -165,6 +171,13 @@ export class Aggregator {
     for (const [id, uses] of this.itemUses) itemUses[id] = uses / n;
     const uptimes: Record<string, number> = {};
     for (const [id, ms] of this.auraUpMs) uptimes[id] = info.fightMs > 0 ? Math.min(1, ms / n / info.fightMs) : 0;
+    let ruleFires: Record<string, RuleFires> | undefined;
+    if (this.ruleFires !== null && info.rules !== undefined) {
+      ruleFires = {};
+      info.rules.forEach((r, k) => {
+        ruleFires![r.key] = { label: r.label, meanFires: this.ruleFires![k]! / n };
+      });
+    }
     return {
       runs: n,
       seed: info.seed,
@@ -189,6 +202,7 @@ export class Aggregator {
       meanManaSpent: this.manaSpent / n,
       meanLifeTaps: this.lifeTaps / n,
       fightMs: info.fightMs,
+      ...(ruleFires !== undefined && { ruleFires }),
       labels: { spells: { ...info.labels.spells }, items: { ...info.labels.items }, auras: { ...info.labels.auras } },
     };
   }

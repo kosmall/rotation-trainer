@@ -56,6 +56,11 @@ export interface RunSample {
   /** Start mana + logged gains - end mana (docs Part H). */
   manaSpent: number;
   lifeTaps: number;
+  /**
+   * Casts and item uses started per pressing rule (`RunFactory.rules` order): rule fires, see
+   * `SimResult.ruleFires`.
+   */
+  ruleFires: number[];
 }
 
 export interface Histogram {
@@ -105,6 +110,17 @@ export interface SimResult {
   meanManaSpent: number;
   meanLifeTaps: number;
   fightMs: number;
+  /**
+   * Rule fires (rotation scripts Task 4; docs Part J, "Rule fires"): per pressing rule of the
+   * fight's priority list, in list order, its label and the mean number of casts / item uses per
+   * fight it STARTED: a press counts when the cast or use actually starts (at once, or when the
+   * queued press leaves the queue), never when it is only queued (a queued press that is replaced
+   * or dropped counts nothing). Keys: a script's rule key `rules[i]`; for the basic rotation the
+   * spell id (`shadow-bolt`) or the item's catalog entry id (`destruction-potion`, `item:29370`).
+   * Every pressing rule is listed, 0 when it never fired; wait rules press nothing and are not
+   * listed. Optional only for results built elsewhere (tests, older code): `simulate` always sets it.
+   */
+  ruleFires?: Record<string, RuleFires>;
   /** Display names: item action ids and aura ids to their names. */
   labels: { spells: Record<string, string>; items: Record<string, string>; auras: Record<string, string> };
 }
@@ -117,4 +133,45 @@ export interface SimOptions {
   onProgress?: (done: number, total: number) => void;
   /** Aborting rejects the promise with an AbortError at the next run boundary (no partial result). */
   signal?: AbortSignal;
+}
+
+/** One rule's fires in `SimResult.ruleFires`. */
+export interface RuleFires {
+  /** The step's label (the rule's label, else the spell's or item's name). */
+  label: string;
+  /** Mean casts / item uses per fight this rule started. */
+  meanFires: number;
+}
+
+/**
+ * One scenario against the baseline (the first) in a paired comparison (`compare`, compare.ts;
+ * docs Part J, "Comparing scenarios"). d_i = DPS of run i of this scenario - DPS of run i of the
+ * baseline (both played with seed mixSeed(seed, i)).
+ */
+export interface PairedDelta {
+  /** This scenario's mean DPS minus the baseline's (exactly the difference of the two means). */
+  meanDiff: number;
+  /** Standard error of the mean paired difference: sqrt(s_d^2 / n), s_d^2 the n - 1 sample variance of d_i; 0 for one run. */
+  sem: number;
+  /** meanDiff -+ 1.96 sem (normal approximation). */
+  ci95: [number, number];
+  /** meanDiff / sem; 0 when meanDiff is 0 or there is one run; +-Infinity when sem is 0 and meanDiff is not. */
+  zscore: number;
+  /** The 95% CI excludes 0 (never with one run). One test per scenario: no multiple-comparison correction. */
+  significant: boolean;
+  /** This scenario's 1-based rank by mean DPS among all compared scenarios. */
+  rank: number;
+}
+
+/** `compare`'s result: one `SimResult` per request, in request order, and the paired deltas. */
+export interface CompareResult {
+  runs: number;
+  seed: number;
+  results: SimResult[];
+  /** Per request: null for the baseline (index 0), else its paired delta against the baseline. */
+  deltas: (PairedDelta | null)[];
+  /** Request indices by mean DPS, best first (ties: lower index first). */
+  ranking: number[];
+  /** Per request: its 1-based rank (`ranking.indexOf(i) + 1`). */
+  ranks: number[];
 }
