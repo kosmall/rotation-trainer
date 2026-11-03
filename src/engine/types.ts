@@ -417,4 +417,14 @@ export interface SimSnapshot {
    * order on ties). Empty once the fight has ended: missiles still flying then never land.
    */
   inFlight: { spellId: string; landsAtMs: number }[];
+  /**
+   * Read-only counters for rotation scripts (`cast.<id>.count`): completed casts per spell id,
+   * item actions (`SpellDef.item`) excluded, counted at `cast-complete` (a missile still flying
+   * counts; cancelled and cut-off casts never do; a queued spell counts when it completes). Ids
+   * never completed are absent. A frozen object shared by the snapshots taken until the next
+   * completion (copy-on-write); it changes nothing else in the engine.
+   */
+  castCounts: Readonly<Record<string, number>>;
+  /** Like `castCounts`, for item actions only (`use.<id>.count`): uses per action spell id, counted at the use. */
+  useCounts: Readonly<Record<string, number>>;
 }

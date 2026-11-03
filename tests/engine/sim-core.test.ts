@@ -100,6 +100,8 @@ describe('Simulation lifecycle', () => {
       dps: 0,
       queuedSpellId: null,
       inFlight: [],
+      castCounts: {},
+      useCounts: {},
     });
     expect(sim.log()).toEqual([]);
   });

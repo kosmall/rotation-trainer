@@ -131,6 +131,8 @@ function snap(p: Partial<SimSnapshot> = {}): SimSnapshot {
     dps: 0,
     queuedSpellId: null,
     inFlight: [],
+    castCounts: {},
+    useCounts: {},
     ...p,
   };
 }

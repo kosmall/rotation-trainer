@@ -157,6 +157,8 @@ export function randomSnapshots(seed: number, n: number): SimSnapshot[] {
       dps: 0,
       queuedSpellId,
       inFlight: [],
+      castCounts: {},
+      useCounts: {},
     });
   }
   return out;

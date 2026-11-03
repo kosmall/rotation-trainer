@@ -128,6 +128,12 @@ function validateSpell(spell: SpellDef): void {
   }
 }
 
+/** A frozen copy of `counts` with `id` one higher (a computed key: `__proto__` stays an own key). */
+function incremented(counts: Readonly<Record<string, number>>, id: string): Readonly<Record<string, number>> {
+  const prev = Object.hasOwn(counts, id) ? counts[id]! : 0;
+  return Object.freeze({ ...counts, [id]: prev + 1 });
+}
+
 /** Whether `spell` triggers (and waits for) the GCD: never for an item action. */
 function usesGcd(spell: SpellDef): boolean {
   return spell.onGcd && !spell.item;
@@ -250,6 +256,12 @@ export class Simulation {
   private readonly logEvents: LogEvent[] = [];
   /** Missiles in flight, in launch order; each removed by its impact, all dropped at the end. */
   private inFlight: Missile[] = [];
+  /**
+   * `snapshot().castCounts` / `useCounts`: frozen, replaced by a new frozen copy at each
+   * completion (copy-on-write), so a snapshot costs nothing more and never shares a mutable object.
+   */
+  private castCounts: Readonly<Record<string, number>> = Object.freeze({});
+  private useCounts: Readonly<Record<string, number>> = Object.freeze({});
 
   constructor(config: SimConfig) {
     const spec: SpecData = config.spec;
@@ -442,6 +454,8 @@ export class Simulation {
       queuedSpellId: this.queued?.spellId ?? null,
       // Stable sort: missiles landing in the same ms keep their launch order.
       inFlight: this.inFlight.map((m) => ({ ...m })).sort((a, b) => a.landsAtMs - b.landsAtMs),
+      castCounts: this.castCounts,
+      useCounts: this.useCounts,
     };
   }
 
@@ -629,10 +643,13 @@ export class Simulation {
    * mana, a `gainManaRange` spell draws and gives its mana, then the spell's effects resolve:
    * at once, or when its missile lands (see `launchMissile`). An item action (cost always 0)
    * resolves here instead: only its `applyAura`, with no roll, damage, missile or hooks.
-   * Cancelled and cut-off casts never get here, so they spend nothing.
+   * Cancelled and cut-off casts never get here, so they spend nothing and are never counted
+   * (`castCounts` / `useCounts`, counted here first).
    */
   private completeCast(spell: SpellDef, cost: number): void {
     this.addLog({ type: 'cast-complete', spellId: spell.id });
+    if (spell.item) this.useCounts = incremented(this.useCounts, spell.id);
+    else this.castCounts = incremented(this.castCounts, spell.id);
     if (cost > 0) {
       this.mana = Math.max(0, this.mana - cost);
       this.lastManaSpendMs = this.nowMs;
