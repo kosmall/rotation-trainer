@@ -4,8 +4,8 @@ import type { SimSnapshot, SpellModifier } from '../../../engine/types';
 import type { PriorityStep, SpecData } from '../../types';
 import type { ItemUseRule } from './itemUse';
 import { warlockAuras } from './auras';
-import { warlockSpells } from './spells';
-import { talentModifiers, talentRank } from './talents';
+import { TALENT_SPELL_IDS, warlockSpells as allSpells } from './spells';
+import { authorTalentSpells, talentModifiers } from './talents';
 
 // The shadow Destruction priority as a configurable rotation (stage 1.5 Part B): buildPriority is
 // the only source of the priority list; the spec's `priority` is the DoT preset at the default
@@ -71,7 +71,7 @@ export const ROTATION_PRESETS: Record<RotationPresetId, { name: string; config: 
 // ---------------------------------------------------------------------------
 
 function spellDef(id: string) {
-  const s = warlockSpells.find((x) => x.id === id);
+  const s = allSpells.find((x) => x.id === id);
   if (!s) throw new Error(`unknown warlock spell ${id}`);
   return s;
 }
@@ -85,16 +85,44 @@ function spellDef(id: string) {
  * by ~4% (window 400). The unhasted values (Shadow Bolt 2500, Immolate 1500, Corruption 2000 ms)
  * fire slightly earlier and keep that margin. See docs/data-sources.md, Task 12b open question 3.
  */
-function talentCastTimeMs(id: string): number {
+function talentCastTimeMs(id: string, talents: RotationTalents): number {
   const s = spellDef(id);
   let ms = s.castTimeMs;
-  for (const m of talentModifiers) {
+  for (const m of talents.modifiers) {
     if ((m.spellIds === undefined || m.spellIds.includes(id)) && (m.schools === undefined || m.schools.includes(s.school))) {
       ms += m.castTimeMsDelta ?? 0;
     }
   }
-  return ms;
+  return Math.max(0, ms);
 }
+
+/** The spell's mana cost after the talents' `manaCostMult` (Shadow Bolt with Cataclysm 5/5: 399). */
+function talentManaCost(id: string, talents: RotationTalents): number {
+  const s = spellDef(id);
+  let mult = 1;
+  for (const m of talents.modifiers) {
+    if ((m.spellIds === undefined || m.spellIds.includes(id)) && (m.schools === undefined || m.schools.includes(s.school))) {
+      mult *= m.manaCostMult ?? 1;
+    }
+  }
+  return s.manaCost * mult;
+}
+
+/**
+ * What the priority reads from the talents (talentEffects.ts `effectsForBuild` of the build):
+ * their spell modifiers (cast time deltas for the refresh and finisher windows, the cost
+ * multiplier for Life Tap 'auto') and the talent spells they make available. Absent: the author's
+ * build (talents.ts), giving the stage 1 list rule for rule.
+ */
+export interface RotationTalents {
+  modifiers: readonly SpellModifier[];
+  spells: readonly string[];
+}
+
+const AUTHOR_TALENTS: RotationTalents = { modifiers: talentModifiers, spells: authorTalentSpells };
+
+/** Whether the build has the spell: talent spells (`TALENT_SPELL_IDS`) only with their talent. */
+const spellAvailable = (id: string, talents: RotationTalents) => !TALENT_SPELL_IDS.includes(id) || talents.spells.includes(id);
 
 function auraDef(id: string) {
   const a = warlockAuras.find((x) => x.id === id);
@@ -113,7 +141,7 @@ function auraDurationMs(id: string): number {
 export type DotExtraTicks = Readonly<Partial<Record<string, number>>>;
 
 /** The warlock spells that apply a ticking target aura (Immolate, Corruption, the curses with ticks). */
-const DOT_SPELLS = warlockSpells.filter((s) => s.applyAura?.on === 'target' && auraDef(s.applyAura.auraId).tick);
+const DOT_SPELLS = allSpells.filter((s) => s.applyAura?.on === 'target' && auraDef(s.applyAura.auraId).tick);
 
 /**
  * The extra DoT ticks the engine will give each DoT spell of `spec` at application, from the
@@ -153,9 +181,6 @@ function dotDurationMs(auraId: string, extraTicks: number): number {
   return n > 0 && a.tick ? a.durationMs + n * a.tick.intervalMs : a.durationMs;
 }
 
-const SHADOW_BOLT_CAST_MS = talentCastTimeMs('shadow-bolt'); // 2500
-/** Shadow Bolt's cost after Cataclysm: below it the filler cannot be cast. */
-const SHADOW_BOLT_COST = spellDef('shadow-bolt').manaCost * (1 - 0.01 * talentRank('cataclysm')); // 399
 
 const remainingFightMs = (s: SimSnapshot) => s.durationMs - s.nowMs;
 const targetAuraMs = (s: SimSnapshot, id: string) => s.targetAuras[id]?.remainingMs ?? 0;
@@ -172,8 +197,8 @@ const targetAuraMs = (s: SimSnapshot, id: string) => s.targetAuras[id]?.remainin
  * guard only matters for a DoT that flies (tested with a hypothetical missile Immolate).
  * Independent of the distance: the in-flight list already reflects it.
  */
-function dotRefreshDue(spellId: string, auraId: string, durationMs: number) {
-  const castMs = talentCastTimeMs(spellId);
+function dotRefreshDue(spellId: string, auraId: string, durationMs: number, talents: RotationTalents) {
+  const castMs = talentCastTimeMs(spellId, talents);
   return (s: SimSnapshot) =>
     s.cast?.spellId !== spellId &&
     !s.inFlight.some((f) => f.spellId === spellId) &&
@@ -184,11 +209,12 @@ function dotRefreshDue(spellId: string, auraId: string, durationMs: number) {
 /**
  * APL "Should Cast Shadow Burn": remaining fight time <= spellCastTime(Shadow Bolt) +
  * spellTravelTime(Shadow Bolt): a bolt started later would land after the end. Unhasted cast
- * time 2500 (see talentCastTimeMs) + the flight at `distanceYd` (1400 ms at the default 28 yd,
- * 0 at 0 yd or for a negative or non-finite distance, see projectileTravelMs).
+ * time after the talents (the author's: 2500, see talentCastTimeMs; no Bane: 3000) + the flight at
+ * `distanceYd` (1400 ms at the default 28 yd, 0 at 0 yd or for a negative or non-finite distance,
+ * see projectileTravelMs).
  */
-export function shadowburnFinisherWindowMs(distanceYd: number): number {
-  return SHADOW_BOLT_CAST_MS + projectileTravelMs(spellDef('shadow-bolt').missileSpeed, distanceYd);
+export function shadowburnFinisherWindowMs(distanceYd: number, talents: RotationTalents = AUTHOR_TALENTS): number {
+  return talentCastTimeMs('shadow-bolt', talents) + projectileTravelMs(spellDef('shadow-bolt').missileSpeed, distanceYd);
 }
 
 // ---------------------------------------------------------------------------
@@ -233,8 +259,31 @@ const CURSE_STEPS: Record<Exclude<CurseChoice, 'none'>, { spellId: string; auraI
  * `dotExtraTicks` (per spell id, `dotExtraTicksForSpec` of the fight's spec): the Immolate and
  * Corruption refresh rules count the DoT's extended duration (the fight must outlast cast time +
  * DoT); absent or empty, the list is the one without it, rule for rule.
+ * `talents` (stage 2b, `RotationTalents`): the build's cast times, Shadow Bolt cost and talent
+ * spells; a step whose spell the build lacks is left out (`rotationWarnings` says which). Absent:
+ * the author's build, the stage 1 list rule for rule.
  */
-export function buildPriority(config: RotationConfig, distanceYd: number, dotExtraTicks: DotExtraTicks = {}): PriorityStep[] {
+export function buildPriority(
+  config: RotationConfig,
+  distanceYd: number,
+  dotExtraTicks: DotExtraTicks = {},
+  talents: RotationTalents = AUTHOR_TALENTS,
+): PriorityStep[] {
+  return buildSteps(config, distanceYd, dotExtraTicks, talents).filter((s) => spellAvailable(s.spellId, talents));
+}
+
+/**
+ * Why `buildPriority(config, ..., talents)` leaves steps out: one message per step whose spell the
+ * build does not have (e.g. the Shadowburn finisher without the Shadowburn talent), for the UI.
+ * Empty when every enabled step can be played. Throws like `buildPriority` on an invalid config.
+ */
+export function rotationWarnings(config: RotationConfig, talents: RotationTalents = AUTHOR_TALENTS): string[] {
+  return buildSteps(config, 0, {}, talents)
+    .filter((s) => !spellAvailable(s.spellId, talents))
+    .map((s) => `${s.label}: ${spellDef(s.spellId).name} is not available with these talents; the step is skipped.`);
+}
+
+function buildSteps(config: RotationConfig, distanceYd: number, dotExtraTicks: DotExtraTicks, talents: RotationTalents): PriorityStep[] {
   const { lifeTapBelowMana } = config;
   if (typeof lifeTapBelowMana === 'number' && !(lifeTapBelowMana >= 0)) {
     throw new RangeError(`lifeTapBelowMana must be 'auto' or a number >= 0, got ${lifeTapBelowMana}`);
@@ -254,7 +303,7 @@ export function buildPriority(config: RotationConfig, distanceYd: number, dotExt
   }
 
   if (config.shadowburnFinisher) {
-    const windowMs = shadowburnFinisherWindowMs(distanceYd);
+    const windowMs = shadowburnFinisherWindowMs(distanceYd, talents);
     steps.push({
       spellId: 'shadowburn',
       label: 'Shadowburn (finisher)',
@@ -268,7 +317,7 @@ export function buildPriority(config: RotationConfig, distanceYd: number, dotExt
       spellId: 'immolate',
       label: 'Immolate',
       hint: 'Refresh Immolate when it has less than its cast time left and the fight outlasts the new DoT.',
-      when: dotRefreshDue('immolate', 'immolate', dotDurationMs('immolate', dotExtraTicks.immolate ?? 0)),
+      when: dotRefreshDue('immolate', 'immolate', dotDurationMs('immolate', dotExtraTicks.immolate ?? 0), talents),
     });
   }
 
@@ -279,18 +328,19 @@ export function buildPriority(config: RotationConfig, distanceYd: number, dotExt
       spellId: 'corruption',
       label: 'Corruption',
       hint: `Keep Corruption ticking while a full ${durationMs / 1000} s DoT still fits in the fight.`,
-      when: dotRefreshDue('corruption', 'corruption', durationMs),
+      when: dotRefreshDue('corruption', 'corruption', durationMs, talents),
     });
   }
 
   // APL: Life Tap is the last action, cast when nothing else can be (out of mana). A number
   // replaces Shadow Bolt's cost as the threshold.
   if (lifeTapBelowMana === 'auto') {
+    const shadowBoltCost = talentManaCost('shadow-bolt', talents);
     steps.push({
       spellId: 'life-tap',
       label: 'Life Tap',
       hint: 'Out of mana for Shadow Bolt: Life Tap converts health into mana.',
-      when: (s) => s.mana < SHADOW_BOLT_COST,
+      when: (s) => s.mana < shadowBoltCost,
     });
   } else {
     steps.push({

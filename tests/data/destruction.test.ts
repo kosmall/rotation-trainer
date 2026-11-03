@@ -3,6 +3,8 @@ import { HASTE_RATING_PER_PCT } from '../../src/data/common/ratings';
 import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/common/target';
 import { warlockAuras } from '../../src/data/classes/warlock/auras';
 import {
+  DEFAULT_WARLOCK_OPTIONS,
+  buildDestructionWarlock,
   destructionBaseStats,
   destructionTalentString,
   destructionWarlock,
@@ -66,8 +68,8 @@ function alwaysCritShadowBolt(): SpecData {
 }
 
 describe('destructionWarlock structure', () => {
-  it('defines the stage 1 spell and aura ids', () => {
-    expect([...spellIds].sort()).toEqual(
+  it('defines the stage 1 spell and aura ids (the spec without Conflagrate: not talented, stage 2b)', () => {
+    expect(warlockSpells.map((s) => s.id).sort()).toEqual(
       [
         'shadow-bolt',
         'immolate',
@@ -91,7 +93,9 @@ describe('destructionWarlock structure', () => {
         'shadow-vulnerability',
       ].sort(),
     );
-    expect(destructionWarlock.spells).toBe(warlockSpells);
+    expect([...spellIds].sort()).toEqual(warlockSpells.map((s) => s.id).filter((id) => id !== 'conflagrate').sort());
+    expect(destructionWarlock.spells).toEqual(warlockSpells.filter((s) => s.id !== 'conflagrate'));
+    destructionWarlock.spells.forEach((s) => expect(warlockSpells).toContain(s));
     expect(destructionWarlock.auras).toBe(warlockAuras);
   });
 
@@ -104,10 +108,11 @@ describe('destructionWarlock structure', () => {
     expect(new Set(bound).size).toBe(bound.length);
   });
 
-  it('conflagrate (no talent in the build, ruling R17) is in neither keybinds nor priority, but its SpellDef stays', () => {
+  it('conflagrate (no talent in the build, ruling R17) is in neither keybinds, priority nor the spec\'s spells, but its SpellDef stays', () => {
     expect(destructionWarlock.keybinds).not.toContain('conflagrate');
     expect(destructionWarlock.priority.map((p) => p.spellId)).not.toContain('conflagrate');
-    expect(spellIds.has('conflagrate')).toBe(true);
+    expect(spellIds.has('conflagrate')).toBe(false);
+    expect(warlockSpells.some((s) => s.id === 'conflagrate')).toBe(true);
     expect(parseTalentString(destructionTalentString).trees[2]?.[17]).toBe(0); // Destruction #18: Conflagrate
     // Slot positions stay stable: slot 8 (key "8", index 7) is left empty.
     expect(destructionWarlock.keybinds[7]).toBe('');
@@ -328,12 +333,14 @@ describe('destructionWarlock behaviour in the Simulation', () => {
     expect(sim.snapshot().mana).toBeCloseTo(max - 399, 9);
   });
 
-  it('conflagrate requires and consumes immolate', () => {
-    expect(spell('conflagrate')).toMatchObject({
+  it('conflagrate requires and consumes immolate (a build with the Conflagrate talent)', () => {
+    expect(warlockSpells.find((s) => s.id === 'conflagrate')).toMatchObject({
       requiresTargetAura: 'immolate',
       consumesTargetAura: 'immolate',
     });
-    const sim = newSim({ infiniteMana: true });
+    // wowsims tbc-new presets.ts "Destruction": Conflagrate 1/1.
+    const spec = buildDestructionWarlock(DEFAULT_WARLOCK_OPTIONS, undefined, undefined, '-20500301332101-50500051220051053105');
+    const sim = newSim({ spec, infiniteMana: true });
     expect(sim.cast('conflagrate')).toEqual({ ok: false, reason: 'missing-aura' });
     sim.cast('immolate');
     sim.advanceTo(1500);

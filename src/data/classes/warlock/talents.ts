@@ -1,5 +1,5 @@
 import type { SpellModifier } from '../../../engine/types';
-import { DESTRUCTION_SPELL_IDS } from './spells';
+import { effectsForBuild } from './talentEffects';
 
 // The talent tree data and the validating codec (pure, never throws) live in talentTree.ts;
 // re-exported here for the modules that already import talents from this file.
@@ -94,51 +94,22 @@ const rank = talentRanks(destructionTalentString);
 export function talentRank(name: string): number {
   return rank[name] ?? 0;
 }
-const r = talentRank;
-
-/** wowsims warlock.go WarlockDestructionSpells, restricted to the spells defined in spells.ts. */
-const DESTRUCTION_SPELLS = [...DESTRUCTION_SPELL_IDS];
+/**
+ * The author's talents as the stage 1 spell modifiers, now computed from the data
+ * (talentEffects.ts `effectsForBuild`): Cataclysm, Bane, Devastation, Ruin, Emberstorm (2),
+ * Backlash, Shadow and Flame, Demonic Sacrifice, in that order (pinned literally in
+ * tests/data/talent-effects.test.ts). Kept for importers; specs use `effectsForBuild`.
+ */
+const authorEffects = effectsForBuild(rank);
+export const talentModifiers: SpellModifier[] = authorEffects.modifiers;
 
 /**
- * Demonic Sacrifice 1/1 with the Succubus sacrificed (applyDemonicSacrifice; tbc-new
- * ui/specs/warlock/dps/presets.ts DefaultOptions: summon Succubus, sacrificeSummon true):
- * SchoolDamageDealtMultiplier[shadow] x 1.15, direct and periodic. The export does not say
- * which pet the author sacrifices: the Succubus is an assumption (see docs, open questions).
- * UNVERIFIED (pet choice). Its own export so that `buildDestructionWarlock` (destruction.ts) can
- * leave exactly these objects out when the setup keeps the pet (`sacrificeSuccubus: false`).
+ * Demonic Sacrifice's entries of `talentModifiers` (the same objects): Succubus, shadow x1.15
+ * direct and periodic (talentEffects.ts). Kept for importers.
  */
-export const demonicSacrificeModifiers: readonly SpellModifier[] =
-  r('demonicSacrifice') > 0 ? [{ schools: ['shadow'], damageMult: 1.15, dotDamageMult: 1.15 }] : [];
+export const demonicSacrificeModifiers: readonly SpellModifier[] = talentModifiers.filter(
+  (_, i) => authorEffects.modifierSources[i] === 'demonicSacrifice',
+);
 
-/**
- * The talent build as spell modifiers. Each entry cites wowsims tbc-new
- * sim/warlock/talents.go and the rank used; spell data values from spell_data_auto_gen.go.
- */
-export const talentModifiers: SpellModifier[] = [
-  // Cataclysm 5/5 (applyCataclysm): PowerCost_Pct_Add -0.01 x rank on Destruction spells.
-  { spellIds: DESTRUCTION_SPELLS, manaCostMult: 1 - 0.01 * r('cataclysm') },
-  // Bane 5/5 (applyBane): CastTime_Flat -100 ms x rank on Shadow Bolt and Immolate.
-  { spellIds: ['shadow-bolt', 'immolate'], castTimeMsDelta: -100 * r('bane') },
-  // Devastation 5/5 (applyDevastation): BonusCrit_Percent +rank on Destruction spells.
-  { spellIds: DESTRUCTION_SPELLS, critPctDelta: r('devastation') },
-  // Ruin 1/1 (applyRuin): CritMultiplier_Flat +1.0 on Destruction spells. sim/core/spell.go
-  // CritDamageMultiplier: (1.5 - 1) x (1 + 1.0) + 1 = 2.0, i.e. +0.5 over the base 1.5.
-  { spellIds: DESTRUCTION_SPELLS, critMultDelta: r('ruin') > 0 ? 0.5 : 0 },
-  // Emberstorm 3/5 (applyEmberstorm; Emberstorm rank 3 = 17956): +2% x rank fire damage, direct
-  // (SPELLMOD_DAMAGE) and periodic (SPELLMOD_DOT) alike; Incinerate cast time -2% x rank of 2500 ms.
-  // wowsims' WarlockFireDamage mask also lists Shadowburn; that is a shadow spell, left out here.
-  {
-    schools: ['fire'],
-    damageMult: 1 + 0.02 * r('emberstorm'),
-    dotDamageMult: 1 + 0.02 * r('emberstorm'),
-  },
-  { spellIds: ['incinerate'], castTimeMsDelta: -2500 * 0.02 * r('emberstorm') },
-  // Backlash 3/3 (applyBacklash): AddStat(SpellCritPercent, rank) -> +3% crit on every spell.
-  // Its proc (instant Shadow Bolt after being hit) needs incoming attacks: not modeled.
-  { critPctDelta: r('backlash') },
-  // Shadow and Flame 5/5 (applyShadowAndFlame; ShadowAndFlame rank 5 = 30292, Value 20):
-  // BonusCoeffecient_Flat +0.04 x rank on Shadow Bolt and Incinerate.
-  { spellIds: ['shadow-bolt', 'incinerate'], coeffDelta: 0.04 * r('shadowAndFlame') },
-  // Demonic Sacrifice (Succubus): see demonicSacrificeModifiers above (same objects).
-  ...demonicSacrificeModifiers,
-];
+/** The spells the author's talents make available (Shadowburn). */
+export const authorTalentSpells: readonly string[] = authorEffects.spells;

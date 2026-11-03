@@ -1,13 +1,15 @@
 import { buildSetup } from '../../../engine/gear';
+import { combineStatMultipliers } from '../../../engine/stats';
 import type { EnchantDef, EquippedItem, GemDef, ItemDef, RawStats, StatMultipliers } from '../../../engine/types';
 import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../common/target';
 import type { SpecData } from '../../types';
 import { warlockAuras } from './auras';
 import { enchants, gems, items, metaGemModifiers } from './items';
-import { ROTATION_PRESETS, buildPriority, dotExtraTicksForSpec } from './rotation';
+import { ROTATION_PRESETS, buildPriority, dotExtraTicksForSpec, type RotationTalents } from './rotation';
 import { setBonusesFor } from './sets';
-import { warlockSpells } from './spells';
-import { demonicSacrificeModifiers, talentModifiers, talentRank as r } from './talents';
+import { availableWarlockSpells, effectsForBuild, talentRanksOf, withTalentAuras } from './talentEffects';
+import { decodeTalents, encodeTalents, type TalentRanks } from './talentTree';
+import { destructionTalentString } from './talents';
 
 export { destructionTalentString, parseTalentString } from './talents';
 
@@ -19,31 +21,35 @@ export { destructionTalentString, parseTalentString } from './talents';
 // rotation.ts.
 
 // ---------------------------------------------------------------------------
-// Talents (stat effects; the spell modifiers are in talents.ts)
+// Talents (talentEffects.ts) and race
 // ---------------------------------------------------------------------------
 
-/**
- * Fel Armor's flat bonus. Fel Armor rank 2 (spell_data_auto_gen.go FelArmor 28189:
- * A_MOD_DAMAGE_DONE 100; Wowhead TBC spell=28189 "increasing spell damage by up to 100") x
- * Demonic Aegis 3/3 (armors.go: x (1 + 0.1 x rank)) = +130 spell damage; the self buff is kept up
- * all fight (tbc-new DefaultOptions armor: FelArmor, made permanent). Demon Armor (27260: armor,
- * shadow resistance, health regeneration) changes nothing the trainer simulates, so `demon` and
- * `none` both have no bonus.
- */
-export const FEL_ARMOR_SPELL_POWER = 100 * (1 + 0.1 * r('demonicAegis'));
+/** The author's talent ranks (all 64 ids). */
+const AUTHOR_RANKS: Readonly<Record<string, number>> = Object.freeze(talentRanksOf(decodeTalents(destructionTalentString).ranks));
+const AUTHOR_EFFECTS = effectsForBuild(AUTHOR_RANKS);
+
+/** Fel Armor rank 2's spell damage (spell_data_auto_gen.go FelArmor 28189: A_MOD_DAMAGE_DONE 100;
+ * Wowhead TBC spell=28189 "increasing spell damage by up to 100"). */
+const FEL_ARMOR_BASE_SPELL_POWER = 100;
 
 /**
- * Percentage stat effects of race and talents (applied by computeStats to the totals):
- * - Gnome Expansive Mind: sim/core/racials.go MultiplyStat(Intellect, 1.05).
- * - Demonic Embrace 5/5: talents.go applyDemonicEmbrace MultiplyStat(Spirit, 1 - 0.01 x rank)
- *   (its +3% stamina per rank is irrelevant here).
- * - Fel Intellect 3/3: talents.go applyFelIntellect MultiplyStat(Mana, 1 + 0.01 x rank).
+ * Fel Armor's flat bonus for the author's build: 100 x Demonic Aegis 3/3 (armors.go: x (1 + 0.1 x
+ * rank), talentEffects.ts `armorMult`) = +130 spell damage; the self buff is kept up all fight
+ * (tbc-new DefaultOptions armor: FelArmor, made permanent). Demon Armor (27260: armor, shadow
+ * resistance, health regeneration) changes nothing the trainer simulates, so `demon` and `none`
+ * both have no bonus.
  */
-export const destructionStatMultipliers: StatMultipliers = {
-  intellect: 1.05,
-  spirit: 1 - 0.01 * r('demonicEmbrace'),
-  maxMana: 1 + 0.01 * r('felIntellect'),
-};
+export const FEL_ARMOR_SPELL_POWER = FEL_ARMOR_BASE_SPELL_POWER * AUTHOR_EFFECTS.armorMult;
+
+/** Gnome Expansive Mind: sim/core/racials.go MultiplyStat(Intellect, 1.05). */
+const RACIAL_STAT_MULTIPLIERS = { intellect: 1.05 } as const;
+
+/**
+ * Percentage stat effects of race and talents (applied by computeStats to the totals) for the
+ * author's build: Expansive Mind (intellect x1.05), Demonic Embrace 5/5 (spirit x0.95) and Fel
+ * Intellect 3/3 (max mana x1.03), the talents' from talentEffects.ts.
+ */
+export const destructionStatMultipliers: StatMultipliers = combineStatMultipliers(RACIAL_STAT_MULTIPLIERS, AUTHOR_EFFECTS.statMultipliers);
 
 // ---------------------------------------------------------------------------
 // Character base stats (no gear, no raid buffs)
@@ -166,15 +172,25 @@ export const DEFAULT_WARLOCK_OPTIONS: Readonly<WarlockOptions> = Object.freeze({
 // sharing the same step objects keeps the default build equal to stage 1's spec, `when` included.
 const defaultPriority = buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD);
 
-const destructionHooks: SpecData['hooks'] = {
-  // Improved Shadow Bolt 5/5 (shadowbolt.go): a landed Shadow Bolt crit (re)applies the
-  // debuff with all 4 charges (SetStacks(4)); it runs after the crit's own damage.
-  onSpellResolved(e, api) {
-    if (r('improvedShadowBolt') > 0 && e.spellId === 'shadow-bolt' && e.outcome === 'crit') {
-      api.applyTargetAura('shadow-vulnerability');
-    }
-  },
-};
+/**
+ * The action bar's spell row (slots 1-9, 0, -, =): a spell the build does not have leaves its slot
+ * empty, the others keep their positions. Slot 8 is Conflagrate when talented (ruling R17 closed
+ * by stage 2b; the author's build has no Conflagrate, so its slot 8 stays empty).
+ */
+const SPELL_ROW: readonly string[] = [
+  'shadow-bolt',
+  'immolate',
+  'corruption',
+  'curse-of-the-elements',
+  'shadowburn',
+  'life-tap',
+  'incinerate',
+  'conflagrate',
+  'curse-of-agony',
+  'curse-of-doom',
+  '',
+  '',
+];
 
 /**
  * The Destruction Warlock spec for the given options and gear. Pure: every call returns a new SpecData
@@ -195,17 +211,33 @@ const destructionHooks: SpecData['hooks'] = {
  *   for the author's gear) and `auras` the spell auras (`warlockAuras`, shared) plus the self
  *   auras of those bonuses' procs (a new array only when there are some).
  * - `priority`: the DoT preset at the default distance; when the gear extends a DoT
- *   (`dotExtraTicksForSpec`, Voidheart 4pc) a fresh build whose refresh rules count it.
+ *   (`dotExtraTicksForSpec`, Voidheart 4pc) or the talents are not the author's, a fresh build
+ *   whose rules count it (`buildPriority` with the build's `RotationTalents`).
+ * - `talents` (stage 2b): a talent string (untrusted: `decodeTalents`, a malformed string means no
+ *   talents; ranks clamped, never throws) or a rank map; absent = the author's build. Its effects
+ *   (talentEffects.ts `effectsForBuild`) give the `modifiers` (Demonic Sacrifice only with
+ *   `sacrificeSuccubus`), the talents' stat multipliers (with Expansive Mind), Fel Armor's bonus
+ *   (x Demonic Aegis), the aura overrides (`withTalentAuras`: the shared `warlockAuras` when none
+ *   differs), `hooks` and the available spells: a talent spell (Shadowburn, Conflagrate) the
+ *   build does not take is neither in `spells` (casting it gives 'unknown-spell') nor bound.
  */
 export function buildDestructionWarlock(
   options: WarlockOptions,
   gear?: readonly (EquippedItem | null)[],
   db?: GearTables,
+  talents?: string | TalentRanks,
 ): SpecData {
-  const statBonuses: Partial<RawStats> = options.armor === 'fel' ? { spellPower: FEL_ARMOR_SPELL_POWER } : {};
-  const modifiers = options.sacrificeSuccubus
-    ? [...talentModifiers]
-    : talentModifiers.filter((m) => !demonicSacrificeModifiers.includes(m));
+  const ranks =
+    talents === undefined ? AUTHOR_RANKS : talentRanksOf(typeof talents === 'string' ? decodeTalents(talents).ranks : talents);
+  const isAuthor = talents === undefined || encodeTalents(ranks) === encodeTalents(AUTHOR_RANKS);
+  const full = isAuthor ? AUTHOR_EFFECTS : effectsForBuild(ranks);
+  // The Succubus kept (not sacrificed): Demonic Sacrifice gives nothing.
+  const fx = effectsForBuild(options.sacrificeSuccubus ? ranks : { ...ranks, demonicSacrifice: 0 });
+  const statBonuses: Partial<RawStats> = {
+    ...fx.statBonuses,
+    ...(options.armor === 'fel' && { spellPower: (fx.statBonuses.spellPower ?? 0) + FEL_ARMOR_BASE_SPELL_POWER * fx.armorMult }),
+  };
+  const modifiers = fx.modifiers;
   const setup =
     gear === undefined && db === undefined ? gearSetup : gearSetupFor(gear ?? destructionEquipped, db ?? AUTHOR_GEAR_TABLES);
   // The bonuses of the worn sets (the author's gear: `warlockSets`) and the auras their hooks apply.
@@ -214,39 +246,27 @@ export function buildDestructionWarlock(
   // A gear that extends the DoTs (Voidheart 4pc) needs refresh rules counting the longer DoTs;
   // every other build shares the default steps.
   const dotExtraTicks = dotExtraTicksForSpec({ modifiers, setup, sets });
+  const rotationTalents: RotationTalents = { modifiers: full.modifiers, spells: full.spells };
   const priority =
-    Object.keys(dotExtraTicks).length > 0
-      ? buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD, dotExtraTicks)
+    Object.keys(dotExtraTicks).length > 0 || !isAuthor
+      ? buildPriority(ROTATION_PRESETS.dot.config, DEFAULT_DISTANCE_FROM_TARGET_YD, dotExtraTicks, rotationTalents)
       : [...defaultPriority];
+  const spells = availableWarlockSpells(fx.spells);
+  const talentAuras = withTalentAuras(warlockAuras, fx.auras);
   return {
     id: 'destruction-warlock',
     name: 'Destruction Warlock',
-    spells: warlockSpells,
-    auras: setAuras.length > 0 ? [...warlockAuras, ...setAuras] : warlockAuras,
+    spells,
+    auras: setAuras.length > 0 ? [...talentAuras, ...setAuras] : (talentAuras as SpecData['auras']),
     modifiers,
     statBonuses,
     sets,
     // buildSetup does not carry statMultipliers: Expansive Mind etc. then scale the gear's stats too.
-    setup: { ...setup, statMultipliers: destructionStatMultipliers },
+    setup: { ...setup, statMultipliers: isAuthor ? destructionStatMultipliers : combineStatMultipliers(RACIAL_STAT_MULTIPLIERS, fx.statMultipliers) },
     priority,
-    // Action bar slots 1-9, 0, -, =.
-    keybinds: [
-      'shadow-bolt',
-      'immolate',
-      'corruption',
-      'curse-of-the-elements',
-      'shadowburn',
-      'life-tap',
-      'incinerate',
-      // Slot 8 left empty (ruling R17): no Conflagrate talent in this build; its SpellDef stays
-      // in spells.ts for the stage 2b talent editor. Other slots keep their positions.
-      '',
-      'curse-of-agony',
-      'curse-of-doom',
-      '',
-      '',
-    ],
-    hooks: destructionHooks,
+    // Action bar slots 1-9, 0, -, = (SPELL_ROW): spells the build lacks leave their slot empty.
+    keybinds: SPELL_ROW.map((id) => (id !== '' && spells.some((x) => x.id === id) ? id : '')),
+    hooks: fx.hooks,
   };
 }
 

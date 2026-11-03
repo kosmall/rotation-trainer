@@ -25,6 +25,14 @@ export const DESTRUCTION_SPELL_IDS: readonly string[] = [
   'shadowburn',
 ];
 
+/**
+ * Availability flags (stage 2b): the spells below that a talent teaches (wowsims talents.go
+ * applyShadowburn / applyConflagrate register them only with the talent). A spec has them only
+ * when its build takes that talent (talentEffects.ts `spells`); every other spell is always there.
+ * Shadowfury is a talent spell too but has no SpellDef (not modelled).
+ */
+export const TALENT_SPELL_IDS: readonly string[] = ['conflagrate', 'shadowburn'];
+
 export const warlockSpells: SpellDef[] = [
   {
     // ShadowBolt rank 11, SpellID 27209: Cost 420, CastTime 3000 ms, Direct 544-607, Coef 0.857
