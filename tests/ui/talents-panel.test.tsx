@@ -236,6 +236,8 @@ describe('Talents panel (tree editor)', () => {
     expect(apply().disabled).toBe(true);
     const report = within(panel()).getByRole('region', { name: 'Talent import report' });
     expect(within(report).getAllByRole('listitem').length).toBeGreaterThan(0);
+    // One header for every refusal (format errors and missing strings are not "rule" breaks).
+    expect(report.textContent).toContain('Not applied: this is not a valid talent build.');
 
     for (const hostile of ['{"__proto__":{"talents":"1"}}', '{"talents":{"toString":1}}', 'x'.repeat(300_000), '<img src=x onerror=alert(1)>', '[]', '{"class":"Mage","talents":"-20500301332101-50500051220051053105"}']) {
       fireEvent.change(area(), { target: { value: hostile } });

@@ -426,7 +426,7 @@ function TalentImport({ presets, onApply }: { presets: readonly Readonly<TalentP
             </p>
           ) : (
             <>
-              <p className="gear-report-error">Not applied: the build breaks the talent rules.</p>
+              <p className="gear-report-error">Not applied: this is not a valid talent build.</p>
               <ul className="gear-warnings">
                 {result.errors.map((err, i) => (
                   <li key={i}>{err}</li>

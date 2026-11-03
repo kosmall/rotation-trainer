@@ -464,3 +464,54 @@ describe('talent icons (npm run icons)', () => {
     expect(bytes).toBeLessThanOrEqual(150_000);
   });
 });
+
+describe('stage 2b final review: the editor checks against a brute-force rule check', () => {
+  // An independent statement of the TBC rules over the tree data: every rank within 0..max, a
+  // talent with points in row N has 5 x N points in the rows above it in its tree, its prerequisite
+  // is at full rank, at most 61 points.
+  const byId = new Map(all.map((d) => [d.id, d]));
+  function valid(b: Record<string, number>): boolean {
+    let total = 0;
+    for (const d of all) {
+      const r = b[d.id] ?? 0;
+      total += r;
+      if (r < 0 || r > d.maxRank) return false;
+      if (r === 0) continue;
+      const above = all.filter((o) => o.tree === d.tree && o.row < d.row).reduce((n, o) => n + (b[o.id] ?? 0), 0);
+      if (above < 5 * d.row) return false;
+      if (d.prereq !== undefined && (b[d.prereq] ?? 0) < byId.get(d.prereq)!.maxRank) return false;
+    }
+    return total <= TALENT_POINTS_MAX;
+  }
+
+  it('200 random valid builds x 64 talents: canRemovePoint / canAddPoint allow exactly the edits that keep the build valid', () => {
+    let x = 12345;
+    const rnd = () => {
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      return (x >>> 0) / 4294967296;
+    };
+    let blockedRemovals = 0;
+    for (let n = 0; n < 200; n++) {
+      const b: Record<string, number> = Object.fromEntries(ids.map((id) => [id, 0]));
+      const target = Math.floor(rnd() * (TALENT_POINTS_MAX + 1));
+      const favourite = all.filter((d) => d.tree === n % 3);
+      for (let k = 0; k < 400 && Object.values(b).reduce((a, c) => a + c, 0) < target; k++) {
+        const d = rnd() < 0.6 ? favourite[Math.floor(rnd() * favourite.length)]! : all[Math.floor(rnd() * all.length)]!;
+        b[d.id]!++;
+        if (!valid(b)) b[d.id]!--;
+      }
+      expect(validateTalents(b)).toEqual([]);
+      for (const d of all) {
+        const tag = `${encodeTalents(b)} ${d.id}`;
+        const removable = b[d.id]! > 0 && valid({ ...b, [d.id]: b[d.id]! - 1 });
+        const r = canRemovePoint(b, d.id);
+        expect(r.ok, `remove ${tag}`).toBe(removable);
+        if (!r.ok && b[d.id]! > 0) blockedRemovals++;
+        expect(canAddPoint(b, d.id).ok, `add ${tag}`).toBe(valid({ ...b, [d.id]: b[d.id]! + 1 }));
+      }
+    }
+    expect(blockedRemovals).toBeGreaterThan(100);
+  });
+});

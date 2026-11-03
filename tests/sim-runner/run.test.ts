@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
 import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { talentPresetById } from '../../src/data/classes/warlock/talentPresets';
+import { decodeTalents } from '../../src/data/classes/warlock/talentTree';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
 import { BOSS_TARGET } from '../../src/data/common/target';
 import { itemDbSync } from '../../src/data/items/dbSync';
@@ -109,25 +110,29 @@ describe('runOnce and runWithSeed', () => {
     }
   });
 
-  it('a non-default talent build (Destro/Nightfall preset): the core run equals the hand-built game fight exactly, logs included', () => {
-    const talents = talentPresetById('destro-nightfall')!.talents;
-    for (const setup of [{ ...structuredClone(DEFAULT_SETUP), talents } as SetupConfig, { ...structuredClone(BUSY), talents } as SetupConfig]) {
-      for (const w of WINDOWS) {
-        const f = prepareRun(request({ setup, db, seed: 4242, spellQueueWindowMs: w }));
-        // The simulator really plays the build: Conflagrate bound, Fel Armor without Demonic Aegis.
-        expect(f.config.talents).toBe(talents);
-        expect(f.fight.spec.keybinds[7]).toBe('conflagrate');
-        expect(f.fight.spec.statBonuses.spellPower).not.toBe(prepareRun(request({ setup: { ...setup, talents: undefined }, db })).fight.spec.statBonuses.spellPower);
-        for (const i of [0, 3]) {
-          const seed = mixSeed(4242, i);
-          const m = manualFight(setup, seed, w, true);
-          const s = runOnce(f, i);
-          expect(s.dps, `window ${w} run ${i}`).toBe(m.dps);
-          expect(s.damageTotal).toBe(m.damageTotal);
-          // The same fight event for event: a fresh core Simulation with the run's seed.
-          const core = createFightSimulation(f.fight, seed, w);
-          runBot(core, f.fight.spec.priority);
-          expect(JSON.stringify(core.log())).toBe(JSON.stringify(m.log));
+  it('non-default talent builds (Destro/Nightfall, Affliction, Demonology Felguard presets): the core run equals the hand-built game fight exactly, logs included', () => {
+    for (const id of ['destro-nightfall', 'affliction', 'demo-felguard']) {
+      const talents = talentPresetById(id)!.talents;
+      for (const setup of [{ ...structuredClone(DEFAULT_SETUP), talents } as SetupConfig, { ...structuredClone(BUSY), talents } as SetupConfig]) {
+        for (const w of WINDOWS) {
+          const f = prepareRun(request({ setup, db, seed: 4242, spellQueueWindowMs: w }));
+          // The simulator really plays the build: its talents, Conflagrate bound only when talented,
+          // Fel Armor x its Demonic Aegis rank.
+          expect(f.config.talents).toBe(talents);
+          expect(f.fight.spec.keybinds[7]).toBe(id === 'destro-nightfall' ? 'conflagrate' : '');
+          const aegis = decodeTalents(talents).ranks.demonicAegis!;
+          expect(f.fight.spec.statBonuses.spellPower).toBe(100 * (1 + 0.1 * aegis));
+          for (const i of [0, 3]) {
+            const seed = mixSeed(4242, i);
+            const m = manualFight(setup, seed, w, true);
+            const s = runOnce(f, i);
+            expect(s.dps, `${id} window ${w} run ${i}`).toBe(m.dps);
+            expect(s.damageTotal).toBe(m.damageTotal);
+            // The same fight event for event: a fresh core Simulation with the run's seed.
+            const core = createFightSimulation(f.fight, seed, w);
+            runBot(core, f.fight.spec.priority);
+            expect(JSON.stringify(core.log())).toBe(JSON.stringify(m.log));
+          }
         }
       }
     }
