@@ -492,7 +492,7 @@ export function GameView({
           <summary>Priority</summary>
           <ol>
             {priority.map((step) => (
-              <li key={step.spellId}>
+              <li key={step.key ?? step.spellId}>
                 <strong>{step.label}</strong>
                 <span className="hint">{step.hint}</span>
               </li>

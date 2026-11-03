@@ -111,7 +111,8 @@ export function setupTalents(config: Pick<SetupConfig, 'talents'>): string {
  * sets the buffs, the rotation and the distance but keeps the player's own choices): the preset's
  * config with the current fight length, gear (`gear`, `gearPresetId`), item-use rules
  * (`rotation.itemUse` / `itemUseOrder`) and talents (`talents`; absent stays absent, the author's
- * build). "Reset to defaults" is `DEFAULT_SETUP` instead: no talents, the author's build. Pure: a
+ * build). The rotation script is not kept: a preset sets the rotation, and the script would
+ * replace it (rotation scripts Task 2). "Reset to defaults" is `DEFAULT_SETUP` instead: no talents, the author's build. Pure: a
  * new object; the fields it copies are shared with its inputs (normalize before storing).
  */
 export function applySetupPreset(preset: SetupConfig, current: SetupConfig): SetupConfig {
@@ -134,7 +135,9 @@ export function applySetupPreset(preset: SetupConfig, current: SetupConfig): Set
  * (a gear item effect only when `catalog`, the worn gear's, has it), the start and length of the
  * enabled timed buffs, the rotation, the distance, the warlock options and, only when the build
  * is not the author's, the talents (so the key of every config without talents is the stage 2a
- * one). The fight length and the gear are left out: the presets keep them (`applySetupPreset`).
+ * one) and, only when there is one, the rotation script (no preset has one, so a config with a
+ * script never matches a preset). The fight length and the gear are left out: the presets keep
+ * them (`applySetupPreset`).
  * Compare a config with `applySetupPreset(preset, config)` to match a preset: the talents are
  * then kept on both sides. The Setup panel's own key (src/ui/SetupPanel.tsx `fightKey`) is the
  * same without the talents part.
@@ -147,5 +150,13 @@ export function setupFightKey(config: SetupConfig, catalog: readonly BuffDef[]):
     const t = c.timed[id];
     return t ? [[id, t.startSec, t.durationSec]] : [];
   });
-  return JSON.stringify([enabled, timed, c.rotation, c.distanceYd, c.warlock, ...(c.talents !== undefined ? [{ talents: c.talents }] : [])]);
+  return JSON.stringify([
+    enabled,
+    timed,
+    c.rotation,
+    c.distanceYd,
+    c.warlock,
+    ...(c.talents !== undefined ? [{ talents: c.talents }] : []),
+    ...(c.script !== undefined ? [{ script: c.script }] : []),
+  ]);
 }

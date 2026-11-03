@@ -11,6 +11,7 @@ import { DEFAULT_DISTANCE_FROM_TARGET_YD } from '../data/common/target';
 import type { ItemDb } from '../data/items/types';
 import type { EquippedItem } from '../engine/types';
 import type { BuffDef } from '../data/types';
+import { normalizeScript } from '../script/normalize';
 import { normalizeGear, normalizeGearShape } from './gear';
 import { deriveGearEffects, EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, LEGACY_ITEM_BUFF_IDS } from './gearEffects';
 import type { SetupConfig, TimedSetting } from './types';
@@ -270,6 +271,15 @@ function normalizeTalentsField(input: Rec): Pick<SetupConfig, 'talents'> {
   return talents === destructionTalentString ? {} : { talents };
 }
 
+/**
+ * `script` of a config, only when `normalizeScript` keeps something (absent stays absent: the
+ * basic rotation; a value with neither a valid rule nor a def is dropped).
+ */
+function normalizeScriptField(input: Rec): Pick<SetupConfig, 'script'> {
+  const script = normalizeScript(own(input, 'script'));
+  return script === undefined ? {} : { script };
+}
+
 function normalizeWarlock(v: unknown): WarlockOptions {
   const w = isRecord(v) ? v : {};
   const armor = own(w, 'armor');
@@ -313,6 +323,11 @@ function normalizeWarlock(v: unknown): WarlockOptions {
  * - `talents` (stage 2b): absent stays absent (the author's build). Present: kept, in its
  *   full-width form, only when it is a valid build (`decodeTalents` without errors, at most 200
  *   characters) other than the author's; otherwise dropped (the author's build), never repaired.
+ * - `script` (rotation scripts Task 2): absent stays absent (the basic rotation). Present:
+ *   `normalizeScript` (src/script/normalize.ts: at most 200 rules of a known action with string
+ *   ids of at most 128 characters and conditions of at most 500, labels and comments cut to 100 /
+ *   1000, at most 50 defs with valid names; other fields dropped; expressions kept as written);
+ *   nothing left gives no `script`.
  */
 export function normalizeSetup(input: unknown, catalog: readonly BuffDef[], db?: ItemDb): SetupConfig {
   try {
@@ -327,6 +342,7 @@ export function normalizeSetup(input: unknown, catalog: readonly BuffDef[], db?:
       fightDurationSec: normalizeFightDuration(own(input, 'fightDurationSec')),
       ...normalizeGearFields(input, db),
       ...normalizeTalentsField(input),
+      ...normalizeScriptField(input),
     };
   } catch {
     // A hostile getter or proxy: nothing of it is trusted.

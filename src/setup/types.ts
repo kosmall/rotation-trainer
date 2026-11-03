@@ -8,6 +8,8 @@ import type { RotationConfig } from '../data/classes/warlock/rotation';
 import type { ItemDb } from '../data/items/types';
 import type { BuffDef, SpecData } from '../data/types';
 import type { EquippedItem, ScheduledAura } from '../engine/types';
+import type { ConvertContext } from '../script/convert';
+import type { Script, ScriptContext, ScriptIssue } from '../script/types';
 
 /** Start and length of a timed buff (`BuffDef.timed`), in seconds of fight time. */
 export interface TimedSetting {
@@ -47,6 +49,15 @@ export interface SetupConfig {
    * (`decodeTalents` without errors) other than the author's; anything else leaves it absent.
    */
   talents?: string;
+  /**
+   * The rotation script (rotation scripts Task 2, src/script; Part J). Absent (every config saved
+   * before, the default setup, the presets): the basic rotation (`rotation`) plays. Present with
+   * at least one rule: it replaces the whole priority list (`applySetup` compiles it with
+   * `compileScript`); `rotation` (its fields and item-use rules) is kept but inactive.
+   * `normalizeSetup` keeps its shape within the limits (`normalizeScript`); its expressions are
+   * validated where it is used.
+   */
+  script?: Script;
 }
 
 export type SetupPresetId = 'none' | 'raid-log';
@@ -78,4 +89,25 @@ export interface AppliedSetup {
   spec: SpecData;
   /** The `SimConfig` fields the setup decides (`durationMs` = `fightDurationSec` x 1000). */
   sim: { scheduledAuras: ScheduledAura[]; distanceFromTarget: number; durationMs: number };
+  /** The fight's script context and, when a script is active, what its compilation reported. */
+  script: AppliedScript;
+  /** The basic rotation of the config (active or not): what `convertToScript` reads. */
+  basic: ConvertContext;
+}
+
+export interface AppliedScript {
+  /**
+   * What script ids resolve against in this fight: the spec's spells and visible auras, every
+   * bound item action (worn on-use items whether enabled or not, ruling T-1, and the enabled
+   * potions and rune) by catalog entry id with its rule's cooldown, Heroism's end, the basic
+   * rotation's facts (`rotationScriptFacts`) and display names.
+   */
+  context: ScriptContext;
+  /** `config.script` has at least one rule: its compiled steps are `spec.priority`. */
+  active: boolean;
+  /** The compiled steps' rule keys (`CompiledScript.keys`); empty when no script is active. */
+  keys: string[];
+  /** `compileScript`'s warnings and errors; empty when no script is active. */
+  warnings: ScriptIssue[];
+  errors: ScriptIssue[];
 }

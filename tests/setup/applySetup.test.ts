@@ -66,7 +66,7 @@ function apply(p: Partial<SetupConfig> = {}, catalog: readonly BuffDef[] = SETUP
 }
 
 function newSim(
-  applied: ReturnType<typeof applySetup>,
+  applied: Pick<ReturnType<typeof applySetup>, 'spec' | 'sim'>,
   o: { seed?: number; target?: TargetData; extra?: ScheduledAura[]; infiniteMana?: boolean; distance?: number } = {},
 ) {
   return new Simulation({

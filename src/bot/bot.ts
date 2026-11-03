@@ -10,8 +10,10 @@ import type { SimSnapshot } from '../engine/types';
  * Plays `priority` until the fight ends. Every `stepMs` of fight time it takes one snapshot and
  * walks the steps in order: a step whose `when(snapshot)` is false is skipped; otherwise its
  * spell is pressed, and a rejected cast (busy, gcd, cooldown, no-mana, missing-aura) falls
- * through to the next step. The first accepted cast (queued counts) ends the walk. Then fight
- * time moves to `now + stepMs`.
+ * through to the next step. The first accepted cast (queued counts) ends the walk. A `wait` step
+ * (rotation scripts) whose `when` holds ends the walk without a press (except in the `ready`
+ * phase, where it is passed over: the fight starts with the first press). Then fight time moves
+ * to `now + stepMs`.
  *
  * With a spell queue window, the spell already in the queue is not pressed again (that would
  * replace it with itself and log `queue-drop`): reaching its step ends the walk, while an
@@ -23,7 +25,8 @@ import type { SimSnapshot } from '../engine/types';
  * Steps at which no press can be accepted are skipped (simulator Task 2 performance wave): after
  * the walk, the bot moves straight to the first step time at or after
  * `sim.nextPressOpportunityMs()` (never before `now + stepMs`). At a skipped step every press
- * would have been rejected, and a rejected press changes nothing; taking a snapshot changes
+ * would have been rejected (whichever step the walk reaches: a wait step presses nothing at all),
+ * and a rejected press changes nothing; taking a snapshot changes
  * nothing; and one `advanceTo` over several steps runs the same events in the same order as one
  * call per step. So the fight (log, RNG draws, result) is exactly that of a walk at every step
  * (pinned in tests/bot/bot-equivalence.test.ts). `when` conditions must be pure functions of the
@@ -60,6 +63,11 @@ function nextStepMs(nowMs: number, stepMs: number, opensAtMs: number): number {
 function pressFirstCastable(sim: Simulation, priority: readonly PriorityStep[], s: SimSnapshot): void {
   for (const step of priority) {
     if (step.when && !step.when(s)) continue;
+    if (step.kind === 'wait') {
+      // No time passes before the first press: a wait cannot hold the pull.
+      if (s.phase === 'ready') continue;
+      return;
+    }
     if (step.spellId === s.queuedSpellId) return;
     if (sim.cast(step.spellId).ok) return;
   }

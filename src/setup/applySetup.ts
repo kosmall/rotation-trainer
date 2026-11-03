@@ -7,7 +7,7 @@ import { neutralizeOwnAuras } from '../data/classes/warlock/buffs';
 import { rotationTalentsFor } from '../data/classes/warlock/destruction';
 import { itemRuleOf, itemUseActionOf } from '../data/classes/warlock/itemRules';
 import { compileItemUse, type ItemUseAction } from '../data/classes/warlock/itemUse';
-import { buildPriority, dotExtraTicksForSpec } from '../data/classes/warlock/rotation';
+import { buildPriority, dotExtraTicksForSpec, rotationScriptFacts } from '../data/classes/warlock/rotation';
 import { ITEM_SLOT_COUNT, SPELL_SLOT_COUNT } from '../data/types';
 import type {
   AuraDef,
@@ -19,8 +19,11 @@ import type {
   StatMultipliers,
 } from '../engine/types';
 import { combineStatMultipliers } from '../engine/stats';
+import { compileScript } from '../script/compile';
+import { scriptIsActive } from '../script/normalize';
+import { scriptContextOf } from '../script/vars';
 import { enabledSetupEntries, gearItemRules } from './gearEffects';
-import type { AppliedSetup, ApplySetupInput } from './types';
+import type { AppliedScript, AppliedSetup, ApplySetupInput } from './types';
 
 /**
  * One `SpecHooks` that runs the given hooks' `onSpellResolved` in order (each called as a method
@@ -52,7 +55,7 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
 }
 
 /**
- * The spec and the `SimConfig` fields for `config`:
+ * The spec, the `SimConfig` fields, the script context and the basic rotation for `config`:
  * - `spec` = `buildSpec(config.warlock, config.gear, config.talents)` (no gear: the author's; no
  *   talents: the author's build), then for each
  *   applied entry of `enabledSetupEntries(catalog, config, db)` (the enabled gear-independent
@@ -98,6 +101,13 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   when Heroism is disabled or starts at or after the fight's end (it never comes up, so the
  *   item rules treat it as not enabled);
  *   `distanceFromTarget = config.distanceYd`; `durationMs = config.fightDurationSec x 1000`.
+ * - Rotation scripts (Task 2): `script.context` is the fight's `ScriptContext` (the spec's spells
+ *   and visible auras, every bound item action by entry id with its rule's cooldown, Heroism's end,
+ *   `rotationScriptFacts(config.distanceYd, dotExtraTicks, talents)`, names). With a script of at
+ *   least one rule (`config.script`, `scriptIsActive`), `spec.priority` is
+ *   `compileScript(config.script, context).steps` instead of the basic list above, and `script`
+ *   carries its keys, warnings and errors; the basic rotation is still built (`basic`: the
+ *   automatic item actions and the basic steps, what `convertToScript` reads) but not played.
  * Expects a normalized config (`normalizeSetup`): buildPriority throws on an invalid Life Tap
  * threshold.
  */
@@ -192,22 +202,46 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
   const auraNames: Record<string, string> = {};
   for (const a of auras) if (!Object.hasOwn(auraNames, a.id)) auraNames[a.id] = a.name;
   const itemSteps = compileItemUse(itemActions, config.rotation, { heroismEndMs, auraNames });
+  const talents = rotationTalentsFor(config.talents);
+  const basicSteps = [...itemSteps, ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks, talents)];
+
+  // The script context: every bound item action (ruling T-1: a script may use a worn on-use item
+  // that is not enabled) by its catalog entry id, with the cooldown its item-use rule counts.
+  const spells = [...base.spells, ...actions];
+  const names: Record<string, string> = {};
+  const scriptItems = actions.map((a, i) => {
+    const entryId = actionEntryIds[i]!;
+    const entry = enabled.find((b) => b.id === entryId);
+    if (entry !== undefined && !Object.hasOwn(names, entryId)) names[entryId] = entry.name;
+    const rule = itemRuleOf(a.id, gearRules);
+    return { id: entryId, spellId: a.id, cooldownMs: rule !== undefined ? rule.use.cooldownMs : a.cooldownMs };
+  });
+  const context = scriptContextOf(
+    { spells, auras },
+    { heroismEndMs, itemActions: scriptItems, rotation: rotationScriptFacts(config.distanceYd, dotExtraTicks, talents), names },
+  );
+  const script: AppliedScript = { context, active: false, keys: [], warnings: [], errors: [] };
+  let priority = basicSteps;
+  if (scriptIsActive(config.script)) {
+    const compiled = compileScript(config.script, context);
+    priority = compiled.steps;
+    Object.assign(script, { active: true, keys: compiled.keys, warnings: compiled.warnings, errors: compiled.errors });
+  }
 
   return {
     spec: {
       ...base,
-      spells: [...base.spells, ...actions],
+      spells,
       auras,
       modifiers,
       statBonuses,
       setup: { ...base.setup, ...(statMultipliers !== undefined && { statMultipliers }) },
       keybinds: withItemRow(base.keybinds, actionIds),
-      priority: [
-        ...itemSteps,
-        ...buildPriority(config.rotation, config.distanceYd, dotExtraTicks, rotationTalentsFor(config.talents)),
-      ],
+      priority,
       hooks: buffHooks.length > 0 ? composeHooks(base.hooks, ...buffHooks) : base.hooks,
     },
     sim: { scheduledAuras, distanceFromTarget: config.distanceYd, durationMs },
+    script,
+    basic: { itemActions, steps: basicSteps },
   };
 }

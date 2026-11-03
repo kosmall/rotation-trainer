@@ -13,8 +13,8 @@ import type { EquippedItem } from '../engine/types';
 import { applySetup } from '../setup/applySetup';
 import { normalizeSetup, SETUP_CATALOG, STATIC_SETUP_CATALOG } from '../setup/defaults';
 import { gearNeedsDb } from '../setup/gear';
-import type { SetupConfig } from '../setup/types';
-import { createFightSimulation, type FightSettings } from './fight';
+import type { AppliedSetup, SetupConfig } from '../setup/types';
+import { createFightSimulation } from './fight';
 import { SIM_LIMITS } from './limits';
 import { Aggregator } from './stats';
 import type { RunSample, SimOptions, SimRequest, SimResult, SpellTotals } from './types';
@@ -54,8 +54,11 @@ export interface RunFactory {
   readonly spellQueueWindowMs: number;
   /** The normalized setup the fights are built from. */
   readonly config: SetupConfig;
-  /** `applySetup`'s spec and fight settings. */
-  readonly fight: FightSettings;
+  /**
+   * `applySetup`'s result: the spec and fight settings, plus (passed through, rotation scripts
+   * Task 2) the script context with what compiling the setup's script reported, and the basic rotation.
+   */
+  readonly fight: AppliedSetup;
   /** Mana at the start of every fight (max mana with the auras applied at 0). */
   readonly startMana: number;
   /** Ids of the item actions (`SpellDef.item`): counted as item uses, not as spells. */

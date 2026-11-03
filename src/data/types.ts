@@ -84,11 +84,22 @@ export interface BuffDef {
  * so a rule about the aura that cast applies must also exclude that cast.
  */
 export interface PriorityStep {
+  /** The spell or item action to press ('' for a `wait` step). */
   spellId: string;
   label: string;
   hint: string;
   /** The spell is wanted now; absent means always. */
   when?: (s: SimSnapshot) => boolean;
+  /**
+   * What the step does (rotation scripts, src/script/compile.ts): 'cast' a spell or 'use' an item
+   * action (both press `spellId`, like a step without `kind`), or 'wait': when `when` holds the
+   * bot presses nothing at this step and tries no later step. A wait step does not apply in the
+   * `ready` phase (the fight's clock starts with the first accepted press, so there is no time to
+   * wait in): the walk goes on to the next step.
+   */
+  kind?: 'cast' | 'use' | 'wait';
+  /** A stable key of the script rule the step came from (`rules[3]`), for lists and rule statistics. */
+  key?: string;
 }
 
 export interface SpecData {
