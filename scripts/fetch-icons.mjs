@@ -1,5 +1,7 @@
 // Fetches the icons used by the UI (committed to the repo):
 // - spell/aura icons into public/icons/spells/ (verified against Wowhead's tooltip API, below);
+// - talent icons into public/icons/talents/: every distinct `icon` of the talent tree
+//   (src/data/classes/warlock/talentTree.json, `npm run talents:build`; no tooltip call here);
 // - item, gem and enchant icons into public/icons/items/: every distinct `icon` of the item
 //   database (src/data/items/db.json, `npm run db:build`). The database already holds the icon
 //   names (wowsims db.json), so no tooltip call is made for them.
@@ -8,7 +10,7 @@
 //        npm run icons -- --force (re-downloads all)
 //
 // Idempotent: present files are kept. Exits 0 only when every expected icon is present (and the
-// item icons stay within ITEM_ICON_BUDGET_BYTES).
+// talent and item icons stay within TALENT_ICON_BUDGET_BYTES / ITEM_ICON_BUDGET_BYTES).
 // For every spell and aura of the spec, the self auras of the set bonus procs (`warlockSetAuras`:
 // a gear wearing those sets adds them to the spec), every buff of the setup catalog (the buff, the
 // auras it applies, its item action) and the warlock options, each with a `wowheadId`, it asks Wowhead's
@@ -130,25 +132,12 @@ if (problems > 0) {
 console.log(`\nAll ${byId.size} icons verified and present in public/icons/spells/.`);
 
 // ---------------------------------------------------------------------------------------------
-// Item, gem and enchant icons (public/icons/items/). Small concurrency, a pause between requests
-// and retries with backoff: be gentle with the CDN.
+// CDN downloads with retries and backoff (talent and item icons).
 
-/** Budget for public/icons/items/ (the UI shows an initials tile for a missing icon). */
-const ITEM_ICON_BUDGET_BYTES = 6_000_000;
-const ITEM_ICON_CONCURRENCY = 3;
-const ITEM_ICON_ATTEMPTS = 3;
-const itemOutDir = join(root, 'public', 'icons', 'items');
-const itemDb = JSON.parse(readFileSync(join(root, 'src', 'data', 'items', 'db.json'), 'utf8'));
-const itemIcons = [
-  ...new Set(
-    [itemDb.items, itemDb.gems, itemDb.enchants].flatMap((records) => Object.values(records).map((r) => r.icon)),
-  ),
-].sort();
-mkdirSync(itemOutDir, { recursive: true });
-
+const ICON_ATTEMPTS = 3;
 async function downloadIcon(icon) {
   let lastError;
-  for (let attempt = 1; attempt <= ITEM_ICON_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= ICON_ATTEMPTS; attempt++) {
     try {
       const img = await fetch(CDN(icon));
       const type = img.headers.get('content-type') ?? '';
@@ -165,6 +154,72 @@ async function downloadIcon(icon) {
   }
   throw lastError;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Talent icons (public/icons/talents/): every distinct `icon` of the talent tree
+// (src/data/classes/warlock/talentTree.json, `npm run talents:build`, which took the names from
+// Wowhead's tooltip API). Sequential, with a pause: 63 small files. Only real JPEGs are kept.
+
+/** Budget for public/icons/talents/ (about 1.9 KB per 56x56 icon). */
+const TALENT_ICON_BUDGET_BYTES = 150_000;
+const talentOutDir = join(root, 'public', 'icons', 'talents');
+const talentTree = JSON.parse(readFileSync(join(root, 'src', 'data', 'classes', 'warlock', 'talentTree.json'), 'utf8'));
+const talentIcons = [...new Set(talentTree.trees.flatMap((t) => t.talents.map((d) => d.icon)))].sort();
+const isJpeg = (bytes) => bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+mkdirSync(talentOutDir, { recursive: true });
+
+let talentProblems = 0;
+let talentSaved = 0;
+for (const icon of talentIcons) {
+  if (!/^[a-z0-9_]+$/.test(icon)) {
+    console.error(`FAIL  talent icon ${JSON.stringify(icon)}: unexpected icon name`);
+    talentProblems++;
+    continue;
+  }
+  const file = join(talentOutDir, `${icon}.jpg`);
+  if (!force && existsSync(file)) continue;
+  try {
+    const bytes = await downloadIcon(icon);
+    if (!isJpeg(bytes)) throw new Error('not a JPEG');
+    writeFileSync(file, bytes);
+    talentSaved++;
+    console.log(`saved talents/${icon}.jpg ${bytes.length} bytes`);
+  } catch (error) {
+    console.error(`FAIL  talents/${icon}.jpg: ${error.message}`);
+    talentProblems++;
+  }
+  await sleep(150);
+}
+const talentMissing = talentIcons.filter((icon) => !existsSync(join(talentOutDir, `${icon}.jpg`)));
+const talentBytes = talentIcons
+  .filter((icon) => !talentMissing.includes(icon))
+  .reduce((sum, icon) => sum + statSync(join(talentOutDir, `${icon}.jpg`)).size, 0);
+console.log(
+  `\nTalent icons: ${talentIcons.length - talentMissing.length}/${talentIcons.length} present in public/icons/talents/ ` +
+    `(${talentSaved} downloaded now), ${talentBytes} bytes of ${TALENT_ICON_BUDGET_BYTES} budget.`,
+);
+if (talentMissing.length > 0) console.error(`Missing: ${talentMissing.join(', ')}`);
+if (talentBytes > TALENT_ICON_BUDGET_BYTES) {
+  console.error('Over the talent icon budget.');
+  talentProblems++;
+}
+if (talentProblems > 0 || talentMissing.length > 0) process.exit(1);
+
+// ---------------------------------------------------------------------------------------------
+// Item, gem and enchant icons (public/icons/items/). Small concurrency, a pause between requests
+// and retries with backoff: be gentle with the CDN.
+
+/** Budget for public/icons/items/ (the UI shows an initials tile for a missing icon). */
+const ITEM_ICON_BUDGET_BYTES = 6_000_000;
+const ITEM_ICON_CONCURRENCY = 3;
+const itemOutDir = join(root, 'public', 'icons', 'items');
+const itemDb = JSON.parse(readFileSync(join(root, 'src', 'data', 'items', 'db.json'), 'utf8'));
+const itemIcons = [
+  ...new Set(
+    [itemDb.items, itemDb.gems, itemDb.enchants].flatMap((records) => Object.values(records).map((r) => r.icon)),
+  ),
+].sort();
+mkdirSync(itemOutDir, { recursive: true });
 
 let itemProblems = 0;
 let saved = 0;
