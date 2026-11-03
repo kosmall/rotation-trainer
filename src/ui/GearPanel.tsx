@@ -629,7 +629,7 @@ function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void 
               ))}
             </ul>
           )}
-          {result.talents && <p className="hint">The export's talents (applied in stage 2b) are not applied now.</p>}
+          {result.talents && <p className="hint">The export's talents are not applied here: paste the export into the Talents panel's Import.</p>}
         </section>
       )}
       <button

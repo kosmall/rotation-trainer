@@ -2219,3 +2219,271 @@ button.primary {
     min-width: 32px;
   }
 }
+
+/* Talents panel (stage 2b): three trees stacked (the side column is narrow; on a phone they scroll
+   vertically one under the other), each a 4-column grid placed from the data (--talent-row,
+   --talent-col: 1-based). Every talent is a 44 px button (touch target >= 32 px). */
+.talent-points {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.talent-status {
+  margin: 0;
+  min-height: 1.2em;
+  color: var(--muted);
+}
+
+.talent-modelled {
+  margin: 0;
+}
+
+.talent-tree {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
+  min-width: 0;
+}
+
+.talent-tree-title {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.talent-tree-points {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.talent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 44px;
+  gap: 6px 4px;
+  justify-items: center;
+}
+
+.talent,
+.talent-arrow {
+  grid-column: var(--talent-col);
+  grid-row: var(--talent-row);
+}
+
+.talent-arrow {
+  grid-row: var(--talent-row) / calc(var(--talent-row-end) + 1);
+  position: relative;
+  width: 4px;
+  pointer-events: none;
+}
+
+/* The line from the prerequisite's centre down into the gap above the talent that needs it. */
+.talent-arrow::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 22px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--panel-border);
+}
+
+.talent-arrow::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  bottom: -6px;
+  border: 5px solid transparent;
+  border-top-color: var(--panel-border);
+}
+
+.talent-arrow-on::before {
+  background: var(--accent);
+}
+
+.talent-arrow-on::after {
+  border-top-color: var(--accent);
+}
+
+.talent {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--bar-track);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.talent-icon {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.talent-available {
+  border-color: var(--health);
+}
+
+.talent-has-points,
+.talent-full {
+  border-color: var(--cast);
+}
+
+.talent-locked .talent-icon {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.talent-unmodelled {
+  border-style: dashed;
+}
+
+.talent-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.talent:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.talent-rank {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 22px;
+  padding: 0 3px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 14px;
+  color: #fff;
+  background: #1d1b18;
+  border: 1px solid var(--panel-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.talent-full .talent-rank {
+  color: #1d1b18;
+  background: var(--cast);
+}
+
+.talent-unmodelled-mark {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 14px;
+  color: #fff;
+  background: var(--muted);
+}
+
+.talent-card {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.talent-card p {
+  margin: 0;
+}
+
+.talent-card-label {
+  font-weight: 600;
+}
+
+.talent-card-rank {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.talent-card-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.talent-card button,
+.talent-io > button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.talent-card-buttons button {
+  min-width: 40px;
+  min-height: 32px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.talent-card button:focus-visible,
+.talent-io > button:focus-visible,
+.talent-io textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.talent-io > button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.talent-io {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.talent-io-title {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.talent-io .gear-report {
+  display: flex;
+  width: 100%;
+}
+
+.talent-io .gear-warnings {
+  margin: 0;
+  padding-left: 18px;
+}
+
+@media (pointer: coarse), (max-width: 700px) {
+  .talent-io > button,
+  .talent-card button {
+    min-height: 32px;
+  }
+}

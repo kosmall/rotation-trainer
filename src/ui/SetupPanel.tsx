@@ -6,7 +6,7 @@ import { ROTATION_PRESETS } from '../data/classes/warlock/rotation';
 import type { CurseChoice, RotationConfig, RotationPresetId } from '../data/classes/warlock/rotation';
 import type { BuffDef } from '../data/types';
 import { DEFAULT_SETUP, normalizeSetup, SETUP_LIMITS } from '../setup/defaults';
-import { isGearEffectId } from '../setup/gearEffects';
+import { applySetupPreset, setupFightKey } from '../setup/presets';
 import type { SetupConfig, SetupPresetId, TimedSetting } from '../setup/types';
 import { initials } from './format';
 import { ItemUseEditor } from './ItemUseEditor';
@@ -45,14 +45,6 @@ export type SetupPresets = Readonly<
   Record<SetupPresetId, { readonly name: string; readonly description?: string; readonly config: SetupConfig }>
 >;
 
-/** The config's gear fields, only those it has (absent stays absent: the author's gear). */
-function gearOf(config: SetupConfig): Pick<SetupConfig, 'gear' | 'gearPresetId'> {
-  const out: Pick<SetupConfig, 'gear' | 'gearPresetId'> = {};
-  if (config.gear !== undefined) out.gear = config.gear;
-  if (config.gearPresetId !== undefined) out.gearPresetId = config.gearPresetId;
-  return out;
-}
-
 /** The rotation's item-use fields, only those it has. */
 function itemUseOf(rotation: RotationConfig): Pick<RotationConfig, 'itemUse' | 'itemUseOrder'> {
   const out: Pick<RotationConfig, 'itemUse' | 'itemUseOrder'> = {};
@@ -74,31 +66,17 @@ function rotationPresetOf(rotation: RotationConfig): RotationPresetId | 'custom'
 }
 
 /**
- * What decides a fight, as a comparable string: the enabled buffs as a set, the start and length
- * of the ENABLED timed buffs only (a disabled buff's timing changes nothing), the rotation, the
- * distance and the warlock options. An enabled gear item effect counts only when `catalog` (the
- * worn gear's, `setupCatalogFor`) has it: the id of an item not worn is inactive. The fight length
- * decides a fight too, but preset matching ignores it: the presets keep the player's chosen length
- * (ruling F-2), so "Raid as in my log" in a 90 s fight is still that preset; the gear likewise.
- */
-function fightKey(config: SetupConfig, catalog: readonly BuffDef[]): string {
-  const c = normalizeSetup(config, catalog);
-  const ids = new Set(catalog.map((b) => b.id));
-  const enabled = c.enabledBuffs.filter((id) => !isGearEffectId(id) || ids.has(id)).sort();
-  const timed = enabled.flatMap((id) => {
-    const t = c.timed[id];
-    return t ? [[id, t.startSec, t.durationSec]] : [];
-  });
-  return JSON.stringify([enabled, timed, c.rotation, c.distanceYd, c.warlock]);
-}
-
-/**
  * The name of the first preset whose config gives the same fight as `config` ("None", "Raid as
- * in my log"), or "Custom".
+ * in my log"), or "Custom". A preset is compared as it would be chosen now (`applySetupPreset`:
+ * it keeps the fight length, the gear and the talents, ruling F-2) but without the current
+ * item-use rules, so custom item rules still show "Custom"; the keys are `setupFightKey`'s
+ * (enabled buffs as a set, timings of the enabled timed buffs, rotation, distance, warlock
+ * options, and the talents when they are not the author's).
  */
 export function activePresetName(config: SetupConfig, presets: SetupPresets, catalog: readonly BuffDef[]): string {
-  const key = fightKey(config, catalog);
-  const match = Object.values(presets).find((p) => fightKey(p.config, catalog) === key);
+  const key = setupFightKey(config, catalog);
+  const current = withoutItemUse(config);
+  const match = Object.values(presets).find((p) => setupFightKey(applySetupPreset(p.config, current), catalog) === key);
   return match?.name ?? CUSTOM_PRESET_NAME;
 }
 
@@ -241,8 +219,9 @@ export interface SetupPanelProps {
  * when it starts at or after the end), one collapsible group per kind of buff (raid and party,
  * consumables, target debuffs, the worn gear's item effects with the potions and the rune, the
  * not-modelled effects of the gear and the item row overflow), the warlock options,
- * the rotation and the distance from the target. Presets keep the chosen fight length and the
- * gear (the Gear panel's); "Reset to defaults" resets both too (the author's gear). Fully controlled: it shows `config` and passes every edit to
+ * the rotation and the distance from the target. Presets keep the chosen fight length, the
+ * gear (the Gear panel's) and the talents (the Talents panel's); "Reset to defaults" resets them
+ * too (the author's gear and build). Fully controlled: it shows `config` and passes every edit to
  * `onChange` as a new config normalized for `catalog` (exclusive buffs resolved, the later one
  * wins; numbers clamped), so `applySetup` and `buildPriority` always get a valid config. Number
  * inputs keep a typed text only while focused.
@@ -370,14 +349,9 @@ export function SetupPanel({
                 aria-pressed={presetName === p.name}
                 onClick={(e) => {
                   e.currentTarget.blur(); // keep Space/R for the fight
-                  // Ruling F-2: a preset keeps the chosen fight length; it keeps the gear too (the Gear panel sets it).
-                  // The item-use rules are kept too (no preset has any; Reset all in Rotation clears them).
-                  emit({
-                    ...p.config,
-                    rotation: { ...p.config.rotation, ...itemUseOf(config.rotation) },
-                    fightDurationSec: config.fightDurationSec,
-                    ...gearOf(config),
-                  });
+                  // Ruling F-2: a preset keeps the chosen fight length, the gear (Gear panel), the item-use
+                  // rules (no preset has any; Reset all in Rotation clears them) and the talents (Talents panel).
+                  emit(applySetupPreset(p.config, config));
                 }}
               >
                 {p.name}

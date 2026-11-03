@@ -45,6 +45,8 @@ const CURSE_NAMES: Readonly<Record<string, string>> = {
 /** What a result came from (taken at the click). */
 export interface RunLabel {
   gear: string;
+  /** The talent preset's name or "Custom". */
+  talents: string;
   setup: string;
   rotation: string;
   itemRules: 'default' | 'customised';
@@ -65,6 +67,7 @@ export function rotationSummary(config: SetupConfig): string {
 function labelLines(l: RunLabel): string[] {
   return [
     `Gear: ${l.gear}`,
+    `Talents: ${l.talents}`,
     `Setup: ${l.setup}`,
     `Rotation: ${l.rotation}`,
     `Item rules: ${l.itemRules}`,
@@ -165,6 +168,8 @@ export interface SimulatorPanelProps {
   dbStatus: GearDbStatus;
   /** The gear preset's name or "Custom" (for the result's label). */
   gearName: string;
+  /** The talent preset's name or "Custom" (the run plays `config.talents`). */
+  talentsName: string;
   /** The setup preset's name or "Custom". */
   presetName: string;
   /** The spell queue window of the fights (default: the game's, 400 ms). */
@@ -191,6 +196,7 @@ export const SimulatorPanel = memo(function SimulatorPanel({
   db,
   dbStatus,
   gearName,
+  talentsName,
   presetName,
   spellQueueWindowMs = SPELL_QUEUE_WINDOW_MS,
   runner = lazyRunSimulation,
@@ -240,6 +246,7 @@ export const SimulatorPanel = memo(function SimulatorPanel({
     const request: SimRequest = { setup: config, runs: n, seed, spellQueueWindowMs, ...(needsDb && db !== null && { db }) };
     const label: RunLabel = {
       gear: gearName,
+      talents: talentsName,
       setup: presetName,
       rotation: rotationSummary(config),
       itemRules: config.rotation.itemUse !== undefined || config.rotation.itemUseOrder !== undefined ? 'customised' : 'default',
@@ -310,7 +317,7 @@ export const SimulatorPanel = memo(function SimulatorPanel({
       {open && (
         <div className="setup-fields">
           <p className="hint">
-            Plays the next fight&apos;s setup (gear, buffs, rotation and item rules, fight length) many times with the bot and
+            Plays the next fight&apos;s setup (gear, talents, buffs, rotation and item rules, fight length) many times with the bot and
             shows the average. The game keeps running meanwhile.
           </p>
           <div className="setup-row">

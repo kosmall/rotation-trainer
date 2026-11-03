@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AUTHOR_GEAR_TABLES, buildDestructionWarlock } from '../data/classes/warlock/destruction';
+import { AUTHOR_GEAR_TABLES, buildDestructionWarlock, rotationTalentsFor } from '../data/classes/warlock/destruction';
 import type { GearTables, WarlockOptions } from '../data/classes/warlock/destruction';
 import { offeredGearPresets } from '../data/classes/warlock/gearPresets';
+import { rotationWarnings } from '../data/classes/warlock/rotation';
+import { offeredTalentPresets } from '../data/classes/warlock/talentPresets';
 import { UNMODELLED_SETS } from '../data/classes/warlock/sets';
 import { loadItemDb } from '../data/items/db';
 import type { ItemDb } from '../data/items/types';
@@ -14,7 +16,7 @@ import { normalizeSetup, SETUP_CATALOG, setupCatalogFor, STATIC_SETUP_CATALOG } 
 import { gearNeedsDb, setupGear } from '../setup/gear';
 import type { SimRunner } from '../sim-runner/client';
 import { EMBEDDED_GEAR_EFFECT_SOURCE, isGearEffectId, unmodelledGearEffects } from '../setup/gearEffects';
-import { SETUP_PRESETS } from '../setup/presets';
+import { SETUP_PRESETS, setupTalents } from '../setup/presets';
 import { browserStorage, loadSetup, saveSetup } from '../setup/storage';
 import type { SetupStorage } from '../setup/storage';
 import type { AppliedSetup, SetupConfig } from '../setup/types';
@@ -35,6 +37,8 @@ import { SetBonusList } from './SetBonusList';
 import { auraSources, buildBuffViews } from './buffsView';
 import { PlayerBuffsPanel, useAuraTotals } from './PlayerBuffsPanel';
 import { activePresetName, SetupPanel } from './SetupPanel';
+import { TalentsPanel } from './TalentsPanel';
+import { talentBuildName } from './talentView';
 import { StartOverlay } from './StartOverlay';
 import { TargetPanel } from './TargetPanel';
 import { SimulatorPanel } from './SimulatorPanel';
@@ -99,6 +103,21 @@ const GEAR_PRESETS_OFFERED = offeredGearPresets();
 const gearName = (config: SetupConfig): string =>
   matchingPreset(setupGear(config), GEAR_PRESETS_OFFERED)?.name ?? CUSTOM_GEAR_NAME;
 
+/** The talent presets the Talents panel offers (the author's build first). */
+const TALENT_PRESETS_OFFERED = offeredTalentPresets();
+
+/** The build's talent preset name ("My build (export)", "Destro/Nightfall", ...) or "Custom". */
+const talentsName = (config: SetupConfig): string => talentBuildName(setupTalents(config), TALENT_PRESETS_OFFERED);
+
+/** The rotation steps the setup's build cannot play (never throws: none when the config cannot be read). */
+function talentRotationWarnings(config: SetupConfig): string[] {
+  try {
+    return rotationWarnings(config.rotation, rotationTalentsFor(config.talents));
+  } catch {
+    return [];
+  }
+}
+
 /** The config without its gear (the author's gear). */
 function withoutGear(config: SetupConfig): SetupConfig {
   const { gear: _gear, gearPresetId: _id, ...rest } = config;
@@ -112,10 +131,11 @@ function itemNameIn(db: ItemDb | null): (id: number) => string {
 
 export interface GameViewProps {
   /**
-   * Builds the spec for the warlock options and gear (default: the Destruction Warlock). `db` is
-   * the item database once it has loaded, passed for a config that has a gear.
+   * Builds the spec for the warlock options, gear and talents (default: the Destruction Warlock).
+   * `db` is the item database once it has loaded, passed for a config that has a gear; `talents`
+   * the setup's build (`SetupConfig.talents`; undefined: the author's).
    */
-  buildSpec?: (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], db?: GearTables) => SpecData;
+  buildSpec?: (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], db?: GearTables, talents?: string) => SpecData;
   /**
    * Loads the item database (default `loadItemDb`, a lazy chunk). Asked for when the Gear panel is
    * first opened or when the stored gear needs it; tests inject a resolved database here.
@@ -231,13 +251,21 @@ export function GameView({
     },
     [changeConfig, config],
   );
+  const changeTalents = useCallback(
+    (talents: string) => {
+      // The panel's string is already validated; normalizeSetup stores it (none for the author's build).
+      changeConfig({ ...config, talents });
+    },
+    [changeConfig, config],
+  );
   const db = itemDb.db;
   const nextFight = useMemo<NextFight>(() => {
     // Never build a gear the author tables do not know without the database: buildSetup would skip
     // the unknown ids silently (a wrong DPS). Until it loads, the author's gear.
     const fightConfig = config.gear !== undefined && db === null && gearNeedsDb(config.gear) ? withoutGear(config) : config;
-    const build = (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[]) =>
-      gear === undefined || db === null ? buildSpec(warlock, gear) : buildSpec(warlock, gear, db);
+    // The talents are forwarded: the game plays the build the priority (applySetup) is built for.
+    const build = (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], talents?: string) =>
+      gear === undefined || db === null ? buildSpec(warlock, gear, undefined, talents) : buildSpec(warlock, gear, db, talents);
     return {
       config: fightConfig,
       // "Items and cooldowns" follows the worn gear: its effects, derived (never a fixed list).
@@ -254,6 +282,10 @@ export function GameView({
   const nextPreset = useMemo(() => activePresetName(config, SETUP_PRESETS, nextFight.catalog), [config, nextFight.catalog]);
   const fightPreset = useMemo(() => activePresetName(fight.config, SETUP_PRESETS, fight.catalog), [fight]);
   const fightGear = useMemo(() => gearName(fight.config), [fight.config]);
+  const nextTalents = useMemo(() => talentsName(config), [config]);
+  const fightTalents = useMemo(() => talentsName(fight.config), [fight.config]);
+  const talents = setupTalents(config);
+  const talentWarnings = useMemo(() => talentRotationWarnings(config), [config]);
   const itemDescriptionsOfFight = useMemo(() => itemDescriptions(fight.catalog), [fight]);
   const itemIconsOfFight = useMemo(() => itemIconActions(fight.catalog), [fight]);
   // The combat text of the running (or ended) fight: names, icons (item icons from its catalog),
@@ -289,6 +321,7 @@ export function GameView({
       : undefined;
   // The edit differs from what the running (or ended) fight uses; toggling a buff on and off again does not count.
   const pending = snapshot.phase !== 'ready' && JSON.stringify(fight.config) !== JSON.stringify(config);
+  const talentsPending = snapshot.phase !== 'ready' && setupTalents(fight.config) !== talents;
   const [flash, setFlash] = useState<SlotFlash | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -367,7 +400,7 @@ export function GameView({
   return (
     <div className="game">
       <main className="game-main">
-        <FightStats snapshot={snapshot} config={fight.config} presetName={fightPreset} gearName={fightGear} />
+        <FightStats snapshot={snapshot} config={fight.config} presetName={fightPreset} gearName={fightGear} talentsName={fightTalents} />
         {/* With the HUD on, the arena keeps a band at its bottom for the notifications (clear of the target's debuffs). */}
         <section className={hudSettings.enabled ? 'arena arena-hud' : 'arena'}>
           <TargetPanel spec={spec} targetAuras={snapshot.targetAuras} fightRemainingMs={fightRemainingMs} />
@@ -386,6 +419,7 @@ export function GameView({
               config={fight.config}
               presetName={fightPreset}
               gearName={fightGear}
+              talentsName={fightTalents}
               onReset={doReset}
             />
           )}
@@ -434,12 +468,21 @@ export function GameView({
           fightEnded={snapshot.phase === 'ended'}
           hints={gearHints}
         />
+        <TalentsPanel
+          talents={talents}
+          presets={TALENT_PRESETS_OFFERED}
+          onChange={changeTalents}
+          pending={talentsPending}
+          fightEnded={snapshot.phase === 'ended'}
+          warnings={talentWarnings}
+        />
         <CombatTextSettings settings={hudSettings} onChange={changeHudSettings} />
         <SimulatorPanel
           config={config}
           db={db}
           dbStatus={itemDb.status}
           gearName={nextGear}
+          talentsName={nextTalents}
           presetName={nextPreset}
           runner={simRunner}
         />
@@ -467,11 +510,22 @@ const DPS_NOTE_WITH_BUFFS =
   'Includes the enabled buffs; trinket/proc effects not selected are excluded — approximate (see docs/data-sources.md)';
 
 /** The fight's setup and gear names and what its DPS leaves out (depends on whether any buff is enabled). */
-function DpsNote({ config, presetName, gearName }: { config: SetupConfig; presetName: string; gearName: string }) {
+function DpsNote({
+  config,
+  presetName,
+  gearName,
+  talentsName,
+}: {
+  config: SetupConfig;
+  presetName: string;
+  gearName: string;
+  talentsName: string;
+}) {
   return (
     <p className="dps-note">
       <span className="setup-tag">Setup: {presetName}</span>
       <span className="setup-tag">Gear: {gearName}</span>
+      <span className="setup-tag">Talents: {talentsName}</span>
       <span>{config.enabledBuffs.length === 0 ? DPS_NOTE_NO_BUFFS : DPS_NOTE_WITH_BUFFS}</span>
     </p>
   );
@@ -482,9 +536,10 @@ interface FightInfoProps {
   config: SetupConfig;
   presetName: string;
   gearName: string;
+  talentsName: string;
 }
 
-function FightStats({ snapshot, config, presetName, gearName }: FightInfoProps) {
+function FightStats({ snapshot, config, presetName, gearName, talentsName }: FightInfoProps) {
   return (
     <div>
       <dl className="fight-stats">
@@ -503,12 +558,12 @@ function FightStats({ snapshot, config, presetName, gearName }: FightInfoProps) 
           </dd>
         </div>
       </dl>
-      <DpsNote config={config} presetName={presetName} gearName={gearName} />
+      <DpsNote config={config} presetName={presetName} gearName={gearName} talentsName={talentsName} />
     </div>
   );
 }
 
-function EndSummary({ snapshot, config, presetName, gearName, onReset }: FightInfoProps & { onReset(): void }) {
+function EndSummary({ snapshot, config, presetName, gearName, talentsName, onReset }: FightInfoProps & { onReset(): void }) {
   return (
     <div className="overlay">
       <section className="overlay-card" role="region" aria-label="Fight summary">
@@ -521,7 +576,7 @@ function EndSummary({ snapshot, config, presetName, gearName, onReset }: FightIn
           <dt>Duration</dt>
           <dd aria-label="Duration">{secondsText(snapshot.nowMs)} s</dd>
         </dl>
-        <DpsNote config={config} presetName={presetName} gearName={gearName} />
+        <DpsNote config={config} presetName={presetName} gearName={gearName} talentsName={talentsName} />
         <button
           type="button"
           className="primary"

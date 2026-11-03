@@ -295,7 +295,7 @@ describe('Gear panel', () => {
     fireEvent.change(text, { target: { value: SAMPLE } });
     expect(report().textContent).toContain('Feliczita');
     expect(report().textContent).toContain('17 of 17');
-    expect(report().textContent).toContain('talents (applied in stage 2b)');
+    expect(report().textContent).toContain("talents are not applied here: paste the export into the Talents panel's Import");
     expect(activeGear()).toBe('T6'); // nothing applied before Apply
     fireEvent.click(apply());
     expect(activeGear()).toBe('My gear (export)');
