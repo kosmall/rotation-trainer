@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en" data-class="warlock">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#221c31" />
+  <title>Rotation Trainer: redesign prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    // Theme before first paint (no flash). Storage can throw: then the system preference.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('rt-proto-theme'); } catch (e) {}
+      if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-setup" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-fight" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M5 19l9-9M14 4l6 0 0 6-8 8-6-6z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M4 16l4 4"/></symbol>
+    <symbol id="i-report" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3l10 18H2z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 10v5M12 18v.01"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M5 18l4-12 4 12M6.5 14h5M16 18V9M14 9h4"/></symbol>
+    <symbol id="i-keys" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M7 10h0M11 10h0M15 10h0M8 14h8"/></symbol>
+    <symbol id="i-skull" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C7 2 4 5.4 4 9.6c0 2.6 1.2 4.4 2.8 5.5V18a1 1 0 0 0 1 1H9v2h2v-2h2v2h2v-2h1.2a1 1 0 0 0 1-1v-2.9C18.8 14 20 12.2 20 9.6 20 5.4 17 2 12 2zM8.6 13.2a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm6.8 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></symbol>
+    <symbol id="i-sigil" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M16 2l12 7v14l-12 7-12-7V9z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M10 21l6-12 6 12M12 17h8"/><circle cx="16" cy="16" r="2" fill="currentColor"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <a class="brand" href="#/fight" aria-label="Rotation Trainer, go to the fight">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-sigil"/></svg>
+      <span class="brand-name">Rotation Trainer</span>
+    </a>
+    <nav class="modes" aria-label="Mode">
+      <a href="#/setup/gear" data-mode="setup"><svg aria-hidden="true"><use href="#i-setup"/></svg>Setup</a>
+      <a href="#/fight" data-mode="fight"><svg aria-hidden="true"><use href="#i-fight"/></svg>Fight</a>
+      <a href="#/report/damage" data-mode="report"><svg aria-hidden="true"><use href="#i-report"/></svg>Report</a>
+    </nav>
+    <div class="spec-chip" title="Spec (more classes in stage 5)">
+      <img src="../../../public/icons/spells/spell_shadow_shadowbolt.jpg" width="24" height="24" alt="" />
+      <span><b>Destruction</b> Warlock</span>
+    </div>
+    <ul class="status" aria-label="Next fight">
+      <li><a href="#/setup/buffs"><small>Setup</small>Raid as in my log</a></li>
+      <li><a href="#/setup/gear"><small>Gear</small>My gear (export)</a></li>
+      <li><a href="#/setup/talents"><small>Talents</small><span class="tnum">0 / 21 / 40</span></a></li>
+      <li><a href="#/setup/rotation" class="pending" title="Changed: applies after you reset the fight (R)"><small>Rotation</small>Script: Trinket on burst</a></li>
+      <li><a href="#/setup/fight"><small>Fight</small><span class="tnum">60 s, 28 yd</span></a></li>
+    </ul>
+    <button class="icon-btn" type="button" id="theme" aria-label="Switch to light theme">
+      <svg aria-hidden="true"><use href="#i-sun"/></svg>
+    </button>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- ============ SETUP ============ -->
+    <div class="view setup" id="view-setup" hidden>
+      <div class="rail">
+        <nav aria-label="Setup sections">
+          <div class="groups">
+            <div>
+              <h2>Character</h2>
+              <ul>
+                <li><a href="#/setup/gear" data-sec="gear"><img src="../../../public/icons/items/inv_helmet_103.jpg" width="32" height="32" alt="" /><span class="label">Gear</span><span class="value">My gear (export)</span></a></li>
+                <li><a href="#/setup/talents" data-sec="talents"><img src="../../../public/icons/talents/spell_fire_soulburn.jpg" width="32" height="32" alt="" /><span class="label">Talents</span><span class="value tnum">My build, 0 / 21 / 40</span></a></li>
+              </ul>
+            </div>
+            <div>
+              <h2>Fight</h2>
+              <ul>
+                <li><a href="#/setup/buffs" data-sec="buffs"><img src="../../../public/icons/spells/spell_magic_greaterblessingofkings.jpg" width="32" height="32" alt="" /><span class="label">Buffs &amp; consumables</span><span class="value">14 on, 3 target debuffs</span></a></li>
+                <li><a href="#/setup/items" data-sec="items"><img src="../../../public/icons/spells/inv_potion_107.jpg" width="32" height="32" alt="" /><span class="label">Items &amp; cooldowns</span><span class="value">4 on the item bar</span></a></li>
+                <li><a href="#/setup/rotation" data-sec="rotation"><img src="../../../public/icons/spells/spell_shadow_shadowbolt.jpg" width="32" height="32" alt="" /><span class="label">Rotation</span><span class="value">Script, 9 rules</span></a></li>
+                <li><a href="#/setup/fight" data-sec="fight"><img src="../../../public/icons/spells/ability_shaman_heroism.jpg" width="32" height="32" alt="" /><span class="label">Fight settings</span><span class="value tnum">60 s, Heroism at 6.4 s</span></a></li>
+                <li><a href="#/setup/class" data-sec="class"><img src="../../../public/icons/spells/spell_shadow_felarmour.jpg" width="32" height="32" alt="" /><span class="label">Warlock options</span><span class="value">Fel Armor, Succubus sacrificed</span></a></li>
+              </ul>
+            </div>
+            <div>
+              <h2>Library</h2>
+              <ul>
+                <li><a href="#/setup/scenarios" data-sec="scenarios"><img src="../../../public/icons/items/inv_weapon_shortblade_23.jpg" width="32" height="32" alt="" /><span class="label">Scenarios</span><span class="value">4 saved</span></a></li>
+              </ul>
+            </div>
+            <div>
+              <h2>Interface</h2>
+              <ul>
+                <li><a href="#/setup/combat-text" data-sec="combat-text"><span class="glyph"><svg aria-hidden="true"><use href="#i-text"/></svg></span><span class="label">Combat text</span><span class="value">On, parabola</span></a></li>
+                <li><a aria-disabled="true" role="link"><span class="glyph"><svg aria-hidden="true"><use href="#i-keys"/></svg></span><span class="label">Keybinds</span><span class="value">Coming with stage 2c</span></a></li>
+              </ul>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <div class="setup-main">
+        <!-- Gear -->
+        <section class="setup-section" data-sec="gear" aria-labelledby="h-gear">
+          <div class="sec-head">
+            <h1 id="h-gear">Gear</h1>
+            <p>17 slots from your WowSimsExporter export. A change applies to the next fight.</p>
+            <div class="actions">
+              <button class="btn" type="button">Import Gear…</button>
+              <button class="btn" type="button">Export Gear</button>
+            </div>
+          </div>
+          <div class="field-row">
+            <span class="lab">Preset</span>
+            <div class="seg" role="group" aria-label="Gear presets">
+              <button type="button" aria-pressed="true">My gear (export)</button>
+              <button type="button" aria-pressed="false">Pre-Raid</button>
+              <button type="button" aria-pressed="false">T4</button>
+              <button type="button" aria-pressed="false">T5</button>
+              <button type="button" aria-pressed="false">T6</button>
+              <button type="button" aria-pressed="false">Zul’Aman</button>
+              <button type="button" aria-pressed="false">Sunwell</button>
+            </div>
+          </div>
+          <div class="paperdoll">
+            <ol class="slots left" id="slots-left" aria-label="Equipped items, left column"></ol>
+            <aside class="item-card" aria-label="Selected item" id="item-card"></aside>
+            <ol class="slots right" id="slots-right" aria-label="Equipped items, right column"></ol>
+            <div class="weapons" id="slots-weapons" role="list" aria-label="Weapons"></div>
+          </div>
+        </section>
+
+        <!-- Rotation -->
+        <section class="setup-section" data-sec="rotation" aria-labelledby="h-rot" hidden>
+          <div class="sec-head">
+            <h1 id="h-rot">Rotation</h1>
+            <p>The bot, the simulator and the “Next” hint play these rules top to bottom: the first rule whose condition holds and whose action is ready wins.</p>
+          </div>
+          <div class="field-row">
+            <span class="lab">Mode</span>
+            <div class="seg" role="group" aria-label="Rotation mode">
+              <button type="button" aria-pressed="false">Basic</button>
+              <button type="button" aria-pressed="true">Script</button>
+            </div>
+            <span class="note">Script “Trinket on burst”, from the scenario library</span>
+          </div>
+          <p class="note pending" style="margin-bottom:16px">Changed since the running fight started: it applies after you reset the fight (<kbd>R</kbd>).</p>
+          <div class="script-tools">
+            <button class="btn small" type="button">Add Rule</button>
+            <button class="btn small quiet" type="button">Convert From Basic Rotation</button>
+            <button class="btn small quiet" type="button">Edit as JSON</button>
+            <span class="spacer"></span>
+            <span class="valid" role="status">1 error, 0 warnings</span>
+          </div>
+          <ol class="rules" id="rules" aria-label="Rotation rules"></ol>
+          <div class="defs">
+            <div>
+              <h2>Named conditions</h2>
+              <div class="def"><code>$burst</code><div class="cond"><span class="v">heroism.active</span> <span class="o">&amp;&amp;</span> <span class="v">target.aura.shadow-vulnerability.active</span></div></div>
+              <div class="def"><code>$lowMana</code><div class="cond"><span class="v">mana.pct</span> <span class="o">&lt;</span> <span class="nn">35</span></div></div>
+              <button class="btn small quiet" type="button">Add Named Condition</button>
+            </div>
+            <div class="vars">
+              <label class="sr-only" for="var-search">Search variables</label>
+              <input id="var-search" type="search" placeholder="Search variables, e.g. aura…" autocomplete="off" spellcheck="false" />
+              <ul>
+                <li><code>heroism.active</code><span>Heroism or Bloodlust on you</span></li>
+                <li><code>target.aura.&lt;id&gt;.remaining</code><span>seconds, 0 when off</span></li>
+                <li><code>cd.&lt;id&gt;.ready</code><span>cooldown done</span></li>
+                <li><code>use.&lt;id&gt;.count</code><span>times you used an item</span></li>
+                <li><code>fight.last(N)</code><span>last N seconds</span></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Buffs -->
+        <section class="setup-section" data-sec="buffs" aria-labelledby="h-buffs" hidden>
+          <div class="sec-head">
+            <h1 id="h-buffs">Buffs &amp; consumables</h1>
+            <p>Raid and party buffs, consumables and the debuffs other players keep on the target.</p>
+            <div class="actions">
+              <div class="seg" role="group" aria-label="Setup presets">
+                <button type="button" aria-pressed="false">None</button>
+                <button type="button" aria-pressed="true">Raid as in my log</button>
+              </div>
+              <button class="btn" type="button">Reset to Defaults…</button>
+            </div>
+          </div>
+          <div class="buff-groups" id="buff-groups"></div>
+        </section>
+
+        <section class="setup-section" data-sec="other" aria-labelledby="h-other" hidden>
+          <div class="sec-head"><h1 id="h-other">Section</h1><p>This section keeps today’s panel content, restyled with the shared tokens (see the spec’s mapping table).</p></div>
+        </section>
+      </div>
+
+      <aside class="summary" aria-label="Next fight summary">
+        <div class="summary-inner">
+          <section aria-labelledby="h-stats">
+            <h2 id="h-stats">Stats at the pull</h2>
+            <dl class="stats" aria-label="Stats at the pull">
+              <dt>Shadow power</dt><dd>1,451<span class="delta">+151</span></dd>
+              <dt>Fire power</dt><dd>1,398<span class="delta">+151</span></dd>
+              <dt>Spell crit</dt><dd>30.42%</dd>
+              <dt>Shadow Bolt crit</dt><dd>35.42%</dd>
+              <dt>Spell hit</dt><dd>15.54%</dd>
+              <dt>Spell haste</dt><dd>2.85%</dd>
+              <dt>Max mana</dt><dd>10,679</dd>
+              <dt>Mana regen (mp5)</dt><dd>187</dd>
+            </dl>
+            <p class="note" style="margin-top:8px">Next fight, before timed buffs. Green: change from the preset.</p>
+          </section>
+          <section aria-labelledby="h-sets">
+            <h2 id="h-sets">Set bonuses</h2>
+            <ul class="setlist">
+              <li><b>Malefic Raiment</b> 4/4<br /><span class="badge on">2 pc</span> <span class="badge on">4 pc</span> +6% Shadow Bolt and Incinerate</li>
+              <li><b>Corruptor Raiment</b> 0/4 <span class="badge off">Not modelled</span></li>
+            </ul>
+          </section>
+          <section aria-labelledby="h-sim">
+            <h2 id="h-sim">Simulate this setup</h2>
+            <div class="sim-mini">
+              <div class="big">2,294<small> ± 3.8 DPS</small></div>
+              <p>1,000 runs, seed 41207, 6 min ago. The setup changed since.</p>
+              <a class="btn primary small" href="#/report/simulator">Run 1,000 Fights</a>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ============ FIGHT ============ -->
+    <div class="view fight" id="view-fight" hidden>
+      <section class="arena" aria-label="Fight">
+        <div class="hud">
+          <div class="hud-row">
+            <div class="timer" aria-label="Elapsed 34.2 of 60 seconds"><span class="tnum">0:34.2</span><small> / 1:00</small></div>
+          </div>
+          <div class="timeline" aria-hidden="true"><i style="width:57%"></i><span class="mark" style="left:10.7%" title="Heroism at 6.4 s"></span></div>
+          <div class="hud-dps">
+            <div><b aria-label="DPS">2,321.2</b><span>DPS</span></div>
+            <div><b aria-label="Total damage">79,384</b><span>damage</span></div>
+            <button class="btn small dock-toggle" type="button" aria-label="Show the damage meter and log">Meter</button>
+          </div>
+          <div class="hints"><span><kbd>Esc</kbd> cancel cast</span><span><kbd>R</kbd> reset</span><span><kbd>?</kbd> all keys</span></div>
+        </div>
+
+        <div class="target frame" aria-label="Target">
+          <div class="portrait" aria-hidden="true"><svg><use href="#i-skull"/></svg><span class="lvl">73</span></div>
+          <div class="uf-name"><h2>Raid Target Dummy</h2><span>Boss, level 73</span></div>
+          <div class="uf-bars">
+            <div class="bar" role="meter" aria-label="Target health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i style="width:100%"></i><span><span>79,384 taken</span><span>100%</span></span></div>
+          </div>
+          <ul class="auras" id="debuffs" aria-label="Debuffs on the target"></ul>
+        </div>
+
+        <div class="player-buffs">
+          <ul class="auras" id="buffs-timed" aria-label="Your buffs"></ul>
+          <ul class="auras" id="buffs-setup" aria-label="Setup buffs"></ul>
+          <span class="lab">Setup buffs last the whole fight</span>
+        </div>
+
+        <div class="world" aria-hidden="true">
+          <svg class="ring" viewBox="0 0 260 100">
+            <ellipse cx="130" cy="50" rx="120" ry="42" fill="none" stroke="currentColor" stroke-width="2" opacity="0.85"/>
+            <ellipse class="r1" cx="130" cy="50" rx="108" ry="36" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <ellipse cx="130" cy="50" rx="120" ry="42" fill="rgba(224,82,82,0.08)"/>
+          </svg>
+          <div class="dummy-label"><b>Raid Target Dummy</b><div class="np"><i></i></div></div>
+        </div>
+
+        <div class="sct sct-out" aria-hidden="true" id="sct-out"></div>
+        <div class="sct sct-notes" aria-hidden="true" id="sct-notes"></div>
+
+        <div class="player frame" aria-label="You">
+          <div class="portrait"><img src="../../../public/icons/spells/spell_shadow_shadowbolt.jpg" width="56" height="56" alt="" /></div>
+          <div class="uf-name"><h2>You</h2><span>Destruction Warlock, 70</span></div>
+          <div class="uf-bars">
+            <div class="bar mana" role="meter" aria-label="Mana" aria-valuemin="0" aria-valuemax="10679" aria-valuenow="6284"><i style="width:58.8%"></i><span><span>6,284 / 10,679</span><span>59%</span></span></div>
+          </div>
+          <div class="fsr"><span class="pip" aria-hidden="true"><i></i></span><span title="Five-second rule: no spirit regen for 5 s after spending mana">Regen in 1.8 s</span></div>
+        </div>
+
+        <div class="bars">
+          <div class="castbar" aria-label="Cast bar">
+            <img src="../../../public/icons/spells/spell_shadow_shadowbolt.jpg" width="30" height="30" alt="" />
+            <div class="bar" role="progressbar" aria-label="Casting Shadow Bolt" aria-valuemin="0" aria-valuemax="1.87" aria-valuenow="1.12"><i style="width:60%"></i><span class="queue" style="width:21.4%" title="Spell queue window: a press now is queued"></span><span><b>Shadow Bolt</b><span>1.12 / 1.87</span></span></div>
+            <div class="cap"><span>Queue opens in 0.35 s</span><span>Hasted 1.87 s</span></div>
+          </div>
+          <div class="itembar frame clean" role="group" aria-label="Item bar" id="itembar"><span class="bar-label">Items</span></div>
+          <div class="actionbar frame clean" role="toolbar" aria-label="Action bar" id="actionbar"></div>
+        </div>
+
+        <div class="start" id="start" hidden>
+          <div class="start-card">
+            <h2>Ready When You Are</h2>
+            <p>Press <kbd>Space</kbd> or any spell key to pull. <kbd>Esc</kbd> cancels a cast, <kbd>R</kbd> resets.</p>
+            <button class="btn primary" type="button">Start the Fight</button>
+            <p class="setup-line">60 s against the Raid Target Dummy with <a href="#/setup/buffs">Raid as in my log</a>, <a href="#/setup/gear">My gear (export)</a> and <a href="#/setup/rotation">Script: Trinket on burst</a>.</p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="dock" aria-label="Fight details">
+        <section aria-labelledby="h-meter">
+          <h2 id="h-meter">Damage done <small>79,384</small></h2>
+          <ol class="meter" id="meter"></ol>
+        </section>
+        <section class="next" aria-labelledby="h-next">
+          <h2 id="h-next">Next by the script <small>coach</small></h2>
+          <ol id="next"></ol>
+        </section>
+        <section aria-labelledby="h-sofar">
+          <h2 id="h-sofar">So far <small>bot at 34.2 s: 2,388</small></h2>
+          <dl class="stats" aria-label="Fight so far">
+            <dt>Active time (GCD)</dt><dd>98.1%</dd>
+            <dt>Immolate uptime</dt><dd>91.2%</dd>
+            <dt>Corruption uptime</dt><dd>97.4%</dd>
+          </dl>
+        </section>
+        <section aria-labelledby="h-log" style="overflow:hidden">
+          <h2 id="h-log">Combat log <small><a href="#/report/log" style="color:inherit">Full log</a></small></h2>
+          <ol class="log" id="log" aria-live="off"></ol>
+          <div class="foot" style="margin-top:12px">
+            <label class="switch"><input type="checkbox" checked /> Combat text</label>
+            <a href="#/setup/combat-text" style="color:inherit">Settings</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- ============ REPORT ============ -->
+    <div class="view report" id="view-report" hidden>
+      <header class="rep-head">
+        <div>
+          <h1 class="sr-only">Fight report</h1>
+          <div class="hero-dps tnum">2,104.5<small>DPS</small></div>
+          <p class="vs-bot">91.7% of the bot (<b>2,294.1</b>) with the same setup</p>
+        </div>
+        <div>
+          <dl class="kpis">
+            <div><dt>Damage</dt><dd>126,272</dd></div>
+            <div><dt>Duration</dt><dd>60.0 s</dd></div>
+            <div><dt>Active time (GCD)</dt><dd>96.8%</dd></div>
+            <div><dt>Immolate uptime</dt><dd>88.4%</dd></div>
+            <div><dt>Corruption uptime</dt><dd>97.1%</dd></div>
+          </dl>
+          <p class="used">Played with <a href="#/setup/buffs">Raid as in my log</a>, <a href="#/setup/gear">My gear (export)</a>, <a href="#/setup/talents">My build (0 / 21 / 40)</a>, <a href="#/setup/rotation">Script: Trinket on burst</a>, <span class="tnum">28 yd</span>, today 14:32.</p>
+        </div>
+        <div class="rep-actions">
+          <a class="btn" href="#/fight">Fight Again</a>
+          <button class="btn quiet" type="button">Copy Report</button>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Report sections">
+        <a href="#/report/damage" data-tab="damage">Damage</a>
+        <a href="#/report/timeline" data-tab="timeline">Timeline</a>
+        <a href="#/report/log" data-tab="log">Log</a>
+        <a href="#/report/rotation" data-tab="rotation">Rotation</a>
+        <span class="gap" aria-hidden="true"></span>
+        <a href="#/report/simulator" data-tab="simulator">Simulator</a>
+        <a href="#/report/compare" data-tab="compare">Compare</a>
+      </nav>
+
+      <section class="rep-panel" data-tab="damage" aria-label="Damage">
+        <div class="rep-grid">
+          <div style="display:grid;gap:24px;min-width:0">
+          <div class="card">
+            <h2>Damage by spell <small>Last fight</small></h2>
+            <div class="tbl-wrap">
+              <table class="dmg" id="dmg-table">
+                <thead><tr><th scope="col">Spell</th><th scope="col">Damage</th><th scope="col">DPS</th><th scope="col">Casts</th><th scope="col">Crit</th><th scope="col" class="opt">Avg hit</th><th scope="col" class="opt">Avg crit</th><th scope="col" class="opt">Miss</th></tr></thead>
+                <tbody></tbody>
+                <tfoot><tr><td style="text-align:left">Total</td><td class="n">126,272</td><td class="n">2,104.5</td><td class="n">42</td><td></td><td class="opt"></td><td class="opt"></td><td class="n opt">1</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Buffs and items <small>Uptime in this fight</small></h2>
+            <div class="tbl-wrap">
+              <table class="dmg">
+                <thead><tr><th scope="col">Aura</th><th scope="col">Uptime</th><th scope="col">Used or procs</th><th scope="col" class="opt">First at</th></tr></thead>
+                <tbody>
+                  <tr><td class="sp"><div class="sp-cell"><img src="../../../public/icons/spells/ability_shaman_heroism.jpg" width="28" height="28" alt="" /><div>Heroism</div></div></td><td class="n">66.7%</td><td class="n">1</td><td class="n opt">6.4 s</td></tr>
+                  <tr><td class="sp"><div class="sp-cell"><img src="../../../public/icons/items/inv_weapon_shortblade_23.jpg" width="28" height="28" alt="" /><div>Icon of the Silver Crescent</div></div></td><td class="n">33.3%</td><td class="n">1</td><td class="n opt">8.8 s</td></tr>
+                  <tr><td class="sp"><div class="sp-cell"><img src="../../../public/icons/spells/inv_potion_107.jpg" width="28" height="28" alt="" /><div>Destruction Potion</div></div></td><td class="n">25.0%</td><td class="n">1</td><td class="n opt">8.8 s</td></tr>
+                  <tr><td class="sp"><div class="sp-cell"><img src="../../../public/icons/items/inv_jewelry_ring_55.jpg" width="28" height="28" alt="" /><div>Band of the Eternal Sage</div></div></td><td class="n">47.5%</td><td class="n">3</td><td class="n opt">12.1 s</td></tr>
+                  <tr><td class="sp"><div class="sp-cell"><img src="../../../public/icons/spells/spell_shadow_shadowbolt.jpg" width="28" height="28" alt="" /><div>Shadow Vulnerability</div></div></td><td class="n">93.0%</td><td class="n">10</td><td class="n opt">8.9 s</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          </div>
+          <div class="card">
+            <h2>DPS over time <small>5 s rolling, with your buffs</small></h2>
+            <div class="chart" id="dps-chart"><div class="tip" hidden></div></div>
+            <div class="legend"><span><i style="background:var(--class)"></i>DPS, 5 s rolling</span><span><i class="dash"></i>Fight DPS so far</span><span><i style="background:var(--text-dim);opacity:.5"></i>Bot, same seed</span></div>
+            <h2 style="margin-top:20px">What to look at</h2>
+            <ul class="insights">
+              <li><svg class="warn" aria-hidden="true"><use href="#i-alert"/></svg><span>Immolate fell off twice for 6.9 s in total (at 21 s and 47 s). The bot kept it up 99%.</span></li>
+              <li><svg class="good" aria-hidden="true"><use href="#i-check"/></svg><span>Icon of the Silver Crescent and Destruction Potion went in 0.4 s after Heroism, like the bot.</span></li>
+              <li><svg class="warn" aria-hidden="true"><use href="#i-alert"/></svg><span>3 Life Taps under Heroism cost about 3.4 s of hasted casting.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="rep-panel" data-tab="simulator" aria-label="Simulator" hidden>
+        <div class="runbar">
+          <label>Runs<input type="text" inputmode="numeric" value="1,000" name="runs" autocomplete="off" /></label>
+          <label>Seed<input type="text" inputmode="numeric" placeholder="random…" name="seed" autocomplete="off" /></label>
+          <button class="btn primary" type="button">Run 1,000 Fights</button>
+          <span class="note">About 1 s in the background. The game keeps running.</span>
+        </div>
+        <div class="sim-grid">
+          <div class="card">
+            <h2>Mean DPS <small>1,000 runs, seed 41207</small></h2>
+            <div class="sim-big">2,294.1<small> ± 3.8 SEM</small></div>
+            <p class="note" style="margin-top:6px">95% of the time the true mean lies between 2,286.7 and 2,301.5.</p>
+            <dl class="statgrid">
+              <div><dt>Spread (σ)</dt><dd>118.6</dd></div>
+              <div><dt>Median</dt><dd>2,292.0</dd></div>
+              <div><dt>5th–95th percentile</dt><dd>2,101–2,490</dd></div>
+              <div><dt>Min–max</dt><dd>1,912–2,702</dd></div>
+              <div><dt>Mana used</dt><dd>14,920</dd></div>
+              <div><dt>Life Taps</dt><dd>4.1</dd></div>
+            </dl>
+          </div>
+          <div class="card">
+            <h2>DPS of 1,000 fights <small>Your last fight marked</small></h2>
+            <div class="chart" id="histogram"><div class="tip" hidden></div></div>
+            <p class="note" style="margin-top:8px">Your fight (2,104.5) sits at the 6th percentile of the bot’s fights with this setup.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="rep-panel" data-tab="timeline" aria-label="Timeline" hidden>
+        <div class="card"><h2>Casts and auras over the fight <small>One lane per spell and buff</small></h2><div class="chart" id="timeline"></div></div>
+      </section>
+
+      <section class="rep-panel" data-tab="log" aria-label="Log" hidden>
+        <div class="card">
+          <div class="filters">
+            <label class="sr-only" for="log-q">Filter the log</label>
+            <input id="log-q" type="search" placeholder="Filter, e.g. Immolate…" autocomplete="off" spellcheck="false" />
+            <div class="seg" role="group" aria-label="Event kinds"><button type="button" aria-pressed="true">All</button><button type="button" aria-pressed="false">Damage</button><button type="button" aria-pressed="false">Casts</button><button type="button" aria-pressed="false">Auras</button><button type="button" aria-pressed="false">Mana</button></div>
+          </div>
+          <div class="tbl-wrap"><table class="dmg logtbl" id="log-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col" style="text-align:right">Amount</th></tr></thead><tbody></tbody></table></div>
+          <p class="note" style="margin-top:8px">Showing 12 of 214 events. The full log scrolls in a virtual list.</p>
+        </div>
+      </section>
+
+      <section class="rep-panel" data-tab="rotation" aria-label="Rotation" hidden>
+        <div class="card">
+          <h2>Your casts against the bot’s <small>Same setup and seed</small></h2>
+          <ol class="prio" id="prio"></ol>
+        </div>
+      </section>
+
+      <section class="rep-panel" data-tab="compare" aria-label="Compare" hidden>
+        <div class="empty-state">
+          <h2>Compare two or more scenarios</h2>
+          <p>Save your current setup as a scenario, or import one, then run them on the same seeds to see which is really better.</p>
+          <a class="btn primary" href="#/setup/scenarios">Open Scenarios</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <nav class="tabbar" aria-label="Mode">
+    <a href="#/setup/gear" data-mode="setup"><svg aria-hidden="true"><use href="#i-setup"/></svg>Setup</a>
+    <a href="#/fight" data-mode="fight"><svg aria-hidden="true"><use href="#i-fight"/></svg>Fight</a>
+    <a href="#/report/damage" data-mode="report"><svg aria-hidden="true"><use href="#i-report"/></svg>Report</a>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
