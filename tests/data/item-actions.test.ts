@@ -203,15 +203,16 @@ describe('item actions: catalog', () => {
 // ---------------------------------------------------------------------------
 
 describe('item actions: applySetup', () => {
-  it('applySetup with Icon + Dark Rune enabled adds both actions to spec.spells, the Icon aura to spec.auras, keybinds[12] and [13] are their ids in catalog order, scheduledAuras has no entry for them', () => {
+  it('applySetup with Icon + Dark Rune enabled adds both actions to spec.spells, the Icon aura to spec.auras, keybinds[12] and [13] are the worn Icon then the rune, scheduledAuras has no entry for them', () => {
     const { spec, sim } = apply({ enabledBuffs: [ICON_BUFF, 'dark-rune'] });
-    // Catalog order: Dark Rune (cooldowns) before the Icon (warlock items), whatever the config order.
+    // Fold order (spells, bot steps): Dark Rune (cooldowns) before the Icon (gear), whatever the config order.
     expect(spec.spells).toEqual([...destructionWarlock.spells, actionOf('dark-rune'), actionOf(ICON_BUFF)]);
     expect(spec.spells).not.toBe(destructionWarlock.spells);
     expect(spec.auras).toEqual([...destructionWarlock.auras, catalogBuff(ICON_BUFF).effect.selfAura]);
     expect(spec.keybinds).toHaveLength(SPELL_SLOT_COUNT + ITEM_SLOT_COUNT);
     expect(spec.keybinds.slice(0, SPELL_SLOT_COUNT)).toEqual(destructionWarlock.keybinds);
-    expect(spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([DARK_RUNE, ICON, '', '', '', '']);
+    // The item row: the worn on-use trinket first (always bound), then the enabled rune.
+    expect(spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([ICON, DARK_RUNE, '', '', '', '']);
     expect(spec.keybinds).not.toBe(destructionWarlock.keybinds);
     expect(sim.scheduledAuras).toEqual([]);
     // Their rules come first (off the GCD), in the same order; then the rotation unchanged.
@@ -220,22 +221,24 @@ describe('item actions: applySetup', () => {
     expect(destructionWarlock.keybinds).toHaveLength(SPELL_SLOT_COUNT);
   });
 
-  it('with none enabled keybinds[12..15] are empty and the spec equals the stage 1.5 spec', () => {
+  it('with none enabled the item row holds only the worn Icon (always bound) and the spec is the stage 1.5 spec plus its action and aura; no bot step for it', () => {
     const { spec, sim } = apply();
-    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '', '', '']);
+    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, ICON, '', '', '', '', '']);
     expect(spec.keybinds).not.toBe(destructionWarlock.keybinds);
-    expect(spec.spells).toEqual(destructionWarlock.spells);
-    expect(spec.auras).toEqual(destructionWarlock.auras);
+    expect(spec.spells).toEqual([...destructionWarlock.spells, actionOf(ICON_BUFF)]);
+    expect(spec.auras).toEqual([...destructionWarlock.auras, catalogBuff(ICON_BUFF).effect.selfAura]);
     expect(spec.priority.map((s) => [s.spellId, s.label, s.hint])).toEqual(
       destructionWarlock.priority.map((s) => [s.spellId, s.label, s.hint]),
     );
     expect(sim.scheduledAuras).toEqual([]);
   });
 
-  it('all four enabled: the item row is full, in catalog order, and the fight knows every action', () => {
+  it('all four enabled: the worn Icon first, then the potions and the rune in catalog order, and the fight knows every action', () => {
     const enabledBuffs = [ICON_BUFF, 'dark-rune', 'super-mana-potion', 'destruction-potion'];
     const applied = apply({ enabledBuffs });
-    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([DESTRUCTION, SUPER_MANA, DARK_RUNE, ICON, '', '']);
+    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([ICON, DESTRUCTION, SUPER_MANA, DARK_RUNE, '', '']);
+    // The bot steps keep the fold order (catalog, then gear): the logs of before.
+    expect(applied.spec.priority.slice(0, 4).map((s) => s.spellId)).toEqual([DESTRUCTION, SUPER_MANA, DARK_RUNE, ICON]);
     expect(applied.sim.scheduledAuras).toEqual([]);
     const sim = fight(applied);
     for (const id of ITEM_IDS) expect(sim.snapshot().spells[id], id).toEqual({ manaCost: 0, castTimeMs: 0 });

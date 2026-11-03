@@ -210,15 +210,20 @@ export function professionNotes(gear: GearList, db: ItemDb): string[] {
 
 /**
  * The Gear panel's hints about the worn items' modelled effects (`gearEntries`: the setup entries
- * derived from the gear, `deriveGearEffects`): one per entry that is not enabled, since it counts
- * only when enabled in the Setup panel. An enabled id of an item no longer worn is inactive and
- * needs no note (it is neither applied nor listed).
+ * derived from the gear, `deriveGearEffects`): one per entry that is not enabled. An on-use effect
+ * is always on the item row (the player can use it); enabling it only lets the bot and the
+ * simulator use it. A proc or pre-pull effect counts only when enabled. An enabled id of an item
+ * no longer worn is inactive and needs no note (it is neither applied nor listed).
  */
 export function itemEffectHints(gearEntries: readonly BuffDef[], enabledBuffs: readonly string[]): string[] {
   const enabled = new Set(enabledBuffs);
   return gearEntries
     .filter((b) => !enabled.has(b.id))
-    .map((b) => `${b.name}: its effect counts only when enabled in Setup, Items and cooldowns.`);
+    .map((b) =>
+      b.effect.action
+        ? `${b.name}: on the item row; the bot and the simulator use it only when "Use automatically" is ticked in Setup, Items and cooldowns.`
+        : `${b.name}: its effect counts only when enabled in Setup, Items and cooldowns.`,
+    );
 }
 
 /** "Icon of the Silver Crescent (on use), Band of the Eternal Sage (proc)", or "none": the modelled effects of a gear's entries. */

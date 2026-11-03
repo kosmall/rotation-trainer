@@ -24,13 +24,16 @@ import { describeGear, DEFAULT_GEAR } from '../../src/setup/gear';
 import {
   deriveGearEffects,
   EMBEDDED_GEAR_EFFECT_SOURCE,
+  enabledSetupEntries,
   gearItemRules,
+  isAlwaysBoundGearEntry,
   isGearEffectId,
+  itemRowOf,
   LEGACY_ITEM_BUFF_IDS,
   unmodelledGearEffects,
 } from '../../src/setup/gearEffects';
 import { SETUP_PRESETS } from '../../src/setup/presets';
-import { loadSetup, SETUP_STORAGE_KEY } from '../../src/setup/storage';
+import { loadSetup, saveSetup, SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { gearPresetById } from '../../src/data/classes/warlock/gearPresets';
 
@@ -353,7 +356,8 @@ describe('deriveGearEffects', () => {
     expect(owl.effect.selfAura).toMatchObject({ id: 'item-buff:31035', durationMs: 1800000, selfStatBonuses: { critRating: 44.153846 } });
     const applied = apply(config({ gear, enabledBuffs: ['item:24121'], fightDurationSec: 600 }));
     expect(applied.sim.scheduledAuras).toEqual([{ auraId: 'item-buff:31035', on: 'self', atMs: 0 }]);
-    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual(['', '', '', '', '', '']);
+    // No slot for the Chain: the row holds only the worn Icon (always bound).
+    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual(['use-item-29370', '', '', '', '', '']);
     const sim = new Simulation({ spec: applied.spec, target: NEVER_MISS, seed: 1, infiniteMana: true, scheduledAuras: applied.sim.scheduledAuras, durationMs: 600000 });
     sim.cast('shadow-bolt');
     sim.advanceTo(599000);
@@ -490,30 +494,49 @@ describe('on-use items from the gear', () => {
     expect(rules['use-item-29132']!.hint(null)).toContain('+150 spell power for 15 s');
   });
 
-  it('7 enabled on-use effects: the first 6 take Z X C V B N, the 7th is not bound and describeGear reports it', () => {
+  it('6 worn on-use effects + enabled potions and rune: the worn ones take Z X C V B N in slot order (trinket 1, trinket 2), the rest is not bound and describeGear reports it', () => {
     const many: ItemRecord = {
       ...db.items[29132]!,
       useEffects: [1, 2, 3, 4].map((n) => ({ buffName: `Burst ${n}`, buffId: 900200 + n, stats: { spellPower: n }, durationMs: 10000, cooldownMs: 60000 })),
     };
-    const big = dbWith(many);
-    const gear = gearWith({ trinket1: { id: 29132 } });
-    const enabledBuffs = ['destruction-potion', 'super-mana-potion', 'dark-rune', 'item:29132', 'item:29132:2', 'item:29132:3', 'item:29132:4', 'item:29370'];
-    const applied = applySetup({ buildSpec: buildWithDb, catalog: SETUP_CATALOG, config: config({ gear, enabledBuffs }), db: big });
+    // A synthetic ring with an on-use effect, in finger 1: a slot before the trinkets, bound after them.
+    const ring: ItemRecord = {
+      ...db.items[29132]!,
+      id: 900301,
+      name: 'Burst Ring',
+      slot: 'finger',
+      useEffects: [{ buffName: 'Ring Burst', buffId: 900301, stats: { spellPower: 7 }, durationMs: 10000, cooldownMs: 60000 }],
+    };
+    const both = dbWith(many, ring);
+    // Bloodgem (4 on-use effects) in trinket 1, the author's Icon stays in trinket 2.
+    const gear = gearWith({ trinket1: { id: 29132 }, finger1: { id: 900301 } });
+    // Only one effect of the gear enabled: every worn on-use effect is bound anyway (7 of them).
+    const enabledBuffs = ['destruction-potion', 'super-mana-potion', 'dark-rune', 'item:29132:4'];
+    const build = (w: typeof DEFAULT_WARLOCK_OPTIONS, g?: readonly (EquippedItem | null)[]) => buildDestructionWarlock(w, g, both);
+    const applied = applySetup({ buildSpec: build, catalog: SETUP_CATALOG, config: config({ gear, enabledBuffs }), db: both });
     expect(ITEM_SLOT_COUNT).toBe(6);
     expect(applied.spec.keybinds).toHaveLength(SPELL_SLOT_COUNT + 6);
     expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([
-      'use-destruction-potion', 'use-super-mana-potion', 'use-dark-rune', 'use-item-29132', 'use-item-29132-2', 'use-item-29132-3',
+      'use-item-29132', 'use-item-29132-2', 'use-item-29132-3', 'use-item-29132-4', 'use-item-29370', 'use-item-900301',
     ]);
-    for (const id of ['use-item-29132-4', 'use-item-29370']) {
+    for (const id of ['use-destruction-potion', 'use-super-mana-potion', 'use-dark-rune']) {
       expect(applied.spec.spells.some((s) => s.id === id), id).toBe(false);
       expect(applied.spec.priority.some((s) => s.spellId === id), id).toBe(false);
     }
-    const d = describeGear(gear, big, { enabledBuffs, catalog: SETUP_CATALOG });
+    // Only the enabled (auto-used) one has a bot step.
+    expect(applied.spec.priority.filter((s) => s.spellId.startsWith('use-')).map((s) => s.spellId)).toEqual(['use-item-29132-4']);
+    const d = describeGear(gear, both, { enabledBuffs, catalog: SETUP_CATALOG });
     expect(d.unboundItemEffects).toEqual([
-      "Scryer's Bloodgem (Burst 4): not on the item row (6 slots, all taken)",
-      'Icon of the Silver Crescent: not on the item row (6 slots, all taken)',
+      'Destruction Potion: not on the item row (6 slots, all taken)',
+      'Super Mana Potion: not on the item row (6 slots, all taken)',
+      'Dark Rune: not on the item row (6 slots, all taken)',
     ]);
-    expect(describeGear(gear, big).unboundItemEffects).toEqual([]);
+    expect(describeGear(gear, both).unboundItemEffects).toEqual([]);
+    // A 7th worn on-use effect (the ring's second): it is left out (the ring comes after the trinkets).
+    const twice: ItemRecord = { ...ring, useEffects: [...ring.useEffects!, { buffName: 'Ring Burst 2', buffId: 900302, stats: { spellPower: 8 }, durationMs: 10000, cooldownMs: 60000 }] };
+    expect(describeGear(gear, dbWith(many, twice), { enabledBuffs: [], catalog: SETUP_CATALOG }).unboundItemEffects).toEqual([
+      'Burst Ring (Ring Burst 2): not on the item row (6 slots, all taken)',
+    ]);
   });
 });
 
@@ -695,5 +718,112 @@ describe('normalizeEnabled bounds (gear item effects Task 3)', () => {
     expect(hasModelledGearEffect(broken)).toBe(false);
     const brokenDb = { ...db, items: { ...db.items, 29370: broken } } as ItemDb;
     expect(describeGear(DEFAULT_GEAR, brokenDb).modelledEffects).toEqual(['Band of the Eternal Sage']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Worn on-use effects are always on the item row (enabledBuffs = "use automatically")
+// ---------------------------------------------------------------------------
+
+describe('worn on-use effects are always on the item row', () => {
+  const PIPE = 281735; // Dark Iron Smoking Pipe: on use +209 spell power for 20 s, category 1141
+  const pipeGear = gearWith({ trinket1: { id: PIPE } }); // the author's Icon stays in trinket 2
+  const itemSpells = (spec: { spells: readonly { id: string; item?: unknown }[] }) => spec.spells.filter((x) => x.item).map((x) => x.id);
+  const itemSteps = (spec: { priority: readonly { spellId: string }[] }) =>
+    spec.priority.filter((x) => x.spellId.startsWith('use-')).map((x) => x.spellId);
+
+  it("the user's gear (Pipe in trinket 1, Icon in trinket 2) with nothing enabled: both bound to Z and X, spells and auras added, no bot step", () => {
+    const applied = apply(config({ gear: pipeGear }));
+    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([`use-item-${PIPE}`, 'use-item-29370', '', '', '', '']);
+    expect(itemSpells(applied.spec)).toEqual([`use-item-${PIPE}`, 'use-item-29370']);
+    expect(applied.spec.auras.map((a) => a.id)).toEqual(expect.arrayContaining(['item-buff:1312270', 'item-buff:35163']));
+    expect(itemSteps(applied.spec)).toEqual([]);
+    expect(applied.sim.scheduledAuras).toEqual([]);
+    // The player can use both, with the shared trinket category.
+    const sim = new Simulation({ spec: applied.spec, target: NEVER_MISS, seed: 1, infiniteMana: true });
+    expect(sim.cast(`use-item-${PIPE}`)).toEqual({ ok: true });
+    expect(sim.snapshot().selfAuras['item-buff:1312270']).toMatchObject({ remainingMs: 20000 });
+    expect(sim.snapshot().cooldownRemainingMs['use-item-29370']).toBe(20000);
+  });
+
+  it('enabling one adds its bot step, not a slot; the keys stay in slot order whatever is enabled', () => {
+    for (const enabledBuffs of [[`item:${PIPE}`], ['item:29370'], ['item:29370', `item:${PIPE}`]]) {
+      const applied = apply(config({ gear: pipeGear, enabledBuffs }));
+      expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT), enabledBuffs.join()).toEqual([`use-item-${PIPE}`, 'use-item-29370', '', '', '', '']);
+      // The steps: only the enabled ones, in derivation order (trinket 1 first).
+      const expected = [`use-item-${PIPE}`, 'use-item-29370'].filter((id) => enabledBuffs.includes(id.replace('use-item-', 'item:')));
+      expect(itemSteps(applied.spec)).toEqual(expected);
+    }
+  });
+
+  it('the trinkets come first on the row, then other slots, then the enabled potions and rune (catalog order)', () => {
+    const gear = gearWith({ trinket1: { id: 29132 }, trinket2: { id: PIPE } });
+    expect(deriveGearEffects(gear, db).filter(isAlwaysBoundGearEntry).map((b) => b.id)).toEqual(['item:29132', `item:${PIPE}`]);
+    const swapped = gearWith({ trinket1: { id: PIPE }, trinket2: { id: 29132 } });
+    const applied = apply(config({ gear: swapped, enabledBuffs: ['dark-rune', 'destruction-potion'] }));
+    expect(applied.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual([
+      `use-item-${PIPE}`, 'use-item-29132', 'use-destruction-potion', 'use-dark-rune', '', '',
+    ]);
+    // itemRowOf on a catalog (the Setup panel's view) gives the same row.
+    const row = itemRowOf(setupCatalogFor(swapped, db), new Set(['dark-rune', 'destruction-potion']));
+    expect(row.bound.map((b) => b.effect.action!.id)).toEqual(applied.spec.keybinds.slice(SPELL_SLOT_COUNT, SPELL_SLOT_COUNT + 4));
+    expect(row.unbound).toEqual([]);
+  });
+
+  it('procs, the pre-pull Chain and consumables still need enabling; an enabled id of an item not worn stays inactive', () => {
+    const gear = gearWith({ neck: { id: 24121, gems: [] }, trinket1: { id: 27683 } });
+    const off = apply(config({ gear, enabledBuffs: ['item:29132'] }));
+    expect(off.spec.keybinds.slice(SPELL_SLOT_COUNT)).toEqual(['use-item-29370', '', '', '', '', '']);
+    expect(off.spec.auras.some((a) => ['item-buff:33370', 'item-buff:31035', 'item-buff:35337'].includes(a.id))).toBe(false);
+    expect(off.sim.scheduledAuras).toEqual([]);
+    const { enabled, autoIds } = enabledSetupEntries(SETUP_CATALOG, { enabledBuffs: ['item:29132'], gear }, db);
+    expect(enabled.map((b) => b.id)).toEqual(['item:29370']);
+    expect(autoIds.has('item:29370')).toBe(false);
+  });
+
+  it('the default bot never presses the always-bound Icon; enabled, it does', () => {
+    for (const withDb of [true, false]) {
+      const runs = botRuns(config(), withDb);
+      for (const w of [SPELL_QUEUE_WINDOW_MS, 0]) {
+        for (const log of runs[w]!.logs) expect(log.some((e) => e.spellId === 'use-item-29370')).toBe(false);
+      }
+    }
+    const on = botRuns(config({ enabledBuffs: ['item:29370'] }));
+    expect(on[SPELL_QUEUE_WINDOW_MS]!.logs.every((log) => log.some((e) => e.type === 'cast-complete' && e.spellId === 'use-item-29370'))).toBe(true);
+  });
+
+  it('a stored config round-trips unchanged: enabledBuffs keeps its ids, nothing is added for the always-bound items', () => {
+    const map = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+    };
+    for (const enabledBuffs of [[], ['item:29370'], ['icon-of-the-silver-crescent', 'dark-rune']]) {
+      const c = normalizeSetup({ ...structuredClone(DEFAULT_SETUP), gear: pipeGear, enabledBuffs }, SETUP_CATALOG);
+      expect(saveSetup(storage, c)).toBe(true);
+      const back = loadSetup(storage, SETUP_CATALOG);
+      expect(back).toEqual(c);
+      expect(back.enabledBuffs).toEqual(enabledBuffs.map((id) => LEGACY_ITEM_BUFF_IDS[id] ?? id));
+    }
+  });
+
+  it('hostile gear and enabled ids never throw and never bind more than 6', () => {
+    const throwing = new Proxy([], {
+      get() {
+        throw new Error('boom');
+      },
+    });
+    const hostile: unknown[] = [
+      null, 42, 'x', {}, [], [{ id: -1 }, { id: PIPE }, { id: PIPE }, { id: 29370 }], throwing,
+      Array.from({ length: 17 }, () => ({ id: 29370 })),
+    ];
+    for (const gear of hostile) {
+      for (const enabledBuffs of [[], ['item:29370', '__proto__', 'destruction-potion', 'super-mana-potion', 'dark-rune']]) {
+        const r = enabledSetupEntries(SETUP_CATALOG, { enabledBuffs, gear: gear as Gear }, db);
+        expect(r.itemRow.length).toBeLessThanOrEqual(ITEM_SLOT_COUNT);
+        expect(new Set(r.itemRow.map((b) => b.id)).size).toBe(r.itemRow.length);
+      }
+    }
   });
 });

@@ -96,7 +96,7 @@ export function itemUseActionOf(id: string, spellId: string, rule: Readonly<Item
 }
 
 /**
- * The priority steps for the enabled item actions under the DEFAULT rules, in the given order
+ * The priority steps for the enabled (auto-used) item actions under the DEFAULT rules, in the given order
  * (`applySetup` compiles the setup's own rules with `compileItemUse`); ids without a rule (in
  * `ITEM_RULES` or `gearRules`) are left out. A thin wrapper:
  * `compileItemUse(actions, { itemUse: DEFAULT_ITEM_USE(actions, heroismEndMs) }, { heroismEndMs })`.

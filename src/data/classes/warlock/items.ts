@@ -131,7 +131,7 @@ export const items: Record<number, ItemDef> = {
     slot: 'trinket',
     stats: {},
   },
-  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is derived from its db.json record (src/setup/gearEffects.ts, entry 'item:29370'): when enabled, an item action on the item row, used by the player.
+  // Icon of the Silver Crescent: SD 43. The on-use +155 SD for 20 s is derived from its db.json record (src/setup/gearEffects.ts, entry 'item:29370'): worn, always an item action on the item row for the player; enabled, the bot and the simulator use it too.
   29370: {
     id: 29370,
     name: 'Icon of the Silver Crescent',

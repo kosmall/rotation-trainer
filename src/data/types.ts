@@ -104,7 +104,8 @@ export interface SpecData {
   /**
    * keybinds[i] is the spell id for action-bar slot i ('' = empty): slots 0..SPELL_SLOT_COUNT-1 are
    * the spell row (a spec's own keybinds stop there); `applySetup` adds the item row,
-   * ITEM_SLOT_COUNT slots after them, for the enabled item actions.
+   * ITEM_SLOT_COUNT slots after them, for the bound item actions (every worn on-use gear effect,
+   * then the enabled potions and rune: `itemRowOf`, src/setup/gearEffects.ts).
    */
   keybinds: string[];
   hooks: SpecHooks;

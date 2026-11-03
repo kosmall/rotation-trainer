@@ -585,10 +585,10 @@ describe('Your buffs panel in the game view (player buffs panel, Task 2)', () =>
     const DP = 'Destruction Potion';
     const ICON = 'Icon of the Silver Crescent';
     expect(within(buffsPanel()).getByText('No active buffs')).toBeTruthy();
-    press('z'); // starts the fight
+    press('x'); // the potion (X; Z is the worn Icon): starts the fight
     expect(selfBuff(DP)?.getAttribute('aria-label')).toBe(`${DP}, 15 seconds left`);
     advance(2000);
-    press('x');
+    press('z'); // the Icon
     expect(selfBuff(ICON)?.getAttribute('aria-label')).toBe(`${ICON}, 20 seconds left`);
     expect(selfBuff(ICON)?.querySelector('.buff-time')?.textContent).toBe('20s');
     // The item's icon since gear item effects Task 2 (stage F: the buff's inv_trinket_naxxramas06),

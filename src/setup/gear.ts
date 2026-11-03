@@ -224,8 +224,9 @@ export interface GearDescription {
   /** The worn items with a modelled effect (`hasModelledGearEffect`: what `deriveGearEffects` derives), by name, slot order. */
   modelledEffects: string[];
   /**
-   * With `enabled`: one line per enabled item effect whose item action does not fit the item row
-   * ("<entry>: not on the item row (6 slots, all taken)"); it is not applied. Empty otherwise.
+   * With `enabled`: one line per item action that does not fit the item row ("<entry>: not on
+   * the item row (6 slots, all taken)"): the row takes every worn on-use effect (enabled or not),
+   * then the enabled potions and rune (`itemRowOf`); one left off is not applied. Empty otherwise.
    */
   unboundItemEffects: string[];
   /** One line per worn set bonus that is not modelled ("<set> (<pieces>): <reason>"). */
@@ -240,8 +241,8 @@ export interface GearDescription {
 
 /**
  * Describes a (normalized) gear for the UI. Unknown ids are skipped. With `enabled` (the config's
- * enabled ids and the catalog) also the enabled item effects left off the item row
- * (`enabledSetupEntries`: more than ITEM_SLOT_COUNT item actions). Pure; never throws for a
+ * enabled ids and the catalog) also the item actions left off the item row (`enabledSetupEntries`:
+ * more than ITEM_SLOT_COUNT worn on-use effects and enabled potions and rune). Pure; never throws for a
  * normalized gear.
  */
 export function describeGear(

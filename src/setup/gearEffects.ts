@@ -18,6 +18,7 @@ import { burstRule, type ItemRule } from '../data/classes/warlock/itemRules';
 import { authorItemEffects } from '../data/classes/warlock/items';
 import { deepFreeze, itemAction } from '../data/common/buffs';
 import type { ItemDb, ItemEffectStats, ItemProcEffect, ItemProcTrigger, ItemRecord, ItemUseEffect } from '../data/items/types';
+import { ITEM_SLOTS } from '../data/items/db';
 import { ITEM_SLOT_COUNT, type BuffDef } from '../data/types';
 import type { AuraDef, EquippedItem, HitOutcome, RawStats, SpecHooks } from '../engine/types';
 import type { SetupConfig } from './types';
@@ -163,7 +164,21 @@ interface Numbered<T> {
 
 /** The worn items (records found in `source`), each once, in gear slot order. Never throws. */
 function wornRecords(gear: unknown, source: GearEffectSource): GearEffectRecord[] {
-  const out: GearEffectRecord[] = [];
+  return wornRecordsAt(gear, source).map((w) => w.item);
+}
+
+/** The gear indices of the trinket slots (`ITEM_SLOTS` 'trinket1', 'trinket2'): their on-use effects come first on the item row. */
+const TRINKET_INDICES: readonly number[] = [ITEM_SLOTS.indexOf('trinket1'), ITEM_SLOTS.indexOf('trinket2')];
+
+/** The item row rank of a gear index: trinket 1, trinket 2, then every other slot in slot order. */
+const rowRank = (index: number) => {
+  const t = TRINKET_INDICES.indexOf(index);
+  return t >= 0 ? t : TRINKET_INDICES.length + index;
+};
+
+/** `wornRecords` with each record's gear index. Never throws. */
+function wornRecordsAt(gear: unknown, source: GearEffectSource): { item: GearEffectRecord; index: number }[] {
+  const out: { item: GearEffectRecord; index: number }[] = [];
   const seen = new Set<number>();
   let length = 0;
   try {
@@ -179,7 +194,7 @@ function wornRecords(gear: unknown, source: GearEffectSource): GearEffectRecord[
       const id = e.id;
       if (!posInt(id) || seen.has(id) || !Object.hasOwn(source.items, id)) continue;
       seen.add(id);
-      out.push(source.items[id]!);
+      out.push({ item: source.items[id]!, index: i });
     } catch {
       // A hostile entry (throwing getter or proxy): skipped.
     }
@@ -193,8 +208,10 @@ const entryName = (item: GearEffectRecord, n: number, buffName: string) => (n ==
 /**
  * The setup entries (`BuffDef`, group 'item', `iconKind: 'item'`) of the modelled effects of the
  * worn items: every item of `gear` (rings, trinkets and every other slot) found in `source`, each
- * item once. Order: the on-use effects (item actions) in gear slot order, then the pre-pull
- * effects, then the procs (that order keeps the stage F Icon-then-Band order of the catalog).
+ * item once. Order: the on-use effects (item actions) in item row order (trinket 1, trinket 2,
+ * then the other slots in gear slot order), then the pre-pull effects, then the procs in gear
+ * slot order (that order keeps the stage F Icon-then-Band order of the catalog, and the procs'
+ * hook order: their random draws).
  * - On use: `effect.action` (`itemAction`, id `use-item-<id>`, own `cooldownMs`, `sharedCooldown`
  *   `category-<id>` for the effect's group, none without one) applying `effect.selfAura` (the buff).
  * - Pre-pull (`prepull`, Chain of the Twilight Owl; ruling E-3): only `effect.selfAura`: with no
@@ -215,13 +232,15 @@ export function deriveGearEffects(gear: readonly (EquippedItem | null)[], source
   const uses: Numbered<ItemUseEffect>[] = [];
   const prepulls: Numbered<ItemUseEffect>[] = [];
   const procs: Numbered<ItemProcEffect>[] = [];
-  for (const item of wornRecords(gear, source)) {
+  const ranked: { rank: number; use: Numbered<ItemUseEffect> }[] = [];
+  for (const { item, index } of wornRecordsAt(gear, source)) {
     let n = 0;
     try {
       for (const u of Array.isArray(item.useEffects) ? item.useEffects : []) {
         n++;
         if (!validUse(u)) continue;
-        (u.prepull === true ? prepulls : uses).push({ item, n, effect: u });
+        if (u.prepull === true) prepulls.push({ item, n, effect: u });
+        else ranked.push({ rank: rowRank(index), use: { item, n, effect: u } });
       }
       for (const p of Array.isArray(item.procEffects) ? item.procEffects : []) {
         n++;
@@ -231,6 +250,9 @@ export function deriveGearEffects(gear: readonly (EquippedItem | null)[], source
       // A malformed record: what was read so far is kept.
     }
   }
+  // The on-use effects in item row order (stable: an item's effects keep their order).
+  ranked.sort((a, b) => a.rank - b.rank);
+  for (const r of ranked) uses.push(r.use);
 
   // One aura per buff id; a buff id with other numbers gets an aura of its own.
   const buffAuraIds = new Map<number, string>();
@@ -370,30 +392,54 @@ export function authorGearEffects(): BuffDef[] {
 }
 
 /**
- * The enabled entries of a setup, in fold order: the enabled gear-independent catalog entries (in
+ * Whether an entry's item action is always on the item row, enabled or not: a worn gear on-use
+ * effect (a derived `item:` entry with an action; pre-pull effects and procs have none). Its
+ * `enabledBuffs` toggle only means "the bot and the simulator use it automatically".
+ */
+export function isAlwaysBoundGearEntry(b: BuffDef): boolean {
+  return isGearEffectId(b.id) && b.effect.action !== undefined;
+}
+
+/**
+ * The item row of a setup from `entries` (a catalog: the gear-independent entries and the worn
+ * gear's derived entries, `setupCatalogFor`): every worn on-use effect (`isAlwaysBoundGearEntry`,
+ * in derivation order: trinket 1, trinket 2, then the other worn items by slot), then the enabled
+ * gear-independent item actions (Destruction Potion, Super Mana Potion, Dark Rune) in catalog
+ * order. The first ITEM_SLOT_COUNT are `bound` (keys Z X C V B N in that order), the rest
+ * `unbound` (not applied at all). Pure.
+ */
+export function itemRowOf(entries: readonly BuffDef[], enabledIds: ReadonlySet<string>): { bound: BuffDef[]; unbound: BuffDef[] } {
+  const candidates = [
+    ...entries.filter(isAlwaysBoundGearEntry),
+    ...entries.filter((b) => !isGearEffectId(b.id) && b.effect.action !== undefined && enabledIds.has(b.id)),
+  ];
+  return { bound: candidates.slice(0, ITEM_SLOT_COUNT), unbound: candidates.slice(ITEM_SLOT_COUNT) };
+}
+
+/**
+ * The applied entries of a setup, in fold order: the enabled gear-independent catalog entries (in
  * catalog order; catalog entries with a gear effect id are ignored: the gear decides those), then
- * the enabled entries derived from the config's gear (`deriveGearEffects` of `config.gear`, the
- * author's gear when absent, from `db`, or from the embedded author records without it: other
- * items are unknown then), in derivation order. An item action past the ITEM_SLOT_COUNT-th (in that order) is not bound: its
- * entry is left out entirely (no action, no aura) and listed in `unbound`.
+ * the entries derived from the config's gear (`deriveGearEffects` of `config.gear`, the author's
+ * gear when absent, from `db`, or from the embedded author records without it: other items are
+ * unknown then) that are enabled or always bound (every worn on-use effect, enabled or not), in
+ * derivation order. `itemRow` is the item row (`itemRowOf`: the worn on-use effects first, then
+ * the enabled potions and rune); an item action past the ITEM_SLOT_COUNT-th of the row is not
+ * bound: its entry is left out entirely (no action, no aura) and listed in `unbound`.
+ * `autoIds` are the enabled ids: only their item actions get bot steps (`applySetup`).
  */
 export function enabledSetupEntries(
   catalog: readonly BuffDef[],
   config: Pick<SetupConfig, 'enabledBuffs' | 'gear'>,
   db?: ItemDb | null,
-): { enabled: BuffDef[]; gearEntries: BuffDef[]; unbound: BuffDef[] } {
+): { enabled: BuffDef[]; gearEntries: BuffDef[]; itemRow: BuffDef[]; unbound: BuffDef[]; autoIds: ReadonlySet<string> } {
   const enabledIds = new Set(config.enabledBuffs);
   const gearEntries = deriveGearEffects(config.gear ?? destructionEquipped, db ?? EMBEDDED_GEAR_EFFECT_SOURCE);
-  const candidates = [
-    ...catalog.filter((b) => !isGearEffectId(b.id) && enabledIds.has(b.id)),
-    ...gearEntries.filter((b) => enabledIds.has(b.id)),
-  ];
-  const enabled: BuffDef[] = [];
-  const unbound: BuffDef[] = [];
-  let actions = 0;
-  for (const b of candidates) {
-    if (b.effect.action && ++actions > ITEM_SLOT_COUNT) unbound.push(b);
-    else enabled.push(b);
-  }
-  return { enabled, gearEntries, unbound };
+  const staticEntries = catalog.filter((b) => !isGearEffectId(b.id));
+  const { bound, unbound } = itemRowOf([...staticEntries, ...gearEntries], enabledIds);
+  const left = new Set(unbound);
+  const enabled = [
+    ...staticEntries.filter((b) => enabledIds.has(b.id)),
+    ...gearEntries.filter((b) => enabledIds.has(b.id) || isAlwaysBoundGearEntry(b)),
+  ].filter((b) => !left.has(b));
+  return { enabled, gearEntries, itemRow: bound, unbound, autoIds: enabledIds };
 }

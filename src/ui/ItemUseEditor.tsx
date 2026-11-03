@@ -1,6 +1,7 @@
 // The item-use rules editor (simulator Task 3; spec §2 A; docs/data-sources.md Part H): in the
-// Setup panel's Rotation group, one row per enabled item action on the item row (the potions, the
-// rune, the worn gear's on-use items): when the bot uses it (trigger and its parameter), an
+// Setup panel's Rotation group, one row per enabled (auto-used) item action on the item row (the
+// potions, the rune, the worn gear's on-use items ticked "Use automatically"; a worn on-use item
+// is on the item row whether ticked or not, but only a ticked one is listed): when the bot uses it (trigger and its parameter), an
 // optional time window, the order (up/down) and Reset. Fully controlled: it shows `config` and
 // passes every edit to `onChange` (the Setup panel normalizes it with `normalizeSetup`). Like the
 // rest of the setup, a rule applies from the next fight; the Priority list and the Simulator use
@@ -20,8 +21,8 @@ import {
   type ItemUseTriggerKind,
 } from '../data/classes/warlock/itemUse';
 import type { RotationConfig } from '../data/classes/warlock/rotation';
-import { ITEM_SLOT_COUNT, type BuffDef } from '../data/types';
-import { gearItemRules, isGearEffectId } from '../setup/gearEffects';
+import type { BuffDef } from '../data/types';
+import { gearItemRules, isGearEffectId, itemRowOf } from '../setup/gearEffects';
 import type { SetupConfig } from '../setup/types';
 import { ITEM_SLOT_KEYS } from './keys';
 import { NumberField } from './NumberField';
@@ -88,18 +89,21 @@ function heroismEndMsOf(catalog: readonly BuffDef[], config: SetupConfig): numbe
 }
 
 /**
- * What the editor shows for `config`: the enabled item actions that get an item row slot (the
- * first ITEM_SLOT_COUNT in catalog order, as `applySetup` binds them) and have a bot rule, with the
- * rule in force, in the bot's order; the default order; Heroism's end; the buffs `with-buff` offers.
+ * What the editor shows for `config`: the ENABLED (auto-used) item actions that get an item row
+ * slot (`itemRowOf`, as `applySetup` binds them: a worn on-use effect is on the row whether
+ * enabled or not, but only an enabled one is used by the bot and listed here) and have a bot rule,
+ * with the rule in force and its row key, in the bot's order (catalog order: the potions and the
+ * rune, then the gear); the default order; Heroism's end; the buffs `with-buff` offers.
  */
 export function itemUseModel(catalog: readonly BuffDef[], config: SetupConfig): ItemUseModel {
   const enabled = new Set(config.enabledBuffs);
   const heroismEndMs = heroismEndMsOf(catalog, config);
   const gearRules = gearItemRules(catalog.filter((b) => isGearEffectId(b.id)));
-  const bound = catalog.filter((b) => b.effect.action && enabled.has(b.id)).slice(0, ITEM_SLOT_COUNT);
+  const row = itemRowOf(catalog, enabled).bound;
+  const bound = catalog.filter((b) => b.effect.action && enabled.has(b.id) && row.includes(b));
   const stored = config.rotation.itemUse;
   const byId = new Map<string, ItemUseRow>();
-  bound.forEach((b, i) => {
+  bound.forEach((b) => {
     const a = b.effect.action!;
     const botRule = itemRuleOf(a.id, gearRules);
     if (botRule === undefined || byId.has(b.id)) return;
@@ -110,7 +114,7 @@ export function itemUseModel(catalog: readonly BuffDef[], config: SetupConfig): 
       action,
       rule: own ?? defaultItemUseRule(action, heroismEndMs),
       stored: own !== null,
-      key: ITEM_SLOT_KEYS[i]?.toUpperCase(),
+      key: ITEM_SLOT_KEYS[row.indexOf(b)]?.toUpperCase(),
       ownAuraId: b.effect.selfAura?.id,
     });
   });

@@ -76,7 +76,10 @@ const QUAG = "Quagmirran's Eye";
 const itemsGroup = () => screen.getByRole('group', { name: 'Items and cooldowns' });
 /** The entry names of the Items group, in order. */
 const itemNames = () => [...itemsGroup().querySelectorAll('.setup-buff-name')].map((e) => e.textContent);
-const itemCheckbox = (name: string) => within(itemsGroup()).getByRole('checkbox', { name }) as HTMLInputElement;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** An entry's checkbox: a proc's or pre-pull's by its name, a worn on-use effect's "<name>: use automatically (bot, simulator)". */
+const itemCheckbox = (name: string) =>
+  within(itemsGroup()).getByRole('checkbox', { name: new RegExp(`^${escapeRe(name)}(: use automatically \\(bot, simulator\\))?$`) }) as HTMLInputElement;
 const itemRow = (name: string) => itemCheckbox(name).closest('.setup-buff') as HTMLElement;
 const itemBar = () => screen.queryByRole('group', { name: 'Item bar' });
 const itemButtons = () => (itemBar() ? within(itemBar() as HTMLElement).getAllByRole('button') : []);
@@ -164,7 +167,9 @@ describe('Items and cooldowns follow the worn gear', () => {
     expect(itemRow(BLOODGEM).querySelector('.setup-buff-desc')?.textContent).toMatch(/\+150 spell power for 15 s/);
     // The Icon's id stays saved (inactive): wearing it again brings it back enabled.
     expect(stored(map).enabledBuffs).toContain('item:29370');
-    // Enable the Bloodgem: the item row shows it with its item icon; the Icon is not there.
+    // The worn Bloodgem is on the item row at once (an on-use effect is always bound), with its
+    // item icon; the Icon is not there. Enabling it (bot use) adds no slot.
+    expect(itemButtons().map((b) => b.getAttribute('aria-label'))).toEqual([`${BLOODGEM} (Z)`]);
     fireEvent.click(itemCheckbox(BLOODGEM));
     expect(itemButtons().map((b) => b.getAttribute('aria-label'))).toEqual([`${BLOODGEM} (Z)`]);
     expect(itemButtons()[0]!.querySelector('img')?.getAttribute('src')).toBe(itemIconUrl('inv_misc_gem_bloodstone_02'));
@@ -186,42 +191,46 @@ describe('Items and cooldowns follow the worn gear', () => {
     expect(selfBuff(BLOODGEM)?.querySelector('img')?.getAttribute('src')).toBe(itemIconUrl('inv_misc_gem_bloodstone_02'));
   });
 
-  it('enabling a worn on-use trinket puts it on the item row with its key; B and N work; Z X C V unchanged; typing in inputs never fires them', async () => {
+  it('every worn on-use effect is on the item row, enabled or not (trinkets first, then by slot), then the enabled potions; B and N work; typing in inputs never fires them', async () => {
     const big = dbWithExtraUses();
-    const enabled = ['destruction-potion', 'super-mana-potion', 'dark-rune', 'item:31051', 'item:32349', 'item:32247'];
+    const enabled = ['destruction-potion', 'super-mana-potion'];
     render(<GameView storage={memoryStorage(setup({ enabledBuffs: enabled })).storage} loadDb={() => Promise.resolve(big)} />);
     await openGear(); // the database loads: the author's items now derive from it
     expect(itemButtons().map((b) => b.querySelector('.slot-key')?.textContent)).toEqual(['Z', 'X', 'C', 'V', 'B', 'N']);
     expect(itemButtons().map((b) => b.getAttribute('aria-label'))).toEqual([
-      'Destruction Potion (Z)',
-      'Super Mana Potion (X)',
-      'Dark Rune (C)',
-      'Hood of the Malefic (V)',
-      'Translucent Spellthread Necklace (B)',
-      'Ring of Captured Storms (N)',
+      `${ICON} (Z)`, // trinket 2
+      'Hood of the Malefic (X)', // head
+      'Translucent Spellthread Necklace (C)', // neck
+      'Ring of Captured Storms (V)', // finger 2
+      'Destruction Potion (B)',
+      'Super Mana Potion (N)',
     ]);
+    // The Setup panel shows the same keys.
+    expect(itemRow('Hood of the Malefic').querySelector('.setup-item-key')?.textContent).toBe('Item row: X');
+    expect(itemRow('Super Mana Potion').querySelector('.setup-item-key')?.textContent).toBe('Item row: N');
     const distance = screen.getByRole('spinbutton', { name: 'Distance from target (yd)' });
     for (const key of ['b', 'B', 'n', 'N', 'z', 'v']) fireEvent.keyDown(distance, { key });
     expect(startOverlay()).not.toBeNull();
-    press('b'); // starts the fight
+    press('c'); // starts the fight
     expect(startOverlay()).toBeNull();
     expect(selfBuff('Translucent Spellthread Necklace')).toBeDefined();
-    press('N');
+    press('V');
     expect(selfBuff('Ring of Captured Storms')).toBeDefined();
-    press('z');
+    press('b');
     expect(selfBuff('Destruction Potion')).toBeDefined();
-    press('v');
+    press('x');
     expect(selfBuff('Hood of the Malefic')).toBeDefined();
   });
 
-  it('more than 6 on-use effects: a warning names the one left off, 6 are bound', async () => {
+  it('more than 6 item actions: a warning names the ones left off (the enabled consumables after the worn on-use effects), 6 are bound', async () => {
     const big = dbWithExtraUses();
-    const enabled = ['destruction-potion', 'super-mana-potion', 'dark-rune', 'item:31051', 'item:32349', 'item:32247', 'item:29370'];
+    const enabled = ['destruction-potion', 'super-mana-potion', 'dark-rune'];
     render(<GameView storage={memoryStorage(setup({ enabledBuffs: enabled })).storage} loadDb={() => Promise.resolve(big)} />);
     await openGear();
     expect(itemButtons()).toHaveLength(6);
-    expect(itemsGroup().textContent).toContain(`${ICON}: not on the item row (6 slots, all taken)`);
-    expect(itemRow(ICON).textContent).toMatch(/not on the item row/i);
+    expect(itemsGroup().textContent).toContain('Dark Rune: not on the item row (6 slots, all taken)');
+    expect(itemRow('Dark Rune').textContent).toMatch(/not on the item row/i);
+    expect(itemRow(ICON).textContent).not.toMatch(/not on the item row/i);
   });
 
   it("a proc item shows chance/ICD/trigger and its aura appears in the buffs panel after a proc (seeded)", async () => {
@@ -282,7 +291,8 @@ describe('Items and cooldowns follow the worn gear', () => {
     // The running fight keeps the Icon on its item row.
     expect(itemButtons().map((b) => b.getAttribute('aria-label'))).toEqual([`${ICON} (Z)`]);
     press('r');
-    expect(itemBar()).toBeNull(); // the Bloodgem is not enabled
+    // The next fight wears the Bloodgem: on the item row although not enabled (no bot use).
+    expect(itemButtons().map((b) => b.getAttribute('aria-label'))).toEqual([`${BLOODGEM} (Z)`]);
     expect(within(itemsGroup()).queryByText(/running fight keeps its gear and item effects/)).toBeNull();
   });
 
@@ -290,7 +300,8 @@ describe('Items and cooldowns follow the worn gear', () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     const keys = ITEM_SLOT_KEYS.map((k) => k.toUpperCase()).join(' ');
     expect(keys).toBe('Z X C V B N');
-    expect(itemsGroup().textContent).toContain(`item row (${keys})`);
+    expect(itemsGroup().textContent).toContain(`item row (${keys};`);
+    expect(itemsGroup().textContent).toContain(`Always available on the item bar (${keys}); tick to let the bot and the simulator use it, with the rule below.`);
     expect(document.body.textContent).not.toMatch(/Z X C V\)/);
   });
 
@@ -330,5 +341,66 @@ describe('Items and cooldowns follow the worn gear', () => {
       .find((b) => b.querySelector('.picker-name')?.textContent === 'Bangle of Endless Blessings');
     expect(bangle?.textContent).toContain('Effect: Setup panel');
     expect(bangle?.textContent).toContain('Effect not modelled');
+  });
+});
+
+// The user's report: with Dark Iron Smoking Pipe in trinket 1 and the Icon in trinket 2 only one
+// trinket was on the item row, because both had to be enabled in Items and cooldowns. Worn on-use
+// effects are now always on the item row; the checkbox only means "the bot and the simulator use it".
+describe('worn on-use trinkets are always on the item row', () => {
+  const PIPE = 'Dark Iron Smoking Pipe';
+  const pipeAndIcon = () => {
+    const gear = structuredClone(DEFAULT_GEAR) as (EquippedItem | null)[];
+    gear[12] = { id: 281735, gems: [] }; // trinket 1; the author's Icon is in trinket 2
+    return gear;
+  };
+  const labels = () => itemButtons().map((b) => b.getAttribute('aria-label'));
+  const ruleOf = (name: string) => screen.queryByRole('combobox', { name: `${name}: when` });
+
+  it('Pipe in trinket 1 + Icon in trinket 2, nothing enabled: both on the item row (Z, X) in the ready phase; enabling one adds a bot rule, not a slot; Z works', async () => {
+    const { storage, map } = memoryStorage(setup({ gear: pipeAndIcon() }));
+    render(<GameView storage={storage} loadDb={loadDb} />);
+    await flush(); // the stored gear needs the database
+    expect(startOverlay()).not.toBeNull(); // ready phase
+    expect(labels()).toEqual([`${PIPE} (Z)`, `${ICON} (X)`]);
+    expect(itemButtons().map((b) => b.querySelector('.slot-key')?.textContent)).toEqual(['Z', 'X']);
+    expect(itemButtons()[0]!.querySelector('img')?.getAttribute('src')).toBe(itemIconUrl('inv_misc_pipe_01'));
+    // Setup: neither is ticked; each row names its key and the meaning of the checkbox.
+    expect(itemCheckbox(PIPE).checked).toBe(false);
+    expect(itemCheckbox(ICON).checked).toBe(false);
+    expect(within(itemsGroup()).getByRole('checkbox', { name: `${PIPE}: use automatically (bot, simulator)` })).toBeTruthy();
+    expect(itemRow(PIPE).querySelector('.setup-item-key')?.textContent).toBe('Item row: Z');
+    expect(itemRow(ICON).querySelector('.setup-item-key')?.textContent).toBe('Item row: X');
+    expect(itemRow(PIPE).textContent).toContain('Use automatically (bot, simulator)');
+    expect(itemRow(PIPE).textContent).toContain('Always available on the item bar (Z X C V B N)');
+    // No bot rule for either: the item-use editor lists only auto-used items.
+    expect(ruleOf(PIPE)).toBeNull();
+    expect(ruleOf(ICON)).toBeNull();
+
+    // Enabling the Pipe: a bot rule appears, the row is unchanged.
+    fireEvent.click(itemCheckbox(PIPE));
+    expect(stored(map).enabledBuffs).toEqual(['item:281735']);
+    expect(labels()).toEqual([`${PIPE} (Z)`, `${ICON} (X)`]);
+    expect(ruleOf(PIPE)).not.toBeNull();
+    expect(ruleOf(ICON)).toBeNull();
+
+    // Pressing Z uses the Pipe (and starts the fight); the Icon then waits for the shared trinket category.
+    press('z');
+    expect(startOverlay()).toBeNull();
+    expect(selfBuff(PIPE)).toBeDefined();
+    expect(selfBuff(PIPE)?.querySelector('img')?.getAttribute('src')).toBe(itemIconUrl('inv_misc_pipe_01'));
+    expect(itemButtons()[1]!.querySelector('.slot-cooldown')?.textContent).toBe('20s');
+    press('x'); // blocked by the category
+    expect(selfBuff(ICON)).toBeUndefined();
+    advance(20_100);
+    press('x');
+    expect(selfBuff(ICON)).toBeDefined();
+  });
+
+  it('the Gear panel hint for an on-use item says it is on the item row; a proc still counts only when enabled', async () => {
+    render(<GameView storage={memoryStorage(setup({ gear: pipeAndIcon() })).storage} loadDb={loadDb} />);
+    await openGear();
+    expect(gearPanel().textContent).toContain(`${PIPE}: on the item row; the bot and the simulator use it only when "Use automatically" is ticked`);
+    expect(gearPanel().textContent).toContain(`${BAND}: its effect counts only when enabled`);
   });
 });

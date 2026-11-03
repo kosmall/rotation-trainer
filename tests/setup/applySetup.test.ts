@@ -358,13 +358,16 @@ describe('applySetup', () => {
     expect(computeStats(spec.setup, spec.statBonuses)).toEqual(computeStats(destructionWarlock.setup, destructionWarlock.statBonuses));
     expect(spec.setup).toEqual(destructionWarlock.setup);
     expect(spec.statBonuses).toEqual(destructionWarlock.statBonuses);
-    expect(spec.spells).toEqual(destructionWarlock.spells);
-    expect(spec.auras).toEqual(destructionWarlock.auras);
-    spec.auras.forEach((a, i) => expect(a).toBe(destructionWarlock.auras[i]));
+    // The worn Icon's action and aura are always part of the spec (on the item row for the
+    // player); not enabled, the bot never uses it (no step below), so the logs are unchanged.
+    const icon = catalogBuff(ICON);
+    expect(spec.spells).toEqual([...destructionWarlock.spells, icon.effect.action]);
+    expect(spec.auras).toEqual([...destructionWarlock.auras, icon.effect.selfAura]);
+    destructionWarlock.auras.forEach((a, i) => expect(spec.auras[i]).toBe(a));
     expect(spec.modifiers).toEqual(destructionWarlock.modifiers);
     expect(spec.sets).toEqual(destructionWarlock.sets);
-    // The spell row unchanged; the item row (slots 12-15, Z X C V) empty: no item enabled.
-    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, '', '', '', '', '', '']);
+    // The spell row unchanged; the item row (slots 12-17, Z X C V B N): the worn Icon on Z.
+    expect(spec.keybinds).toEqual([...destructionWarlock.keybinds, USE_ICON, '', '', '', '', '']);
     expect(spec.hooks).toBe(destructionWarlock.hooks);
     expect(spec.priority.map((s) => s.spellId)).toEqual(destructionWarlock.priority.map((s) => s.spellId));
     expect(spec.priority.map((s) => [s.label, s.hint])).toEqual(destructionWarlock.priority.map((s) => [s.label, s.hint]));
@@ -626,7 +629,8 @@ describe('applySetup', () => {
     const cfg = deepFreeze({ ...structuredClone(DEFAULT_SETUP), enabledBuffs: ['no-such-buff', 'curse-of-the-elements', 'misery'] });
     const { spec, sim } = applySetup({ buildSpec: build, catalog: SETUP_CATALOG, config: cfg });
     expect(sim.scheduledAuras).toEqual([{ auraId: 'misery', on: 'target', atMs: 0 }]);
-    expect(spec.auras.length).toBe(destructionWarlock.auras.length + 1);
+    // Misery, and the worn Icon's aura (always bound, never scheduled).
+    expect(spec.auras.length).toBe(destructionWarlock.auras.length + 2);
   });
 
   it('own CoE + raid CoE give one ×1.1', () => {

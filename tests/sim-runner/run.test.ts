@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { runBot } from '../../src/bot/bot';
-import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
+import { buildDestructionWarlock, destructionEquipped } from '../../src/data/classes/warlock/destruction';
 import { talentPresetById } from '../../src/data/classes/warlock/talentPresets';
 import { decodeTalents } from '../../src/data/classes/warlock/talentTree';
 import { SPELL_QUEUE_WINDOW_MS } from '../../src/data/common/ratings';
 import { BOSS_TARGET } from '../../src/data/common/target';
 import { itemDbSync } from '../../src/data/items/dbSync';
 import { Simulation } from '../../src/engine/sim';
-import type { LogEvent } from '../../src/engine/types';
+import type { EquippedItem, LogEvent } from '../../src/engine/types';
 import { applySetup } from '../../src/setup/applySetup';
 import { DEFAULT_SETUP, STATIC_SETUP_CATALOG } from '../../src/setup/defaults';
 import type { SetupConfig } from '../../src/setup/types';
@@ -405,5 +405,39 @@ describe('hostile requests', () => {
     const setup = { ...structuredClone(DEFAULT_SETUP), gear: quagBloodgemGear() } as SetupConfig;
     expect(() => prepareRun(request({ setup }))).toThrow(/item database/);
     expect(prepareRun(request({ setup, db })).config.gear?.map((e) => e?.id)).toEqual(quagBloodgemGear().map((e) => e?.id));
+  });
+});
+
+// Worn on-use effects are always on the item row; `enabledBuffs` only means "the bot and the
+// simulator use it automatically". The simulator builds through applySetup, so it follows.
+describe('simulator and always-bound on-use trinkets', () => {
+  const setupWith = (p: Partial<SetupConfig>): SetupConfig => ({ ...(structuredClone(DEFAULT_SETUP) as SetupConfig), ...p });
+  const pipeGear = (): (EquippedItem | null)[] => {
+    const gear = structuredClone(destructionEquipped) as (EquippedItem | null)[];
+    gear[12] = { id: 281735, gems: [] }; // Dark Iron Smoking Pipe in trinket 1; the author's Icon in trinket 2
+    return gear;
+  };
+
+  it('default setup: the worn Icon is an item action of the fight but never used; the result is the default fight', () => {
+    const f = prepareRun(request());
+    expect(f.itemActionIds).toEqual(new Set(['use-item-29370']));
+    for (const i of [0, 1, 2]) {
+      const s = runOnce(f, i);
+      expect(s.itemUses).toEqual({});
+      expect(s.dps).toBe(manualFight(DEFAULT_SETUP, mixSeed(12345, i), SPELL_QUEUE_WINDOW_MS).dps);
+    }
+  });
+
+  it('Pipe and Icon worn, not enabled: neither is used; the Pipe enabled: only the Pipe is used', () => {
+    const fOff = prepareRun(request({ setup: setupWith({ gear: pipeGear() }), db }));
+    expect(fOff.itemActionIds).toEqual(new Set(['use-item-281735', 'use-item-29370']));
+    expect(fOff.fight.spec.keybinds.slice(12, 14)).toEqual(['use-item-281735', 'use-item-29370']);
+    for (const i of [0, 1]) expect(runOnce(fOff, i).itemUses).toEqual({});
+    const fOn = prepareRun(request({ setup: setupWith({ gear: pipeGear(), enabledBuffs: ['item:281735'] }), db }));
+    for (const i of [0, 1]) {
+      const uses = runOnce(fOn, i).itemUses;
+      expect(Object.keys(uses)).toEqual(['use-item-281735']);
+      expect(uses['use-item-281735']).toBeGreaterThanOrEqual(1);
+    }
   });
 });

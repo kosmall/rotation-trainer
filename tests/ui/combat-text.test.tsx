@@ -226,7 +226,7 @@ describe('Combat text HUD: texts in the fight', () => {
   it('an item use shows its name (with its buff)', () => {
     const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] });
     render(<GameView storage={storage} />);
-    press('z');
+    press('x'); // the potion (Z is the worn Icon, always on the item row)
     advance(50);
     expect(textOf('Destruction Potion', 'notifications')?.classList.contains('hud-item')).toBe(true);
     expect(textOf('+Destruction Potion', 'notifications')).toBeTruthy();
@@ -259,7 +259,7 @@ describe('Combat text HUD: texts in the fight', () => {
   it('texts disappear after durationMs and the DOM never holds more than maxTexts', () => {
     const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] }, { maxTexts: 4, durationMs: 1000, minDamage: 0 });
     render(<GameView storage={storage} />);
-    press('z'); // "Destruction Potion" and "+Destruction Potion"
+    press('x'); // "Destruction Potion" and "+Destruction Potion" (Z is the worn Icon)
     advance(50);
     const first = ids();
     expect(first.length).toBeGreaterThan(0);
@@ -338,14 +338,14 @@ describe('Combat text HUD: texts in the fight', () => {
     const { storage } = memoryStorage({ enabledBuffs: ['destruction-potion'] });
     render(<GameView storage={storage} />);
     boltThenLifeTap();
-    press('z');
+    press('x'); // the potion (Z is the worn Icon, always on the item row)
     advance(50);
     expect(labels()).toHaveLength(3);
     expect(labels()).toEqual(expect.arrayContaining(['+Destruction Potion', 'Destruction Potion', expect.stringMatching(/^\+[\d,]+ Mana$/)]));
     press('r');
     expect(texts()).toHaveLength(0);
     // The next fight starts from its own log: its first texts are its own, nothing replayed.
-    press('z');
+    press('x'); // the potion (Z is the worn Icon, always on the item row)
     advance(50);
     expect(labels().sort()).toEqual(['+Destruction Potion', 'Destruction Potion']);
   });
@@ -361,7 +361,7 @@ describe('Combat text HUD: texts in the fight', () => {
     fireEvent.change(length, { target: { value: '90' } });
     fireEvent.blur(length);
     expect(texts()).toHaveLength(0);
-    press('z');
+    press('x'); // the potion (Z is the worn Icon, always on the item row)
     advance(50);
     expect(labels().sort()).toEqual(['+Destruction Potion', 'Destruction Potion']);
   });
@@ -371,7 +371,7 @@ describe('Combat text HUD: texts in the fight', () => {
     render(<GameView storage={storage} />);
     press(' ');
     advance(59_400);
-    press('z'); // the potion at 59.4 s: its texts are up at the end
+    press('x'); // the potion at 59.4 s (Z is the worn Icon): its texts are up at the end
     advance(50);
     expect(textOf('Destruction Potion')).toBeTruthy();
     advance(1000); // the fight ends at 60 s
@@ -389,7 +389,7 @@ describe('Combat text HUD: texts in the fight', () => {
 
   it('a text whose animation ended is gone for good (not shown again while the fight runs)', () => {
     render(<GameView storage={memoryStorage({ enabledBuffs: ['destruction-potion'] }).storage} />);
-    press('z');
+    press('x'); // the potion (Z is the worn Icon)
     advance(50);
     const [first, second] = texts();
     fireEvent.animationEnd(first!);

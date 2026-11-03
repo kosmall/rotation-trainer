@@ -866,7 +866,39 @@ button.primary {
   padding: 2px 4px;
 }
 
-/* The item row key of an enabled item action (or the note that the row is full). */
+/* A worn on-use effect: no checkbox before its name (it is always on the item row); the spacer keeps the icon in line. */
+.setup-buff-head {
+  cursor: default;
+}
+
+.setup-buff-spacer {
+  flex: none;
+  width: 13px;
+}
+
+/* Its "Use automatically (bot, simulator)" checkbox and hint, under the description. */
+.setup-auto {
+  margin: 0 0 0 46px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.setup-auto input {
+  accent-color: var(--accent);
+  margin: 0;
+  flex: none;
+}
+
+.setup-auto-hint {
+  margin: 0 0 0 46px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The item row key of a bound item action (or the note that the row is full). */
 .setup-item-key {
   margin: 0 0 0 46px;
   font-size: 0.75rem;

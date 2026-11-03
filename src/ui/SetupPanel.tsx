@@ -6,6 +6,7 @@ import { ROTATION_PRESETS } from '../data/classes/warlock/rotation';
 import type { CurseChoice, RotationConfig, RotationPresetId } from '../data/classes/warlock/rotation';
 import type { BuffDef } from '../data/types';
 import { DEFAULT_SETUP, normalizeSetup, SETUP_LIMITS } from '../setup/defaults';
+import { isAlwaysBoundGearEntry, itemRowOf } from '../setup/gearEffects';
 import { applySetupPreset, setupFightKey } from '../setup/presets';
 import type { SetupConfig, SetupPresetId, TimedSetting } from '../setup/types';
 import { initials } from './format';
@@ -96,6 +97,14 @@ function groupOf(buff: BuffDef): BuffGroupId {
   return 'raid';
 }
 
+/** The item row's keys as shown ("Z X C V B N"). */
+const ITEM_KEYS_TEXT = ITEM_SLOT_KEYS.map((k) => k.toUpperCase()).join(' ');
+
+/** The visible label of an on-use gear effect's checkbox (`enabledBuffs`: "use automatically"). */
+export const AUTO_USE_LABEL = 'Use automatically (bot, simulator)';
+/** The hint under it: the item is on the item row whether ticked or not. */
+export const AUTO_USE_HINT = `Always available on the item bar (${ITEM_KEYS_TEXT}); tick to let the bot and the simulator use it, with the rule below.`;
+
 const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: string; hint: string }[] = [
   {
     id: 'raid',
@@ -115,7 +124,7 @@ const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: strin
   {
     id: 'items',
     title: 'Items and cooldowns',
-    hint: `The modelled effects of the items you wear (Gear panel), the potions and the rune. Use the on-use effects, the potions and the rune from the item row (${ITEM_SLOT_KEYS.map((k) => k.toUpperCase()).join(' ')}), in the order listed here; the bot uses them too. One potion per 2 min (shared cooldown). Procs and pre-pull effects work by themselves. Item effects are on top of the item stats already in the gear.`,
+    hint: `The modelled effects of the items you wear (Gear panel), the potions and the rune. The on-use effects of your gear are always on the item row (${ITEM_KEYS_TEXT}; trinket 1, trinket 2, then the other slots), the enabled potions and rune after them; tick an on-use effect to let the bot and the simulator use it too. One potion per 2 min (shared cooldown). Procs and pre-pull effects work by themselves once enabled. Item effects are on top of the item stats already in the gear.`,
   },
 ];
 
@@ -129,9 +138,15 @@ function BuffIcon({ icon, name, kind = 'spell' }: { icon: string; name: string; 
   );
 }
 
-/** One option: checkbox or radio with icon and name, its description under it, optional extras. */
+/**
+ * One option: checkbox or radio with icon and name, its description under it, optional extras.
+ * `autoUse` (a worn on-use gear effect, always on the item row): the icon and name are a heading,
+ * and the checkbox under the description reads "Use automatically (bot, simulator)" (accessible
+ * name "<name>: use automatically (bot, simulator)") with its hint.
+ */
 function OptionRow({
   type = 'checkbox',
+  autoUse = false,
   name,
   radioGroup,
   icon,
@@ -143,6 +158,7 @@ function OptionRow({
   children,
 }: {
   type?: 'checkbox' | 'radio';
+  autoUse?: boolean;
   name?: string;
   radioGroup?: string;
   icon: string;
@@ -155,6 +171,35 @@ function OptionRow({
   children?: ReactNode;
 }) {
   const descId = useId();
+  const hintId = useId();
+  if (autoUse) {
+    return (
+      <li className={checked ? 'setup-buff setup-buff-on' : 'setup-buff'}>
+        <div className="setup-buff-label setup-buff-head">
+          <span className="setup-buff-spacer" aria-hidden="true" />
+          <BuffIcon icon={icon} kind={iconKind} name={name ?? title} />
+          <span className="setup-buff-name">{title}</span>
+        </div>
+        <p id={descId} className="setup-buff-desc" title={description}>
+          {description}
+        </p>
+        <label className="setup-auto">
+          <input
+            type="checkbox"
+            checked={checked}
+            aria-label={`${title}: ${AUTO_USE_LABEL.charAt(0).toLowerCase()}${AUTO_USE_LABEL.slice(1)}`}
+            aria-describedby={`${hintId} ${descId}`}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+          <span aria-hidden="true">{AUTO_USE_LABEL}</span>
+        </label>
+        <p id={hintId} className="setup-auto-hint">
+          {AUTO_USE_HINT}
+        </p>
+        {children}
+      </li>
+    );
+  }
   return (
     <li className={checked ? 'setup-buff setup-buff-on' : 'setup-buff'}>
       <label className="setup-buff-label">
@@ -269,11 +314,12 @@ export function SetupPanel({
   const warlockBuffs = catalog.filter((b) => groupOf(b) === 'warlock');
   const fightBuffs = catalog.filter((b) => groupOf(b) === 'fight');
   const fightLengthSec = config.fightDurationSec;
-  // The item row key of each enabled item action: applySetup binds them in catalog order, the
-  // first ITEM_SLOT_KEYS.length; the rest are left out (undefined here).
-  const enabledActions = catalog.filter((b) => b.effect.action && enabled.has(b.id));
-  const itemKeys = new Map(enabledActions.map((b, i) => [b.id, ITEM_SLOT_KEYS[i]?.toUpperCase()] as const));
-  const unbound = enabledActions.slice(ITEM_SLOT_KEYS.length);
+  // The item row key of each bound item action, as applySetup binds them (`itemRowOf`: every worn
+  // on-use effect, enabled or not, then the enabled potions and rune); the rest are left out.
+  const itemRow = itemRowOf(catalog, enabled);
+  const itemKeys = new Map(itemRow.bound.map((b, i) => [b.id, ITEM_SLOT_KEYS[i]!.toUpperCase()] as const));
+  const unbound = itemRow.unbound;
+  const unboundIds = new Set(unbound.map((b) => b.id));
   const rowFull = `not on the item row (${ITEM_SLOT_KEYS.length} slots, all taken)`;
 
   const buffRow = (b: BuffDef) => {
@@ -281,6 +327,7 @@ export function SetupPanel({
     return (
       <OptionRow
         key={b.id}
+        autoUse={isAlwaysBoundGearEntry(b)}
         icon={b.icon}
         iconKind={b.iconKind === 'item' ? 'item' : 'spell'}
         title={b.name}
@@ -316,7 +363,7 @@ export function SetupPanel({
           </div>
         )}
         {itemKeys.get(b.id) && <p className="setup-item-key">Item row: {itemKeys.get(b.id)}</p>}
-        {itemKeys.has(b.id) && itemKeys.get(b.id) === undefined && (
+        {unboundIds.has(b.id) && (
           <p className="setup-item-key setup-warn">Not on the item row ({ITEM_SLOT_KEYS.length} slots, all taken): no effect.</p>
         )}
       </OptionRow>

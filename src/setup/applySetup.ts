@@ -55,18 +55,20 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  * The spec and the `SimConfig` fields for `config`:
  * - `spec` = `buildSpec(config.warlock, config.gear, config.talents)` (no gear: the author's; no
  *   talents: the author's build), then for each
- *   enabled entry of `enabledSetupEntries(catalog, config, db)` (the gear-independent catalog's
- *   in catalog order, then the worn gear's derived item effects; unknown enabled ids and ids of
- *   items not worn are ignored; item actions past the 6th are left out):
+ *   applied entry of `enabledSetupEntries(catalog, config, db)` (the enabled gear-independent
+ *   catalog entries in catalog order, then the worn gear's derived item effects that are enabled,
+ *   plus every worn on-use effect whether enabled or not; unknown enabled ids and ids of items not
+ *   worn are ignored; item actions past the 6th of the item row are left out):
  *   - `statBonuses` summed into the spec's flat bonuses (added before any multiplier);
  *   - `statMultipliers` multiplied into a new `setup.statMultipliers` (the setup is a new shallow
  *     copy; the gear stats inside stay shared and untouched);
  *   - `modifiers` appended;
  *   - `targetAura`, `selfAura` and helper `auras` appended to a new `auras` array (a self or helper
  *     aura id already added is not added again: gear items sharing a buff);
- *   - an item `action` appended to a new `spells` array and bound to the next free slot of the
- *     item row (keybinds SPELL_SLOT_COUNT.., keys Z X C V B N); its `selfAura` is what it applies,
- *     never scheduled;
+ *   - an item `action` appended to a new `spells` array and bound to the item row (keybinds
+ *     SPELL_SLOT_COUNT.., keys Z X C V B N) in item row order (`itemRowOf`: the worn on-use
+ *     effects, trinket 1 and 2 first, then the enabled potions and rune); its `selfAura` is what
+ *     it applies, never scheduled;
  *   - `hooks` run after the spec's own (`composeHooks`); with no buff hook the spec's hooks
  *     object is kept.
  * - The spec's own auras that a raid debuff replaces (`neutralizeOwnAuras`: own Curse of the
@@ -79,8 +81,10 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  *   `selfAura` without `timed` or `action` at 0 with its own duration. A start after the fight's
  *   end is kept: the engine ignores it.
  * - `spec.keybinds`: always a new array of SPELL_SLOT_COUNT + ITEM_SLOT_COUNT slots (`withItemRow`;
- *   the item row is '' when no item is enabled). The shared spec keeps its 12.
- * - `spec.priority = [...compileItemUse(the bound item actions that have a bot rule (itemRules.ts
+ *   the item row is '' when no item is bound: no on-use gear and no enabled potion or rune). The shared spec keeps its 12.
+ * - `spec.priority = [...compileItemUse(the bound item actions of ENABLED entries (`enabledBuffs`
+ *   on an on-use gear effect means "use it automatically"; unticked, it is only on the item row
+ *   for the player) that have a bot rule (itemRules.ts
  *   `ITEM_RULES`, or `gearItemRules(the gear's entries)`), keyed by their entry ids,
  *   config.rotation (its `itemUse` / `itemUseOrder`; absent: the default rules, the same steps
  *   as `buildItemSteps`), { heroismEndMs: Heroism's end in ms or null, auraNames }),
@@ -99,7 +103,7 @@ function withItemRow(specKeybinds: readonly string[], actionIds: readonly string
  */
 export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput): AppliedSetup {
   const base = buildSpec(config.warlock, config.gear, config.talents);
-  const { enabled, gearEntries } = enabledSetupEntries(catalog, config, db);
+  const { enabled, gearEntries, itemRow, autoIds } = enabledSetupEntries(catalog, config, db);
 
   const statBonuses: Partial<RawStats> = { ...base.statBonuses };
   const multipliers: StatMultipliers[] = [];
@@ -160,17 +164,21 @@ export function applySetup({ buildSpec, catalog, config, db }: ApplySetupInput):
       ? combineStatMultipliers(base.setup.statMultipliers, ...multipliers)
       : undefined;
 
-  const actionIds = actions.map((a) => a.id);
+  // The item row: the worn on-use effects first (always bound), then the enabled potions and rune.
+  const actionIds = itemRow.map((b) => b.effect.action!.id);
   // Heroism that never comes up in this fight (starts at or after its end: the engine ignores it)
   // counts as not enabled for the item rules, so the Icon and the potion do not wait forever.
   const heroismEndMs = heroism !== undefined && heroism.atMs < durationMs ? heroism.endMs : null;
   // The DoT refresh rules must know a DoT the gear extends (Voidheart 4pc): the extra ticks of the
   // spec as the Simulation will fold them (its modifiers, the buffs', the gear's, the active sets').
   const dotExtraTicks = dotExtraTicksForSpec({ modifiers, setup: base.setup, sets: base.sets });
-  // The item steps: each bound action with a bot rule (the static catalog's or the gear's burst
-  // rule), under the config's item-use rules (absent: the defaults, the steps of before).
+  // The item steps: each bound action of an ENABLED entry ("use automatically": a worn on-use
+  // effect is bound whether enabled or not, the bot uses it only when enabled) with a bot rule (the
+  // static catalog's or the gear's burst rule), in fold order, under the config's item-use rules
+  // (absent: the defaults, the steps of before).
   const gearRules = gearItemRules(gearEntries);
   const itemActions: ItemUseAction[] = actions.flatMap((a, i) => {
+    if (!autoIds.has(actionEntryIds[i]!)) return [];
     const rule = itemRuleOf(a.id, gearRules);
     return rule === undefined ? [] : [itemUseActionOf(actionEntryIds[i]!, a.id, rule)];
   });

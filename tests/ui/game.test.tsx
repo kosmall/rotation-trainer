@@ -322,7 +322,7 @@ describe('GameView: the "Your buffs" panel', () => {
     expect(activeLabels()).toContain('Heroism / Bloodlust, 33 seconds left'); // 3 s + 40 s, at 10.1 s
   });
 
-  it("keys still work after clicking the 'Setup buffs' summary (S5: Space and Enter are its own; 1, Z and R act)", () => {
+  it("keys still work after clicking the 'Setup buffs' summary (S5: Space and Enter are its own; 1, X and R act)", () => {
     render(<GameView storage={storedSetup({ enabledBuffs: ['arcane-brilliance', 'destruction-potion'] })} />);
     const summary = within(panel()).getByText('Setup buffs (1)');
     const details = summary.closest('details') as HTMLDetailsElement;
@@ -333,7 +333,7 @@ describe('GameView: the "Your buffs" panel', () => {
     fireEvent.keyDown(summary, { key: 'Enter' });
     expect(startOverlay()).not.toBeNull(); // they toggle the section, not the fight
 
-    fireEvent.keyDown(summary, { key: 'z' }); // the item row: starts the fight
+    fireEvent.keyDown(summary, { key: 'x' }); // the item row (X: the potion; Z is the worn Icon): starts the fight
     expect(startOverlay()).toBeNull();
     expect(activeLabels()).toEqual(['Destruction Potion, 15 seconds left']);
     fireEvent.keyDown(summary, { key: '1' });

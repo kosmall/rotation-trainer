@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { DEFAULT_SETUP, setupCatalogFor, SETUP_LIMITS } from '../../src/setup/defaults';
 import { DEFAULT_GEAR } from '../../src/setup/gear';
+import { isAlwaysBoundGearEntry } from '../../src/setup/gearEffects';
 import { SETUP_PRESETS } from '../../src/setup/presets';
 import type { SetupConfig, SetupPresetId } from '../../src/setup/types';
 import type { BuffDef } from '../../src/data/types';
@@ -39,6 +40,11 @@ const totalDamage = () => amount(screen.getByLabelText('Total damage'));
 const presetSelect = () => screen.getByRole('combobox', { name: 'Rotation preset' }) as HTMLSelectElement;
 const curseSelect = () => screen.getByRole('combobox', { name: 'Curse' }) as HTMLSelectElement;
 const checkbox = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
+/** A worn on-use gear effect's checkbox: "Use automatically (bot, simulator)" (it is always on the item row). */
+const AUTO = ': use automatically (bot, simulator)';
+const ICON_AUTO = `Icon of the Silver Crescent${AUTO}`;
+/** The accessible name of an entry's checkbox. */
+const boxName = (b: BuffDef) => (isAlwaysBoundGearEntry(b) ? `${b.name}${AUTO}` : b.name);
 const distanceInput = () => screen.getByRole('spinbutton', { name: 'Distance from target (yd)' }) as HTMLInputElement;
 const lifeTapInput = () => screen.getByRole('spinbutton', { name: 'Life Tap below mana' }) as HTMLInputElement;
 const startInput = (buffName: string) => screen.getByRole('spinbutton', { name: `${buffName} start (s)` }) as HTMLInputElement;
@@ -275,17 +281,20 @@ describe('SetupPanel', () => {
     }
     for (const b of CATALOG) {
       const group = screen.getByRole('group', { name: expectedGroup(b) });
-      const box = within(group).getByRole('checkbox', { name: b.name }) as HTMLInputElement;
+      const box = within(group).getByRole('checkbox', { name: boxName(b) }) as HTMLInputElement;
       expect(box.checked, b.id).toBe(false);
       // Its icon (with the initials tile underneath as the fallback) and its description.
       expect(box.closest('.setup-buff')?.querySelector('img')?.getAttribute('src'), b.id).toContain(
         `/icons/${b.iconKind === 'item' ? 'items' : 'spells'}/${b.icon}.jpg`, // gear item effects: item icons
       );
       expect(box.getAttribute('aria-describedby'), b.id).toBeTruthy();
-      expect(document.getElementById(box.getAttribute('aria-describedby') as string)?.textContent).toBe(b.description);
+      // Described by its description (an on-use gear effect: by the "always on the item bar" hint first).
+      const described = (box.getAttribute('aria-describedby') as string).split(' ').map((id) => document.getElementById(id)?.textContent);
+      expect(described.at(-1), b.id).toBe(b.description);
+      if (isAlwaysBoundGearEntry(b)) expect(described[0], b.id).toMatch(/^Always available on the item bar \(Z X C V B N\)/);
     }
     // The item actions (used from the item bar) are listed with the items, not with the consumables.
-    for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', 'Icon of the Silver Crescent']) {
+    for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', ICON_AUTO]) {
       expect(within(screen.getByRole('group', { name: 'Items and cooldowns' })).getByRole('checkbox', { name })).toBeTruthy();
       expect(within(screen.getByRole('group', { name: 'Consumables' })).queryByRole('checkbox', { name })).toBeNull();
     }
@@ -465,26 +474,29 @@ describe('SetupPanel', () => {
     const items = screen.getByRole('group', { name: 'Items and cooldowns' });
     expect(within(items).queryByRole('checkbox', { name: 'Heroism / Bloodlust' })).toBeNull();
     expect(within(items).queryByRole('spinbutton')).toBeNull();
-    for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', 'Icon of the Silver Crescent', 'Band of the Eternal Sage']) {
+    for (const name of ['Destruction Potion', 'Super Mana Potion', 'Dark Rune', ICON_AUTO, 'Band of the Eternal Sage']) {
       expect(within(items).getByRole('checkbox', { name })).toBeTruthy();
     }
-    expect(items.textContent).toContain('item row (Z X C V B N)'); // 6 slots since gear item effects
+    expect(items.textContent).toContain('item row (Z X C V B N;'); // 6 slots since gear item effects
+    expect(items.textContent).toContain('Use automatically (bot, simulator)');
     expect(items.textContent).not.toMatch(/you do not press/i);
   });
 
-  it('an enabled item shows its item bar key, as applySetup binds it (catalog order)', () => {
+  it('a bound item shows its item row key, as applySetup binds it (the worn Icon always first, then the enabled potions and rune in catalog order)', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     const keyOf = (name: string) => checkbox(name).closest('.setup-buff')?.querySelector('.setup-item-key')?.textContent ?? null;
     expect(keyOf('Dark Rune')).toBeNull();
-    fireEvent.click(checkbox('Icon of the Silver Crescent'));
+    expect(keyOf(ICON_AUTO)).toBe('Item row: Z'); // worn: bound, not enabled
+    expect(checkbox(ICON_AUTO).checked).toBe(false);
+    fireEvent.click(checkbox(ICON_AUTO));
     fireEvent.click(checkbox('Dark Rune'));
-    expect(keyOf('Dark Rune')).toBe('Item row: Z');
-    expect(keyOf('Icon of the Silver Crescent')).toBe('Item row: X');
-    fireEvent.click(checkbox('Destruction Potion'));
-    expect(keyOf('Destruction Potion')).toBe('Item row: Z');
+    expect(keyOf(ICON_AUTO)).toBe('Item row: Z');
     expect(keyOf('Dark Rune')).toBe('Item row: X');
-    expect(keyOf('Icon of the Silver Crescent')).toBe('Item row: C');
+    fireEvent.click(checkbox('Destruction Potion'));
+    expect(keyOf(ICON_AUTO)).toBe('Item row: Z');
+    expect(keyOf('Destruction Potion')).toBe('Item row: X');
+    expect(keyOf('Dark Rune')).toBe('Item row: C');
     expect(keyOf('Super Mana Potion')).toBeNull();
     expect(keyOf('Band of the Eternal Sage')).toBeNull(); // a proc, never pressed
     fireEvent.click(checkbox('Band of the Eternal Sage'));
@@ -557,7 +569,7 @@ describe('SetupPanel', () => {
     expect(checkbox(buff('item:29305').name).checked).toBe(true); // Band of the Eternal Sage (gear item effect)
     expect(startInput(buff('heroism').name).value).toBe('6.4');
     // The Icon is an item action now: enabled, no start second.
-    expect(checkbox(buff('item:29370').name).checked).toBe(true); // Icon of the Silver Crescent (gear item effect)
+    expect(checkbox(`${buff('item:29370').name}${AUTO}`).checked).toBe(true); // Icon of the Silver Crescent (gear item effect): used automatically
     expect(screen.queryByRole('spinbutton', { name: `${buff('item:29370').name} start (s)` })).toBeNull();
     expect(presetSelect().value).toBe('sb-spam');
 

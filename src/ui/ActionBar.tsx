@@ -37,7 +37,7 @@ interface ActionBarProps {
 /**
  * The spell row (slots 0-11, keys 1-9, 0, -, =; an unbound slot shows as empty) and, under it, the
  * item row "Items" (slots 12-17, keys `ITEM_SLOT_KEYS`: Z X C V B N) with only the bound item
- * slots, nothing when no item action is enabled.
+ * slots (the worn on-use effects, always, then the enabled potions and rune), nothing when none is bound.
  */
 export function ActionBar({ spec, snapshot, flash, onPress, descriptions, itemIcons }: ActionBarProps) {
   const gcdLeftMs = snapshot.phase === 'running' ? Math.max(0, snapshot.gcdEndsAtMs - snapshot.nowMs) : 0;

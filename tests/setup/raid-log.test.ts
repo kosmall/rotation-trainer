@@ -152,9 +152,10 @@ describe("the 'raid-log' preset (author's Naj'entus log)", () => {
     }
     const scheduled = apply(raidLog).sim.scheduledAuras.filter((s) => s.on === 'self');
     expect(scheduled).toEqual([{ auraId: 'heroism', on: 'self', atMs: 6400, durationMs: 40000 }]);
-    // The items are on the item row (catalog order) and in the priority (with Heroism up).
+    // The items are on the item row (the worn Icon first, then the potion) and in the priority
+    // (with Heroism up; the bot's order is the fold order: catalog, then gear).
     const { spec } = apply(raidLog);
-    expect(spec.keybinds.slice(12)).toEqual(['use-destruction-potion', 'use-item-29370', '', '', '', '']);
+    expect(spec.keybinds.slice(12)).toEqual(['use-item-29370', 'use-destruction-potion', '', '', '', '']);
     expect(spec.priority.slice(0, 2).map((s) => s.spellId)).toEqual(['use-destruction-potion', 'use-item-29370']);
     // The log's mana items (Super Mana Potion, Dark Rune) are not in it: the log shows none.
     expect(raidLog.enabledBuffs).not.toContain('super-mana-potion');
