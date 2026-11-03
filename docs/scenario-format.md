@@ -365,18 +365,83 @@ Item uses per fight:
   Dark Iron Smoking Pipe           1.00
   Icon of the Silver Crescent      1.00
 Life Taps per fight: 5.00
-Rule fires per fight: not reported by this simulator version
+Rule fires per fight:
+     1.00  rules[0] Pipe in the burst
+     1.00  rules[1] Icon after the Pipe
+     1.02  rules[2] Curse of the Elements
+     1.00  rules[3] Shadowburn (finisher)
+     5.07  rules[4] Immolate
+     4.06  rules[5] Corruption
+     5.00  rules[6] Life Tap
+    31.85  rules[7] Shadow Bolt
 ```
 
 (Curse of the Elements and Life Tap deal no damage themselves. "Rule fires per fight" lists, per rule
-`rules[i]`, how often it was the rule that pressed something, once the simulator reports it.)
+`rules[i]`, the mean number of casts or item uses per fight that rule started: a press counts when its
+cast or use actually starts, so a press that waited in the spell queue and was then replaced or
+dropped counts nothing. A rule that never fired shows 0.00; wait rules press nothing and are not
+listed, and rules left out by the compiler are not listed either. Without a script the keys are the
+basic rotation's spell ids and item ids, e.g. `shadow-bolt`, `destruction-potion`, `item:29370`.)
 
 Sigma is the standard deviation of one fight's DPS, SEM = sigma / sqrt(runs) the standard error of the
 mean, and the 95% CI is mean ± 1.96 SEM. Two scenarios run with the same `--runs` and `--seed` use the
 same random seeds per fight; a difference smaller than about 2-3 SEM is noise. The same file, runs and
 seed always print the same numbers. `--json` prints one JSON object with the same numbers (`meanDps`,
-`stdDev`, `stdErr`, `ci95`, `min`, `median`, `max`, `perSpell`, `itemUses`, `ruleFires` when available,
-`warnings`).
+`stdDev`, `stdErr`, `ci95`, `min`, `median`, `max`, `perSpell`, `itemUses`, `ruleFires` as
+`{ "rules[0]": { "label": ..., "meanFires": ... } }`, `warnings`).
+
+### Comparing scenarios
+
+`npm run scenario:compare -- baseline.json other.json [up to 5 files] [--runs N] [--seed S] [--json]`
+validates every file (any file with errors: printed, exit 1, nothing runs), then plays every scenario
+with the SAME runs and seed (the options, else the first file's `simulation`, else 1000 and 1): fight
+i of every scenario uses the same random seed, so the per-fight differences are paired and most of the
+fight-to-fight luck cancels out. The first file is the baseline:
+
+```
+Comparison: 2 scenarios, 1000 paired runs (run i of every scenario uses the same seed), seed 1, spell queue window 400 ms
+Baseline: 1. Pipe, then Icon (trinket sequencing)
+#  Rank    Mean DPS    Sigma    SEM     Delta  SEM(d)  95% CI of delta       Verdict
+1. 1        1691.33   133.02   4.21  baseline
+2. 2        1547.62   108.18   3.42   -143.71    3.51  -150.59 .. -136.83    worse (significant)
+1. Pipe, then Icon (trinket sequencing) (docs/scenarios/trinket-sequencing.json)
+2. Potion and Icon in the Heroism window (docs/scenarios/burst-potion.json)
+Rule fires per fight:
+  1. Pipe, then Icon (trinket sequencing)
+       1.00  rules[0] Pipe in the burst
+       1.00  rules[1] Icon after the Pipe
+       1.02  rules[2] Curse of the Elements
+       1.00  rules[3] Shadowburn (finisher)
+       5.07  rules[4] Immolate
+       4.06  rules[5] Corruption
+       5.00  rules[6] Life Tap
+      31.85  rules[7] Shadow Bolt
+  2. Potion and Icon in the Heroism window
+       1.00  rules[0] Destruction Potion
+       1.00  rules[1] Icon with the potion
+       1.02  rules[2] Curse of the Elements
+       1.00  rules[3] Shadowburn (finisher)
+       7.03  rules[4] Immolate
+       6.01  rules[5] Corruption
+       8.00  rules[6] Life Tap
+      39.94  rules[7] Shadow Bolt
+Verdict: "significant" means the 95% CI of the paired difference excludes 0. Each of the 1 comparison(s) against the baseline is its own test with no correction: with no real difference about 1 in 20 still reads "significant"; with several scenarios, rerun with another --seed (or more --runs) before trusting a small difference.
+```
+
+(These two examples differ in setup too, a 90 s against a 120 s fight among others: a comparison
+answers "which whole scenario gives more DPS", so to measure one rule change keep everything else
+equal.)
+
+Columns: Rank by mean DPS; Mean DPS, Sigma and SEM of each scenario as in `scenario:run`; Delta = mean
+DPS minus the baseline's; SEM(d) = the standard error of the paired differences (sample standard
+deviation of the per-fight differences / sqrt(runs)), usually much smaller than either SEM; the 95% CI
+of the delta (Delta ± 1.96 SEM(d)); Verdict: "better (significant)" / "worse (significant)" when that
+CI excludes 0, else "no clear difference". Each scenario is one test against the baseline with no
+correction for several comparisons: with no real difference about 1 in 20 comparisons still reads
+"significant", so with 4-5 scenarios rerun a close call with another `--seed` or more `--runs`.
+`--json` prints `{ runs, seed, spellQueueWindowMs, ranking, scenarios: [{ file, name, rank, meanDps,
+stdDev, stdErr, ci95, delta (null for the baseline: meanDiff, sem, ci95, zscore, significant, rank,
+verdict), ruleFires }] }`.
 
 ## 10. Prompt template
 
