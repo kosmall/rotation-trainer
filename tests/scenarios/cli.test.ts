@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { itemDbSync } from '../../src/data/items/dbSync';
-import { formatIssue, runMain, validateMain, type CliIo } from '../../src/scenarios/cli';
+import { compareMain, formatIssue, runMain, validateMain, type CliIo } from '../../src/scenarios/cli';
 import { SCENARIO_FORMAT } from '../../src/scenarios/types';
 
 const db = itemDbSync();
@@ -143,4 +143,58 @@ describe('npm scripts (spawned through tsx)', () => {
     expect(r.stdout).toContain('Runs: 5, seed 2');
     expect(r.stdout).toMatch(/Mean DPS: \d/);
   }, 60_000);
+});
+
+describe('scenario:run rule fires and scenario:compare (Task 4)', () => {
+  it('scenario:run prints the mean fires of every rule, with its key and rule text', async () => {
+    const t = io({ 'good.json': good });
+    expect(await runMain(['good.json'], t.cli, db)).toBe(0);
+    const i = t.out.indexOf('Rule fires per fight:');
+    expect(i).toBeGreaterThan(0);
+    expect(t.out.slice(i + 1, i + 4).map((l) => l.replace(/^ +\d+\.\d\d {2}/, ''))).toEqual([
+      'rules[0] cast curse-of-the-elements if !target.aura.curse-of-the-elements.active',
+      'rules[1] cast life-tap if mana < manaCost(shadow-bolt)',
+      'rules[2] cast shadow-bolt',
+    ]);
+    const j = io({ 'good.json': good });
+    await runMain(['good.json', '--json'], j.cli, db);
+    const fires = JSON.parse(j.out.join('\n')).ruleFires;
+    expect(Object.keys(fires)).toEqual(['rules[0]', 'rules[1]', 'rules[2]']);
+    expect(fires['rules[2]'].label).toBe('Shadow Bolt');
+    expect(fires['rules[2]'].meanFires).toBeGreaterThan(10);
+  });
+
+  it('scenario:compare prints the table (baseline, delta, CI, verdict), the rule fires and the caveat; identical files: no clear difference', async () => {
+    const t = io({ 'a.json': good, 'b.json': good });
+    expect(await compareMain(['a.json', 'b.json'], t.cli, db)).toBe(0);
+    expect(t.out[0]).toBe('Comparison: 2 scenarios, 20 paired runs (run i of every scenario uses the same seed), seed 3, spell queue window 400 ms');
+    expect(t.out.some((l) => /^1\. +1 .*baseline$/.test(l))).toBe(true);
+    expect(t.out.some((l) => /^2\. .* \+0\.00 +0\.00 {2}\+0\.00 \.\. \+0\.00 +no clear difference$/.test(l))).toBe(true);
+    expect(t.out.at(-1)).toMatch(/^Verdict: "significant" means the 95% CI/);
+    const again = io({ 'a.json': good, 'b.json': good });
+    await compareMain(['a.json', 'b.json'], again.cli, db);
+    expect(again.out).toEqual(t.out);
+    const j = io({ 'a.json': good, 'b.json': warn });
+    expect(await compareMain(['a.json', 'b.json', '--runs', '10', '--json'], j.cli, db)).toBe(0);
+    const o = JSON.parse(j.out.join('\n'));
+    expect(o).toMatchObject({ runs: 10, seed: 3 });
+    expect(o.scenarios[0].delta).toBeNull();
+    expect(o.scenarios[1].delta).toMatchObject({ meanDiff: o.scenarios[1].meanDps - o.scenarios[0].meanDps });
+    expect(typeof o.scenarios[1].delta.verdict).toBe('string');
+  });
+
+  it('scenario:compare: bad options exit 2; a file with errors or a missing file exits 1 and nothing runs', async () => {
+    const one = io({ 'a.json': good });
+    expect(await compareMain(['a.json'], one.cli, db)).toBe(2);
+    expect(one.err[0]).toMatch(/give 2 to 5 scenario files \(got 1\)/);
+    const six = io({});
+    expect(await compareMain(['1', '2', '3', '4', '5', '6'], six.cli, db)).toBe(2);
+    const opt = io({});
+    expect(await compareMain(['a.json', 'b.json', '--runs', 'x'], opt.cli, db)).toBe(2);
+    const b = io({ 'a.json': good, 'bad.json': bad });
+    expect(await compareMain(['a.json', 'bad.json'], b.cli, db)).toBe(1);
+    expect(b.out).toEqual([]);
+    const m = io({ 'a.json': good });
+    expect(await compareMain(['a.json', 'missing.json'], m.cli, db)).toBe(1);
+  });
 });
