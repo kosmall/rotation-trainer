@@ -81,14 +81,14 @@ export function activePresetName(config: SetupConfig, presets: SetupPresets, cat
   return match?.name ?? CUSTOM_PRESET_NAME;
 }
 
-type BuffGroupId = 'fight' | 'raid' | 'consumables' | 'debuffs' | 'items' | 'warlock';
+export type BuffGroupId = 'fight' | 'raid' | 'consumables' | 'debuffs' | 'items' | 'warlock';
 
 /**
  * The panel group a catalog buff is listed in: timed buffs (Heroism) in "Fight"; item actions
  * (used from the item row: the potions, the rune and the gear's on-use effects) and the gear's
  * other effects (group 'item': procs, pre-pull) in "Items and cooldowns".
  */
-function groupOf(buff: BuffDef): BuffGroupId {
+export function groupOf(buff: BuffDef): BuffGroupId {
   if (buff.timed) return 'fight';
   if (buff.effect.action || buff.group === 'item') return 'items';
   if (buff.group === 'debuff') return 'debuffs';
@@ -105,7 +105,7 @@ export const AUTO_USE_LABEL = 'Use automatically (bot, simulator)';
 /** The hint under it: the item is on the item row whether ticked or not. */
 export const AUTO_USE_HINT = `Always available on the item bar (${ITEM_KEYS_TEXT}); tick to let the bot and the simulator use it, with the rule below.`;
 
-const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: string; hint: string }[] = [
+export const BUFF_GROUPS: { id: Exclude<BuffGroupId, 'fight' | 'warlock'>; title: string; hint: string }[] = [
   {
     id: 'raid',
     title: 'Raid and party',
@@ -221,7 +221,7 @@ function OptionRow({
   );
 }
 
-/** A collapsible group of the panel, exposed as a named group. */
+/** A collapsible group of the legacy panel, exposed as a named group. */
 function Group({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
     <details className="setup-group">
@@ -233,6 +233,438 @@ function Group({ title, count, children }: { title: string; count?: number; chil
         {children}
       </div>
     </details>
+  );
+}
+
+/**
+ * What every group of the setup gets: the catalog (the gear-independent entries and the worn
+ * gear's item effects), the current setup (shown, never copied) and the sink of every edit, which
+ * receives a config normalized for `catalog` (`normalizeSetup`).
+ */
+export interface SetupGroupProps {
+  catalog: readonly BuffDef[];
+  config: SetupConfig;
+  onChange(config: SetupConfig): void;
+}
+
+/** Normalizes an edited config for the catalog and passes it on. */
+const emitter = (catalog: readonly BuffDef[], onChange: (config: SetupConfig) => void) => (next: SetupConfig) =>
+  onChange(normalizeSetup(next, catalog));
+
+/**
+ * The buffs of one group as option rows: checkbox, icon, name, description; a timed buff gets its
+ * start and duration fields (warned when it starts at or after the fight's end); an item action
+ * its item row key, or the warning that the row is full.
+ */
+function BuffList({ buffs, catalog, config, onChange }: SetupGroupProps & { buffs: readonly BuffDef[] }) {
+  const emit = emitter(catalog, onChange);
+  const enabled = new Set(config.enabledBuffs);
+  // The item row key of each bound item action, as applySetup binds them (`itemRowOf`: every worn
+  // on-use effect, enabled or not, then the enabled potions and rune); the rest are left out.
+  const itemRow = itemRowOf(catalog, enabled);
+  const itemKeys = new Map(itemRow.bound.map((b, i) => [b.id, ITEM_SLOT_KEYS[i]!.toUpperCase()] as const));
+  const unboundIds = new Set(itemRow.unbound.map((b) => b.id));
+  const fightLengthSec = config.fightDurationSec;
+  const toggleBuff = (buffId: string, on: boolean) => {
+    const rest = config.enabledBuffs.filter((b) => b !== buffId);
+    emit({ ...config, enabledBuffs: on ? [...rest, buffId] : rest });
+  };
+  const timedOf = (b: BuffDef): TimedSetting =>
+    config.timed[b.id] ?? { startSec: b.timed?.defaultStartSec ?? 0, durationSec: b.timed?.durationSec ?? 1 };
+  const setTimed = (b: BuffDef, patch: Partial<TimedSetting>) =>
+    emit({ ...config, timed: { ...config.timed, [b.id]: { ...timedOf(b), ...patch } } });
+
+  return (
+    <ul className="setup-buffs">
+      {buffs.map((b) => {
+        const t = b.timed ? timedOf(b) : null;
+        const key = itemKeys.get(b.id);
+        return (
+          <OptionRow
+            key={b.id}
+            autoUse={isAlwaysBoundGearEntry(b)}
+            icon={b.icon}
+            iconKind={b.iconKind === 'item' ? 'item' : 'spell'}
+            title={b.name}
+            description={b.description}
+            checked={enabled.has(b.id)}
+            onChange={(on) => toggleBuff(b.id, on)}
+          >
+            {t && (
+              <div className="setup-timed">
+                <label>
+                  <span aria-hidden="true">Start (s)</span>
+                  <NumberField
+                    label={`${b.name} start (s)`}
+                    value={String(t.startSec)}
+                    min={SETUP_LIMITS.startSec.min}
+                    max={SETUP_LIMITS.startSec.max}
+                    onValue={(startSec) => setTimed(b, { startSec })}
+                  />
+                </label>
+                <label>
+                  <span aria-hidden="true">Duration (s)</span>
+                  <NumberField
+                    label={`${b.name} duration (s)`}
+                    value={String(t.durationSec)}
+                    min={SETUP_LIMITS.durationSec.min}
+                    max={SETUP_LIMITS.durationSec.max}
+                    onValue={(durationSec) => setTimed(b, { durationSec })}
+                  />
+                </label>
+                {t.startSec >= fightLengthSec && (
+                  <p className="setup-warn">Starts after the fight ends ({fightLengthSec} s): no effect.</p>
+                )}
+              </div>
+            )}
+            {key && <p className="setup-item-key">Item row: {key}</p>}
+            {unboundIds.has(b.id) && (
+              <p className="setup-item-key setup-warn">Not on the item row ({ITEM_SLOT_KEYS.length} slots, all taken): no effect.</p>
+            )}
+          </OptionRow>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** How many buffs of a group are enabled (the group's "N on"). */
+export function enabledCount(catalog: readonly BuffDef[], config: SetupConfig, group: BuffGroupId): number {
+  const enabled = new Set(config.enabledBuffs);
+  return catalog.filter((b) => groupOf(b) === group && enabled.has(b.id)).length;
+}
+
+/**
+ * The setup presets: the active preset's name (or "Custom", with the preset the rest matches when
+ * only the item-use rules differ), its description, and a button per preset. A preset keeps the
+ * chosen fight length, the gear, the item-use rules and the talents (ruling F-2). `children` are
+ * added after the preset buttons (the legacy panel's "Reset to defaults").
+ */
+export function SetupPresetBar({
+  catalog,
+  config,
+  presets,
+  onChange,
+  children,
+}: SetupGroupProps & { presets: SetupPresets; children?: ReactNode }) {
+  const emit = emitter(catalog, onChange);
+  const presetName = activePresetName(config, presets, catalog);
+  const presetDescription = Object.values(presets).find((p) => p.name === presetName)?.description;
+  // "Custom" only because of the item-use rules: say which preset the rest matches.
+  const presetBesidesItemUse =
+    presetName === CUSTOM_PRESET_NAME && (config.rotation.itemUse !== undefined || config.rotation.itemUseOrder !== undefined)
+      ? activePresetName(withoutItemUse(config), presets, catalog)
+      : CUSTOM_PRESET_NAME;
+  return (
+    <>
+      <p className="setup-active">
+        Preset:{' '}
+        <span role="note" aria-label="Active preset" className="setup-active-name">
+          {presetName}
+        </span>
+      </p>
+      {presetDescription && <p className="hint setup-preset-description">{presetDescription}</p>}
+      {presetBesidesItemUse !== CUSTOM_PRESET_NAME && (
+        <p className="hint">{presetBesidesItemUse}, except the item-use rules (Rotation: Reset all item rules to default).</p>
+      )}
+      <div className="setup-preset-buttons" role="group" aria-label="Setup presets">
+        {Object.entries(presets).map(([presetId, p]) => (
+          <button
+            key={presetId}
+            type="button"
+            title={p.description}
+            aria-pressed={presetName === p.name}
+            onClick={(e) => {
+              e.currentTarget.blur(); // keep Space/R for the fight
+              // Ruling F-2: a preset keeps the chosen fight length, the gear (Gear panel), the item-use
+              // rules (no preset has any; Reset all in Rotation clears them) and the talents (Talents panel).
+              emit(applySetupPreset(p.config, config));
+            }}
+          >
+            {p.name}
+          </button>
+        ))}
+        {children}
+      </div>
+    </>
+  );
+}
+
+/** The fight: its length (presets keep it) and the timed buffs (Heroism / Bloodlust with its start and duration). */
+export function FightGroup({ catalog, config, onChange }: SetupGroupProps) {
+  const id = useId();
+  const emit = emitter(catalog, onChange);
+  return (
+    <>
+      <div className="setup-row">
+        <label htmlFor={`${id}-fight-length`}>Fight length (s)</label>
+        <NumberField
+          id={`${id}-fight-length`}
+          value={String(config.fightDurationSec)}
+          min={MIN_FIGHT_SEC}
+          max={MAX_FIGHT_SEC}
+          step={1}
+          integer
+          onValue={(fightDurationSec) => emit({ ...config, fightDurationSec })}
+        />
+      </div>
+      <p className="hint">
+        {MIN_FIGHT_SEC} to {MAX_FIGHT_SEC} s. Presets keep it; Reset to defaults sets {DEFAULT_SETUP.fightDurationSec} s.
+      </p>
+      <BuffList buffs={catalog.filter((b) => groupOf(b) === 'fight')} catalog={catalog} config={config} onChange={onChange} />
+    </>
+  );
+}
+
+/** One kind of buff (raid and party, consumables, target debuffs): its hint and options. */
+export function BuffGroup({ group, catalog, config, onChange }: SetupGroupProps & { group: 'raid' | 'consumables' | 'debuffs' }) {
+  const def = BUFF_GROUPS.find((g) => g.id === group)!;
+  return (
+    <>
+      <p className="hint">{def.hint}</p>
+      <BuffList buffs={catalog.filter((b) => groupOf(b) === group)} catalog={catalog} config={config} onChange={onChange} />
+    </>
+  );
+}
+
+export interface ItemsGroupProps extends SetupGroupProps {
+  /** The running (or ended) fight keeps its own gear and item effects: say this list is for the next fight. */
+  pending?: boolean;
+  fightEnded?: boolean;
+  /** "<item>: <effect>" for every effect of the worn items the trainer does not model. */
+  unmodelledItemEffects?: readonly string[];
+  /** A note over the list (e.g. the item database is still loading). */
+  itemsNote?: string;
+}
+
+/**
+ * Items and cooldowns: the worn gear's modelled effects, the potions and the rune, each with its
+ * item row key; the item row overflow and the not-modelled effects of the gear.
+ */
+export function ItemsGroup({
+  catalog,
+  config,
+  onChange,
+  pending = false,
+  fightEnded = false,
+  unmodelledItemEffects = [],
+  itemsNote,
+}: ItemsGroupProps) {
+  const def = BUFF_GROUPS.find((g) => g.id === 'items')!;
+  const unbound = itemRowOf(catalog, new Set(config.enabledBuffs)).unbound;
+  const rowFull = `not on the item row (${ITEM_SLOT_KEYS.length} slots, all taken)`;
+  return (
+    <>
+      <p className="hint">{def.hint}</p>
+      {pending && (
+        <p className="setup-pending">
+          The {fightEnded ? 'finished' : 'running'} fight keeps its gear and item effects: this list is for the next fight (press R).
+        </p>
+      )}
+      {itemsNote && <p className="hint">{itemsNote}</p>}
+      <BuffList buffs={catalog.filter((b) => groupOf(b) === 'items')} catalog={catalog} config={config} onChange={onChange} />
+      {unbound.length > 0 && (
+        <ul className="setup-warnings" aria-label="Item row overflow">
+          {unbound.map((b) => (
+            <li key={b.id} className="setup-warn">
+              {b.name}: {rowFull}
+            </li>
+          ))}
+        </ul>
+      )}
+      {unmodelledItemEffects.length > 0 && (
+        <>
+          <p className="hint setup-unmodelled-title">Not modelled effects of your gear:</p>
+          <ul className="setup-unmodelled" aria-label="Not modelled effects of your gear">
+            {unmodelledItemEffects.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
+/** The warlock's own options: the armor (radio), the sacrificed Succubus and the warlock buffs. */
+export function WarlockOptionsGroup({ catalog, config, onChange }: SetupGroupProps) {
+  const id = useId();
+  const emit = emitter(catalog, onChange);
+  const updateWarlock = (patch: Partial<WarlockOptions>) => emit({ ...config, warlock: { ...config.warlock, ...patch } });
+  return (
+    <>
+      <ul className="setup-buffs" role="radiogroup" aria-label="Armor">
+        {ARMORS.map((armor) => {
+          const o = WARLOCK_ARMOR_OPTIONS[armor];
+          return (
+            <OptionRow
+              key={armor}
+              type="radio"
+              radioGroup={`${id}-armor`}
+              icon={o.icon}
+              title={o.name}
+              description={o.description}
+              checked={config.warlock.armor === armor}
+              onChange={(on) => on && updateWarlock({ armor })}
+            />
+          );
+        })}
+      </ul>
+      <ul className="setup-buffs">
+        <OptionRow
+          icon={SACRIFICE_SUCCUBUS_OPTION.icon}
+          title={SACRIFICE_SUCCUBUS_OPTION.name}
+          description={SACRIFICE_SUCCUBUS_OPTION.description}
+          checked={config.warlock.sacrificeSuccubus}
+          onChange={(sacrificeSuccubus) => updateWarlock({ sacrificeSuccubus })}
+        />
+      </ul>
+      <BuffList buffs={catalog.filter((b) => groupOf(b) === 'warlock')} catalog={catalog} config={config} onChange={onChange} />
+    </>
+  );
+}
+
+/** The warlock options in short ("Fel Armor, Succubus sacrificed"): the Setup rail's value. */
+export function warlockOptionsText(warlock: WarlockOptions): string {
+  const armor = WARLOCK_ARMOR_OPTIONS[warlock.armor].name;
+  return warlock.sacrificeSuccubus ? `${armor}, Succubus sacrificed` : armor;
+}
+
+/** The icon of the chosen armor (the Setup rail's icon of the class options). */
+export function warlockOptionsIcon(warlock: WarlockOptions): string {
+  return WARLOCK_ARMOR_OPTIONS[warlock.armor].icon;
+}
+
+/**
+ * The basic rotation: preset, curse, Immolate / Corruption / Shadowburn finisher, Life Tap
+ * threshold (a number, or auto), and the item-use rules (`ItemUseEditor`).
+ */
+export function RotationGroup({ catalog, config, onChange }: SetupGroupProps) {
+  const id = useId();
+  const emit = emitter(catalog, onChange);
+  const lifeTap = config.rotation.lifeTapBelowMana;
+  // The last number threshold, offered again when "auto" is switched off. It follows the config
+  // (a number set by a preset or loaded from storage counts too).
+  const [lastLifeTap, setLastLifeTap] = useState<number>(typeof lifeTap === 'number' ? lifeTap : FIRST_LIFE_TAP_MANA);
+  if (typeof lifeTap === 'number' && lifeTap !== lastLifeTap) setLastLifeTap(lifeTap);
+  const updateRotation = (patch: Partial<RotationConfig>) => emit({ ...config, rotation: { ...config.rotation, ...patch } });
+  const rotationPreset = rotationPresetOf(config.rotation);
+  const autoLifeTap = lifeTap === 'auto';
+
+  return (
+    <>
+      <div className="setup-row setup-stack">
+        <label htmlFor={`${id}-preset`}>Rotation preset</label>
+        <select
+          id={`${id}-preset`}
+          value={rotationPreset}
+          onChange={(e) => {
+            const next = e.target.value;
+            if (!Object.hasOwn(ROTATION_PRESETS, next)) return;
+            // The preset sets the spell rotation; the item-use rules are kept (the preset has none).
+            emit({ ...config, rotation: { ...ROTATION_PRESETS[next as RotationPresetId].config, ...itemUseOf(config.rotation) } });
+          }}
+        >
+          {ROTATION_PRESET_IDS.map((p) => (
+            <option key={p} value={p}>
+              {ROTATION_PRESETS[p].name}
+            </option>
+          ))}
+          {rotationPreset === 'custom' && (
+            <option value="custom" disabled>
+              Custom
+            </option>
+          )}
+        </select>
+      </div>
+
+      <div className="setup-row setup-stack">
+        <label htmlFor={`${id}-curse`}>Curse</label>
+        <select
+          id={`${id}-curse`}
+          value={config.rotation.curse}
+          onChange={(e) => {
+            const curse = CURSES.find((c) => c.id === e.target.value);
+            if (curse) updateRotation({ curse: curse.id });
+          }}
+        >
+          {CURSES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="setup-checks">
+        <label>
+          <input type="checkbox" checked={config.rotation.immolate} onChange={(e) => updateRotation({ immolate: e.target.checked })} />
+          Immolate
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={config.rotation.corruption}
+            onChange={(e) => updateRotation({ corruption: e.target.checked })}
+          />
+          Corruption
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={config.rotation.shadowburnFinisher}
+            onChange={(e) => updateRotation({ shadowburnFinisher: e.target.checked })}
+          />
+          Shadowburn finisher
+        </label>
+      </div>
+
+      <div className="setup-row">
+        <label htmlFor={`${id}-lifetap`}>Life Tap below mana</label>
+        <NumberField
+          id={`${id}-lifetap`}
+          value={autoLifeTap ? '' : String(lifeTap)}
+          min={0}
+          max={MAX_LIFE_TAP_MANA}
+          step={1}
+          integer
+          disabled={autoLifeTap}
+          placeholder="auto"
+          onValue={(mana) => updateRotation({ lifeTapBelowMana: mana })}
+        />
+      </div>
+      <label className="setup-sub">
+        <input
+          type="checkbox"
+          checked={autoLifeTap}
+          onChange={(e) => updateRotation({ lifeTapBelowMana: e.target.checked ? 'auto' : lastLifeTap })}
+        />
+        Auto (Shadow Bolt cost)
+      </label>
+
+      <ItemUseEditor catalog={catalog} config={config} onChange={emit} />
+    </>
+  );
+}
+
+/** The distance from the target (the travel time of missile spells). */
+export function DistanceField({ catalog, config, onChange }: SetupGroupProps) {
+  const id = useId();
+  const emit = emitter(catalog, onChange);
+  return (
+    <>
+      <div className="setup-row">
+        <label htmlFor={`${id}-distance`}>Distance from target (yd)</label>
+        <NumberField
+          id={`${id}-distance`}
+          value={String(config.distanceYd)}
+          min={MIN_DISTANCE_YD}
+          max={MAX_DISTANCE_YD}
+          onValue={(distanceYd) => emit({ ...config, distanceYd })}
+        />
+      </div>
+      <p className="hint">Sets the travel time of missile spells: Shadow Bolt flies 20 yd/s, so 28 yd is 1.4 s.</p>
+    </>
   );
 }
 
@@ -259,17 +691,14 @@ export interface SetupPanelProps {
 }
 
 /**
- * The collapsed "Setup" panel: presets and "Reset to defaults", the active preset's name, then
- * the "Fight" group (fight length; Heroism / Bloodlust with its start second and duration, warned
- * when it starts at or after the end), one collapsible group per kind of buff (raid and party,
- * consumables, target debuffs, the worn gear's item effects with the potions and the rune, the
- * not-modelled effects of the gear and the item row overflow), the warlock options,
- * the rotation and the distance from the target. Presets keep the chosen fight length, the
- * gear (the Gear panel's) and the talents (the Talents panel's); "Reset to defaults" resets them
- * too (the author's gear and build). Fully controlled: it shows `config` and passes every edit to
- * `onChange` as a new config normalized for `catalog` (exclusive buffs resolved, the later one
- * wins; numbers clamped), so `applySetup` and `buildPriority` always get a valid config. Number
- * inputs keep a typed text only while focused.
+ * The collapsed "Setup" panel of the legacy layout (until the redesign's Task 5): presets and
+ * "Reset to defaults", the active preset's name, then the groups the Setup screen shows in its
+ * own sections (`FightGroup`, `BuffGroup`, `ItemsGroup`, `WarlockOptionsGroup`, `RotationGroup`,
+ * `DistanceField`), each in a collapsible group. Presets keep the chosen fight length, the gear
+ * and the talents; "Reset to defaults" resets them too (the author's gear and build). Fully
+ * controlled: it shows `config` and passes every edit to `onChange` as a new config normalized
+ * for `catalog` (exclusive buffs resolved, the later one wins; numbers clamped). Number inputs
+ * keep a typed text only while focused.
  */
 export function SetupPanel({
   catalog,
@@ -282,337 +711,60 @@ export function SetupPanel({
   unmodelledItemEffects = [],
   itemsNote,
 }: SetupPanelProps) {
-  const id = useId();
-  const lifeTap = config.rotation.lifeTapBelowMana;
-  // The last number threshold, offered again when "auto" is switched off. It follows the config
-  // (a number set by a preset or loaded from storage counts too).
-  const [lastLifeTap, setLastLifeTap] = useState<number>(typeof lifeTap === 'number' ? lifeTap : FIRST_LIFE_TAP_MANA);
-  if (typeof lifeTap === 'number' && lifeTap !== lastLifeTap) setLastLifeTap(lifeTap);
-
-  const emit = (next: SetupConfig) => onChange(normalizeSetup(next, catalog));
-  const enabled = new Set(config.enabledBuffs);
-  const toggleBuff = (buffId: string, on: boolean) => {
-    const rest = config.enabledBuffs.filter((b) => b !== buffId);
-    emit({ ...config, enabledBuffs: on ? [...rest, buffId] : rest });
-  };
-  const timedOf = (b: BuffDef): TimedSetting =>
-    config.timed[b.id] ?? { startSec: b.timed?.defaultStartSec ?? 0, durationSec: b.timed?.durationSec ?? 1 };
-  const setTimed = (b: BuffDef, patch: Partial<TimedSetting>) =>
-    emit({ ...config, timed: { ...config.timed, [b.id]: { ...timedOf(b), ...patch } } });
-  const updateRotation = (patch: Partial<RotationConfig>) => emit({ ...config, rotation: { ...config.rotation, ...patch } });
-  const updateWarlock = (patch: Partial<WarlockOptions>) => emit({ ...config, warlock: { ...config.warlock, ...patch } });
-
-  const presetName = activePresetName(config, presets, catalog);
-  const presetDescription = Object.values(presets).find((p) => p.name === presetName)?.description;
-  // "Custom" only because of the item-use rules: say which preset the rest matches.
-  const presetBesidesItemUse =
-    presetName === CUSTOM_PRESET_NAME && (config.rotation.itemUse !== undefined || config.rotation.itemUseOrder !== undefined)
-      ? activePresetName(withoutItemUse(config), presets, catalog)
-      : CUSTOM_PRESET_NAME;
-  const rotationPreset = rotationPresetOf(config.rotation);
-  const autoLifeTap = lifeTap === 'auto';
-  const warlockBuffs = catalog.filter((b) => groupOf(b) === 'warlock');
-  const fightBuffs = catalog.filter((b) => groupOf(b) === 'fight');
-  const fightLengthSec = config.fightDurationSec;
-  // The item row key of each bound item action, as applySetup binds them (`itemRowOf`: every worn
-  // on-use effect, enabled or not, then the enabled potions and rune); the rest are left out.
-  const itemRow = itemRowOf(catalog, enabled);
-  const itemKeys = new Map(itemRow.bound.map((b, i) => [b.id, ITEM_SLOT_KEYS[i]!.toUpperCase()] as const));
-  const unbound = itemRow.unbound;
-  const unboundIds = new Set(unbound.map((b) => b.id));
-  const rowFull = `not on the item row (${ITEM_SLOT_KEYS.length} slots, all taken)`;
-
-  const buffRow = (b: BuffDef) => {
-    const t = b.timed ? timedOf(b) : null;
-    return (
-      <OptionRow
-        key={b.id}
-        autoUse={isAlwaysBoundGearEntry(b)}
-        icon={b.icon}
-        iconKind={b.iconKind === 'item' ? 'item' : 'spell'}
-        title={b.name}
-        description={b.description}
-        checked={enabled.has(b.id)}
-        onChange={(on) => toggleBuff(b.id, on)}
-      >
-        {t && (
-          <div className="setup-timed">
-            <label>
-              <span aria-hidden="true">Start (s)</span>
-              <NumberField
-                label={`${b.name} start (s)`}
-                value={String(t.startSec)}
-                min={SETUP_LIMITS.startSec.min}
-                max={SETUP_LIMITS.startSec.max}
-                onValue={(startSec) => setTimed(b, { startSec })}
-              />
-            </label>
-            <label>
-              <span aria-hidden="true">Duration (s)</span>
-              <NumberField
-                label={`${b.name} duration (s)`}
-                value={String(t.durationSec)}
-                min={SETUP_LIMITS.durationSec.min}
-                max={SETUP_LIMITS.durationSec.max}
-                onValue={(durationSec) => setTimed(b, { durationSec })}
-              />
-            </label>
-            {t.startSec >= fightLengthSec && (
-              <p className="setup-warn">Starts after the fight ends ({fightLengthSec} s): no effect.</p>
-            )}
-          </div>
-        )}
-        {itemKeys.get(b.id) && <p className="setup-item-key">Item row: {itemKeys.get(b.id)}</p>}
-        {unboundIds.has(b.id) && (
-          <p className="setup-item-key setup-warn">Not on the item row ({ITEM_SLOT_KEYS.length} slots, all taken): no effect.</p>
-        )}
-      </OptionRow>
-    );
-  };
-
+  const group = { catalog, config, onChange };
   return (
     <details className="panel setup">
       <summary>Setup</summary>
       <fieldset className="setup-fields" disabled={disabled}>
         <div className="setup-presets">
-          <p className="setup-active">
-            Preset:{' '}
-            <span role="note" aria-label="Active preset" className="setup-active-name">
-              {presetName}
-            </span>
-          </p>
-          {presetDescription && <p className="hint setup-preset-description">{presetDescription}</p>}
-          {presetBesidesItemUse !== CUSTOM_PRESET_NAME && (
-            <p className="hint">
-              {presetBesidesItemUse}, except the item-use rules (Rotation: Reset all item rules to default).
-            </p>
-          )}
-          <div className="setup-preset-buttons">
-            {Object.entries(presets).map(([presetId, p]) => (
-              <button
-                key={presetId}
-                type="button"
-                title={p.description}
-                aria-pressed={presetName === p.name}
-                onClick={(e) => {
-                  e.currentTarget.blur(); // keep Space/R for the fight
-                  // Ruling F-2: a preset keeps the chosen fight length, the gear (Gear panel), the item-use
-                  // rules (no preset has any; Reset all in Rotation clears them) and the talents (Talents panel).
-                  emit(applySetupPreset(p.config, config));
-                }}
-              >
-                {p.name}
-              </button>
-            ))}
+          <SetupPresetBar {...group} presets={presets}>
             <button
               type="button"
               onClick={(e) => {
                 e.currentTarget.blur();
-                emit(DEFAULT_SETUP);
+                onChange(normalizeSetup(DEFAULT_SETUP, catalog));
               }}
             >
               Reset to defaults
             </button>
-          </div>
+          </SetupPresetBar>
           {pending && (
-            <p className="setup-pending">The {fightEnded ? 'finished' : 'running'} fight keeps its setup: the new one applies from the next fight (press R).</p>
+            <p className="setup-pending">
+              The {fightEnded ? 'finished' : 'running'} fight keeps its setup: the new one applies from the next fight (press R).
+            </p>
           )}
         </div>
 
         <Group title="Fight">
-          <div className="setup-row">
-            <label htmlFor={`${id}-fight-length`}>Fight length (s)</label>
-            <NumberField
-              id={`${id}-fight-length`}
-              value={String(config.fightDurationSec)}
-              min={MIN_FIGHT_SEC}
-              max={MAX_FIGHT_SEC}
-              step={1}
-              integer
-              onValue={(fightDurationSec) => emit({ ...config, fightDurationSec })}
-            />
-          </div>
-          <p className="hint">
-            {MIN_FIGHT_SEC} to {MAX_FIGHT_SEC} s. Presets keep it; Reset to defaults sets {DEFAULT_SETUP.fightDurationSec} s.
-          </p>
-          <ul className="setup-buffs">{fightBuffs.map(buffRow)}</ul>
+          <FightGroup {...group} />
         </Group>
 
-        {BUFF_GROUPS.map((g) => {
-          const buffs = catalog.filter((b) => groupOf(b) === g.id);
-          return (
-            <Group key={g.id} title={g.title} count={buffs.filter((b) => enabled.has(b.id)).length}>
-              <p className="hint">{g.hint}</p>
-              {g.id === 'items' && pending && (
-                <p className="setup-pending">
-                  The {fightEnded ? 'finished' : 'running'} fight keeps its gear and item effects: this list is for the next fight
-                  (press R).
-                </p>
-              )}
-              {g.id === 'items' && itemsNote && <p className="hint">{itemsNote}</p>}
-              <ul className="setup-buffs">{buffs.map(buffRow)}</ul>
-              {g.id === 'items' && unbound.length > 0 && (
-                <ul className="setup-warnings" aria-label="Item row overflow">
-                  {unbound.map((b) => (
-                    <li key={b.id} className="setup-warn">
-                      {b.name}: {rowFull}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {g.id === 'items' && unmodelledItemEffects.length > 0 && (
-                <>
-                  <p className="hint setup-unmodelled-title">Not modelled effects of your gear:</p>
-                  <ul className="setup-unmodelled" aria-label="Not modelled effects of your gear">
-                    {unmodelledItemEffects.map((t) => (
-                      <li key={t}>{t}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </Group>
-          );
-        })}
+        {BUFF_GROUPS.map((g) => (
+          <Group key={g.id} title={g.title} count={enabledCount(catalog, config, g.id)}>
+            {g.id === 'items' ? (
+              <ItemsGroup
+                {...group}
+                pending={pending}
+                fightEnded={fightEnded}
+                unmodelledItemEffects={unmodelledItemEffects}
+                itemsNote={itemsNote}
+              />
+            ) : (
+              <BuffGroup {...group} group={g.id} />
+            )}
+          </Group>
+        ))}
 
         <Group title="Warlock options">
-          <ul className="setup-buffs" role="radiogroup" aria-label="Armor">
-            {ARMORS.map((armor) => {
-              const o = WARLOCK_ARMOR_OPTIONS[armor];
-              return (
-                <OptionRow
-                  key={armor}
-                  type="radio"
-                  radioGroup={`${id}-armor`}
-                  icon={o.icon}
-                  title={o.name}
-                  description={o.description}
-                  checked={config.warlock.armor === armor}
-                  onChange={(on) => on && updateWarlock({ armor })}
-                />
-              );
-            })}
-          </ul>
-          <ul className="setup-buffs">
-            <OptionRow
-              icon={SACRIFICE_SUCCUBUS_OPTION.icon}
-              title={SACRIFICE_SUCCUBUS_OPTION.name}
-              description={SACRIFICE_SUCCUBUS_OPTION.description}
-              checked={config.warlock.sacrificeSuccubus}
-              onChange={(sacrificeSuccubus) => updateWarlock({ sacrificeSuccubus })}
-            />
-            {warlockBuffs.map(buffRow)}
-          </ul>
+          <WarlockOptionsGroup {...group} />
         </Group>
 
         <Group title="Rotation">
-          <div className="setup-row setup-stack">
-            <label htmlFor={`${id}-preset`}>Rotation preset</label>
-            <select
-              id={`${id}-preset`}
-              value={rotationPreset}
-              onChange={(e) => {
-                const next = e.target.value;
-                if (!Object.hasOwn(ROTATION_PRESETS, next)) return;
-                // The preset sets the spell rotation; the item-use rules are kept (the preset has none).
-                emit({ ...config, rotation: { ...ROTATION_PRESETS[next as RotationPresetId].config, ...itemUseOf(config.rotation) } });
-              }}
-            >
-              {ROTATION_PRESET_IDS.map((p) => (
-                <option key={p} value={p}>
-                  {ROTATION_PRESETS[p].name}
-                </option>
-              ))}
-              {rotationPreset === 'custom' && (
-                <option value="custom" disabled>
-                  Custom
-                </option>
-              )}
-            </select>
-          </div>
-
-          <div className="setup-row setup-stack">
-            <label htmlFor={`${id}-curse`}>Curse</label>
-            <select
-              id={`${id}-curse`}
-              value={config.rotation.curse}
-              onChange={(e) => {
-                const curse = CURSES.find((c) => c.id === e.target.value);
-                if (curse) updateRotation({ curse: curse.id });
-              }}
-            >
-              {CURSES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="setup-checks">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.rotation.immolate}
-                onChange={(e) => updateRotation({ immolate: e.target.checked })}
-              />
-              Immolate
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={config.rotation.corruption}
-                onChange={(e) => updateRotation({ corruption: e.target.checked })}
-              />
-              Corruption
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={config.rotation.shadowburnFinisher}
-                onChange={(e) => updateRotation({ shadowburnFinisher: e.target.checked })}
-              />
-              Shadowburn finisher
-            </label>
-          </div>
-
-          <div className="setup-row">
-            <label htmlFor={`${id}-lifetap`}>Life Tap below mana</label>
-            <NumberField
-              id={`${id}-lifetap`}
-              value={autoLifeTap ? '' : String(lifeTap)}
-              min={0}
-              max={MAX_LIFE_TAP_MANA}
-              step={1}
-              integer
-              disabled={autoLifeTap}
-              placeholder="auto"
-              onValue={(mana) => updateRotation({ lifeTapBelowMana: mana })}
-            />
-          </div>
-          <label className="setup-sub">
-            <input
-              type="checkbox"
-              checked={autoLifeTap}
-              onChange={(e) => updateRotation({ lifeTapBelowMana: e.target.checked ? 'auto' : lastLifeTap })}
-            />
-            Auto (Shadow Bolt cost)
-          </label>
-
-          <ItemUseEditor catalog={catalog} config={config} onChange={emit} />
+          <RotationGroup {...group} />
         </Group>
 
         <Group title="Distance">
-          <div className="setup-row">
-            <label htmlFor={`${id}-distance`}>Distance from target (yd)</label>
-            <NumberField
-              id={`${id}-distance`}
-              value={String(config.distanceYd)}
-              min={MIN_DISTANCE_YD}
-              max={MAX_DISTANCE_YD}
-              onValue={(distanceYd) => emit({ ...config, distanceYd })}
-            />
-          </div>
-          <p className="hint">Sets the travel time of missile spells: Shadow Bolt flies 20 yd/s, so 28 yd is 1.4 s.</p>
+          <DistanceField {...group} />
         </Group>
 
         <p className="hint">

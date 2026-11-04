@@ -84,6 +84,11 @@ const slotRow = (slot: string) => {
   if (!row) throw new Error(`no slot row ${slot}`);
   return row as HTMLElement;
 };
+/** Selects a slot of the character pane; returns the item card that then shows it (Change, Clear, sockets, enchant). */
+const card = (slot: string) => {
+  fireEvent.click(within(slotRow(slot)).getByRole('button'));
+  return within(gearPanel()).getByRole('region', { name: 'Selected item' });
+};
 const activeGear = () => within(gearPanel()).getByLabelText('Active gear preset').textContent;
 const presetButton = (name: string) => within(gearPanel()).getByRole('button', { name });
 const statText = (label: string) => screen.getByLabelText(label).textContent;
@@ -119,8 +124,8 @@ describe('Gear panel', () => {
     // The item icon from public/icons/items/, gems and the enchant name.
     const head = slotRow('head');
     expect(head.querySelector('img')?.getAttribute('src')).toBe(itemIconUrl(db.items[31051]!.icon));
-    expect(within(head).getByRole('button', { name: /^Head socket 1 \(meta\): Chaotic Skyfire Diamond/ })).toBeTruthy();
-    expect(head.textContent).toContain('Glyph of Power');
+    expect(within(card('head')).getByRole('button', { name: /^Head socket 1 \(meta\): Chaotic Skyfire Diamond/ })).toBeTruthy();
+    expect(card('head').textContent).toContain('Glyph of Power');
     expect(activeGear()).toBe('My gear (export)');
     expect(presetButton('My gear (export)').getAttribute('aria-pressed')).toBe('true');
     // The unmodelled effect of the Riding Crop is reported.
@@ -150,7 +155,7 @@ describe('Gear panel', () => {
     expect(statText('Shadow power')).toBe('1,130');
 
     fireEvent.click(presetButton('T6'));
-    fireEvent.click(within(slotRow('neck')).getByRole('button', { name: 'Clear Neck' }));
+    fireEvent.click(within(card('neck')).getByRole('button', { name: 'Clear Neck' }));
     expect(slotRow('neck').textContent).toContain('Empty');
     expect(activeGear()).toBe('Custom');
     expect(within(gearPanel()).queryAllByRole('button', { pressed: true })).toHaveLength(0);
@@ -160,7 +165,7 @@ describe('Gear panel', () => {
   it('the item picker filters by slot and search text and picking an item updates the slot; unique duplicates rejected with a message', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
-    fireEvent.click(within(slotRow('head')).getByRole('button', { name: 'Change Head' }));
+    fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     expect(dialog().getAttribute('aria-label')).toBe('Choose Head item');
     const search = within(dialog()).getByRole('searchbox', { name: 'Search' });
     expect(document.activeElement).toBe(search); // keyboard: the search box takes focus
@@ -187,7 +192,7 @@ describe('Gear panel', () => {
     expect(activeGear()).toBe('Custom');
 
     // Band of the Eternal Sage is worn in Finger 1: the same ring in Finger 2 is refused.
-    fireEvent.click(within(slotRow('finger2')).getByRole('button', { name: 'Change Finger 2' }));
+    fireEvent.click(within(card('finger2')).getByRole('button', { name: 'Change Finger 2' }));
     fireEvent.change(within(dialog()).getByRole('searchbox', { name: 'Search' }), { target: { value: 'eternal sage' } });
     fireEvent.click(option('Band of the Eternal Sage'));
     expect(screen.getByRole('alert').textContent).toMatch(/Band of the Eternal Sage.*Finger 1/);
@@ -198,7 +203,7 @@ describe('Gear panel', () => {
   it('the item picker hides effect-only items behind a toggle and marks unmodelled effects and Horde-only items', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
-    fireEvent.click(within(slotRow('trinket1')).getByRole('button', { name: 'Change Trinket 1' }));
+    fireEvent.click(within(card('trinket1')).getByRole('button', { name: 'Change Trinket 1' }));
     expect(optionNames()).not.toContain('The Lightning Capacitor'); // no stats, only an effect
     expect(optionNames()).toContain('Riding Crop'); // effect-only, but worn here: always listed
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: /Show items with only an unmodelled effect/ }));
@@ -206,7 +211,7 @@ describe('Gear panel', () => {
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(within(slotRow('mainHand')).getByRole('button', { name: 'Change Main hand' }));
+    fireEvent.click(within(card('mainHand')).getByRole('button', { name: 'Change Main hand' }));
     fireEvent.change(within(dialog()).getByRole('searchbox', { name: 'Search' }), { target: { value: 'stormcaller' } });
     expect(option('Stormcaller').textContent).toContain('Horde only');
     fireEvent.keyDown(within(dialog()).getByRole('searchbox', { name: 'Search' }), { key: 'Escape' });
@@ -216,7 +221,7 @@ describe('Gear panel', () => {
   it('gems offered by colour; socket bonus line toggles when colours match; meta requirement status', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
-    const hands = () => slotRow('hands');
+    const hands = () => card('hands');
     expect(within(hands()).getByLabelText('Socket bonus').textContent).toMatch(/inactive/i);
     expect(within(gearPanel()).getByLabelText('Meta gem status').textContent).toMatch(/Chaotic Skyfire Diamond.*active/);
     expect(within(gearPanel()).getByLabelText('Meta gem status').textContent).not.toMatch(/inactive/);
@@ -236,39 +241,39 @@ describe('Gear panel', () => {
     expect(within(hands()).getByLabelText('Socket bonus').textContent).not.toMatch(/inactive/i);
 
     // The meta socket offers meta gems only.
-    fireEvent.click(within(slotRow('head')).getByRole('button', { name: /^Head socket 1 \(meta\)/ }));
+    fireEvent.click(within(card('head')).getByRole('button', { name: /^Head socket 1 \(meta\)/ }));
     expect(optionNames().length).toBeGreaterThan(1);
     for (const name of optionNames()) expect(Object.values(db.gems).find((g) => g.name === name)?.color).toBe('meta');
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
 
     // Two blue gems hold the meta's requirement: one purple swapped for a red gem breaks it.
-    fireEvent.click(within(slotRow('shoulder')).getByRole('button', { name: /^Shoulder socket 1 \(blue\)/ }));
+    fireEvent.click(within(card('shoulder')).getByRole('button', { name: /^Shoulder socket 1 \(blue\)/ }));
     fireEvent.click(option('Runed Crimson Spinel'));
     expect(within(gearPanel()).getByLabelText('Meta gem status').textContent).toMatch(/inactive/);
     expect(within(gearPanel()).getByLabelText('Meta gem status').textContent).toMatch(/2 blue/);
 
     // Empty a socket.
-    fireEvent.click(within(slotRow('shoulder')).getByRole('button', { name: /^Shoulder socket 2 \(yellow\)/ }));
+    fireEvent.click(within(card('shoulder')).getByRole('button', { name: /^Shoulder socket 2 \(yellow\)/ }));
     fireEvent.click(within(dialog()).getByRole('button', { name: /No gem/ }));
-    expect(within(slotRow('shoulder')).getByRole('button', { name: /^Shoulder socket 2 \(yellow\): empty/ })).toBeTruthy();
+    expect(within(card('shoulder')).getByRole('button', { name: /^Shoulder socket 2 \(yellow\): empty/ })).toBeTruthy();
   });
 
   it('enchants per slot', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
-    expect(within(slotRow('neck')).queryByRole('button', { name: /enchant/i })).toBeNull(); // necks take none
-    fireEvent.click(within(slotRow('head')).getByRole('button', { name: /^Head enchant: Glyph of Power/ }));
+    expect(within(card('neck')).queryByRole('button', { name: /enchant/i })).toBeNull(); // necks take none
+    fireEvent.click(within(card('head')).getByRole('button', { name: /^Head enchant: Glyph of Power/ }));
     expect(dialog().getAttribute('aria-label')).toBe('Choose Head enchant');
     expect(optionNames()).toContain('Glyph of Power');
     expect(optionNames()).not.toContain('Enchant Chest - Exceptional Stats');
     fireEvent.click(option('Presence of Sight'));
-    expect(slotRow('head').textContent).toContain('Presence of Sight');
+    expect(card('head').textContent).toContain('Presence of Sight');
 
-    fireEvent.click(within(slotRow('finger1')).getByRole('button', { name: /^Finger 1 enchant/ }));
+    fireEvent.click(within(card('finger1')).getByRole('button', { name: /^Finger 1 enchant/ }));
     expect(option('Enchant Ring - Spellpower').textContent).toContain('Enchanting');
     expect(optionNames()).not.toContain('Enchant Ring - Striking'); // no modelled stat
     fireEvent.click(within(dialog()).getByRole('button', { name: /No enchant/ }));
-    expect(within(slotRow('finger1')).getByRole('button', { name: /^Finger 1 enchant: none/ })).toBeTruthy();
+    expect(within(card('finger1')).getByRole('button', { name: /^Finger 1 enchant: none/ })).toBeTruthy();
   });
 
   it("import: paste the author's sample -> report and apply; unknown ids listed; invalid text -> error message, no change", async () => {
@@ -276,7 +281,7 @@ describe('Gear panel', () => {
     render(<GameView storage={storage} loadDb={loadDb} />);
     await openGear();
     fireEvent.click(presetButton('T6'));
-    fireEvent.click(within(gearPanel()).getByText('Import', { selector: 'summary' }));
+    fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Import Gear…' }));
     const text = within(gearPanel()).getByRole('textbox', { name: 'Import text' });
     const apply = () => within(gearPanel()).getByRole('button', { name: 'Apply import' }) as HTMLButtonElement;
     const report = () => within(gearPanel()).getByRole('region', { name: 'Import report' });
@@ -309,7 +314,7 @@ describe('Gear panel', () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
     fireEvent.click(presetButton('T4'));
-    fireEvent.click(within(gearPanel()).getByText('Export', { selector: 'summary' }));
+    fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Export Gear' }));
     const out = within(gearPanel()).getByRole('textbox', { name: 'Export text' }) as HTMLTextAreaElement;
     expect(out.readOnly).toBe(true);
     for (const e of T4.gear) if (e) expect(out.value).toContain(`"id": ${e.id}`);
@@ -338,17 +343,18 @@ describe('Gear panel', () => {
   it('typing in the search/import fields never triggers hotkeys (Z, R, digits)', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
-    fireEvent.click(within(gearPanel()).getByText('Import', { selector: 'summary' }));
-    fireEvent.click(within(gearPanel()).getByText('Export', { selector: 'summary' }));
-    const fields = [
-      within(gearPanel()).getByRole('textbox', { name: 'Import text' }),
-      within(gearPanel()).getByRole('textbox', { name: 'Export text' }),
-    ];
-    for (const field of fields) {
-      for (const key of ['1', '5', 'z', 'Z', 'r', 'R', ' ']) fireEvent.keyDown(field, { key });
+    // Import and Export are dialogs: one at a time.
+    for (const [open, field] of [
+      ['Import Gear…', 'Import text'],
+      ['Export Gear', 'Export text'],
+    ] as const) {
+      fireEvent.click(within(gearPanel()).getByRole('button', { name: open }));
+      const box = within(gearPanel()).getByRole('textbox', { name: field });
+      for (const key of ['1', '5', 'z', 'Z', 'r', 'R', ' ']) fireEvent.keyDown(box, { key });
+      fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
     }
     expect(startOverlay()).not.toBeNull();
-    fireEvent.click(within(slotRow('head')).getByRole('button', { name: 'Change Head' }));
+    fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     const search = within(dialog()).getByRole('searchbox', { name: 'Search' });
     for (const key of ['1', '2', 'z', 'x', 'r', 'R', ' ']) fireEvent.keyDown(search, { key });
     fireEvent.keyDown(within(dialog()).getByRole('combobox', { name: 'Phase' }), { key: '1' });
@@ -465,7 +471,7 @@ describe('Gear panel', () => {
   it('keys pressed inside the open picker never reach the fight; Escape still closes it', async () => {
     render(<GameView storage={null} loadDb={loadDb} />);
     await openGear();
-    fireEvent.click(within(slotRow('head')).getByRole('button', { name: 'Change Head' }));
+    fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     const voidheart = option('Voidheart Crown');
     voidheart.focus();
     for (const key of ['1', 'z', 'Z', 'r', ' ', 'Enter', '=']) {
@@ -477,7 +483,7 @@ describe('Gear panel', () => {
     press('1'); // outside the picker the hotkeys work
     advance(500);
     expect(castBar()?.textContent).toContain('Shadow Bolt');
-    fireEvent.click(within(slotRow('head')).getByRole('button', { name: 'Change Head' }));
+    fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     const closeButton = within(dialog()).getByRole('button', { name: 'Close' });
     for (const key of ['r', 'R', '2', 'x']) {
       fireEvent.keyDown(closeButton, { key });

@@ -75,27 +75,7 @@ export const TalentsPanel = memo(function TalentsPanel({
   defaultTalents = destructionTalentString,
 }: TalentsPanelProps) {
   const [open, setOpen] = useState(false);
-  const [descriptions, setDescriptions] = useState<DescriptionState>({ status: 'idle' });
-  const requested = useRef(false);
-
-  const requestDescriptions = useCallback(() => {
-    if (requested.current) return;
-    requested.current = true;
-    setDescriptions({ status: 'loading' });
-    let pendingLoad: Promise<TalentDescriptions>;
-    try {
-      pendingLoad = loadDescriptions();
-    } catch (error) {
-      pendingLoad = Promise.reject(error);
-    }
-    pendingLoad.then(
-      (data) => setDescriptions({ status: 'ready', data }),
-      () => {
-        requested.current = false; // a failed load is not cached: Try again asks once more
-        setDescriptions({ status: 'error' });
-      },
-    );
-  }, [loadDescriptions]);
+  const [descriptions, requestDescriptions] = useTalentDescriptions(loadDescriptions);
 
   useEffect(() => {
     if (open) requestDescriptions();
@@ -122,6 +102,68 @@ export const TalentsPanel = memo(function TalentsPanel({
     </details>
   );
 });
+
+/** The rank descriptions: loaded once when first asked for (a failed load is not cached: Try again asks once more). */
+function useTalentDescriptions(loadDescriptions: () => Promise<TalentDescriptions>): [DescriptionState, () => void] {
+  const [descriptions, setDescriptions] = useState<DescriptionState>({ status: 'idle' });
+  const requested = useRef(false);
+  const requestDescriptions = useCallback(() => {
+    if (requested.current) return;
+    requested.current = true;
+    setDescriptions({ status: 'loading' });
+    let pendingLoad: Promise<TalentDescriptions>;
+    try {
+      pendingLoad = loadDescriptions();
+    } catch (error) {
+      pendingLoad = Promise.reject(error);
+    }
+    pendingLoad.then(
+      (data) => setDescriptions({ status: 'ready', data }),
+      () => {
+        requested.current = false;
+        setDescriptions({ status: 'error' });
+      },
+    );
+  }, [loadDescriptions]);
+  return [descriptions, requestDescriptions];
+}
+
+/**
+ * The Talents editor without the panel's `<details>` (the Setup screen's Talents section): the same
+ * body as the legacy panel; the rank descriptions load when it mounts. The three trees sit side by
+ * side from 1280 px (setup.css).
+ */
+export function TalentsEditor({
+  talents,
+  presets,
+  onChange,
+  disabled = false,
+  pending = false,
+  fightEnded = false,
+  warnings = [],
+  loadDescriptions = loadTalentDescriptions,
+  defaultTalents = destructionTalentString,
+}: TalentsPanelProps) {
+  const [descriptions, requestDescriptions] = useTalentDescriptions(loadDescriptions);
+  useEffect(() => {
+    requestDescriptions();
+  }, [requestDescriptions]);
+  return (
+    <fieldset className="setup-fields talents-editor" disabled={disabled}>
+      <TalentsBody
+        talents={talents}
+        presets={presets}
+        onChange={onChange}
+        pending={pending}
+        fightEnded={fightEnded}
+        warnings={warnings}
+        descriptions={descriptions}
+        onRetry={requestDescriptions}
+        defaultTalents={defaultTalents}
+      />
+    </fieldset>
+  );
+}
 
 interface BodyProps {
   talents: string;
@@ -243,29 +285,31 @@ function TalentsBody({ talents, presets, onChange, pending, fightEnded, warnings
         )}
       </div>
 
-      {TALENT_TREE.trees.map((tree, t) => (
-        <section key={tree.name} className="talent-tree" role="group" aria-label={`${tree.name} tree`}>
-          <h4 className="talent-tree-title">
-            {tree.name} <span className="talent-tree-points">{points[t]}</span>
-          </h4>
-          <div className="talent-grid">
-            {tree.talents.map((d) => (d.prereq ? <PrereqArrow key={`arrow-${d.id}`} def={d} ranks={ranks} /> : null))}
-            {tree.talents.map((d) => (
-              <TalentButton
-                key={d.id}
-                view={views.get(d.id)!}
-                selected={selected === d.id}
-                onSelect={() => setSelected(d.id)}
-                onAdd={() => add(d.id)}
-                onRemove={() => remove(d.id)}
-              />
-            ))}
-          </div>
-          {selectedView && selectedView.def.tree === t && (
-            <TalentCard view={selectedView} descriptions={descriptions} onRetry={onRetry} onAdd={add} onRemove={remove} />
-          )}
-        </section>
-      ))}
+      <div className="talent-trees">
+        {TALENT_TREE.trees.map((tree, t) => (
+          <section key={tree.name} className="talent-tree" role="group" aria-label={`${tree.name} tree`}>
+            <h4 className="talent-tree-title">
+              {tree.name} <span className="talent-tree-points">{points[t]}</span>
+            </h4>
+            <div className="talent-grid">
+              {tree.talents.map((d) => (d.prereq ? <PrereqArrow key={`arrow-${d.id}`} def={d} ranks={ranks} /> : null))}
+              {tree.talents.map((d) => (
+                <TalentButton
+                  key={d.id}
+                  view={views.get(d.id)!}
+                  selected={selected === d.id}
+                  onSelect={() => setSelected(d.id)}
+                  onAdd={() => add(d.id)}
+                  onRemove={() => remove(d.id)}
+                />
+              ))}
+            </div>
+            {selectedView && selectedView.def.tree === t && (
+              <TalentCard view={selectedView} descriptions={descriptions} onRetry={onRetry} onAdd={add} onRemove={remove} />
+            )}
+          </section>
+        ))}
+      </div>
       {!selectedView && <p className="hint">Point at a talent (or focus it) for its description.</p>}
 
       <TalentImport presets={presets} onApply={choose} />

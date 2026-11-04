@@ -98,6 +98,18 @@ export interface CombatTextSettingsProps {
  * and the select (ruling S5, GameView's guard).
  */
 export const CombatTextSettings = memo(function CombatTextSettings({ settings, onChange }: CombatTextSettingsProps) {
+  return (
+    <LazyDetails className="panel setup hud-settings" summary="Combat text">
+      <CombatTextForm settings={settings} onChange={onChange} />
+    </LazyDetails>
+  );
+});
+
+/**
+ * The combat text settings without the panel's `<details>` (the Setup screen's Combat text section
+ * and the legacy panel's body).
+ */
+export const CombatTextForm = memo(function CombatTextForm({ settings, onChange }: CombatTextSettingsProps) {
   const id = useId();
   const emit = (edit: Partial<HudSettings>) => onChange(normalizeHudSettings({ ...settings, ...edit }));
   const check = (key: BooleanKey, label: string) => (
@@ -107,48 +119,46 @@ export const CombatTextSettings = memo(function CombatTextSettings({ settings, o
     </label>
   );
   return (
-    <LazyDetails className="panel setup hud-settings" summary="Combat text">
-      <div className="setup-fields">
-        <div className="setup-checks">{check('enabled', 'Show combat text')}</div>
-        <fieldset className="hud-settings-group">
-          <legend>Texts</legend>
-          <div className="setup-checks">{CATEGORIES.map(([key, label]) => check(key, label))}</div>
-        </fieldset>
-        <div className="setup-row">
-          <label htmlFor={`${id}-animation`}>Animation</label>
-          <select
-            id={`${id}-animation`}
-            value={settings.animation}
-            onChange={(e) => emit({ animation: e.target.value as HudAnimation })}
-          >
-            {ANIMATIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {NUMBERS.map(([key, label]) => (
-          <div className="setup-row" key={key}>
-            <label htmlFor={`${id}-${key}`}>{label}</label>
-            <HudNumberField id={`${id}-${key}`} setting={key} value={settings[key]} onValue={(v) => emit({ [key]: v })} />
-          </div>
-        ))}
-        <div className="setup-checks">{LOOKS.map(([key, label]) => check(key, label))}</div>
-        <div className="setup-preset-buttons">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.currentTarget.blur(); // keep Space/R for the fight
-              onChange(normalizeHudSettings(DEFAULT_HUD_SETTINGS));
-            }}
-          >
-            Reset combat text to defaults
-          </button>
-        </div>
-        <p className="hint">Floating combat text over the fight. It only shows what happens: the fight and its results are the same with it on or off. Saved in this browser.</p>
+    <div className="setup-fields">
+      <div className="setup-checks">{check('enabled', 'Show combat text')}</div>
+      <fieldset className="hud-settings-group">
+        <legend>Texts</legend>
+        <div className="setup-checks">{CATEGORIES.map(([key, label]) => check(key, label))}</div>
+      </fieldset>
+      <div className="setup-row">
+        <label htmlFor={`${id}-animation`}>Animation</label>
+        <select
+          id={`${id}-animation`}
+          value={settings.animation}
+          onChange={(e) => emit({ animation: e.target.value as HudAnimation })}
+        >
+          {ANIMATIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
-    </LazyDetails>
+      {NUMBERS.map(([key, label]) => (
+        <div className="setup-row" key={key}>
+          <label htmlFor={`${id}-${key}`}>{label}</label>
+          <HudNumberField id={`${id}-${key}`} setting={key} value={settings[key]} onValue={(v) => emit({ [key]: v })} />
+        </div>
+      ))}
+      <div className="setup-checks">{LOOKS.map(([key, label]) => check(key, label))}</div>
+      <div className="setup-preset-buttons">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.currentTarget.blur(); // keep Space/R for the fight
+            onChange(normalizeHudSettings(DEFAULT_HUD_SETTINGS));
+          }}
+        >
+          Reset combat text to defaults
+        </button>
+      </div>
+      <p className="hint">Floating combat text over the fight. It only shows what happens: the fight and its results are the same with it on or off. Saved in this browser.</p>
+    </div>
   );
 });
 

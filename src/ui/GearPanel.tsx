@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 import type { GearPreset } from '../data/classes/warlock/gearPresets';
 import { ITEM_SLOTS, itemsForSlot, logicalSlot } from '../data/items/db';
 import type { ItemDb, ItemRecord } from '../data/items/types';
@@ -27,6 +27,7 @@ import {
 } from './gearView';
 import { ItemPicker, type PickerOption } from './ItemPicker';
 import { SpellIcon } from './SpellIcon';
+import { Modal } from './setup/Modal';
 
 /** The name shown when the gear matches no preset. */
 export const CUSTOM_GEAR_NAME = 'Custom';
@@ -118,43 +119,59 @@ function GearIcon({ icon, name }: { icon?: string; name: string }) {
   );
 }
 
-/** A collapsible sub-section of the panel. */
-function Section({ title, children, open }: { title: string; children: ReactNode; open?: boolean }) {
+/**
+ * The collapsed "Gear" panel of the legacy layout (until the redesign's Task 5): the Gear editor
+ * (`GearEditor`) and its Import and Export (`GearIoActions`) in a `<details>`. Opening it asks for
+ * the item database (`onOpen`).
+ */
+export function GearPanel({ disabled = false, onOpen, ...props }: GearPanelProps) {
+  const active = useMemo(() => matchingPreset(props.gear, props.presets), [props.gear, props.presets]);
   return (
-    <details className="setup-group" open={open}>
-      <summary>{title}</summary>
-      <div className="setup-group-body">{children}</div>
+    <details
+      className="panel gear setup"
+      onToggle={(e) => {
+        if ((e.currentTarget as HTMLDetailsElement).open) onOpen?.();
+      }}
+    >
+      <summary>
+        Gear <span className="gear-summary-name">{active?.name ?? CUSTOM_GEAR_NAME}</span>
+      </summary>
+      <fieldset className="setup-fields" disabled={disabled}>
+        <GearEditor {...props} />
+        {props.db !== null && <GearIoActions gear={props.gear} db={props.db} onApply={(g) => props.onChange(g)} />}
+      </fieldset>
     </details>
   );
 }
 
+export type GearEditorProps = Omit<GearPanelProps, 'disabled' | 'onOpen'>;
+
 /**
- * The collapsed "Gear" panel: the gear presets (the pressed one matches the gear exactly, else
- * "Custom") with the active preset's note, the 17 slots (icon, item, stats, sockets with their gem,
- * the socket bonus, the enchant; Change and Clear), the meta gem status, notes about what is not
- * modelled (effects, set bonuses, faction, professions, the setup's item buffs), and Import and
- * Export in the wowsims formats. Fully controlled: every edit goes through `normalizeGear` and an
- * edit `normalizeGear` would undo (a second unique item or gem, an off hand next to a staff) is
- * refused with a message. Opening it asks for the item database (`onOpen`); until it has loaded
- * the panel shows a loading state (or the error and "Reload the page").
+ * The Gear editor (the Setup screen's Gear section and the legacy panel's body): the gear presets
+ * (the pressed one matches the gear exactly, else "Custom") with the active preset's note, the 17
+ * slots as a character pane (left and right columns, the weapons under them) around the selected
+ * slot's item card (stats, sockets with their gem, the socket bonus, the enchant, the set; Change
+ * and Clear), the meta gem status and notes about what is not modelled. Fully controlled: every
+ * edit goes through `normalizeGear` and an edit `normalizeGear` would undo (a second unique item or
+ * gem, an off hand next to a staff) is refused with a message. Until the item database has loaded
+ * it shows a loading state (or the error and "Reload the page").
  */
-export function GearPanel({
+export function GearEditor({
   gear,
   presets,
   db,
   onChange,
-  disabled = false,
   status = db ? 'ready' : 'idle',
-  onOpen,
   onReload,
   pending = false,
   fightEnded = false,
   warnings = [],
   hints = [],
-}: GearPanelProps) {
+}: GearEditorProps) {
   const [picker, setPicker] = useState<Picker | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [selected, setSelected] = useState(0);
   const opener = useRef<HTMLElement | null>(null);
   const active = useMemo(() => matchingPreset(gear, presets), [gear, presets]);
 
@@ -169,56 +186,51 @@ export function GearPanel({
     opener.current?.focus();
   };
 
+  if (db === null) {
+    if (status === 'error') {
+      return (
+        <div className="gear-error" role="alert">
+          <p>
+            Could not load the item database. The fight uses the default gear (My gear). Reload the page to try again: the setup is
+            saved.
+          </p>
+          <button type="button" className="btn" onClick={onReload}>
+            Reload the page
+          </button>
+        </div>
+      );
+    }
+    return status === 'loading' ? (
+      <p className="hint" role="status">
+        Loading the item database…
+      </p>
+    ) : (
+      <p className="hint">The item database loads when the panel opens.</p>
+    );
+  }
+
   return (
-    <details
-      className="panel gear setup"
-      onToggle={(e) => {
-        if ((e.currentTarget as HTMLDetailsElement).open) onOpen?.();
-      }}
-    >
-      <summary>
-        Gear <span className="gear-summary-name">{active?.name ?? CUSTOM_GEAR_NAME}</span>
-      </summary>
-      <fieldset className="setup-fields" disabled={disabled}>
-        {db === null ? (
-          status === 'error' ? (
-            <div className="gear-error" role="alert">
-              <p>
-                Could not load the item database. The fight uses the default gear (My gear). Reload the page to try again: the
-                setup is saved.
-              </p>
-              <button type="button" onClick={onReload}>
-                Reload the page
-              </button>
-            </div>
-          ) : status === 'loading' ? (
-            <p className="hint" role="status">
-              Loading the item database…
-            </p>
-          ) : (
-            <p className="hint">The item database loads when the panel opens.</p>
-          )
-        ) : (
-          <GearBody
-            gear={gear}
-            presets={presets}
-            db={db}
-            active={active}
-            onChange={(g, presetId) => {
-              setNote(null);
-              onChange(g, presetId);
-            }}
-            note={note}
-            setNote={setNote}
-            pending={pending}
-            fightEnded={fightEnded}
-            warnings={warnings}
-            hints={hints}
-            openPicker={openPicker}
-          />
-        )}
-      </fieldset>
-      {db !== null && picker !== null && (
+    <>
+      <GearBody
+        gear={gear}
+        presets={presets}
+        db={db}
+        active={active}
+        selected={selected}
+        onSelect={setSelected}
+        onChange={(g, presetId) => {
+          setNote(null);
+          onChange(g, presetId);
+        }}
+        note={note}
+        setNote={setNote}
+        pending={pending}
+        fightEnded={fightEnded}
+        warnings={warnings}
+        hints={hints}
+        openPicker={openPicker}
+      />
+      {picker !== null && (
         <PickerFor
           picker={picker}
           gear={gear}
@@ -239,7 +251,7 @@ export function GearPanel({
           }}
         />
       )}
-    </details>
+    </>
   );
 }
 
@@ -248,6 +260,8 @@ interface BodyProps {
   presets: readonly GearPreset[];
   db: ItemDb;
   active: GearPreset | undefined;
+  selected: number;
+  onSelect(slot: number): void;
   onChange(gear: Gear, presetId?: string): void;
   note: string | null;
   setNote(note: string | null): void;
@@ -258,7 +272,29 @@ interface BodyProps {
   openPicker(p: Picker, el: HTMLElement): void;
 }
 
-function GearBody({ gear, presets, db, active, onChange, note, setNote, pending, fightEnded, warnings, hints, openPicker }: BodyProps) {
+/** Where a slot sits in the character pane: the left column (head to hands), the right one (waist to trinkets), the weapons row. */
+function paneOf(index: number): { col: 'left' | 'right' | 'weapon'; row: number } {
+  if (index < 7) return { col: 'left', row: index + 1 };
+  if (index < 14) return { col: 'right', row: index - 6 };
+  return { col: 'weapon', row: 8 };
+}
+
+function GearBody({
+  gear,
+  presets,
+  db,
+  active,
+  selected,
+  onSelect,
+  onChange,
+  note,
+  setNote,
+  pending,
+  fightEnded,
+  warnings,
+  hints,
+  openPicker,
+}: BodyProps) {
   const description = useMemo(() => describeGear(gear, db), [gear, db]);
   const meta = useMemo(() => metaStatus(gear, db), [gear, db]);
   const professions = useMemo(() => professionNotes(gear, db), [gear, db]);
@@ -271,65 +307,83 @@ function GearBody({ gear, presets, db, active, onChange, note, setNote, pending,
     change(g);
     onChange(normalizeGear(g, db));
   };
+  const selectedSlot = ITEM_SLOTS[selected]!;
 
   return (
     <>
-      <div className="setup-presets">
+      <div className="setup-presets gear-presets">
+        <div className="field-row">
+          <span className="lab" aria-hidden="true">
+            Preset
+          </span>
+          <div className="setup-preset-buttons seg" role="group" aria-label="Gear presets">
+            {presets.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                title={`Phase ${p.phase}. ${p.note ?? p.source} Item effects: ${presetEffects.get(p.id) ?? 'none'}.`}
+                aria-pressed={active?.id === p.id}
+                onClick={(e) => {
+                  e.currentTarget.blur(); // keep Space/R for the fight
+                  onChange(normalizeGear(p.gear, db), p.id); // a fresh copy: presets are frozen
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
         <p className="setup-active">
           Preset:{' '}
           <span role="note" aria-label="Active gear preset" className="setup-active-name">
             {active?.name ?? CUSTOM_GEAR_NAME}
           </span>
+          {active?.note && <span className="hint setup-preset-description"> {active.note}</span>}
         </p>
-        {active?.note && <p className="hint setup-preset-description">{active.note}</p>}
         <p className="hint gear-effects-line">
           Item effects: {wornEffects}
-          {wornEffects !== 'none' && ' (Setup, Items and cooldowns)'}.
+          {wornEffects !== 'none' && ' (Setup, Items and cooldowns)'}. Presets set only the gear; the Setup presets keep it.
         </p>
-        <div className="setup-preset-buttons" role="group" aria-label="Gear presets">
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              title={`Phase ${p.phase}. ${p.note ?? p.source} Item effects: ${presetEffects.get(p.id) ?? 'none'}.`}
-              aria-pressed={active?.id === p.id}
-              onClick={(e) => {
-                e.currentTarget.blur(); // keep Space/R for the fight
-                onChange(normalizeGear(p.gear, db), p.id); // a fresh copy: presets are frozen
-              }}
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
-        <p className="hint">Presets set only the gear. The Setup presets keep it; Reset to defaults there restores My gear.</p>
         {pending && (
           <p className="setup-pending">
             The {fightEnded ? 'finished' : 'running'} fight keeps its gear and item effects: the new gear applies from the next fight (press
             R).
           </p>
         )}
-        {note && <p className="gear-note" role="status">{note}</p>}
+        {note && (
+          <p className="gear-note" role="status">
+            {note}
+          </p>
+        )}
       </div>
 
-      <ol className="gear-slots" aria-label="Equipped items">
-        {ITEM_SLOTS.map((slot, i) => (
-          <SlotRow
-            key={slot}
-            index={i}
-            entry={gear[i] ?? null}
-            db={db}
-            bonus={description.socketBonuses.find((b) => b.slot === slot)}
-            openPicker={openPicker}
-            onClear={() => {
-              setNote(null);
-              edit((g) => {
-                g[i] = null;
-              });
-            }}
-          />
-        ))}
-      </ol>
+      <div className="paperdoll">
+        <ol className="paperdoll-slots" aria-label="Equipped items">
+          {ITEM_SLOTS.map((slot, i) => (
+            <SlotButton
+              key={slot}
+              index={i}
+              entry={gear[i] ?? null}
+              db={db}
+              selected={i === selected}
+              onSelect={() => onSelect(i)}
+            />
+          ))}
+        </ol>
+        <ItemCard
+          index={selected}
+          entry={gear[selected] ?? null}
+          db={db}
+          bonus={description.socketBonuses.find((b) => b.slot === selectedSlot)}
+          openPicker={openPicker}
+          onClear={() => {
+            setNote(null);
+            edit((g) => {
+              g[selected] = null;
+            });
+          }}
+        />
+      </div>
 
       {meta && (
         <p className={meta.active ? 'gear-meta' : 'gear-meta gear-meta-off'} aria-label="Meta gem status">
@@ -353,18 +407,61 @@ function GearBody({ gear, presets, db, active, onChange, note, setNote, pending,
           ))}
         </div>
       )}
-
-      <ImportSection db={db} onApply={(g) => onChange(g)} />
-      <ExportSection gear={gear} />
       <p className="hint">
-        Saved with the setup. A gear change applies to a fight that has not started; a running fight keeps its gear until you
-        press <kbd>R</kbd>.
+        Saved with the setup. A gear change applies to a fight that has not started; a running fight keeps its gear until you press{' '}
+        <kbd>R</kbd>.
       </p>
     </>
   );
 }
 
-interface SlotRowProps {
+/** The gem colours of an entry's sockets, as small dots (decoration; the item card names them). */
+function GemDots({ item, entry, db }: { item: ItemRecord; entry: EquippedItem | null; db: ItemDb }) {
+  if (!item.sockets?.length) return null;
+  return (
+    <span className="gems" aria-hidden="true">
+      {item.sockets.map((socket, s) => {
+        const gemId = entry?.gems?.[s] ?? 0;
+        const gem = gemId !== 0 && Object.hasOwn(db.gems, gemId) ? db.gems[gemId] : undefined;
+        return <span key={s} className={gem ? `gem gem-${gem.color}` : `gem gem-empty socket-${socket}`} />;
+      })}
+    </span>
+  );
+}
+
+interface SlotButtonProps {
+  index: number;
+  entry: EquippedItem | null;
+  db: ItemDb;
+  selected: boolean;
+  onSelect(): void;
+}
+
+/** One slot of the character pane: icon, slot name, item name (2 lines at most), stats and gem dots; selects the slot. */
+function SlotButton({ index, entry, db, selected, onSelect }: SlotButtonProps) {
+  const slot = ITEM_SLOTS[index]!;
+  const label = slotLabel(index);
+  const item = recordOf(db, entry);
+  const pane = paneOf(index);
+  const name = item ? item.name : entry ? `Unknown item ${entry.id}` : 'Empty, choose an item';
+  return (
+    <li className={`pd-slot pd-${pane.col}`} data-slot={slot} style={{ '--row': pane.row } as CSSProperties}>
+      <button type="button" className={entry ? 'pd-button' : 'pd-button pd-empty'} aria-current={selected ? true : undefined} onClick={onSelect}>
+        <GearIcon icon={item?.icon} name={item?.name ?? label} />
+        <span className="pd-text">
+          <span className="sl">{label}</span>
+          <span className="nm" title={item?.effects?.join('\n')}>
+            {name}
+          </span>
+          {item && <span className="st">{statsText(item.stats) || 'No modelled stats'}</span>}
+          {item && <GemDots item={item} entry={entry} db={db} />}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+interface ItemCardProps {
   index: number;
   entry: EquippedItem | null;
   db: ItemDb;
@@ -373,74 +470,102 @@ interface SlotRowProps {
   onClear(): void;
 }
 
-function SlotRow({ index, entry, db, bonus, openPicker, onClear }: SlotRowProps) {
-  const slot = ITEM_SLOTS[index]!;
+/** The selected slot's item: name, stats, markers, sockets (each opens its gem list), socket bonus, enchant, set, effects; Change and Clear. */
+function ItemCard({ index, entry, db, bonus, openPicker, onClear }: ItemCardProps) {
   const label = slotLabel(index);
   const item = recordOf(db, entry);
   const enchant =
     entry?.enchant !== undefined && Object.hasOwn(db.enchants, entry.enchant) ? db.enchants[entry.enchant] : undefined;
   const markers = item ? itemMarkers(item) : [];
+  const stats = item ? statsText(item.stats) : '';
   return (
-    <li className="gear-slot" data-slot={slot}>
-      <span className="gear-slot-label">{label}</span>
-      <GearIcon icon={item?.icon} name={item?.name ?? label} />
-      <div className="gear-slot-body">
-        <div className="gear-item-name" title={item?.effects?.join('\n')}>
-          {item ? item.name : entry ? `Unknown item ${entry.id}` : 'Empty'}
+    <section className="item-card" aria-label="Selected item" data-card-slot={ITEM_SLOTS[index]}>
+      <p className="slot-name">
+        {label}
+        {item ? `, phase ${item.phase}` : ''}
+      </p>
+      <div className="item-card-title">
+        <GearIcon icon={item?.icon} name={item?.name ?? label} />
+        <h2>{item ? item.name : entry ? `Unknown item ${entry.id}` : 'Empty'}</h2>
+      </div>
+      {!entry && <p className="hint">Empty, choose an item.</p>}
+      {markers.length > 0 && (
+        <p className="item-card-markers">
           {markers.map((m) => (
             <span key={m} className="marker">
               {m}
             </span>
           ))}
-        </div>
-        {item && <div className="gear-item-stats">{statsText(item.stats) || 'No modelled stats'}</div>}
-        {item && (item.sockets?.length ?? 0) > 0 && (
-          <div className="gear-sockets">
-            {item.sockets!.map((socket, s) => {
-              const gemId = entry?.gems?.[s] ?? 0;
-              const gem = gemId !== 0 && Object.hasOwn(db.gems, gemId) ? db.gems[gemId] : undefined;
-              return (
+        </p>
+      )}
+      {item && (
+        <ul className="item-card-stats">
+          {stats === '' ? <li>No modelled stats</li> : stats.split(', ').map((s) => <li key={s}>{s}</li>)}
+        </ul>
+      )}
+      {item && (item.sockets?.length ?? 0) > 0 && (
+        <ul className="item-card-sockets">
+          {item.sockets!.map((socket, s) => {
+            const gemId = entry?.gems?.[s] ?? 0;
+            const gem = gemId !== 0 && Object.hasOwn(db.gems, gemId) ? db.gems[gemId] : undefined;
+            return (
+              <li key={s}>
                 <button
-                  key={s}
                   type="button"
-                  className={`gem-pip socket-${socket}`}
+                  className={`socket socket-${socket}`}
                   aria-label={`${label} socket ${s + 1} (${socket}): ${gem ? `${gem.name}, ${statsText(gem.stats) || 'no modelled stats'}` : 'empty'}`}
                   title={gem ? `${gem.name} (${gem.color}) ${statsText(gem.stats)}` : `Empty ${socket} socket`}
                   onClick={(e) => openPicker({ kind: 'gem', slot: index, socket: s }, e.currentTarget)}
                 >
-                  {gem && <SpellIcon kind="item" icon={gem.icon} className="gem-pip-image" />}
+                  <span className={`gem-pip socket-${socket}`} aria-hidden="true">
+                    {gem && <SpellIcon kind="item" icon={gem.icon} className="gem-pip-image" />}
+                  </span>
+                  <span>{gem ? gem.name : `Empty ${socket} socket`}</span>
                 </button>
-              );
-            })}
-            {bonus && (
-              <span className={bonus.active ? 'gear-socket-bonus' : 'gear-socket-bonus gear-socket-bonus-off'} aria-label="Socket bonus">
-                Bonus {statsText(item.socketBonus)}: {bonus.active ? 'active' : 'inactive (colours do not match)'}
-              </span>
-            )}
-          </div>
-        )}
-        {item && anyEnchantFits(item, db) && (
-          <button
-            type="button"
-            className="gear-enchant"
-            aria-label={`${label} enchant: ${enchant ? enchant.name : 'none'}`}
-            onClick={(e) => openPicker({ kind: 'enchant', slot: index }, e.currentTarget)}
-          >
-            {enchant ? `${enchant.name}${statsText(enchant.stats) ? ` (${statsText(enchant.stats)})` : ''}` : 'No enchant'}
-          </button>
-        )}
-      </div>
-      <div className="gear-slot-actions">
-        <button type="button" aria-label={`Change ${label}`} onClick={(e) => openPicker({ kind: 'item', slot: index }, e.currentTarget)}>
-          Change
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {item && bonus && (
+        <p className={bonus.active ? 'gear-socket-bonus' : 'gear-socket-bonus gear-socket-bonus-off'} aria-label="Socket bonus">
+          Socket bonus {statsText(item.socketBonus)}: {bonus.active ? 'active' : 'inactive (colours do not match)'}
+        </p>
+      )}
+      {item && anyEnchantFits(item, db) && (
+        <button
+          type="button"
+          className="gear-enchant"
+          aria-label={`${label} enchant: ${enchant ? enchant.name : 'none'}`}
+          onClick={(e) => openPicker({ kind: 'enchant', slot: index }, e.currentTarget)}
+        >
+          Enchant: {enchant ? `${enchant.name}${statsText(enchant.stats) ? ` (${statsText(enchant.stats)})` : ''}` : 'none'}
+        </button>
+      )}
+      {item?.setName && <p className="set">{item.setName}</p>}
+      {item?.effects && item.effects.length > 0 && (
+        <ul className="item-card-effects">
+          {item.effects.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+      <div className="actions">
+        <button
+          type="button"
+          className="btn small"
+          aria-label={`Change ${label}`}
+          onClick={(e) => openPicker({ kind: 'item', slot: index }, e.currentTarget)}
+        >
+          Change {label}…
         </button>
         {entry && (
-          <button type="button" aria-label={`Clear ${label}`} onClick={onClear}>
-            Clear
+          <button type="button" className="btn small" aria-label={`Clear ${label}`} onClick={onClear}>
+            Clear {label}
           </button>
         )}
       </div>
-    </li>
+    </section>
   );
 }
 
@@ -575,8 +700,37 @@ function PickerFor({ picker, gear, db, message, onClose, commit }: PickerForProp
   );
 }
 
+/**
+ * The gear's "Import Gear…" and "Export Gear" buttons, each opening its dialog (the Gear section's
+ * header; the legacy panel's foot).
+ */
+export function GearIoActions({ gear, db, onApply }: { gear: readonly (EquippedItem | null)[]; db: ItemDb; onApply(gear: Gear): void }) {
+  const [open, setOpen] = useState<'import' | 'export' | null>(null);
+  const close = () => setOpen(null);
+  return (
+    <div className="gear-io">
+      <button type="button" className="btn" onClick={() => setOpen('import')}>
+        Import Gear…
+      </button>
+      <button type="button" className="btn" onClick={() => setOpen('export')}>
+        Export Gear
+      </button>
+      {open === 'import' && (
+        <Modal title="Import Gear" onClose={close} className="gear-io-dialog">
+          <ImportBody db={db} onApply={onApply} />
+        </Modal>
+      )}
+      {open === 'export' && (
+        <Modal title="Export Gear" onClose={close} className="gear-io-dialog">
+          <ExportBody gear={gear} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 /** Import: paste, read the report (warnings and unknown ids before anything changes), Apply. */
-function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void }) {
+function ImportBody({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void }) {
   const [text, setText] = useState('');
   const [done, setDone] = useState<string | null>(null);
   const result = useMemo(() => (text.trim() === '' ? null : parseWowSimsExport(text, db)), [text, db]);
@@ -589,7 +743,7 @@ function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void 
       ] as const).filter(([, ids]) => ids.length > 0)
     : [];
   return (
-    <Section title="Import">
+    <div className="gear-io-body">
       <p className="hint">
         Paste a WowSimsExporter export (in game: /wse export, then Ctrl+C) or a wowsims gear file. Only the gear is applied; the
         trainer's character stays a level 70 Gnome.
@@ -597,7 +751,7 @@ function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void 
       <textarea
         className="gear-textarea"
         aria-label="Import text"
-        rows={4}
+        rows={6}
         spellCheck={false}
         value={text}
         onChange={(e) => {
@@ -634,9 +788,9 @@ function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void 
       )}
       <button
         type="button"
+        className="btn primary"
         disabled={!result?.ok}
-        onClick={(e) => {
-          e.currentTarget.blur();
+        onClick={() => {
           if (!result?.ok) return;
           onApply(normalizeGear(result.gear, db));
           setDone(`Imported: ${placed} of ${ITEM_SLOTS.length} slots filled.`);
@@ -646,12 +800,12 @@ function ImportSection({ db, onApply }: { db: ItemDb; onApply(gear: Gear): void 
         Apply import
       </button>
       {done && <p role="status">{done}</p>}
-    </Section>
+    </div>
   );
 }
 
 /** Export: the gear as a wowsims gear file, with Copy (clipboard, or the text selected). */
-function ExportSection({ gear }: { gear: readonly (EquippedItem | null)[] }) {
+function ExportBody({ gear }: { gear: readonly (EquippedItem | null)[] }) {
   const text = useMemo(() => exportWowSimsGear(gear), [gear]);
   // The status goes with the text it was about: a changed gear (a new text) clears it.
   const [copied, setCopiedFor] = useState<{ text: string; message: string } | null>(null);
@@ -676,11 +830,12 @@ function ExportSection({ gear }: { gear: readonly (EquippedItem | null)[] }) {
     setCopied(ok ? 'Copied.' : 'The text is selected: press Ctrl+C (Cmd+C) to copy it.');
   };
   return (
-    <Section title="Export">
+    <div className="gear-io-body">
       <p className="hint">The gear as a wowsims gear file (items by id; WowSimsExporter and wowsims read it).</p>
-      <textarea ref={area} className="gear-textarea" aria-label="Export text" rows={4} readOnly spellCheck={false} value={text} />
+      <textarea ref={area} className="gear-textarea" aria-label="Export text" rows={6} readOnly spellCheck={false} value={text} />
       <button
         type="button"
+        className="btn"
         onClick={() => {
           void copy();
         }}
@@ -688,6 +843,6 @@ function ExportSection({ gear }: { gear: readonly (EquippedItem | null)[] }) {
         Copy
       </button>
       {copied && copied.text === text && <p role="status">{copied.message}</p>}
-    </Section>
+    </div>
   );
 }
