@@ -121,8 +121,33 @@ export interface SimResult {
    * listed. Optional only for results built elsewhere (tests, older code): `simulate` always sets it.
    */
   ruleFires?: Record<string, RuleFires>;
+  /**
+   * The key fights (fight timeline and key fights Task K1; docs Part K): the run with the highest
+   * DPS, the typical run (DPS closest to `meanDps`) and the run with the lowest DPS; every tie goes
+   * to the lower run number. Each is replayed on demand with `replayFight(request, run)` (replay.ts):
+   * no log is kept. Optional only for results built elsewhere or before key fights existed (older
+   * stored results): `simulate` and `compare` always set it.
+   */
+  keyFights?: KeyFights;
   /** Display names: item action ids and aura ids to their names. */
   labels: { spells: Record<string, string>; items: Record<string, string>; auras: Record<string, string> };
+}
+
+/** One fight of a simulation, enough to replay it (`replayFight`, replay.ts). */
+export interface KeyFight {
+  /** The run number, 0-based (`replayFight(request, run)`). */
+  run: number;
+  /** The fight's seed: `mixSeed(request seed, run)`. */
+  seed: number;
+  /** The fight's DPS, exactly as aggregated (a replay gives the same number bit for bit). */
+  dps: number;
+}
+
+/** `SimResult.keyFights`. */
+export interface KeyFights {
+  highest: KeyFight;
+  typical: KeyFight;
+  lowest: KeyFight;
 }
 
 /** `simulate`'s options. */

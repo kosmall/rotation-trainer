@@ -3,7 +3,7 @@
 // per-run DPS, and the `Aggregator` that folds per-run samples into a `SimResult`. Pure and
 // framework-free; the result depends only on the samples and the order they are added in.
 
-import type { Histogram, RuleFires, RunSample, SimResult, SpellSummary, SpellTotals } from './types';
+import type { Histogram, KeyFight, KeyFights, RuleFires, RunSample, SimResult, SpellSummary, SpellTotals } from './types';
 
 /**
  * Welford's online algorithm: count, mean and the sum of squared deviations M2, updated per value
@@ -88,13 +88,19 @@ function addInto<K extends string>(target: Map<K, number>, key: K, value: number
 /**
  * Folds per-run samples into a `SimResult`. The DPS goes through `Welford` and into a
  * Float64Array of `runs` values (8 bytes per run: 800 KB at 100 000) for the exact percentiles
- * and the histogram; everything else is summed per key (keys kept in order of first appearance)
+ * and the histogram, with each run's number and seed beside it (two Uint32Arrays, 8 bytes per run)
+ * for the typical key fight; the highest and lowest key fights are tracked as they come. Everything else is summed per key (keys kept in order of first appearance)
  * and divided by the run count. Add the samples in index order for a result independent of how
  * the runs were chunked.
  */
 export class Aggregator {
   private readonly info: AggregatorInfo;
   private readonly dps: Float64Array;
+  /** Per added sample (same position as `dps`): its run number and seed, for the typical fight. */
+  private readonly runIndex: Uint32Array;
+  private readonly runSeed: Uint32Array;
+  private highest: KeyFight | null = null;
+  private lowest: KeyFight | null = null;
   private readonly welford = new Welford();
   private readonly spells = new Map<string, SpellSums>();
   private readonly itemUses = new Map<string, number>();
@@ -108,6 +114,8 @@ export class Aggregator {
   constructor(info: AggregatorInfo) {
     this.info = info;
     this.dps = new Float64Array(info.runs);
+    this.runIndex = new Uint32Array(info.runs);
+    this.runSeed = new Uint32Array(info.runs);
     this.ruleFires = info.rules !== undefined ? new Float64Array(info.rules.length) : null;
   }
 
@@ -122,6 +130,13 @@ export class Aggregator {
     this.welford.add(sample.dps);
     if (sample.dps < this.min) this.min = sample.dps;
     if (sample.dps > this.max) this.max = sample.dps;
+    this.runIndex[n] = sample.index;
+    this.runSeed[n] = sample.seed;
+    const key = (): KeyFight => ({ run: sample.index, seed: sample.seed, dps: sample.dps });
+    const h = this.highest;
+    if (h === null || sample.dps > h.dps || (sample.dps === h.dps && sample.index < h.run)) this.highest = key();
+    const l = this.lowest;
+    if (l === null || sample.dps < l.dps || (sample.dps === l.dps && sample.index < l.run)) this.lowest = key();
     this.manaSpent += sample.manaSpent;
     this.lifeTaps += sample.lifeTaps;
     for (const [id, t] of Object.entries(sample.spells)) {
@@ -141,6 +156,28 @@ export class Aggregator {
     for (const [id, ms] of Object.entries(sample.auraUpMs)) addInto(this.auraUpMs, id, ms);
     const fires = this.ruleFires;
     if (fires !== null) for (let k = 0; k < fires.length; k++) fires[k]! += sample.ruleFires?.[k] ?? 0;
+  }
+
+  /**
+   * Highest and lowest DPS (tracked in `add`) and the typical fight: the smallest |dps - mean| over
+   * the stored DPS values; every tie goes to the lower run number. Reads only what the result
+   * already needs, so no other number changes.
+   */
+  private keyFights(values: Float64Array, mean: number): KeyFights {
+    let best = 0;
+    let bestDist = Math.abs(values[0]! - mean);
+    for (let k = 1; k < values.length; k++) {
+      const d = Math.abs(values[k]! - mean);
+      if (d < bestDist || (d === bestDist && this.runIndex[k]! < this.runIndex[best]!)) {
+        best = k;
+        bestDist = d;
+      }
+    }
+    return {
+      highest: { ...this.highest! },
+      typical: { run: this.runIndex[best]!, seed: this.runSeed[best]!, dps: values[best]! },
+      lowest: { ...this.lowest! },
+    };
   }
 
   result(): SimResult {
@@ -171,6 +208,7 @@ export class Aggregator {
     for (const [id, uses] of this.itemUses) itemUses[id] = uses / n;
     const uptimes: Record<string, number> = {};
     for (const [id, ms] of this.auraUpMs) uptimes[id] = info.fightMs > 0 ? Math.min(1, ms / n / info.fightMs) : 0;
+    const keyFights = this.keyFights(values, meanDps);
     let ruleFires: Record<string, RuleFires> | undefined;
     if (this.ruleFires !== null && info.rules !== undefined) {
       ruleFires = {};
@@ -203,6 +241,7 @@ export class Aggregator {
       meanLifeTaps: this.lifeTaps / n,
       fightMs: info.fightMs,
       ...(ruleFires !== undefined && { ruleFires }),
+      keyFights,
       labels: { spells: { ...info.labels.spells }, items: { ...info.labels.items }, auras: { ...info.labels.auras } },
     };
   }

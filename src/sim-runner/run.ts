@@ -9,6 +9,7 @@
 import { runBot } from '../bot/bot';
 import { buildDestructionWarlock, type WarlockOptions } from '../data/classes/warlock/destruction';
 import type { ItemDb } from '../data/items/types';
+import type { Simulation } from '../engine/sim';
 import type { EquippedItem } from '../engine/types';
 import { applySetup } from '../setup/applySetup';
 import { normalizeSetup, SETUP_CATALOG, STATIC_SETUP_CATALOG } from '../setup/defaults';
@@ -197,6 +198,23 @@ export function prepareRun(request: SimRequest): RunFactory {
   return { runs, seed, spellQueueWindowMs, config, fight, startMana, itemActionIds, visibleAuraIds, labels, rules, ruleOfStep };
 }
 
+/**
+ * The one place a simulator fight is played (`runWithSeed` and `replayFight`, replay.ts, both call
+ * it, so a replay is the simulated fight event for event): a fresh Simulation built by
+ * `createFightSimulation` with `seed` and the request's spell queue window, played by `runBot` with
+ * the setup's priority list (its item-use rules and script rules included). `onPress` is the bot's
+ * read-only press observer (it changes nothing in the fight). Returns the finished Simulation.
+ */
+export function playFight(
+  factory: RunFactory,
+  seed: number,
+  onPress?: (step: number) => void,
+): { sim: Simulation; dps: number; damageTotal: number } {
+  const sim = createFightSimulation(factory.fight, seed, factory.spellQueueWindowMs);
+  const { dps, damageTotal } = runBot(sim, factory.fight.spec.priority, undefined, onPress);
+  return { sim, dps, damageTotal };
+}
+
 /** Run `index` of the request: the fight with seed `mixSeed(factory.seed, index)`. */
 export function runOnce(factory: RunFactory, index: number): RunSample {
   return runWithSeed(factory, mixSeed(factory.seed, index), index);
@@ -226,10 +244,9 @@ export function runOnce(factory: RunFactory, index: number): RunSample {
  *   start (nothing else can complete during a cast: every press is busy or queued then).
  */
 export function runWithSeed(factory: RunFactory, seed: number, index: number): RunSample {
-  const sim = createFightSimulation(factory.fight, seed, factory.spellQueueWindowMs);
   const priority = factory.fight.spec.priority;
   const presses: number[] = [];
-  const { dps, damageTotal } = runBot(sim, priority, undefined, (step) => presses.push(step));
+  const { sim, dps, damageTotal } = playFight(factory, seed, (step) => presses.push(step));
   const ruleFires = new Array<number>(factory.rules.length).fill(0);
   const { ruleOfStep } = factory;
   let nextPress = 0;
