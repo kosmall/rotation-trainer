@@ -1,0 +1,868 @@
+/*
+ * The Report screen (UI redesign Task 4), ported from the prototype's REPORT section
+ * (docs/design/prototype/styles.css) plus the SVG charts (src/ui/charts) and the Simulator's
+ * Report layout. Everything is scoped under `.report`, so the legacy panel rules of game.css
+ * (`.sim-*`, `.hint`) do not leak in and these do not leak out. Animates nothing but colours;
+ * never `transition: all`.
+ */
+
+.report {
+  padding: var(--s5) var(--s6) var(--s7);
+  max-width: 1440px;
+  margin: 0 auto;
+  color: var(--text);
+}
+.report .note {
+  color: var(--text-dim);
+  font-size: var(--t-13);
+  margin: var(--s2) 0 0;
+}
+.report .btn.primary {
+  background: var(--class);
+  color: var(--on-class);
+  border-color: transparent;
+}
+.report .btn.primary:hover {
+  filter: brightness(1.08);
+}
+.report .btn.quiet {
+  background: transparent;
+  box-shadow: none;
+}
+.report .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- Header ---------- */
+.rep-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--s4) var(--s6);
+  align-items: end;
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--rule);
+}
+.hero-dps {
+  margin: 0;
+  font: 400 var(--t-56) / 0.95 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hero-dps .tnum {
+  font-family: var(--font-display);
+}
+.hero-dps small {
+  font-size: var(--t-22);
+  color: var(--text-dim);
+  margin-left: var(--s2);
+}
+.vs-bot {
+  margin: var(--s2) 0 0;
+  font-size: var(--t-15);
+  color: var(--text-dim);
+}
+.vs-bot b {
+  color: var(--text);
+}
+.kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s6);
+  margin: 0;
+}
+.kpis div {
+  line-height: 1.15;
+}
+.kpis dt {
+  color: var(--text-dim);
+  font-size: var(--t-12);
+}
+.kpis dd {
+  margin: 0;
+  font: 700 var(--t-22) / 1.2 var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.used {
+  margin: var(--s3) 0 0;
+  max-width: 75ch;
+  font-size: var(--t-13);
+  color: var(--text-dim);
+}
+.used a {
+  color: var(--text);
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule);
+}
+.used a:hover {
+  text-decoration-color: var(--trim);
+}
+.rep-actions {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+.rep-actions .note {
+  flex-basis: 100%;
+  text-align: right;
+}
+.rep-copy {
+  flex-basis: 100%;
+  font: var(--t-12) / 1.4 var(--font-code);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--rule);
+}
+.rep-nofight {
+  padding-bottom: var(--s3);
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: var(--s1);
+  margin: var(--s4) 0 var(--s5);
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs a {
+  padding: var(--s2) var(--s4);
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: color var(--t-list) ease;
+}
+.tabs a:hover {
+  color: var(--text);
+}
+.tabs a[aria-current='page'] {
+  color: var(--text);
+  border-bottom-color: var(--trim);
+}
+.tabs .gap {
+  width: 1px;
+  background: var(--rule);
+  margin: var(--s2) var(--s3);
+  flex: none;
+}
+
+/* ---------- Cards and tables ---------- */
+.rep-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+.rep-col {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+.report .card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  padding: var(--s4);
+  box-shadow: var(--bevel);
+  min-width: 0;
+}
+.report .card h2 {
+  font: 400 var(--t-18) / 1.2 var(--font-display);
+  margin: 0 0 var(--s3);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  align-items: baseline;
+  flex-wrap: wrap;
+  text-wrap: balance;
+}
+.report .card h2 small {
+  font: 500 var(--t-13) var(--font-ui);
+  color: var(--text-dim);
+}
+.report .card h2.look-head {
+  margin-top: var(--s5);
+}
+.report .tbl-wrap {
+  overflow-x: auto;
+}
+.report table.dmg {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-13);
+  font-variant-numeric: tabular-nums;
+}
+.report .dmg th {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 6px var(--s2);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.report .dmg th:first-child {
+  text-align: left;
+}
+.report .dmg tbody th,
+.report .dmg tfoot th {
+  color: var(--text);
+}
+.report .dmg td {
+  padding: 7px var(--s2);
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+  white-space: nowrap;
+}
+.report .dmg td.wrap {
+  white-space: normal;
+  text-align: left;
+}
+.report .dmg td.n {
+  font: 500 var(--t-15) var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.report .dmg tbody tr:hover {
+  background: var(--surface-2);
+}
+.report .dmg th.sp {
+  text-align: left;
+  min-width: 200px;
+  font-weight: 500;
+}
+.report .dmg tfoot th,
+.report .dmg tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+}
+.sp-cell {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--s2);
+  align-items: center;
+}
+.share-pct {
+  color: var(--text-dim);
+  font: 500 var(--t-12) var(--font-num);
+  margin-left: 2px;
+}
+.share {
+  height: 6px;
+  margin-top: 4px;
+  background: var(--surface-2);
+  border-radius: 0 3px 3px 0;
+  overflow: hidden;
+}
+.share i {
+  display: block;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  transform-origin: left;
+  background: var(--class);
+}
+.share i.mark-shadow {
+  background: var(--mark-shadow);
+}
+.share i.mark-fire {
+  background: var(--mark-fire);
+}
+.share i.mark-none {
+  background: var(--text-dim);
+}
+.row-icon {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--surface-2);
+  vertical-align: middle;
+}
+.row-icon.school-shadow {
+  background: #6b3fa0;
+}
+.row-icon.school-fire {
+  background: #c4501b;
+}
+.row-icon-img {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+/* ---------- Charts ---------- */
+.report .chart {
+  position: relative;
+  min-width: 0;
+}
+.report .chart svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+.report .chart svg:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.report .chart .grid line {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.report .chart .axis text {
+  fill: var(--text-dim);
+  font: 500 11px var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.report .chart .lane-label {
+  fill: var(--text-dim);
+  font: 600 11px var(--font-ui);
+}
+.report .chart .lane rect {
+  fill: var(--class);
+}
+.report .chart .lane-shadow rect {
+  fill: var(--mark-shadow);
+}
+.report .chart .lane-fire rect {
+  fill: var(--mark-fire);
+}
+.report .chart .lane-other rect {
+  fill: var(--text-dim);
+}
+.report .chart .lane-buff rect {
+  fill: var(--trim);
+  opacity: 0.85;
+}
+.report .chart .line {
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.report .chart .line-primary {
+  stroke: var(--class);
+}
+.report .chart .line-dashed {
+  stroke: var(--text-dim);
+  stroke-dasharray: 4 3;
+}
+.report .chart .line-muted {
+  stroke: var(--text-dim);
+  opacity: 0.45;
+}
+.report .chart .crosshair line {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+}
+.report .chart .dot {
+  stroke: var(--surface);
+  stroke-width: 2;
+  fill: var(--text-dim);
+}
+.report .chart .dot-primary {
+  fill: var(--class);
+}
+.report .chart .hbars .hbar {
+  fill: var(--class);
+  opacity: 0.85;
+}
+.report .chart .hbars .hbar.active {
+  opacity: 1;
+}
+.report .chart .hmark line {
+  stroke-width: 2;
+}
+.report .chart .hmark text {
+  font: 700 var(--t-12) var(--font-num);
+}
+.report .chart .hmark-mean line {
+  stroke: var(--text);
+}
+.report .chart .hmark-mean text {
+  fill: var(--text);
+}
+.report .chart .hmark-you line {
+  stroke: var(--gold);
+  stroke-dasharray: 4 3;
+}
+.report .chart .hmark-you text {
+  fill: var(--gold);
+}
+.report .tip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+  padding: 6px var(--s2);
+  min-width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--trim);
+  border-radius: var(--r-frame);
+  box-shadow: var(--float);
+  font-size: var(--t-12);
+}
+.report .tip b {
+  font: 700 var(--t-15) var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.report .tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.report .tip-row b {
+  margin-left: auto;
+}
+.report .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  font-size: var(--t-12);
+  color: var(--text-dim);
+  margin: var(--s2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.report .key {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  vertical-align: middle;
+  margin-right: 6px;
+  border-radius: 2px;
+  flex: none;
+}
+.report .key-primary {
+  background: var(--class);
+}
+.report .key-dashed {
+  background: repeating-linear-gradient(90deg, var(--text-dim) 0 4px, transparent 4px 7px);
+}
+.report .key-muted {
+  background: var(--text-dim);
+  opacity: 0.5;
+}
+.report .chart-data {
+  margin-top: var(--s2);
+  font-size: var(--t-13);
+}
+.report .chart-data summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.report .chart-data .tbl-wrap {
+  max-height: 260px;
+  overflow: auto;
+  margin-top: var(--s2);
+}
+.insights {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-13);
+}
+.insights li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--s2);
+}
+.insights svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.insights .good {
+  color: var(--fel);
+}
+.insights .warn {
+  color: var(--gold);
+}
+
+/* ---------- Log ---------- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+  align-items: center;
+}
+.filters input[type='search'] {
+  height: 34px;
+  padding: 0 var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  min-width: 220px;
+}
+.report .seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  overflow: hidden;
+}
+.report .seg button {
+  min-height: 32px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.report .seg button:last-child {
+  border-right: 0;
+}
+.report .seg button[aria-pressed='true'] {
+  background: var(--class-soft);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--class);
+}
+.logtbl {
+  font-size: var(--t-13);
+}
+.log-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 90px;
+  gap: var(--s2);
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--s2);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.log-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.log-row .n {
+  text-align: right;
+}
+.log-row .crit {
+  color: var(--gold);
+  font-weight: 700;
+}
+.log-headrow {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.log-scroll {
+  max-height: 480px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.log-body {
+  position: relative;
+}
+.log-body .log-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+.log-row.kind-damage span:nth-child(2) {
+  color: var(--text);
+}
+.log-row.kind-aura span:nth-child(2),
+.log-row.kind-cast span:nth-child(2),
+.log-row.kind-mana span:nth-child(2) {
+  color: var(--text-dim);
+}
+.log-empty {
+  padding: var(--s3);
+}
+
+/* ---------- Rotation ---------- */
+.prio-head {
+  display: grid;
+  grid-template-columns: 28px 28px minmax(0, 1fr) 120px;
+  gap: var(--s3);
+  font-size: var(--t-12);
+  font-weight: 600;
+  color: var(--text-dim);
+  padding-bottom: var(--s1);
+  border-bottom: 1px solid var(--rule);
+}
+.prio-head .cmp {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  text-align: right;
+}
+.prio {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: p;
+}
+.prio li {
+  counter-increment: p;
+  display: grid;
+  grid-template-columns: 28px 28px minmax(0, 1fr) 120px;
+  gap: var(--s3);
+  align-items: center;
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--t-13);
+}
+.prio li::before {
+  content: counter(p);
+  font: 700 var(--t-15) var(--font-num);
+  color: var(--text-dim);
+  text-align: center;
+}
+.prio .cmp {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font: 600 var(--t-15) var(--font-num);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.prio .cmp-diff {
+  color: var(--gold);
+}
+.prio-extra-head {
+  margin: var(--s4) 0 var(--s1);
+  font: 600 var(--t-13) var(--font-ui);
+  color: var(--text-dim);
+}
+.prio.prio-extra li::before {
+  content: '';
+}
+
+/* ---------- Simulator (Report layout) and Compare ---------- */
+.runbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: end;
+  margin-bottom: var(--s3);
+}
+.runbar-field {
+  display: grid;
+  gap: 4px;
+}
+.runbar label {
+  font-size: var(--t-12);
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.runbar input {
+  width: 120px;
+  height: 36px;
+  padding: 0 var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.runbar .note {
+  margin: 0 0 8px;
+  flex: 1 1 260px;
+}
+.report .sim-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+  max-width: 480px;
+}
+.report .sim-progress-fill {
+  height: 100%;
+  background: var(--class);
+}
+.report .sim-status {
+  margin: 0 0 var(--s3);
+  min-height: 1.2em;
+  color: var(--text-dim);
+  font-size: var(--t-13);
+}
+.report .sim-result-report {
+  display: grid;
+  gap: var(--s5);
+  padding: 0;
+  border: 0;
+}
+.sim-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+.sim-big {
+  margin: 0;
+  font: 700 var(--t-36) / 1 var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.sim-big small {
+  font-size: var(--t-15);
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.report .statgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--s3);
+  margin: var(--s4) 0 0;
+}
+.report .statgrid div {
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--rule);
+}
+.report .statgrid dt {
+  color: var(--text-dim);
+  font-size: var(--t-12);
+}
+.report .statgrid dd {
+  margin: 0;
+  font: 600 var(--t-18) var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.report .sim-settings {
+  margin: var(--s3) 0 var(--s2);
+  padding-left: var(--s4);
+  color: var(--text-dim);
+  font-size: var(--t-12);
+}
+.report .sim-details {
+  display: grid;
+  gap: var(--s4);
+}
+.report .sim-section h4 {
+  margin: 0 0 var(--s2);
+  font: 400 var(--t-18) var(--font-display);
+}
+.report .sim-list {
+  margin: 0;
+  padding-left: var(--s4);
+  columns: 2 220px;
+  font-size: var(--t-13);
+}
+.report .sim-table th,
+.report .sim-table td {
+  font-size: var(--t-13);
+}
+.report .sim-copy {
+  display: flex;
+  gap: var(--s2);
+}
+.report .sim-note {
+  margin-top: var(--s5);
+  max-width: 75ch;
+  color: var(--text-dim);
+  font-size: var(--t-13);
+}
+.report .sim-note p {
+  margin: 0 0 var(--s2);
+}
+.report .gear-textarea {
+  width: 100%;
+  font: var(--t-12) / 1.4 var(--font-code);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--rule);
+}
+.report .empty-state {
+  text-align: center;
+  padding: var(--s7) var(--s5);
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-frame);
+}
+.report .empty-state h2 {
+  font: 400 var(--t-22) var(--font-display);
+  margin: 0 0 var(--s2);
+}
+.report .empty-state p {
+  color: var(--text-dim);
+  max-width: 52ch;
+  margin: 0 auto var(--s4);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1279px) {
+  .rep-grid,
+  .sim-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 899px) {
+  .report {
+    padding: var(--s4);
+  }
+  .rep-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero-dps {
+    font-size: var(--t-36);
+  }
+  .rep-actions {
+    justify-content: flex-start;
+  }
+  .rep-actions .note {
+    text-align: left;
+  }
+  .kpis {
+    gap: var(--s2) var(--s5);
+  }
+  .kpis dd {
+    font-size: var(--t-18);
+  }
+  .tabs {
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .report .dmg .opt {
+    display: none;
+  }
+  .report .dmg th.sp {
+    min-width: 150px;
+  }
+  .prio li,
+  .prio-head {
+    grid-template-columns: 24px 28px minmax(0, 1fr) 96px;
+  }
+  .log-row {
+    grid-template-columns: 64px minmax(0, 1fr) 64px;
+  }
+  .filters input[type='search'] {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+@media (pointer: coarse) {
+  .tabs a,
+  .report .seg button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+@media (forced-colors: active) {
+  .share i {
+    forced-color-adjust: none;
+  }
+  .report .chart .line,
+  .report .chart .lane rect,
+  .report .chart .hbars .hbar {
+    forced-color-adjust: auto;
+  }
+}
+.report .sim-details > *,
+.report .sim-result-report > * {
+  min-width: 0;
+}
+.report .sim-table th:first-child,
+.report .sim-table td:first-child {
+  text-align: left;
+}

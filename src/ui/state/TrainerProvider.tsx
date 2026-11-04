@@ -199,6 +199,23 @@ export interface ChipLabels {
   fight: string;
 }
 
+/**
+ * The last fight that ended (the Report's data): kept after R until the next fight ends; never
+ * stored across reloads. `log` is the whole fight log, `snapshot` the final one, `seed` the fight's
+ * seed and `fight` its setup (spec, fight settings, config, catalog), so the bot can replay the
+ * same fight (src/ui/report/botRun.ts).
+ */
+export interface LastFight {
+  id: number;
+  log: readonly LogEvent[];
+  snapshot: SimSnapshot;
+  config: SetupConfig;
+  /** The ended fight's own names (Setup, Gear, Talents, Rotation, Fight). */
+  labels: ChipLabels;
+  seed: number;
+  fight: NextFight;
+}
+
 export interface TrainerMeta {
   /** The fight's phase (changes three times per fight, never per frame). */
   phase: SimSnapshot['phase'];
@@ -218,6 +235,8 @@ export interface TrainerMeta {
   /** Where UI-only preferences are saved (the setup's storage; null: memory only). */
   uiStorage: UiStorage | null;
   simRunner: SimRunner | undefined;
+  /** The last ended fight, or null before any fight has ended (the Report). */
+  lastFight: LastFight | null;
 }
 
 export interface TrainerValue {
@@ -369,8 +388,28 @@ export function TrainerProvider({
     };
   }, [buildSpec, config, db]);
   // Leaving the Fight screen pauses the fight (spec §3.3, author's answer to Q1).
-  const { snapshot, fight, cast, cancel, reset, start, logSince, fightId, paused, attach } = useSimulation(nextFight, SIMULATION_OPTIONS);
+  const { snapshot, fight, cast, cancel, reset, start, logSince, fightId, seed, paused, attach } = useSimulation(nextFight, SIMULATION_OPTIONS);
   const phase = snapshot.phase;
+  // The last ended fight (the Report): taken once when a fight ends, kept after R (state set during
+  // render, React's "information from previous renders" pattern: no effect, no extra commit).
+  const [lastFight, setLastFight] = useState<LastFight | null>(null);
+  if (phase === 'ended' && lastFight?.id !== fightId) {
+    setLastFight({
+      id: fightId,
+      log: logSince(0),
+      snapshot,
+      config: fight.config,
+      labels: {
+        setupPreset: setupPresetName(fight.config, fight.catalog),
+        gear: gearName(fight.config),
+        talents: talentsName(fight.config),
+        rotation: rotationName(fight.config),
+        fight: fightSettingsName(fight.config),
+      },
+      seed,
+      fight,
+    });
+  }
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
   // The next fight's labels (memoized strings: the header and the Simulator panel are memoized too).
@@ -521,8 +560,9 @@ export function TrainerProvider({
       spec: identity,
       uiStorage: store,
       simRunner,
+      lastFight,
     }),
-    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner],
+    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner, lastFight],
   );
   const trainer = useMemo<TrainerValue>(() => ({ state, actions, meta }), [state, actions, meta]);
   const frame = useMemo<FightFrame>(

@@ -21,6 +21,8 @@ export interface SimulationControls<S extends FightSetup = FightSetup> {
   logSince(index: number): readonly LogEvent[];
   /** Counts the Simulations built: a new number means a new fight (reset, or a rebuilt fight not started yet). */
   fightId: number;
+  /** The current fight's seed (a new one per fight): the bot replays the same fight with it (Report). */
+  seed: number;
   /**
    * The running fight's clock is stopped because no fight view is attached (`pauseOnLeave`); the
    * next `start()` or accepted `cast()` resumes it from the same fight time. False otherwise.
@@ -63,8 +65,9 @@ export interface FightSetup {
  * The fight as the bot tests build it (`createFightSimulation`, shared with the simulator): boss
  * target, default spell queue window, the setup's auras, distance and fight length, a fresh seed.
  */
-function createSimulation(setup: FightSetup): Simulation {
-  return createFightSimulation(setup, freshSeed(), SPELL_QUEUE_WINDOW_MS);
+function createSimulation(setup: FightSetup): { sim: Simulation; seed: number } {
+  const seed = freshSeed();
+  return { sim: createFightSimulation(setup, seed, SPELL_QUEUE_WINDOW_MS), seed };
 }
 
 /**
@@ -86,11 +89,16 @@ export function useSimulation<S extends FightSetup>(setup: S, options: Simulatio
   const builtRef = useRef<S>(setup);
   /** The latest setup passed in, read by `reset()` (kept current after every commit). */
   const setupRef = useRef<S>(setup);
+  /** The current Simulation's seed. */
+  const seedRef = useRef(0);
   if (simRef.current === null) {
-    simRef.current = createSimulation(setup);
+    const built = createSimulation(setup);
+    simRef.current = built.sim;
+    seedRef.current = built.seed;
     builtRef.current = setup;
   }
   const [fight, setFight] = useState<S>(setup);
+  const [seed, setSeed] = useState(() => seedRef.current);
   const [fightId, setFightId] = useState(0);
   const [snapshot, setSnapshot] = useState<SimSnapshot>(() => (simRef.current as Simulation).snapshot());
   /** performance.now() at fight time 0, or null before the fight starts. */
@@ -109,7 +117,11 @@ export function useSimulation<S extends FightSetup>(setup: S, options: Simulatio
   const sim = useCallback((): Simulation => {
     // Not reached after the first render; uses the last built setup so that a setup change does
     // not recreate this callback (and every callback and effect that depends on it).
-    if (simRef.current === null) simRef.current = createSimulation(builtRef.current);
+    if (simRef.current === null) {
+      const built = createSimulation(builtRef.current);
+      simRef.current = built.sim;
+      seedRef.current = built.seed;
+    }
     return simRef.current;
   }, []);
 
@@ -204,11 +216,14 @@ export function useSimulation<S extends FightSetup>(setup: S, options: Simulatio
     startedAtRef.current = null;
     setPaused(false);
     const next = setupRef.current;
-    simRef.current = createSimulation(next);
+    const built = createSimulation(next);
+    simRef.current = built.sim;
+    seedRef.current = built.seed;
     builtRef.current = next;
     setFight(next);
+    setSeed(built.seed);
     setFightId((n) => n + 1);
-    setSnapshot(simRef.current.snapshot());
+    setSnapshot(built.sim.snapshot());
   }, [stopLoop]);
 
   const logSince = useCallback((index: number): readonly LogEvent[] => sim().logSince(index), [sim]);
@@ -226,5 +241,5 @@ export function useSimulation<S extends FightSetup>(setup: S, options: Simulatio
     return stopLoop;
   }, [ensureClock, stopLoop]);
 
-  return { snapshot, fight, cast, cancel, reset, start, logSince, fightId, paused, attach };
+  return { snapshot, fight, cast, cancel, reset, start, logSince, fightId, seed, paused, attach };
 }

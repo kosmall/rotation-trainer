@@ -18,6 +18,7 @@ import { StartOverlay } from '../StartOverlay';
 import { AuraRow } from './AuraRow';
 import { Bars } from './Bars';
 import { Dock } from './Dock';
+import { botRun } from '../report/botRun';
 import { EndCard } from './EndCard';
 import { dpsNoteText, nextUp, playedWithTags, targetDebuffViews } from './fightView';
 import type { AuraIconView } from './fightView';
@@ -188,6 +189,9 @@ export function FightView() {
   const specLine = `${meta.spec.specName} ${meta.spec.className}`;
   const labels = meta.labels;
   const playedWith = useMemo(() => playedWithTags(meta.fightLabels), [meta.fightLabels]);
+  // The bot's DPS in this same fight (same setup and seed; Report Task 4), once the fight has ended.
+  const lastFight = meta.lastFight;
+  const botDps = useMemo(() => (lastFight !== null && lastFight.id === fightId ? (botRun(lastFight)?.dps ?? null) : null), [lastFight, fightId]);
 
   const rootClass = [
     'fv',
@@ -249,7 +253,7 @@ export function FightView() {
             dps={snapshot.dps}
             damageTotal={snapshot.damageTotal}
             durationMs={snapshot.nowMs}
-            botDps={null}
+            botDps={botDps}
             dpsNote={dpsNote}
             playedWith={playedWith}
             onReset={reset}
