@@ -148,6 +148,36 @@ export function buildSummary(ranks: Readonly<Record<string, number>>): BuildSumm
   return { modelledPoints, unmodelledPoints, unmodelled, left: TALENT_POINTS_MAX - modelledPoints - unmodelledPoints };
 }
 
+/** One talent with points in a build (the Report's "Setup used"). */
+export interface BoughtTalent {
+  id: string;
+  name: string;
+  icon: string;
+  /** 0, 1, 2: the tree. */
+  tree: number;
+  treeName: string;
+  rank: number;
+  maxRank: number;
+  /** Not modelled: why. */
+  unmodelled?: string;
+}
+
+/** The talents with points in `talents`, tree by tree, in the tree's order (row, then column). */
+export function boughtTalents(talents: string): BoughtTalent[] {
+  const ranks = ranksOf(talents);
+  const out: BoughtTalent[] = [];
+  TALENT_TREE.trees.forEach((t, tree) => {
+    const defs = [...t.talents].sort((a, b) => a.row - b.row || a.col - b.col);
+    for (const d of defs) {
+      const rank = ranks[d.id] ?? 0;
+      if (rank === 0) continue;
+      const unmodelled = unmodelledReason(d.id);
+      out.push({ id: d.id, name: d.name, icon: d.icon, tree, treeName: t.name, rank, maxRank: d.maxRank, ...(unmodelled !== undefined && { unmodelled }) });
+    }
+  });
+  return out;
+}
+
 type Rec = Record<string, unknown>;
 const isRecord = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 

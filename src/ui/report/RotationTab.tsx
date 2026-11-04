@@ -31,7 +31,8 @@ export const RotationTab = memo(function RotationTab({ model }: { model: ReportM
   return (
     <div className="card">
       <h2>
-        Your casts against the bot’s <small>{bot === null ? 'The bot could not replay this fight' : 'Same setup and seed'}</small>
+        Your casts against the bot’s{' '}
+        <small>{bot !== null ? 'Same setup and seed' : model.last.sim !== null ? 'A simulation’s fight is the bot’s own' : 'The bot could not replay this fight'}</small>
       </h2>
       <div className="prio-head" aria-hidden="true">
         <span />

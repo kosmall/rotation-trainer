@@ -37,7 +37,14 @@ const pct = (n: number) => `${n.toFixed(2)}%`;
  * adds to every roll: "Spell crit" those for every spell (a character sheet's value), "Shadow
  * Bolt crit" those that match Shadow Bolt too (Devastation). Moved here from the legacy GameView.
  */
-export function CharacterStats({ spec }: { spec: SpecData }) {
+export function CharacterStats({
+  spec,
+  hint = 'Next fight, before timed buffs. Crit includes the crit modifiers the fight rolls with.',
+}: {
+  spec: SpecData;
+  /** The note under the numbers (whose fight they are: the next one, or the Report's "Setup used"). */
+  hint?: string;
+}) {
   const view = useMemo(() => {
     const sets = activeSetBonuses(spec.sets, spec.setup.setPieces);
     const bonuses: Partial<RawStats> = {};
@@ -75,7 +82,7 @@ export function CharacterStats({ spec }: { spec: SpecData }) {
           </div>
         ))}
       </dl>
-      <p className="hint">Next fight, before timed buffs. Crit includes the crit modifiers the fight rolls with.</p>
+      <p className="hint">{hint}</p>
     </section>
   );
 }

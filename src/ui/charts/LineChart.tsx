@@ -5,7 +5,7 @@
 // title, a legend (the caller's) and a "Show data" table.
 
 import { memo, useId, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent, PointerEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import { axisNumber, niceScale, tickValues, timeTicks, useElementWidth } from './chartKit';
 import type { LaneRow } from './Lanes';
 
@@ -35,6 +35,10 @@ export interface LineChartProps {
   /** The value column's name in the data table ("DPS"). */
   valueName: string;
   height?: number;
+  /** The cursor (Report → Timeline): the window [from, to) in seconds drawn as a band; null or absent: none. */
+  cursor?: readonly [number, number] | null;
+  /** A click on the plot picks the time under it (seconds); absent: not clickable. */
+  onPick?(t: number): void;
 }
 
 const LEFT = 52;
@@ -44,7 +48,19 @@ const BOTTOM = 24;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-export const LineChart = memo(function LineChart({ title, description, x, xMax, series, lanes = [], format, valueName, height = 260 }: LineChartProps) {
+export const LineChart = memo(function LineChart({
+  title,
+  description,
+  x,
+  xMax,
+  series,
+  lanes = [],
+  format,
+  valueName,
+  height = 260,
+  cursor = null,
+  onPick,
+}: LineChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(wrapRef);
   const descId = useId();
@@ -80,6 +96,15 @@ export const LineChart = memo(function LineChart({ title, description, x, xMax, 
     for (let i = 1; i < x.length; i++) if (Math.abs(x[i]! - t) < Math.abs(x[best]! - t)) best = i;
     move(best, false);
   };
+  const onClick =
+    onPick === undefined
+      ? undefined
+      : (e: MouseEvent<SVGSVGElement>) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const px = ((e.clientX - rect.left) / (rect.width || width)) * width;
+          if (px < LEFT || !(xMax > 0)) return;
+          onPick(clamp(((px - LEFT) / plotW) * xMax, 0, xMax));
+        };
   const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
     if (x.length === 0) return;
     const at = active ?? x.length - 1;
@@ -109,6 +134,8 @@ export const LineChart = memo(function LineChart({ title, description, x, xMax, 
         }}
         onBlur={() => setActive(null)}
         onKeyDown={onKey}
+        onClick={onClick}
+        className={onClick ? 'pickable' : undefined}
       >
         <title>{title}</title>
         {lanes.map((lane, r) => (
@@ -147,6 +174,16 @@ export const LineChart = memo(function LineChart({ title, description, x, xMax, 
             </text>
           ))}
         </g>
+        {cursor !== null && (
+          <rect
+            className="cursor"
+            aria-hidden="true"
+            x={sx(cursor[0])}
+            y={top}
+            width={Math.max(2, sx(Math.min(cursor[1], xMax)) - sx(cursor[0]))}
+            height={plotH}
+          />
+        )}
         {paths.map(({ s, d }) => (
           <path key={s.id} className={`line line-${s.variant}`} d={d} fill="none" />
         ))}

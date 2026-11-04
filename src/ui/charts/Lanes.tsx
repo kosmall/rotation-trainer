@@ -4,6 +4,7 @@
 // with a title; each bar has a hover title; "Show data" lists every window as text.
 
 import { memo, useId, useRef } from 'react';
+import type { MouseEvent } from 'react';
 import { iconUrl, itemIconUrl } from '../SpellIcon';
 import { axisNumber, timeTicks, useElementWidth } from './chartKit';
 
@@ -25,6 +26,13 @@ export interface LanesProps {
   description: string;
   rows: readonly LaneRow[];
   durationMs: number;
+  /**
+   * The cursor (Report → Timeline, "Moment by moment"): the window [from, to) ms drawn as a band
+   * over every lane; null or absent: none.
+   */
+  cursorMs?: readonly [number, number] | null;
+  /** A click on the plot picks the time under it (ms); absent: the lanes are not clickable. */
+  onPickMs?(ms: number): void;
 }
 
 const ROW = 24;
@@ -34,7 +42,7 @@ const RIGHT = 12;
 
 const sec = (ms: number) => (ms / 1000).toFixed(1);
 
-export const Lanes = memo(function Lanes({ title, description, rows, durationMs }: LanesProps) {
+export const Lanes = memo(function Lanes({ title, description, rows, durationMs, cursorMs = null, onPickMs }: LanesProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(wrapRef);
   const descId = useId();
@@ -43,9 +51,27 @@ export const Lanes = memo(function Lanes({ title, description, rows, durationMs 
   const height = TOP + rows.length * ROW + BOTTOM;
   const sx = (ms: number) => left + (durationMs > 0 ? (ms / durationMs) * plotW : 0);
   const ticks = timeTicks(durationMs / 1000, plotW);
+  const onClick =
+    onPickMs === undefined
+      ? undefined
+      : (e: MouseEvent<SVGSVGElement>) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const px = ((e.clientX - rect.left) / (rect.width || width)) * width;
+          if (px < left || durationMs <= 0) return;
+          onPickMs(Math.min(durationMs, Math.max(0, ((px - left) / plotW) * durationMs)));
+        };
   return (
     <div className="chart" ref={wrapRef}>
-      <svg role="img" aria-label={title} aria-describedby={descId} width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <svg
+        role="img"
+        aria-label={title}
+        aria-describedby={descId}
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className={onClick ? 'pickable' : undefined}
+        onClick={onClick}
+      >
         <title>{title}</title>
         <g className="grid" aria-hidden="true">
           {ticks.map((t) => (
@@ -77,6 +103,16 @@ export const Lanes = memo(function Lanes({ title, description, rows, durationMs 
             </g>
           );
         })}
+        {cursorMs !== null && (
+          <rect
+            className="cursor"
+            aria-hidden="true"
+            x={sx(cursorMs[0])}
+            y={TOP - 2}
+            width={Math.max(2, sx(cursorMs[1]) - sx(cursorMs[0]))}
+            height={rows.length * ROW + 4}
+          />
+        )}
         <g className="axis" aria-hidden="true">
           {ticks.map((t) => (
             <text key={t} x={sx(t * 1000)} y={TOP + rows.length * ROW + 16} textAnchor="middle">

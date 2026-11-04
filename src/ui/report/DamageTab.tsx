@@ -39,7 +39,7 @@ export const DamageTab = memo(function DamageTab({ model }: { model: ReportModel
       <div className="rep-col">
         <div className="card">
           <h2>
-            Damage by spell <small>Last fight</small>
+            Damage by spell <small>This fight</small>
           </h2>
           <div className="tbl-wrap">
             <table className="dmg" aria-label="Damage by spell">
@@ -183,7 +183,11 @@ export const DamageTab = memo(function DamageTab({ model }: { model: ReportModel
             </ul>
           </>
         ) : (
-          <p className="note">The bot could not replay this fight, so there is no comparison.</p>
+          <p className="note">
+            {model.last.sim !== null
+              ? 'A simulation’s fight is the bot’s own, so there is no comparison with the bot.'
+              : 'The bot could not replay this fight, so there is no comparison.'}
+          </p>
         )}
       </div>
     </div>

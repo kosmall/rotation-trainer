@@ -13,7 +13,7 @@ import { normalizeSetup, SETUP_CATALOG } from '../../setup/defaults';
 import type { SetupStorage } from '../../setup/storage';
 import type { SetupConfig } from '../../setup/types';
 import type { SimResult } from '../../sim-runner/types';
-import type { FightFinal, FightKind } from '../report/reportModel';
+import type { FightFinal, FightKind } from '../report/reportFight';
 
 /** The localStorage key; the version suffix lets a later format move to a new key. */
 export const HISTORY_STORAGE_KEY = 'rotation-trainer:history:v1';

@@ -1,9 +1,14 @@
-// The Report screen (UI redesign Task 4, spec §3.5, §5.3, §6): the last ended fight's summary
-// (hero DPS, the share of the bot's DPS with the same setup and seed, KPIs, what it was played
-// with, Fight Again, Copy Report), the tabs as links (`#/report/<tab>`, `aria-current`) and the
-// current tab's panel, loaded lazily. Without a fight the fight tabs show the empty state;
-// Simulator and Compare work without one. Reads only `useTrainer()` (never the per-frame
-// snapshot); the ended fight comes from `meta.lastFight` and is not stored across reloads.
+// The Report screen (UI redesign Task 4, spec §3.5, §5.3, §6; fight timeline and key fights Task
+// K3, docs/superpowers/specs/2026-11-05-fight-timeline-and-key-fights-design.md §2 A, E, F): the
+// shown fight's summary (hero DPS; a played fight: the share of the bot's DPS with the same setup
+// and seed; a simulation's fight: its deviation from the simulation's mean in σ; KPIs, what it was
+// played with, Fight Again, Copy Report), the "Fight source" selector (the last played fight, the
+// last simulation's highest / typical / lowest DPS fight, a history fight; History… opens the
+// Fights panel), "Setup Used" (the fight's setup snapshot, loaded on demand), the tabs as links
+// (`#/report/<tab>`, `aria-current`) and the current tab's panel, loaded lazily. Every fight tab
+// shows the selected fight (`meta.reportFight`). Without a fight the fight tabs show the empty
+// state; Simulator and Compare work without one. Reads only `useTrainer()` (never the per-frame
+// snapshot). A refused history save is shown.
 
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react';
 import { formatDps, formatInt, secondsText } from '../format';
@@ -13,9 +18,15 @@ import { useSimulatorRun } from '../SimulatorPanel';
 import type { SimulatorRun } from '../SimulatorPanel';
 import { useCompareRun } from './compareRun';
 import type { CompareRunState } from './compareRun';
+import { setupKeyOf } from '../state/history';
+import type { HistoryPatch } from '../state/history';
 import { useTrainer } from '../state/TrainerProvider';
-import type { ChipLabels } from '../state/TrainerProvider';
-import { botShareText, reportModel, reportText } from './reportModel';
+import type { ChipLabels, ReportFightState } from '../state/TrainerProvider';
+import { FightsPanel } from './FightsPanel';
+import { FightSourceSelect, historyTitle, sourceOptions } from './FightSourceSelect';
+import type { SourceOption } from './FightSourceSelect';
+import type { ReportFight } from './reportFight';
+import { botShareText, buildReportModel, reportText, sigmaText } from './reportModel';
 import type { ReportModel } from './reportModel';
 import './report.css';
 import { countRender } from '../renderCount';
@@ -26,6 +37,18 @@ const LogTab = lazy(() => import('./LogTab').then((m) => ({ default: m.LogTab })
 const RotationTab = lazy(() => import('./RotationTab').then((m) => ({ default: m.RotationTab })));
 const SimulatorTab = lazy(() => import('./SimulatorTab').then((m) => ({ default: m.SimulatorTab })));
 const ComparePanel = lazy(() => import('./ComparePanel'));
+const SetupUsed = lazy(() => import('./SetupUsed'));
+
+/** The Report's model of each fight, built once per fight object (switching sources back is free). */
+const models = new WeakMap<ReportFight, ReportModel>();
+function modelOf(fight: ReportFight): ReportModel {
+  let m = models.get(fight);
+  if (m === undefined) {
+    m = buildReportModel(fight);
+    models.set(fight, m);
+  }
+  return m;
+}
 
 export const REPORT_TAB_TITLES: Readonly<Record<ReportTab, string>> = {
   damage: 'Damage',
@@ -43,9 +66,10 @@ const pct = (x: number | null) => (x === null ? '–' : `${(x * 100).toFixed(1)}
 
 export function ReportView({ tab }: { tab: ReportTab }) {
   const { state, actions, meta } = useTrainer();
-  const last = meta.lastFight;
-  // Once per ended fight: the view-models and the bot's replay (a few ms on the main thread).
-  const model = useMemo(() => (last === null ? null : reportModel(last)), [last]);
+  const shown = meta.reportFight;
+  const fight = shown.status === 'ready' ? shown.fight : null;
+  // Once per fight: the view-models and the bot's replay (a few ms on the main thread).
+  const model = useMemo(() => (fight === null ? null : modelOf(fight)), [fight]);
   // The Simulator's run lives here, so it survives switching tabs within the Report.
   const sim = useSimulatorRun({
     config: state.config,
@@ -66,25 +90,151 @@ export function ReportView({ tab }: { tab: ReportTab }) {
     navigate({ mode: 'fight' });
   }, [ended, reset]);
 
+  // The fight source and the Fights panel (History…).
+  const { setReportSource, openHistoryFight, updateHistoryEntry, removeHistoryEntry, useSnapshotAsSetup, changeConfig, requestDb } = actions;
+  const source = meta.reportSource;
+  const history = meta.history;
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const historyEntry = source.kind === 'history' ? (history.entries.find((e) => e.id === source.id) ?? null) : null;
+  const options = useMemo(
+    () => sourceOptions(source, meta.lastFight, meta.lastSimulation, historyEntry),
+    [source, meta.lastFight, meta.lastSimulation, historyEntry],
+  );
+  const pickSource = useCallback(
+    (id: SourceOption['id']) => {
+      if (id === 'history') {
+        setHistoryOpen((open) => !open);
+        return;
+      }
+      setHistoryOpen(false);
+      setReportSource(id === 'played' ? { kind: 'played' } : { kind: 'sim', which: id });
+    },
+    [setReportSource],
+  );
+  const openFight = useCallback(
+    (id: string) => {
+      openHistoryFight(id);
+      setHistoryOpen(false);
+    },
+    [openHistoryFight],
+  );
+  const updateEntry = useCallback((id: string, patch: HistoryPatch) => updateHistoryEntry(id, patch), [updateHistoryEntry]);
+  const setupKey = useMemo(() => setupKeyOf(state.config), [state.config]);
+  // "Use This Setup": a history entry through its action, any other fight's snapshot the same way (changeConfig normalizes and saves).
+  const useSetup = useCallback(() => {
+    if (fight === null) return;
+    if (source.kind === 'history') useSnapshotAsSetup(source.id);
+    else changeConfig(fight.config);
+  }, [fight, source, useSnapshotAsSetup, changeConfig]);
+  // The rule fires of the last simulation, for its own key fights.
+  const lastSim = meta.lastSimulation;
+  const ruleFires = useMemo(() => {
+    if (fight === null || lastSim === null || lastSim.result.ruleFires === undefined || !fight.key.startsWith(`sim:${lastSim.id}:`)) return null;
+    return Object.fromEntries(Object.entries(lastSim.result.ruleFires).map(([k, v]) => [k, v.meanFires]));
+  }, [fight, lastSim]);
+  const lastFight = meta.lastFight;
+  const you = useMemo(() => (lastFight === null ? null : { dps: lastFight.snapshot.dps, config: lastFight.config }), [lastFight]);
+
   const needsFight = FIGHT_TABS.includes(tab);
   return (
     <div className="view report">
       <h1 className="sr-only">Fight report</h1>
-      {model !== null ? <ReportHead model={model} onFightAgain={fightAgain} /> : needsFight ? null : <NoFightLine />}
+      {model !== null ? (
+        <ReportHead model={model} onFightAgain={fightAgain} sourceText={historyEntry !== null ? `From the history: ${historyTitle(historyEntry)}` : null} />
+      ) : needsFight || shown.status !== 'none' ? null : (
+        <NoFightLine />
+      )}
+      <FightSourceSelect options={options} historyOpen={historyOpen} onPick={pickSource} />
+      {history.saved === 'failed' && !historyOpen && (
+        <p className="note rep-warn" role="alert">
+          The fight history could not be saved (the browser storage is full or blocked): it is kept until the page reloads.
+        </p>
+      )}
+      {historyOpen && (
+        <FightsPanel
+          history={history}
+          currentDurationMs={model?.durationMs ?? state.config.fightDurationSec * 1000}
+          currentSetupKey={setupKey}
+          selectedId={source.kind === 'history' ? source.id : null}
+          onOpen={openFight}
+          onUpdate={updateEntry}
+          onRemove={removeHistoryEntry}
+        />
+      )}
+      {fight !== null && (
+        <div className="su-toggle">
+          <button type="button" className="btn quiet" aria-expanded={setupOpen} aria-controls="setup-used" onClick={() => setSetupOpen((o) => !o)}>
+            {setupOpen ? 'Hide Setup Used' : 'Setup Used'}
+          </button>
+          {setupOpen && (
+            <div id="setup-used">
+              <Suspense fallback={<p className="note" aria-live="polite">Loading…</p>}>
+                <SetupUsed
+                  fight={fight}
+                  db={state.itemDb.db}
+                  dbStatus={state.itemDb.status}
+                  requestDb={requestDb}
+                  currentConfig={state.config}
+                  ruleFires={ruleFires}
+                  onUse={useSetup}
+                />
+              </Suspense>
+            </div>
+          )}
+        </div>
+      )}
       <ReportTabs tab={tab} />
       <section className="rep-panel" aria-label={REPORT_TAB_TITLES[tab]}>
         <Suspense fallback={<p className="note" aria-live="polite">Loading…</p>}>
-          {needsFight && model === null ? <EmptyReport /> : <TabPanel tab={tab} model={model} sim={sim} comparison={comparison} />}
+          {needsFight && model === null ? <FightStatus shown={shown} /> : <TabPanel tab={tab} model={model} sim={sim} comparison={comparison} you={you} />}
         </Suspense>
       </section>
     </div>
   );
 }
 
-function TabPanel({ tab, model, sim, comparison }: { tab: ReportTab; model: ReportModel | null; sim: SimulatorRun; comparison: CompareRunState }) {
+/** A fight tab without a fight to show: the empty state, or why the selected fight is not there (yet). */
+function FightStatus({ shown }: { shown: ReportFightState }) {
+  switch (shown.status) {
+    case 'loading':
+      return (
+        <p className="note" aria-live="polite">
+          {shown.reason}
+        </p>
+      );
+    case 'unavailable':
+      return (
+        <div className="empty-state">
+          <h2>Nothing to Show</h2>
+          <p>{shown.reason}</p>
+        </div>
+      );
+    case 'error':
+      return (
+        <div className="empty-state">
+          <h2>This Fight Could Not Be Shown</h2>
+          <p role="status">{shown.message}</p>
+        </div>
+      );
+    default:
+      return <EmptyReport />;
+  }
+}
+
+interface TabPanelProps {
+  tab: ReportTab;
+  model: ReportModel | null;
+  sim: SimulatorRun;
+  comparison: CompareRunState;
+  /** The last played fight (the Simulator's "You" marker), whatever fight the Report shows. */
+  you: { dps: number; config: ReportFight['config'] } | null;
+}
+
+function TabPanel({ tab, model, sim, comparison, you }: TabPanelProps) {
   switch (tab) {
     case 'simulator':
-      return <SimulatorTab sim={sim} you={model === null ? null : { dps: model.last.snapshot.dps, config: model.last.config }} />;
+      return <SimulatorTab sim={sim} you={you} />;
     case 'compare':
       return <ComparePanel run={comparison} />;
     case 'timeline':
@@ -143,9 +293,17 @@ const PLAYED_WITH: readonly { key: keyof ChipLabels; section: SetupSection }[] =
   { key: 'fight', section: 'fight' },
 ];
 
-const ReportHead = memo(function ReportHead({ model, onFightAgain }: { model: ReportModel; onFightAgain(): void }) {
+const KIND_TEXT: Readonly<Record<ReportFight['kind'], string>> = {
+  played: 'Played fight',
+  'sim-highest': 'Simulation, highest DPS',
+  'sim-typical': 'Simulation, typical',
+  'sim-lowest': 'Simulation, lowest DPS',
+};
+
+const ReportHead = memo(function ReportHead({ model, onFightAgain, sourceText }: { model: ReportModel; onFightAgain(): void; sourceText: string | null }) {
   countRender('ReportHead');
   const { last, bot, totals, durationMs, kpis } = model;
+  const simCtx = last.sim;
   const share = botShareText(model);
   const [copied, setCopied] = useState<{ fightId: number; manual: boolean } | null>(null);
   const text = useMemo(() => reportText(model), [model]);
@@ -170,6 +328,18 @@ const ReportHead = memo(function ReportHead({ model, onFightAgain }: { model: Re
         {share !== null && bot !== null && (
           <p className="vs-bot">
             {share} of the bot (<b className="tnum">{formatDps(bot.dps)}</b>) with the same setup
+          </p>
+        )}
+        {simCtx !== null && (
+          <p className="vs-bot">
+            {simCtx.sigma === null ? 'At' : `${sigmaText(simCtx.sigma)} from`} the simulation’s mean (<b className="tnum">{formatDps(simCtx.meanDps)}</b>,{' '}
+            {formatInt(simCtx.runs)} runs)
+          </p>
+        )}
+        {(simCtx !== null || sourceText !== null) && (
+          <p className="rep-source">
+            {sourceText ?? KIND_TEXT[last.kind]}
+            {simCtx !== null ? `; run #${simCtx.run + 1}, seed ${last.seed}` : ''}
           </p>
         )}
       </div>
@@ -197,7 +367,7 @@ const ReportHead = memo(function ReportHead({ model, onFightAgain }: { model: Re
           ))}
         </dl>
         <p className="used">
-          Played with{' '}
+          {last.kind === 'played' ? 'Played with' : 'Simulated with'}{' '}
           {PLAYED_WITH.map(({ key, section }, i) => (
             <span key={key}>
               <a href={routeHref({ mode: 'setup', section })} title={`${SETUP_SECTION_TITLES[section]} of this fight`}>
