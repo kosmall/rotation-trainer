@@ -18,7 +18,7 @@ Destruction Potion, Super Mana Potion, Dark Rune) na osobnym pasku **Items** pod
 `Z` `X` `C` `V`, z prawdziwymi i dzielonymi cooldownami. W panelu Setup grupa **Fight**: długość
 walki (10-600 s, domyślnie 60) i sekunda startu Heroism/Bloodlust.
 
-**Panel buffów gracza:** okienko **Your buffs** pod paskiem akcji pokazuje aktywne buffy z
+**Panel buffów gracza:** okienko **Your buffs** (dziś w prawym górnym rogu areny) pokazuje aktywne buffy z
 pozostałym czasem, nadchodzący Heroism i stałe buffy z setupu.
 
 **Etap 2a (gear):** panel **Gear** z bazą przedmiotów, gemów i enchantów z wowsims, presetami BIS
@@ -31,6 +31,77 @@ Wowhead), gotowymi buildami z wowsims, importem i eksportem ciągu talentów. Ef
 danymi (24 zamodelowane, 40 oznaczonych jako niezamodelowane z powodem); talenty zmieniają liczby
 walki, bota i symulatora. Domyślny build to nadal Twój eksport (0/21/40), z tymi samymi wynikami.
 
+**Przebudowa układu (UI redesign):** zamiast jednej kolumny z areną i ośmioma zwijanymi panelami
+aplikacja ma trzy tryby: **Setup**, **Fight** i **Report** (opis niżej, „Układ: Setup, Fight,
+Report”), jasny i ciemny motyw oraz pełną obsługę klawiatury i czytników ekranu. Silnik, bot,
+symulator i wyniki się nie zmieniły.
+
+## Układ: Setup, Fight, Report
+
+Nagłówek jest zawsze widoczny: przełącznik trybów, kolor i nazwa speca, pięć „chipów” następnej
+walki (Setup, Gear, Talents, Rotation, Fight; kliknięcie otwiera właściwą sekcję Setup; złoty
+znacznik oznacza zmianę, która zadziała po `R`) i przycisk motywu. Na telefonie tryby są na dolnym
+pasku.
+
+- **Fight** (`#/fight`): arena jak w grze. HUD z zegarem (`0:09.2 / 1:00`), DPS i obrażeniami;
+  ramka celu z debuffami i ich czasem; **Your buffs** w prawym górnym rogu (aktywne z czasem,
+  nadchodzące „in 4.9 s”, małe ikony stałych buffów z setupu); ramka gracza z paskiem many i
+  regułą pięciu sekund; pasek rzucania z oknem kolejki (400 ms); pasek **Items** (`Z`…`N`) i pasek
+  akcji (`1`…`=`); combat text. Po prawej **dock**: mini-meter obrażeń, „Next by the script” (co
+  zagrałby bot; podświetlenie slotu „Coach glow” można wyłączyć), „So far” (aktywny czas, uptime
+  DoT-ów), skrót logu i przełączniki Combat text / Coach glow. Poniżej 1280 px dock otwiera
+  przycisk „Meter”. Arena jest zawsze ciemna. Wyjście z Fight w trakcie walki **pauzuje** ją;
+  po powrocie `Spacja`, klawisz czaru albo „Resume” wznawia od tej samej sekundy. Po walce karta
+  „Fight Over” z DPS i „% of the bot” (bot z tym samym setupem i ziarnem); `Enter` otwiera raport.
+- **Setup** (`#/setup/<sekcja>`): po lewej lista sekcji (Character: Gear, Talents; Fight: Buffs &
+  consumables, Items & cooldowns, Rotation, Fight settings, opcje klasy; Library: Scenarios;
+  Interface: Combat text), w środku jedna sekcja, po prawej podsumowanie następnej walki („Stats at
+  the pull”, „Set bonuses”, „Simulate this setup” z ostatnim wynikiem symulatora). Zmiana w trakcie
+  walki pokazuje notkę „Changed since the running fight started: it applies after you reset the
+  fight (R)”. „Reset to Defaults…” i „Clear Script…” pytają o potwierdzenie.
+- **Report** (`#/report/<zakładka>`): nagłówek z DPS, „% of the bot”, KPI (obrażenia, czas,
+  aktywny czas GCD, uptime DoT-ów), „Played with …” z linkami do sekcji, „Fight Again” i „Copy
+  Report”. Zakładki: **Damage** (tabela czarów, buffy i przedmioty, wykres DPS, „What to look at”),
+  **Timeline**, **Log** (filtr, wirtualizowana lista), **Rotation** (Ty vs bot), **Simulator**,
+  **Compare** (na razie pusty stan). Bez walki działają tylko Simulator i Compare. Opuszczenie
+  raportu przerywa trwającą symulację.
+
+| Trasa | Widok |
+|---|---|
+| `#/fight` | walka (domyślna; nieznany adres też tu prowadzi) |
+| `#/setup/gear`, `talents`, `buffs`, `items`, `rotation`, `fight`, `class`, `scenarios`, `combat-text` | sekcje Setup (`#/setup` = Gear) |
+| `#/report/damage`, `timeline`, `log`, `rotation`, `simulator`, `compare` | zakładki raportu (`#/report` = Damage) |
+
+**Klawisze walki działają tylko w trybie Fight** (w Setup i Report nic nie rzucają). Wszędzie poza
+polami tekstowymi i trwającą walką działają skróty: `g` potem `s` (Setup), `f` (Fight) albo `r`
+(Report), a `?` pokazuje listę klawiszy. **Motyw:** ciemny „Nether” albo jasny „Moonstone” (przycisk
+w nagłówku; bez wyboru według ustawień systemu; zapis w `rotation-trainer:ui:v1`, razem z
+ustawieniami docka i Coach glow).
+
+Gdzie trafiły dawne panele:
+
+| Dawny panel | Nowe miejsce |
+|---|---|
+| Statystyki walki (DPS, Total damage, Time) i notka o DPS | Fight → HUD (notka pod „i” przy DPS), karta końca walki |
+| Cel, pasek rzucania, mana, pasek akcji i Items | Fight → ramka celu, ramka gracza, paski na dole |
+| Your buffs | Fight → prawy górny róg |
+| Podsumowanie walki („Fight over”) | Fight → karta „Fight Over”, Report |
+| Setup: presety, buffy, consumables, debuffy celu | Setup → Buffs & consumables |
+| Setup: Items and cooldowns | Setup → Items & cooldowns (z podglądem paska Items) |
+| Setup: Fight (długość, Heroism) i Distance | Setup → Fight settings |
+| Setup: Warlock options | Setup → Warlock options |
+| Setup: Rotation i Item use | Setup → Rotation (tryb Basic; tryb Script pokazuje reguły skryptu) |
+| Priority | Setup → Rotation („Priority of the next fight”), Fight → dock „Next by the script”, Report → Rotation |
+| Gear, Talents | Setup → Gear (import i eksport w okienkach), Setup → Talents |
+| Combat text | Setup → Combat text; szybki przełącznik w docku |
+| Simulator | Report → Simulator; ostatni wynik w Setup → „Simulate this setup” |
+| Stats at the pull, Set bonuses | Setup → podsumowanie po prawej |
+
+Zrzuty ekranu prawdziwej aplikacji (1440 ciemny i jasny, 1024 ciemny, 390 ciemny i jasny, każda
+trasa) są w `docs/design/app/`; odtwarza je `npm run build && npm run screens` (Playwright z
+globalnej instalacji, poza `npm test`). Projekt: `docs/superpowers/specs/2026-11-04-ui-redesign-design.md`,
+prototyp `docs/design/prototype/`.
+
 ## Uruchomienie
 
 Wymaga Node.js (z npm).
@@ -42,6 +113,7 @@ npm test           # wszystkie testy (Vitest)
 npm run typecheck  # sprawdzenie typów (tsc)
 npm run build      # typecheck + build produkcyjny do dist/
 npm run preview    # podgląd builda z dist/: http://localhost:4173
+npm run screens    # (po npm run build) zrzuty ekranu każdej trasy do docs/design/app/
 npm run icons      # (tylko po dodaniu czarów, buffów, przedmiotów lub talentów) pobiera ikony do public/icons/spells/, public/icons/talents/ i public/icons/items/
 npm run db:build -- <katalog klonu wowsims/tbc-new>  # odtwarza bazę przedmiotów src/data/items/db.json
 npm run talents:build -- <katalog klonu wowsims/tbc-new>  # odtwarza drzewka talentów (talentTree.json, talentDescriptions.json)
@@ -68,16 +140,19 @@ uruchamiać.
 | `8` | Conflagrate, tylko gdy build ma ten talent (domyślny build go nie ma: slot pusty) |
 | `Z`, `X`, `C`, `V`, `B`, `N` | 6 slotów paska przedmiotów **Items** (zawsze trinkety on-use i inne efekty on-use z noszonego ekwipunku, potem włączone mikstury i runa; wielkość litery bez znaczenia, użycie przedmiotu też startuje walkę) |
 | `Esc` | przerywa rzucanie (i czyści kolejkę, także zakolejkowany przedmiot; użycia przedmiotu nie cofa) |
-| `Spacja` | start walki |
+| `Spacja` | start walki (i wznowienie zapauzowanej) |
 | `R` | reset walki |
+| `Enter` | po końcu walki: raport (`#/report/damage`) |
+| `g` `s` / `g` `f` / `g` `r` | Setup / Fight / Report (poza polami i trwającą walką, w każdym trybie) |
+| `?` | lista klawiszy |
 
 Pasek: 1 Shadow Bolt, 2 Immolate, 3 Corruption, 4 Curse of the Elements, 5 Shadowburn,
 6 Life Tap, 7 Incinerate, 8 Conflagrate, 9 Curse of Agony, 0 Curse of Doom. Shadowburn i
 Conflagrate są tylko z talentem (bez niego slot jest pusty). Na celu może być tylko **jedna**
 klątwa: rzucenie innej zastępuje obecną (wybierz jedną).
 
-Klawisze nie działają, gdy piszesz w polu tekstowym lub liczbowym panelu Setup (np. `Z` w polu
-„Fight length (s)” nic nie używa).
+Klawisze walki działają tylko w trybie Fight; w Setup i Report (np. `Z` w polu „Fight length (s)”)
+nic nie używają. W Fight przełączniki docka zatrzymują tylko `Spacja` i `Enter`.
 
 ## Pasek przedmiotów (Items)
 
@@ -128,28 +203,27 @@ albo myszą, tak jak czarów.
   walki i przy każdym gotowym cooldownie), Super Mana
   Potion przy braku co najmniej 3000 many, Dark Rune przy 1500. To wskazówki, nie optimum.
 
-## Panel „Your buffs”
+## „Your buffs”
 
-Pod paskiem akcji (i paskiem Items) jest okienko **Your buffs** z buffami Twojej postaci w
-trwającej walce. Ma trzy części:
+W prawym górnym rogu areny (Fight) jest **Your buffs** z buffami Twojej postaci w trwającej
+walce. Ma trzy części:
 
 1. **Aktywne:** każda aura na postaci (Heroism/Bloodlust, Destruction Potion, Icon of the Silver
-   Crescent, proc Band of the Eternal Sage) z ikoną, nazwą, liczbą stacków lub ładunków,
-   pozostałym czasem i paskiem. Poniżej 10 s czas ma jedno miejsce po przecinku („4.3s”). W
+   Crescent, proc Band of the Eternal Sage) z ikoną (nazwa i opis w podpowiedzi), liczbą stacków
+   lub ładunków i pozostałym czasem. Poniżej 10 s czas ma jedno miejsce po przecinku („4.3s”). W
    ostatnich 5 s czas jest pogrubiony i czerwony, a ikona pulsuje (bez pulsowania, gdy system ma
    włączone ograniczenie animacji). Czas nigdy nie wychodzi poza koniec walki. Ukryty
    wewnętrzny cooldown Banda nie jest pokazywany. Gdy nic nie działa: „No active buffs”.
 2. **Upcoming:** aury zaplanowane w ustawieniach walki, które jeszcze nie weszły (Heroism o
    ustawionej sekundzie): przed startem „at 8.0 s”, w trakcie walki odliczanie „in 4.9 s”. W
    chwili wejścia aura przechodzi do aktywnych. Start po końcu walki nie jest pokazywany.
-3. **Setup buffs (N):** zwinięta lista ikon stałych buffów z setupu (buffy rajdowe i grupowe,
+3. **Setup buffs:** drugi rząd małych ikon stałych buffów z setupu (buffy rajdowe i grupowe,
    flaski, eliksiry, jedzenie, olejki); nazwa i opis w podpowiedzi. Debuffy celu, Heroism,
    przedmioty i Band nie są tu liczone.
 
-Panel pokazuje setup **trwającej** walki (jak notka w panelu Setup): zmiany widać od razu tylko
-przed startem, a w trwającej walce dopiero po `R`. Kliknięcie „Setup buffs” nie blokuje klawiszy:
-`Spacja` i `Enter` zwijają i rozwijają listę, pozostałe klawisze działają jak zwykle. Czytnik
-ekranu czyta każdy wpis jako „Nazwa, N seconds left”.
+Pokazuje setup **trwającej** walki (jak notka w Setup): zmiany widać od razu tylko przed startem,
+a w trwającej walce dopiero po `R`. Czytnik ekranu czyta każdy wpis jako „Nazwa, N seconds left”.
+Nic w nim nie przejmuje klawiszy.
 
 ## Combat text (HUD)
 
@@ -183,9 +257,10 @@ do karty, która była w tle, pojawia się tylko to, co jeszcze zmieściłoby si
 Ograniczenia: nie ma osobnego włączania obszarów (tylko kategorie) ani ustawienia szybkości (tekst
 przebiega swoją drogę w ustawionym czasie życia).
 
-## Panel Setup
+## Setup: buffy, przedmioty, rotacja, walka
 
-Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następną walkę:
+Sekcje **Buffs & consumables**, **Items & cooldowns**, **Rotation**, **Fight settings** i
+**Warlock options** trybu Setup (dawniej jeden zwijany panel Setup) ustawiają następną walkę:
 
 - **Presety:**
   - „None”: domyślny setup, bez buffów. Liczby są takie jak w etapie 1, z czasem lotu.
@@ -225,7 +300,7 @@ Zwijany panel **Setup** (obok walki, nie zasłania paska akcji) ustawia następn
   - Warlock options: Fel Armor albo Demon Armor, poświęcony Succubus.
 - **Rotacja:** presety rotacji „DoT rotation” (domyślna) i „Shadow Bolt spam + curse” (jak w
   logu). Do tego klątwa, Immolate, Corruption, Shadowburn na koniec walki i próg many dla Life
-  Tapa („Auto” albo liczba). Panel Priority pokazuje listę priorytetów dla tych ustawień.
+  Tapa („Auto” albo liczba). Karta „Priority of the next fight” pod spodem pokazuje listę priorytetów dla tych ustawień.
   Wybór presetu rotacji nie zmienia reguł użycia przedmiotów (poniżej).
 - **Item use** (w grupie Rotation): kiedy bot (i Simulator) używa każdego włączonego przedmiotu z
   paska Items (Destruction Potion, Super Mana Potion, Dark Rune, trinkety on-use z gearu z
@@ -248,11 +323,12 @@ nową zaczynasz klawiszem `R`. Ustawienia zapisują się w `localStorage` przegl
 `rotation-trainer:setup:v1`. Uszkodzone lub stare dane są poprawiane albo zastępowane domyślnymi.
 Jeśli przeglądarka nie pozwala zapisać, ustawienia działają do zamknięcia karty.
 
-## Panel Gear
+## Gear
 
-Zwijany panel **Gear** (pod panelem Setup) ustawia ekwipunek następnej walki. Baza przedmiotów
-(1730 przedmiotów, 214 gemów, 128 enchantów z wowsims) ładuje się dopiero przy pierwszym otwarciu
-panelu albo od razu po starcie, jeśli zapisany ekwipunek jej potrzebuje. Do tego czasu walka używa
+Sekcja **Setup → Gear** ustawia ekwipunek następnej walki: sloty jak w oknie postaci, wybrany slot
+w karcie przedmiotu (gemy, enchant, set, „Change…” i „Clear”), import i eksport w okienkach. Baza
+przedmiotów (1730 przedmiotów, 214 gemów, 128 enchantów z wowsims) ładuje się dopiero przy pierwszym
+otwarciu sekcji albo od razu po starcie, jeśli zapisany ekwipunek jej potrzebuje. Do tego czasu walka używa
 Twojego ekwipunku z eksportu („My gear”), nigdy niepełnego zestawu. Gdy ładowanie się nie uda,
 panel pokazuje błąd i przycisk „Reload the page” (przeglądarka nie pobierze ponownie raz nieudanego
 modułu, więc pomaga tylko przeładowanie strony; setup jest zapisany).
@@ -296,9 +372,9 @@ zaczęła, bierze ją od razu, trwająca zachowuje swój ekwipunek do `R` (panel
 DPS podaje „Gear: …” walki). „Stats at the pull” pokazuje statystyki z nowym ekwipunkiem od razu.
 Pisanie w polach wyszukiwania, importu i eksportu nie uruchamia skrótów klawiszowych.
 
-## Panel Talents
+## Talents
 
-Zwijany panel **Talents** (pod panelem Gear) ustawia talenty następnej walki. Domyślnie to build
+Sekcja **Setup → Talents** ustawia talenty następnej walki (od 1280 px trzy drzewa obok siebie). Domyślnie to build
 autora z eksportu („My build (export)”, 0/21/40).
 
 - **Drzewka:** trzy drzewa (Affliction, Demonology, Destruction) jedno pod drugim, talenty w
@@ -333,7 +409,7 @@ skrótów klawiszowych.
 
 ## Symulator
 
-Zwijany panel **Simulator** (pod Combat text) gra setup **następnej walki** (gear, talenty, buffy, rotacja z
+Zakładka **Report → Simulator** gra setup **następnej walki** (gear, talenty, buffy, rotacja z
 regułami przedmiotów, długość walki, odległość) wiele razy botem i pokazuje średni DPS.
 
 - **Runs**: liczba walk, 1-100 000 (domyślnie 1000; poza zakresem poprawiane przy wyjściu z pola).
@@ -432,5 +508,5 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/setup` | setup walki: domyślne ustawienia i ich walidacja, presety, zapis w `localStorage`, zamiana setupu na dane walki, walidacja gearu, import i eksport wowsims |
 | `src/bot` | bot grający listę priorytetów (punkt odniesienia DPS) |
 | `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, Web Worker i jego klient |
-| `src/ui` | interfejs React: pasek akcji, pasek rzucania, mana, cel, panel „Your buffs”, panel Setup z edytorem reguł przedmiotów, panel Gear, panel Simulator, podsumowanie walki |
+| `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie), `report/` i `charts/` (raport, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |

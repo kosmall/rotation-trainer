@@ -167,6 +167,11 @@ Jeden spec, osobny plan implementacji i commit na etap:
    pierwotną listą). **Zrobione** (panel Simulator, edytor „Item use” w Setup → Rotation):
    specyfikacja `2026-11-02-simulator-design.md`, plan `../plans/2026-11-02-simulator.md`;
    reguły, statystyki i koszty w `docs/data-sources.md`, „Part H: simulator and item-use rules”.
+   UI. Przebudowa układu na trzy tryby (Setup, Fight, Report), tokeny projektu, jasny i ciemny
+   motyw, dostępność. **Zrobione**: specyfikacja `2026-11-04-ui-redesign-design.md`, plan
+   `../plans/2026-11-04-ui-redesign.md`, prototyp `docs/design/prototype/`, zrzuty prawdziwej
+   aplikacji `docs/design/app/` (`npm run screens`). Zakładki Damage, Timeline, Log, Rotation i
+   Simulator raportu pochodzą z tej przebudowy (część etapu 3 poniżej).
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla
