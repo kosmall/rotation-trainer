@@ -126,7 +126,11 @@ export const SETUP_SECTIONS: readonly RailSection[] = [
     group: 'Library',
     label: () => SETUP_SECTION_TITLES.scenarios,
     icon: () => ({ kind: 'item', name: 'inv_weapon_shortblade_23' }),
-    value: () => 'Coming with the script editor',
+    value: ({ state }) => {
+      if (!state.scenarios.loaded) return 'Loading…';
+      const n = state.scenarios.entries.length;
+      return n === 0 ? 'None saved' : `${n} saved`;
+    },
   },
   {
     id: 'combat-text',

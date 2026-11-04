@@ -11,6 +11,8 @@ import { navigate, routeHref, SETUP_SECTION_TITLES } from '../shell/router';
 import type { ReportTab, SetupSection } from '../shell/router';
 import { useSimulatorRun } from '../SimulatorPanel';
 import type { SimulatorRun } from '../SimulatorPanel';
+import { useCompareRun } from './compareRun';
+import type { CompareRunState } from './compareRun';
 import { useTrainer } from '../state/TrainerProvider';
 import type { ChipLabels } from '../state/TrainerProvider';
 import { botShareText, reportModel, reportText } from './reportModel';
@@ -23,7 +25,7 @@ const TimelineTab = lazy(() => import('./TimelineTab').then((m) => ({ default: m
 const LogTab = lazy(() => import('./LogTab').then((m) => ({ default: m.LogTab })));
 const RotationTab = lazy(() => import('./RotationTab').then((m) => ({ default: m.RotationTab })));
 const SimulatorTab = lazy(() => import('./SimulatorTab').then((m) => ({ default: m.SimulatorTab })));
-const CompareTab = lazy(() => import('./CompareTab').then((m) => ({ default: m.CompareTab })));
+const ComparePanel = lazy(() => import('./ComparePanel'));
 
 export const REPORT_TAB_TITLES: Readonly<Record<ReportTab, string>> = {
   damage: 'Damage',
@@ -55,6 +57,8 @@ export function ReportView({ tab }: { tab: ReportTab }) {
     runner: meta.simRunner,
     onResult: actions.recordSimulation,
   });
+  // The Compare tab's run: here too, so it survives switching tabs (the last result is the trainer's).
+  const comparison = useCompareRun({ runner: meta.compareRunner, initial: meta.lastComparison, onResult: actions.recordComparison });
   const { reset } = actions;
   const ended = meta.phase === 'ended';
   const fightAgain = useCallback(() => {
@@ -70,19 +74,19 @@ export function ReportView({ tab }: { tab: ReportTab }) {
       <ReportTabs tab={tab} />
       <section className="rep-panel" aria-label={REPORT_TAB_TITLES[tab]}>
         <Suspense fallback={<p className="note" aria-live="polite">Loading…</p>}>
-          {needsFight && model === null ? <EmptyReport /> : <TabPanel tab={tab} model={model} sim={sim} />}
+          {needsFight && model === null ? <EmptyReport /> : <TabPanel tab={tab} model={model} sim={sim} comparison={comparison} />}
         </Suspense>
       </section>
     </div>
   );
 }
 
-function TabPanel({ tab, model, sim }: { tab: ReportTab; model: ReportModel | null; sim: SimulatorRun }) {
+function TabPanel({ tab, model, sim, comparison }: { tab: ReportTab; model: ReportModel | null; sim: SimulatorRun; comparison: CompareRunState }) {
   switch (tab) {
     case 'simulator':
       return <SimulatorTab sim={sim} you={model === null ? null : { dps: model.last.snapshot.dps, config: model.last.config }} />;
     case 'compare':
-      return <CompareTab />;
+      return <ComparePanel run={comparison} />;
     case 'timeline':
       return <TimelineTab model={model!} />;
     case 'log':

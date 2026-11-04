@@ -32,9 +32,9 @@ export const DEFAULT_RUNS = 1000;
 /** Measured cost of one default 60 s fight in the worker (docs Part H, after the bot's performance wave). */
 const MS_PER_60S_FIGHT = 1.2;
 /** The largest seed (unsigned 32-bit). */
-const MAX_SEED = 0xffffffff;
+export const MAX_SEED = 0xffffffff;
 /** The progress text (the live region) changes at most this often; the bar follows every update. */
-const ANNOUNCE_EVERY_MS = 1000;
+export const ANNOUNCE_EVERY_MS = 1000;
 
 const CURSE_NAMES: Readonly<Record<string, string>> = {
   elements: 'Curse of the Elements',
@@ -80,7 +80,7 @@ function labelLines(l: RunLabel): string[] {
 }
 
 /** "under a second", "12 s", "2 min". */
-function durationText(ms: number): string {
+export function durationText(ms: number): string {
   if (ms < 1000) return 'under a second';
   const s = ms / 1000;
   if (s < 90) return `${Math.round(s)} s`;
@@ -88,10 +88,10 @@ function durationText(ms: number): string {
 }
 
 /** "under a second", "about 12 s", "about 2 min". */
-const aboutText = (ms: number) => (ms < 1000 ? durationText(ms) : `about ${durationText(ms)}`);
+export const aboutText = (ms: number) => (ms < 1000 ? durationText(ms) : `about ${durationText(ms)}`);
 
 /** Runs typed into the field: a finite number rounded and clamped to 1-100 000, or null. */
-function parseRuns(text: string): number | null {
+export function parseRuns(text: string): number | null {
   if (text.trim() === '') return null;
   const n = Number(text);
   if (!Number.isFinite(n)) return null;
@@ -99,7 +99,7 @@ function parseRuns(text: string): number | null {
 }
 
 /** A seed typed into the field: a finite number truncated and clamped to 0-4294967295, or null (blank: random). */
-function parseSeed(text: string): number | null {
+export function parseSeed(text: string): number | null {
   if (text.trim() === '') return null;
   const n = Number(text);
   if (Number.isNaN(n)) return null;
@@ -107,7 +107,7 @@ function parseSeed(text: string): number | null {
 }
 
 /** A random seed for a blank field (the only use of Math.random: spec §3). */
-function randomSeed(): number {
+export function randomSeed(): number {
   return Math.floor(Math.random() * 2 ** 32) >>> 0;
 }
 

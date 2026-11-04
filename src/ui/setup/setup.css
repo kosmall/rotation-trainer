@@ -1144,3 +1144,465 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* ---------- Rotation script editor (rotation scripts Task 5; prototype "Rotation script") ---------- */
+.sv .script-tools {
+  flex-wrap: wrap;
+}
+.sv .script-tools .valid {
+  color: var(--fel);
+  font-weight: 600;
+  font-size: var(--t-13);
+}
+.sv .script-tools .valid.warn {
+  color: var(--gold);
+}
+.sv .script-tools .valid.bad {
+  color: var(--danger);
+}
+.sv .script-active {
+  color: var(--fel);
+  font-weight: 600;
+}
+.sv .basic-waiting {
+  opacity: 0.6;
+}
+.sv .se-rules .rule {
+  grid-template-columns: 28px 22px minmax(170px, 230px) minmax(0, 1fr) 64px auto;
+  align-items: start;
+}
+.sv .se-rules .rule::before {
+  line-height: 32px;
+}
+.sv .se-rules .rule input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 7px 0 0;
+  accent-color: var(--class);
+}
+.sv .se-act-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sv .se-rules .act {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 var(--s2) 0 0;
+  overflow: hidden;
+}
+.sv .se-rules .act span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sv .se-icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 3px 0 0 3px;
+}
+.sv .se-label {
+  color: var(--text-dim);
+  font-size: var(--t-12);
+  overflow-wrap: anywhere;
+}
+.sv .se-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.sv .se-pick select,
+.sv .se-pick input,
+.sv .se-more input,
+.sv .se-more textarea,
+.sv .def-name input,
+.sv .vars input,
+.sv .se-json textarea,
+.sv .sc-form input[type='text'],
+.sv .sc-form textarea,
+.sv .sc-json {
+  min-height: 30px;
+  max-width: 100%;
+  padding: 0 var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--code-bg);
+  color: var(--text);
+  font: 500 var(--t-13) / 1.4 var(--font-ui);
+}
+.sv .se-pick select:first-child {
+  width: 76px;
+}
+.sv .se-pick select:last-child {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.sv .se-id-text {
+  display: flex;
+  gap: 4px;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.sv .se-id-text input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-code);
+}
+.sv .se-cond-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.sv textarea.cond {
+  width: 100%;
+  min-height: 32px;
+  resize: vertical;
+  color: var(--text);
+}
+.sv .rule.has-err textarea.cond,
+.sv .def.has-err textarea.cond,
+.sv textarea.cond[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.sv .se-issues {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-13);
+  overflow-wrap: anywhere;
+}
+.sv .se-issues .err,
+.sv p.se-issues.err,
+.sv .se-bad {
+  color: var(--danger);
+}
+.sv .se-issues .warn {
+  color: var(--gold);
+}
+.sv .se-issues b {
+  font: 600 var(--t-12) var(--font-code);
+}
+.sv .se-more {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--s2);
+  margin-top: 4px;
+}
+.sv .se-more label {
+  display: grid;
+  gap: 2px;
+  font-size: var(--t-12);
+  color: var(--text-dim);
+}
+.sv .se-more textarea {
+  padding: 4px var(--s2);
+  resize: vertical;
+}
+.sv .fires {
+  text-align: right;
+  line-height: 1.15;
+}
+.sv .fires b {
+  display: block;
+  font: 700 var(--t-18) / 1.1 var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.sv .fires small {
+  color: var(--text-dim);
+  font-size: var(--t-12);
+}
+.sv .row-tools {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.sv .row-tools button {
+  width: 30px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--text-dim);
+  font: 600 var(--t-15) / 1 var(--font-ui);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.sv .row-tools button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--rule);
+}
+.sv .row-tools button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.sv .row-tools button[aria-expanded='true'] {
+  color: var(--text);
+  border-color: var(--class);
+}
+.sv .defs {
+  margin-top: var(--s5);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+.sv .defs h2 {
+  font: 400 var(--t-18) / 1.2 var(--font-display);
+  margin: 0 0 var(--s2);
+}
+.sv .se-defs {
+  list-style: none;
+  margin: 0 0 var(--s2);
+  padding: 0;
+}
+.sv .def {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  gap: var(--s2);
+  align-items: start;
+  margin-bottom: var(--s2);
+}
+.sv .def-name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font: 600 var(--t-13) var(--font-code);
+  color: var(--fel);
+}
+.sv .def-name input {
+  min-width: 0;
+  width: 100%;
+  font-family: var(--font-code);
+  color: var(--fel);
+}
+.sv .vars {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  padding: var(--s3);
+  background: var(--surface);
+  min-width: 0;
+}
+.sv .vars input {
+  width: 100%;
+  height: 34px;
+}
+.sv .vars ul {
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+  font-size: var(--t-13);
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sv .vars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--s2);
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.sv .vars li:last-child {
+  border-bottom: 0;
+}
+.sv .vars code {
+  font-family: var(--font-code);
+  color: var(--school-shadow);
+  overflow-wrap: anywhere;
+}
+.sv .vars li span {
+  grid-column: 1;
+  color: var(--text-dim);
+}
+.sv .vars li button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.sv .se-json {
+  display: grid;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+.sv .se-json label {
+  font-weight: 600;
+}
+.sv .se-json textarea,
+.sv .sc-json {
+  width: 100%;
+  padding: var(--s2);
+  font: 500 var(--t-12) / 1.45 var(--font-code);
+  resize: vertical;
+}
+@media (max-width: 899px) {
+  .sv .se-rules .rule {
+    grid-template-columns: 22px 22px minmax(0, 1fr) auto;
+    gap: var(--s2);
+  }
+  .sv .se-rules .se-act-cell {
+    grid-column: 3 / -1;
+  }
+  .sv .se-rules .se-cond-cell {
+    grid-column: 1 / -1;
+  }
+  /* The read-only rule list's narrow-screen placement does not apply inside the editor's cell. */
+  .sv .se-rules .rule .cond {
+    grid-column: auto;
+  }
+  .sv .se-rules .fires {
+    grid-column: 1 / 3;
+    text-align: left;
+  }
+  .sv .se-rules .row-tools {
+    grid-column: 3 / -1;
+  }
+  .sv .defs,
+  .sv .se-more {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sv .def {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .sv .def .se-cond-cell {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* ---------- Scenarios (rotation scripts Task 5) ---------- */
+.sv .sc-tools {
+  margin-bottom: var(--s4);
+}
+.sv .sc-done {
+  color: var(--fel);
+}
+.sv .sc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  background: var(--surface);
+}
+.sv .sc-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s3);
+  align-items: start;
+  padding: var(--s3);
+  border-bottom: 1px solid var(--rule);
+  /* Long libraries (up to 100): render only what is on screen. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+.sv .sc-item:last-child {
+  border-bottom: 0;
+}
+.sv .sc-item h3,
+.sv .sc-preview h3 {
+  margin: 0 0 2px;
+  font: 600 var(--t-15) / 1.3 var(--font-ui);
+  overflow-wrap: anywhere;
+}
+.sv .sc-desc {
+  margin: 0 0 2px;
+  color: var(--text);
+  font-size: var(--t-13);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.sv .sc-meta {
+  margin: 0;
+  font-size: var(--t-12);
+}
+.sv .sc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  max-width: 340px;
+}
+.sv .sc-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.sv .sc-dialog.sc-wide {
+  width: min(760px, calc(100vw - 32px));
+}
+.sv .sc-form {
+  display: grid;
+  gap: 6px;
+  margin-bottom: var(--s3);
+}
+.sv .sc-form label {
+  font-weight: 600;
+  font-size: var(--t-13);
+}
+.sv .sc-form input[type='text'] {
+  min-height: 36px;
+}
+.sv .sc-form textarea {
+  padding: var(--s2);
+}
+.sv .sc-check {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  font-weight: 500;
+  margin: var(--s2) 0;
+}
+.sv .sc-report h3 {
+  margin: var(--s3) 0 4px;
+  font: 600 var(--t-13) var(--font-ui);
+}
+.sv .sc-report {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sv .sc-preview {
+  margin-top: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  background: var(--surface-2);
+}
+.sv .sc-preview p {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 899px) {
+  .sv .sc-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sv .sc-actions {
+    justify-content: flex-start;
+    max-width: none;
+  }
+}
+.sv .btn.quiet {
+  background: transparent;
+  box-shadow: none;
+}
+.sv .btn.danger {
+  border-color: var(--danger);
+}
+.sv .se-always {
+  color: var(--text-dim);
+  font-size: var(--t-12);
+  font-style: italic;
+}
+
+.sv .sc-tools ~ .sv-card + .sv-card {
+  margin-top: var(--s5);
+}
+.sv textarea.sc-json {
+  font: 500 var(--t-12) / 1.45 var(--font-code);
+}

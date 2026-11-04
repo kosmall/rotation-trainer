@@ -19,6 +19,8 @@ export interface HistogramProps {
   /** One sentence for screen readers. */
   description: string;
   height?: number;
+  /** The chart's accessible name (default "DPS histogram"; Compare names one per scenario). */
+  name?: string;
 }
 
 const LEFT = 44;
@@ -26,7 +28,7 @@ const RIGHT = 12;
 const TOP = 26;
 const BOTTOM = 24;
 
-export const Histogram = memo(function Histogram({ counts, binStart, binWidth, mean, you, description, height = 280 }: HistogramProps) {
+export const Histogram = memo(function Histogram({ counts, binStart, binWidth, mean, you, description, height = 280, name = 'DPS histogram' }: HistogramProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(wrapRef);
   const descId = useId();
@@ -65,7 +67,7 @@ export const Histogram = memo(function Histogram({ counts, binStart, binWidth, m
     <div className="chart" ref={wrapRef}>
       <svg
         role="img"
-        aria-label="DPS histogram"
+        aria-label={name}
         aria-describedby={descId}
         tabIndex={0}
         width={width}
@@ -76,7 +78,7 @@ export const Histogram = memo(function Histogram({ counts, binStart, binWidth, m
         onBlur={() => setActive(null)}
         onPointerLeave={() => setActive(null)}
       >
-        <title>DPS histogram</title>
+        <title>{name}</title>
         <g className="grid" aria-hidden="true">
           {tickValues(max, step).map((v) => (
             <line key={v} x1={LEFT} x2={LEFT + plotW} y1={sy(v)} y2={sy(v)} />
@@ -141,7 +143,7 @@ export const Histogram = memo(function Histogram({ counts, binStart, binWidth, m
       <details className="chart-data">
         <summary>Show data</summary>
         <div className="tbl-wrap">
-          <table className="dmg" aria-label="DPS histogram, data">
+          <table className="dmg" aria-label={`${name}, data`}>
             <thead>
               <tr>
                 <th scope="col">DPS from</th>

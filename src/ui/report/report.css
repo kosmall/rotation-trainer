@@ -866,3 +866,134 @@
 .report .sim-table td:first-child {
   text-align: left;
 }
+
+/* ---------- Compare (rotation scripts Task 5) ---------- */
+.cmp-tab {
+  display: grid;
+  gap: var(--s3);
+}
+.cmp-pick {
+  margin: 0;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  background: var(--surface);
+  min-width: 0;
+}
+.cmp-pick legend {
+  padding: 0 var(--s2);
+  font: 400 var(--t-18) var(--font-display);
+}
+.cmp-pick legend small {
+  font: 500 var(--t-13) var(--font-ui);
+  color: var(--text-dim);
+}
+.cmp-pick ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s2);
+}
+.cmp-pick li {
+  padding: var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  min-width: 0;
+}
+.cmp-pick li.on {
+  border-color: var(--class);
+  background: var(--class-soft);
+}
+.cmp-pick label {
+  display: flex;
+  gap: var(--s2);
+  align-items: start;
+  cursor: pointer;
+}
+.cmp-pick input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--class);
+  flex: none;
+}
+.cmp-pick label span {
+  display: grid;
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cmp-pick label small {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: var(--t-12);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cmp-pick p {
+  margin: var(--s2) 0 0;
+  font-size: var(--t-13);
+}
+.report .setup-warn {
+  color: var(--danger);
+}
+.runbar select {
+  height: 36px;
+  max-width: 220px;
+  padding: 0 var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.cmp-result {
+  display: grid;
+  gap: var(--s5);
+}
+.cmp-table th[scope='row'] {
+  text-align: left;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 140px;
+}
+.cmp-table td {
+  white-space: nowrap;
+}
+.cmp-table .cmp-base {
+  background: var(--surface-2);
+}
+.cmp-better {
+  color: var(--fel);
+  font-weight: 600;
+}
+.cmp-worse {
+  color: var(--danger);
+  font-weight: 600;
+}
+.cmp-result > .card > .btn {
+  margin-top: var(--s3);
+}
+.cmp-hists,
+.cmp-fires {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s4);
+}
+.cmp-fires h3 {
+  margin: 0 0 var(--s2);
+  font: 600 var(--t-15) var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.report .cmp-table thead th:nth-child(2),
+.report .cmp-table td:first-child {
+  text-align: left;
+}
+.report .cmp-fires td:first-child {
+  text-align: left;
+  white-space: normal;
+}

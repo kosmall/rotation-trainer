@@ -1,25 +1,15 @@
+import { ScenariosPanel } from '../ScenariosPanel';
 import { SetupSectionFrame } from './SectionHead';
 
-/**
- * Scenarios: the designed empty state until the scenarios panel (scripts plan Task 5, stage R5)
- * lands; the scenario files work from the command line today.
- */
+/** Scenarios (Setup → Library): the scenario library, import and export, and the examples. */
 export function ScenariosSection() {
   return (
     <SetupSectionFrame
       section="scenarios"
       title="Scenarios"
-      description="Saved setups with their scripts, to run and compare on the same seeds."
+      description="Saved scripts, with or without their setup: apply one, export it to a file, import one an AI agent wrote, and compare them in Report → Compare on the same seeds."
     >
-      <div className="empty-state">
-        <p>
-          <strong>No scenarios saved.</strong> Save the current setup or import a file.
-        </p>
-        <p className="note">
-          Saving, importing and comparing scenarios here arrives with the script editor, after this redesign. Today the scenario files
-          run from the command line: <code>npm run scenario:run</code> and <code>npm run scenario:compare</code>.
-        </p>
-      </div>
+      <ScenariosPanel />
     </SetupSectionFrame>
   );
 }

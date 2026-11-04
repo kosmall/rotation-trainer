@@ -15,8 +15,9 @@ import { setupTalents } from '../../setup/presets';
 import { browserStorage, loadSetup, saveSetup } from '../../setup/storage';
 import type { SetupStorage } from '../../setup/storage';
 import type { AppliedSetup, SetupConfig } from '../../setup/types';
+import type { ScenarioEntry } from '../../scenarios/library';
 import type { SimRunner } from '../../sim-runner/client';
-import type { SimResult } from '../../sim-runner/types';
+import type { CompareResult, SimRequest, SimResult } from '../../sim-runner/types';
 import { REJECT_LABELS } from '../fight/slotFlash';
 import type { SlotFlash } from '../fight/slotFlash';
 import { auraSources, buildBuffViews } from '../buffsView';
@@ -151,7 +152,37 @@ export interface TrainerProviderProps {
    * thread in chunks where none can start). Tests inject their own.
    */
   simRunner?: SimRunner;
+  /**
+   * Runs the Compare tab's paired comparisons (default: `runComparison`, a module worker or the
+   * main thread, loaded on the first run). Tests inject their own.
+   */
+  compareRunner?: CompareRunner;
 }
+
+/** Runs a paired comparison of 2-5 requests (`runComparison`'s shape, src/sim-runner/client.ts). */
+export type CompareRunner = (
+  requests: SimRequest[],
+  options?: { onProgress?: (done: number, total: number) => void; signal?: AbortSignal },
+) => Promise<CompareResult>;
+
+/**
+ * The scenario library (src/scenarios/library.ts), loaded once from the setup's storage under its
+ * own key (`rotation-trainer:scenarios:v1`). `saved`: whether the last change reached the storage
+ * ('memory': no storage was given, so nothing is meant to be saved; 'failed': the storage refused
+ * it, full or blocked, and the library lives until the page reloads).
+ */
+export interface ScenarioLibrary {
+  entries: readonly ScenarioEntry[];
+  saved: 'yes' | 'memory' | 'failed';
+  /**
+   * The library has been read. Its reader (src/scenarios/storage.ts and the scenario format) is a
+   * chunk loaded right after mount, so it stays out of the first load; until then `entries` is
+   * empty and the panels wait.
+   */
+  loaded: boolean;
+}
+
+type ScenarioStore = typeof import('../../scenarios/storage');
 
 /** What the trainer holds: the setup and everything derived from it (changes on edits only). */
 export interface TrainerState {
@@ -166,6 +197,8 @@ export interface TrainerState {
   unmodelledItemEffects: ReturnType<typeof unmodelledGearEffects>;
   /** The Items group's note while a stored gear waits for the database. */
   itemsNote: string | undefined;
+  /** The saved scenarios (Setup → Scenarios, Report → Compare). */
+  scenarios: ScenarioLibrary;
 }
 
 export interface TrainerActions {
@@ -194,6 +227,18 @@ export interface TrainerActions {
    * "Simulate this setup" card); `config` is the setup it ran. Not saved across reloads.
    */
   recordSimulation(result: SimResult, config: SetupConfig): void;
+  /** Replaces the scenario library and saves it; false when the storage refused it (kept in memory). */
+  changeScenarios(entries: readonly ScenarioEntry[]): boolean;
+  /** Keeps a finished comparison as the last one (`meta.lastComparison`); not saved across reloads. */
+  recordComparison(comparison: LastComparison): void;
+}
+
+/** The last finished comparison: its result and the names of its rows, in request order. */
+export interface LastComparison {
+  result: CompareResult;
+  names: string[];
+  /** The configs it ran, in request order (taken at the click). */
+  configs: SetupConfig[];
 }
 
 /** The last finished simulation and the setup it ran (in memory only, as the Simulator's result). */
@@ -246,10 +291,13 @@ export interface TrainerMeta {
   /** Where UI-only preferences are saved (the setup's storage; null: memory only). */
   uiStorage: UiStorage | null;
   simRunner: SimRunner | undefined;
+  compareRunner: CompareRunner | undefined;
   /** The last ended fight, or null before any fight has ended (the Report). */
   lastFight: LastFight | null;
   /** The last finished simulation, or null (`actions.recordSimulation`). */
   lastSimulation: LastSimulation | null;
+  /** The last finished comparison, or null (`actions.recordComparison`). */
+  lastComparison: LastComparison | null;
 }
 
 export interface TrainerValue {
@@ -303,6 +351,7 @@ export function TrainerProvider({
   loadDb = loadItemDb,
   onReload = reloadPage,
   simRunner,
+  compareRunner,
   children,
 }: TrainerProviderProps & { children?: ReactNode }) {
   const [store] = useState<SetupStorage | null>(() => (storage === undefined ? browserStorage() : storage));
@@ -318,6 +367,34 @@ export function TrainerProvider({
     [hudStore],
   );
   const [config, setConfig] = useState<SetupConfig>(() => loadSetup(store, SETUP_CATALOG));
+  // The scenario library: read once, right after mount, from its own lazily loaded chunk (never
+  // trusted: storage.ts reads every entry again).
+  const [scenarios, setScenarios] = useState<ScenarioLibrary>(() => ({ entries: [], saved: store === null ? 'memory' : 'yes', loaded: false }));
+  const scenarioStore = useRef<ScenarioStore | null>(null);
+  useEffect(() => {
+    let live = true;
+    import('../../scenarios/storage').then(
+      (m) => {
+        if (!live) return;
+        scenarioStore.current = m;
+        setScenarios((s) => (s.loaded ? s : { ...s, entries: m.loadScenarios(store), loaded: true }));
+      },
+      () => {
+        if (live) setScenarios((s) => ({ ...s, loaded: true, saved: store === null ? 'memory' : 'failed' }));
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [store]);
+  const changeScenarios = useCallback(
+    (entries: readonly ScenarioEntry[]) => {
+      const ok = store !== null && scenarioStore.current !== null && scenarioStore.current.saveScenarios(store, entries);
+      setScenarios({ entries, saved: store === null ? 'memory' : ok ? 'yes' : 'failed', loaded: true });
+      return ok || store === null;
+    },
+    [store],
+  );
   const [itemDb, setItemDb] = useState<{ status: GearDbStatus; db: ItemDb | null }>({ status: 'idle', db: null });
   const dbRef = useRef<ItemDb | null>(null);
   const dbStatusRef = useRef<GearDbStatus>('idle');
@@ -481,6 +558,8 @@ export function TrainerProvider({
   const pending = useMemo(() => (anyPending ? pendingSections(fight.config, config) : NO_PENDING), [anyPending, fight.config, config]);
   const [lastSimulation, setLastSimulation] = useState<LastSimulation | null>(null);
   const recordSimulation = useCallback((result: SimResult, simConfig: SetupConfig) => setLastSimulation({ result, config: simConfig }), []);
+  const [lastComparison, setLastComparison] = useState<LastComparison | null>(null);
+  const recordComparison = useCallback((comparison: LastComparison) => setLastComparison(comparison), []);
   const [flash, setFlash] = useState<SlotFlash | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -541,8 +620,8 @@ export function TrainerProvider({
   const identity = useMemo(() => specIdentity({ name: specName, className: specClass, icon: specIcon }), [specName, specClass, specIcon]);
 
   const state = useMemo<TrainerState>(
-    () => ({ config, hudSettings, itemDb, nextFight, talents, talentWarnings, gearHints, unmodelledItemEffects, itemsNote }),
-    [config, hudSettings, itemDb, nextFight, talents, talentWarnings, gearHints, unmodelledItemEffects, itemsNote],
+    () => ({ config, hudSettings, itemDb, nextFight, talents, talentWarnings, gearHints, unmodelledItemEffects, itemsNote, scenarios }),
+    [config, hudSettings, itemDb, nextFight, talents, talentWarnings, gearHints, unmodelledItemEffects, itemsNote, scenarios],
   );
   const actions = useMemo<TrainerActions>(
     () => ({
@@ -559,8 +638,26 @@ export function TrainerProvider({
       pressSlot,
       attachFightView: attach,
       recordSimulation,
+      changeScenarios,
+      recordComparison,
     }),
-    [changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, onReload, start, cast, cancel, doReset, pressSlot, attach, recordSimulation],
+    [
+      changeConfig,
+      changeGear,
+      changeTalents,
+      changeHudSettings,
+      requestDb,
+      onReload,
+      start,
+      cast,
+      cancel,
+      doReset,
+      pressSlot,
+      attach,
+      recordSimulation,
+      changeScenarios,
+      recordComparison,
+    ],
   );
   const meta = useMemo<TrainerMeta>(
     () => ({
@@ -574,10 +671,12 @@ export function TrainerProvider({
       spec: identity,
       uiStorage: store,
       simRunner,
+      compareRunner,
       lastFight,
       lastSimulation,
+      lastComparison,
     }),
-    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner, lastFight, lastSimulation],
+    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner, compareRunner, lastFight, lastSimulation, lastComparison],
   );
   const trainer = useMemo<TrainerValue>(() => ({ state, actions, meta }), [state, actions, meta]);
   const frame = useMemo<FightFrame>(
