@@ -1,4 +1,4 @@
-// The player's unit frame (spec §5.2, bottom left): the spec's icon as portrait, "You" in the
+// The player's unit frame (spec §5.2, bottom centre, left of the target frame): the spec's icon as portrait, "You" in the
 // class colour, the resource bar, and the five-second rule line ("Regen in 1.8 s").
 
 import { memo } from 'react';

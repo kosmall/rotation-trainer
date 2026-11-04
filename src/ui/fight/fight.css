@@ -52,12 +52,14 @@
   overflow: hidden;
   min-width: 0;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 300px;
+  /* The ring in the middle column with the two combat text zones beside it (notifications left,
+     outgoing right, as the game's); the unit frames in a row at the bottom centre, over the bars. */
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 380px) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-areas:
-    'hud target buffs'
+    'hud world outgoing'
     'notes world outgoing'
-    'player world outgoing'
+    'units units units'
     'bars bars bars';
   gap: var(--s3) var(--s4);
   padding: var(--s4) var(--s5) var(--s5);
@@ -181,11 +183,23 @@
   padding: var(--s3);
   min-width: 0;
 }
+/* The unit frames' row (bottom centre): the player (its buffs over it) left, the target right. */
+.fv-units {
+  grid-area: units;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--s3) clamp(var(--s6), 9vw, 140px);
+  min-width: 0;
+}
+.fv-unit-player {
+  display: grid;
+  flex: 0 1 320px;
+  gap: var(--s2);
+  min-width: 0;
+}
 .fv-uf-target {
-  grid-area: target;
-  justify-self: center;
-  align-self: start;
-  width: min(460px, 100%);
+  flex: 0 1 380px;
   grid-template-columns: 64px minmax(0, 1fr);
 }
 .fv-portrait {
@@ -283,10 +297,6 @@
 }
 
 .fv-uf-player {
-  grid-area: player;
-  align-self: end;
-  width: 300px;
-  max-width: 100%;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 4px var(--s3);
 }
@@ -426,18 +436,12 @@
   background: var(--rule);
 }
 
+/* "Your buffs" sit over the player frame (as the game's buffs over the player frame). */
 .fv-player-buffs {
-  grid-area: buffs;
-  justify-self: end;
-  align-self: start;
   display: grid;
-  justify-items: end;
+  justify-items: start;
   gap: var(--s2);
-  max-width: 330px;
   min-width: 0;
-}
-.fv-player-buffs .fv-auras {
-  justify-content: flex-end;
 }
 .fv-lab {
   color: var(--text-dim);
@@ -445,16 +449,24 @@
 }
 
 /* ---------- World: the selection ring ---------- */
+/* The ring stands low in its area, level with where the combat texts start beside it (the zones
+   end the same --fv-spot-low above the area's bottom). */
 .fv-world {
+  --fv-spot-low: var(--s5);
   grid-area: world;
-  position: relative;
   display: grid;
-  place-items: center;
+  place-items: end center;
   min-height: 160px;
+  padding-bottom: var(--fv-spot-low);
   pointer-events: none;
 }
-.fv-ring {
+.fv-spot {
+  position: relative;
   width: min(380px, 80%);
+}
+.fv-ring {
+  display: block;
+  width: 100%;
   aspect-ratio: 2.6;
   color: #e05252;
   opacity: 0.9;
@@ -496,7 +508,8 @@
 }
 
 /* ---------- Combat text zones (CombatTextHud: two positioned layers) ---------- */
-/* The HUD root steps aside: its two areas become the arena's 'outgoing' and 'notes' cells. */
+/* The HUD root steps aside: its two areas become the arena's 'outgoing' and 'notes' cells, each
+   held against the ring (outgoing right of it, notifications left of it), not at the arena's edge. */
 .fv-arena > .hud {
   display: contents;
   /* The arena is always dark: light texts with a black outline (game.css's dark values). */
@@ -510,16 +523,34 @@
   inset: auto;
   width: auto;
   height: auto;
+  width: min(280px, 100%);
   min-height: 96px;
+  margin-bottom: var(--s5); /* the world's --fv-spot-low: texts start level with the ring */
   overflow: hidden;
   pointer-events: none;
   user-select: none;
 }
 .fv-arena > .hud > .hud-outgoing {
   grid-area: outgoing;
+  justify-self: start;
 }
 .fv-arena > .hud > .hud-notifications {
   grid-area: notes;
+  justify-self: end;
+  /* Right-aligned against the ring; the lanes step and drift away from it (leftwards). */
+  --hud-dx: -100%;
+}
+.fv-arena > .hud > .hud-notifications .hud-lane-0 {
+  --hud-x: calc(100% - 12px);
+  --hud-arc: -40px;
+}
+.fv-arena > .hud > .hud-notifications .hud-lane-1 {
+  --hud-x: calc(100% - 22px);
+  --hud-arc: -56px;
+}
+.fv-arena > .hud > .hud-notifications .hud-lane-2 {
+  --hud-x: calc(100% - 32px);
+  --hud-arc: -72px;
 }
 
 /* ---------- Bars: cast bar, item bar, action bar ---------- */
@@ -1072,19 +1103,17 @@ button.fv-slot:active {
     transform: scale(0.85);
   }
 }
-.fv-enter-0 .fv-uf-target,
-.fv-enter-0 .fv-player-buffs {
+.fv-enter-0 .fv-hud {
   animation: fv-down-0 360ms var(--ease-out) both;
 }
-.fv-enter-1 .fv-uf-target,
-.fv-enter-1 .fv-player-buffs {
+.fv-enter-1 .fv-hud {
   animation: fv-down-1 360ms var(--ease-out) both;
 }
-.fv-enter-0 .fv-uf-player,
+.fv-enter-0 .fv-units,
 .fv-enter-0 .fv-bars {
   animation: fv-up-0 360ms var(--ease-out) 80ms both;
 }
-.fv-enter-1 .fv-uf-player,
+.fv-enter-1 .fv-units,
 .fv-enter-1 .fv-bars {
   animation: fv-up-1 360ms var(--ease-out) 80ms both;
 }
@@ -1116,7 +1145,6 @@ button.fv-slot:active {
     grid-template-columns: minmax(0, 1fr);
   }
   .fv-arena {
-    grid-template-columns: 220px minmax(0, 1fr) 220px;
     padding: var(--s3) var(--s4) var(--s4);
   }
   .fv .fv-dock-toggle {
@@ -1155,13 +1183,11 @@ button.fv-slot:active {
   }
   .fv-arena {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto minmax(96px, 1fr) auto auto;
+    grid-template-rows: auto minmax(132px, 1fr) auto auto;
     grid-template-areas:
       'hud hud'
-      'target target'
-      'buffs buffs'
       'notes outgoing'
-      'player player'
+      'units units'
       'bars bars';
     gap: var(--s2);
     min-height: calc(100vh - var(--header-h) - var(--tabbar-h));
@@ -1182,8 +1208,17 @@ button.fv-slot:active {
   .fv-hud-dps b {
     font-size: var(--t-18);
   }
+  /* The frames stack: the player (its buffs over it), then the target. */
+  .fv-units {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s2);
+  }
+  .fv-unit-player,
   .fv-uf-target {
-    width: 100%;
+    flex: none;
+  }
+  .fv-uf-target {
     grid-template-columns: 48px minmax(0, 1fr);
     padding: var(--s2) var(--s3);
   }
@@ -1213,13 +1248,7 @@ button.fv-slot:active {
     width: 22px;
     height: 22px;
   }
-  .fv-player-buffs {
-    justify-self: stretch;
-    justify-items: start;
-    max-width: none;
-  }
   .fv-player-buffs .fv-auras {
-    justify-content: flex-start;
     gap: 4px 6px;
   }
   .fv-lab,
@@ -1228,16 +1257,15 @@ button.fv-slot:active {
   .fv-uf-player .fv-uf-name span {
     display: none;
   }
-  /* The ring sits behind the two combat text zones. */
+  /* The ring sits between (and partly behind) the two combat text zones. */
   .fv-world {
-    grid-area: 4 / 1 / 5 / 3;
+    grid-area: 2 / 1 / 3 / 3;
     min-height: 96px;
   }
-  .fv-ring {
-    width: 70%;
+  .fv-spot {
+    width: 60%;
   }
   .fv-uf-player {
-    width: 100%;
     grid-template-columns: 40px minmax(0, 1fr);
     padding: var(--s2) var(--s3);
   }

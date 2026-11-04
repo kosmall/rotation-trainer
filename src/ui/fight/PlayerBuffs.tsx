@@ -1,4 +1,4 @@
-// "Your buffs" on the Fight screen (spec §5.2, top right, as the game's buff frame): the timed
+// "Your buffs" on the Fight screen (spec §5.2, over the player frame at the bottom centre): the timed
 // buffs with their time left, the upcoming ones (dimmed, "in 4.9 s"), and the setup's buffs in a
 // small second row. It replaced the legacy layout's PlayerBuffsPanel (redesign Tasks 2 and 5).
 
@@ -60,7 +60,7 @@ export interface PlayerBuffsProps {
   reduceMotion: boolean;
 }
 
-/** "Your buffs" (top right, as the game's buff frame): timed buffs, upcoming ones, the setup's. */
+/** "Your buffs" (over the player frame): timed buffs, upcoming ones, the setup's. */
 export const PlayerBuffs = memo(function PlayerBuffs({ active, upcoming, setup, reduceMotion }: PlayerBuffsProps) {
   return (
     <section className="fv-player-buffs" aria-label="Your buffs">

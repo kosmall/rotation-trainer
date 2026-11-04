@@ -306,10 +306,20 @@ describe('Fight screen: "Your buffs"', () => {
     expect(screen.queryByRole('list', { name: 'Buffs' })).toBeNull();
     expect(activeLabels()).toEqual(['Heroism / Bloodlust, 40 seconds left']);
     expect(screen.getByRole('list', { name: 'Debuffs on the target' })).toBeTruthy();
-    // The redesign puts the buffs in the arena's top right (as the game's buff frame), apart from the
-    // player frame and the bars: the bars never move while buffs come and go.
+    // The buffs sit over the player frame in the bottom-centre row of unit frames (as the game's),
+    // apart from the frame itself and from the bars: the bars never move while buffs come and go.
     expect(panel().closest('.fv-arena')).not.toBeNull();
-    expect(screen.getByRole('region', { name: 'You' }).contains(panel())).toBe(false);
+    const you = screen.getByRole('region', { name: 'You' });
+    expect(you.contains(panel())).toBe(false);
+    expect(panel().parentElement).toBe(you.parentElement);
+    expect(panel().compareDocumentPosition(you) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The row: the player (with its buffs) left of the target (with its debuffs).
+    const units = you.closest('.fv-units') as HTMLElement;
+    expect(units).not.toBeNull();
+    const target = screen.getByRole('region', { name: 'Target' });
+    expect(units.contains(target)).toBe(true);
+    expect(target.contains(screen.getByRole('list', { name: 'Debuffs on the target' }))).toBe(true);
+    expect(you.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const bar = screen.getByRole('toolbar', { name: 'Action bar' });
     expect(panel().contains(bar)).toBe(false);
     expect(bar.closest('.fv-bars')?.contains(panel())).toBe(false);

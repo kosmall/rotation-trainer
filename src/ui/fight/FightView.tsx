@@ -1,6 +1,6 @@
-// The Fight screen (UI redesign spec §5.2): a game-like arena (HUD, target frame with debuffs,
-// player buffs, the world ring, combat text zones, player frame, cast/item/action bars and the
-// start, paused and end cards) and the dock. Always the dark world (`.world-dark`), whatever the
+// The Fight screen (UI redesign spec §5.2): a game-like arena (HUD, the world ring with the combat
+// text zones left and right of it, the player and target frames with their auras side by side at
+// the bottom centre, cast/item/action bars and the start, paused and end cards) and the dock. Always the dark world (`.world-dark`), whatever the
 // app's theme. While mounted it owns the fight's keys and keeps the fight's clock running;
 // leaving the screen pauses a running fight (spec §3.3, Q1).
 //
@@ -141,17 +141,23 @@ export function FightView() {
           dockOpen={dockOpen}
           onToggleDock={toggleDock}
         />
-        <TargetFrame damageTotal={snapshot.damageTotal} debuffs={debuffs} reduceMotion={reduceMotion} />
-        <PlayerBuffs active={buffs.active} upcoming={buffs.upcoming} setup={buffs.setup} reduceMotion={reduceMotion} />
         <World />
         <CombatTextLayer snapshot={snapshot} fightId={fightId} logSince={logSince} context={hudContext} settings={hudSettings} />
-        <PlayerFrame
-          icon={meta.spec.icon}
-          specLine={specLine}
-          mana={snapshot.mana}
-          maxMana={snapshot.maxMana}
-          regenInMs={regenInMs}
-        />
+        {/* The unit frames at the bottom centre, side by side with a gap (as the game's): the player
+            with "Your buffs" over it on the left, the target with its debuffs on the right. */}
+        <div className="fv-units">
+          <div className="fv-unit-player">
+            <PlayerBuffs active={buffs.active} upcoming={buffs.upcoming} setup={buffs.setup} reduceMotion={reduceMotion} />
+            <PlayerFrame
+              icon={meta.spec.icon}
+              specLine={specLine}
+              mana={snapshot.mana}
+              maxMana={snapshot.maxMana}
+              regenInMs={regenInMs}
+            />
+          </div>
+          <TargetFrame damageTotal={snapshot.damageTotal} debuffs={debuffs} reduceMotion={reduceMotion} />
+        </div>
         <Bars
           spec={spec}
           snapshot={snapshot}

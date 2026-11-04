@@ -100,11 +100,11 @@ Stan sekcji/zakładek jest w URL, więc odświeżenie i link działają (Vercel:
 |---|---|---|
 | Nagłówek (`h1` + spec) | Nagłówek aplikacji | spec chip z kolorem klasy |
 | FightStats (DPS, Total damage, Time) + DpsNote | Fight → HUD (lewy górny róg) | DpsNote → tooltip „i” przy DPS i nagłówek Report |
-| TargetPanel (cel, HP, debuffy) | Fight → ramka celu (góra, środek) | debuffy z timerami pod paskiem HP |
+| TargetPanel (cel, HP, debuffy) | Fight → ramka celu (dół, środek, po prawej) | debuffy z timerami pod paskiem HP |
 | CastBar | Fight → nad paskami akcji | okno kolejki (400 ms) narysowane na pasku |
-| ManaBar | Fight → ramka gracza (lewy dół) | pasek zasobu z tokenem `--resource` |
+| ManaBar | Fight → ramka gracza (dół, środek, po lewej) | pasek zasobu z tokenem `--resource` |
 | ActionBar + Item bar | Fight → dół, środek | 12 + 6 slotów, wygląd „bordered action bar” |
-| PlayerBuffsPanel („Your buffs”) | Fight → prawy górny róg (aktywne + upcoming), ikony buffów setupu w drugim rzędzie | dostępna nazwa „Your buffs” zostaje |
+| PlayerBuffsPanel („Your buffs”) | Fight → nad ramką gracza (aktywne + upcoming), ikony buffów setupu w drugim rzędzie | dostępna nazwa „Your buffs” zostaje |
 | CombatTextLayer | Fight → dwie strefy: outgoing (prawo od pierścienia celu), notifications (lewo) | bez zmian w logice `hudQueue` |
 | StartOverlay | Fight → karta „Ready When You Are” na arenie (z linkami do setupu) | |
 | EndSummary („Fight over”) | Fight → karta na arenie z DPS, % bota i przyciskiem „Open Report” | `role=region` „Fight summary” zostaje |
@@ -300,41 +300,44 @@ Mobile 390:
 Desktop 1440 (arena 1120 + dock 320):
 ```
 ┌ header ─────────────────────────────────────────────────────────┬──────────────┐
-│ 0:34.2 / 1:00     ┌[☠73] Raid Target Dummy  Boss 73┐  [buffy z  │ Damage done  │
-│ ▬▬▬▬▬▬╍╍╍         │ ████████████ 79,384 taken 100% │   timerami]│ ▇▇ Shadow B. │
-│ 2,321.2  79,384   │ [ISB 3 8.6s][Imm 4.1s][Cor][CoD]│  [buffy    │ ▇ Immolate   │
-│ Esc R ?           └─────────────────────────────────┘   setupu] │ ▆ Corruption │
-│                                                                 │ Next by the  │
-│ +Heroism            ╭──── pierścień celu ────╮   2,231          │ script       │
-│ +1,622 Mana        (    Raid Target Dummy    )   741  612       │ ▸Shadow Bolt │
-│ Band of the …!      ╰────────────────────────╯   [ikona] 4,812! │ So far       │
-│ ┌[ikona] You  Destruction Warlock┐                              │ uptime       │
-│ │ ███████ 6,284 / 10,679   59%   │                              │ Combat log   │
-│ └────────────────────────────────┘                              │ 34.1 SB 4,812│
+│ 0:34.2 / 1:00                                                   │ Damage done  │
+│ ▬▬▬▬▬▬╍╍╍                                        2,231          │ ▇▇ Shadow B. │
+│ 2,321.2  79,384                                  741  612       │ ▇ Immolate   │
+│ Esc R ?   +Heroism  ╭──── pierścień celu ────╮   [ikona] 4,812! │ ▆ Corruption │
+│      +1,622 Mana   (    Raid Target Dummy    )                  │ Next by the  │
+│  Band of the …!     ╰────────────────────────╯                  │ script       │
+│    [buffy z timerami]                                           │ ▸Shadow Bolt │
+│    [buffy setupu]          ┌[☠73] Raid Target Dummy  Boss 73┐   │ So far       │
+│    ┌[ikona] You  Destr. W.┐│ ████████ 79,384 taken   100%   │   │ uptime       │
+│    │ ████ 6,284/10,679 59%││ [ISB 3 8.6s][Imm 4.1s][Cor][CoD]│   │ Combat log   │
+│    └──────────────────────┘└────────────────────────────────┘   │ 34.1 SB 4,812│
 │            [ikona][ Shadow Bolt ███████░░▨▨ 1.12 / 1.87 ]        │ …            │
 │                 Items [Z][X][C][V][B][N]                        │ ☑ Combat text│
 │        [1][2][3][4][5][6][7][8][9][0][-][=]                     │   Settings   │
 └─────────────────────────────────────────────────────────────────┴──────────────┘
 ```
-- Ramka celu u góry na środku: portret (czaszka + poziom 73), nazwa w kolorze wrogości, „Boss, level 73”,
+- Ramki jednostek w rzędzie u dołu na środku, nad cast barem, z odstępem między nimi (jak w grze; zmiana
+  2026-11-05 na prośbę autora): po lewej ramka gracza z buffami nad nią, po prawej ramka celu z debuffami.
+- Ramka celu (dół, środek, po prawej): portret (czaszka + poziom 73), nazwa w kolorze wrogości, „Boss, level 73”,
   pasek HP (manekin: zawsze 100%, z sumą obrażeń), rząd debuffów z timerami (moje: czerwona obwódka, ładunki
   w rogu; cudze: mniejsze, za separatorem). Miejsce na cast bar celu jest zarezerwowane dla przyszłych bossów
   (etap 4), dziś ukryte.
-- Prawy górny róg: buffy gracza z timerami (jak ramka buffów w grze), poniżej mniejsze ikony stałych buffów
+- Nad ramką gracza: buffy gracza z timerami, poniżej mniejsze ikony stałych buffów
   setupu. Upcoming (Heroism przed startem): ikona przygaszona z „in 4.9 s”. Ostatnie 5 s: czerwony,
   pogrubiony czas i puls ikony (bez pulsu przy reduced motion: czerwony obrys).
-- Lewy dół: ramka gracza (portret = ikona speca, nazwa w kolorze klasy, pasek zasobu, linia „Regen in 1.8 s”
+- Ramka gracza (dół, środek, po lewej): portret = ikona speca, nazwa w kolorze klasy, pasek zasobu, linia „Regen in 1.8 s”
   dla zasady pięciu sekund).
 - Dół, środek: cast bar (z oknem kolejki 400 ms jako kreskowanym końcem), pasek Items, pasek akcji 12 slotów
   50 px. Na slotach: klawisz w prawym górnym rogu, sweep GCD/cooldownu (`conic-gradient`), czas cooldownu,
   błysk powodu odrzucenia (dzisiejsze `REJECT_LABELS`), złota poświata slotu „następny wg skryptu” (tryb
   coach, można wyłączyć).
-- Strefy combat textu: outgoing po prawej od pierścienia, notifications po lewej; teksty mają `aria-hidden`.
+- Pierścień celu na środku areny; strefy combat textu tuż obok niego (nie przy krawędziach): outgoing po prawej,
+  notifications po lewej, teksty startują na wysokości pierścienia; teksty mają `aria-hidden`.
 - Dock (prawy): mini meter (Details: pasek w kolorze szkoły, ikona, nazwa, suma, (DPS, %)), „Next by the
   script” (top 4 reguły i powód), „So far” (active time, uptime DoT-ów, bot w tej sekundzie), ticker logu
   (ostatnie 7 zdarzeń, `aria-live="off"`), przełącznik Combat text i link do ustawień.
 
-Tablet 1024: arena na całą szerokość (kolumny 220 / 1fr / 220), dock jako okno nakładane przyciskiem „Meter”
+Tablet 1024: arena na całą szerokość (ten sam układ co desktop), dock jako okno nakładane przyciskiem „Meter”
 (stan pamiętany w `localStorage`).
 
 Mobile 390 (bez przewijania w 844 px):

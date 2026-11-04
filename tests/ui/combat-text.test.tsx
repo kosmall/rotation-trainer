@@ -513,7 +513,8 @@ describe('Combat text HUD: fixes after review', () => {
 
   it('M5: the notifications and the outgoing texts are two zones of their own in the arena (clear of the target frame)', async () => {
     // The redesign gives each area its own grid cell: notifications left of the target ring,
-    // outgoing right of it (spec §5.2), so the target's debuff rows never overlap them.
+    // outgoing right of it (spec §5.2), held against the ring; the unit frames (with their aura
+    // rows) and the bars are rows of their own below, so they never overlap the texts.
     renderApp({ route: '#/fight', storage: memoryStorage().storage });
     const arena = document.querySelector('.fv-arena') as HTMLElement;
     const notes = arena.querySelector('.hud > .hud-notifications');
@@ -528,7 +529,10 @@ describe('Combat text HUD: fixes after review', () => {
     expect(css).toMatch(/\.fv-arena > \.hud \{[^}]*display: contents/);
     expect(css).toMatch(/\.fv-arena > \.hud > \.hud-notifications \{[^}]*grid-area: notes/);
     expect(css).toMatch(/\.fv-arena > \.hud > \.hud-outgoing \{[^}]*grid-area: outgoing/);
-    expect(css).toMatch(/'notes world outgoing'/);
+    expect(css).toMatch(/'notes world outgoing'\s*'units units units'\s*'bars bars bars'/);
+    expect(css).toMatch(/\.fv-arena > \.hud > \.hud-notifications \{[^}]*justify-self: end/);
+    expect(css).toMatch(/\.fv-arena > \.hud > \.hud-outgoing \{[^}]*justify-self: start/);
+    expect(css).toMatch(/\.fv-units \{[^}]*grid-area: units/);
   });
 
   it('M6: light theme darkens the colours with a white outline, dark theme lightens them with a black one', async () => {

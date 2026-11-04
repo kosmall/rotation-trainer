@@ -10,7 +10,7 @@ import type { AuraIconView } from './fightViewModel';
 interface FrameProps {
   /** The frame's accessible name ("Target", "You"). */
   label: string;
-  /** 'target' (top centre) or 'player' (bottom left). */
+  /** 'target' (bottom centre, right) or 'player' (bottom centre, left). */
   unit: 'target' | 'player';
   children: ReactNode;
 }

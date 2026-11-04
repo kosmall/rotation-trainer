@@ -1,4 +1,4 @@
-// The target's unit frame (spec §5.2, top centre): skull portrait with the level, name, a health
+// The target's unit frame (spec §5.2, bottom centre, right of the player frame): skull portrait with the level, name, a health
 // bar that never moves (a training dummy) with the damage taken, and the debuffs with timers.
 
 import { memo } from 'react';
