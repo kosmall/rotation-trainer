@@ -93,7 +93,29 @@ describe('setup storage: key and size cap', () => {
     );
     const text = JSON.stringify(full);
     expect(text.length).toBeLessThan(SETUP_STORAGE_MAX_CHARS / 10);
-    expect(SETUP_STORAGE_MAX_CHARS).toBe(100_000);
+    expect(SETUP_STORAGE_MAX_CHARS).toBe(1_000_000);
+  });
+
+  it('a maximal rotation script (every script limit used, plain text) is saved and loaded back', () => {
+    const id = 'i'.repeat(128);
+    const cond = `mana > 1 && ${'a'.repeat(486)}`;
+    const script = {
+      rules: Array.from({ length: 200 }, (_, i) => ({
+        action: 'cast' as const,
+        id,
+        if: cond,
+        label: `${i}`.padEnd(100, 'l'),
+        comment: 'c'.repeat(1000),
+        enabled: true,
+      })),
+      defs: Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`d${i}`.padEnd(64, 'n'), cond])),
+    };
+    const config = normalizeSetup({ ...DEFAULT_SETUP, script }, SETUP_CATALOG);
+    expect(config.script).toEqual(script);
+    expect(JSON.stringify(config).length).toBeGreaterThan(300_000);
+    const { storage } = memoryStorage();
+    expect(saveSetup(storage, config)).toBe(true);
+    expect(loadSetup(storage, SETUP_CATALOG)).toEqual(config);
   });
 });
 
@@ -247,13 +269,13 @@ describe('loadSetup / saveSetup', () => {
     expect(loadText('{"version":1,"distanceYd":-3}').distanceYd).toBe(SETUP_LIMITS.distanceYd.min);
   });
 
-  it('stored value is huge (1 MB string) → defaults without hanging', () => {
+  it('stored value is huge (2 MB string) → defaults without hanging', () => {
     const parse = vi.spyOn(JSON, 'parse');
-    // A valid config padded to 1 MB: the cap rejects it before parsing, so it is not loaded.
-    const padded = JSON.stringify({ ...customConfig(), padding: 'x'.repeat(1_000_000) });
-    expect(padded.length).toBeGreaterThan(1_000_000);
+    // A valid config padded to 2 MB: the cap rejects it before parsing, so it is not loaded.
+    const padded = JSON.stringify({ ...customConfig(), padding: 'x'.repeat(2_000_000) });
+    expect(padded.length).toBeGreaterThan(SETUP_STORAGE_MAX_CHARS);
     expect(loadText(padded)).toEqual(DEFAULT_SETUP);
-    expect(loadText('x'.repeat(1_000_000))).toEqual(DEFAULT_SETUP);
+    expect(loadText('x'.repeat(2_000_000))).toEqual(DEFAULT_SETUP);
     expect(parse).not.toHaveBeenCalled();
   });
 
@@ -273,8 +295,8 @@ describe('loadSetup / saveSetup', () => {
     expect(() => loadText('['.repeat(depth) + ']'.repeat(depth))).not.toThrow();
     expect(loadText('['.repeat(depth) + ']'.repeat(depth))).toEqual(DEFAULT_SETUP);
     expect(loadText('{"a":'.repeat(Math.floor(depth / 6)) + '1' + '}'.repeat(Math.floor(depth / 6)))).toEqual(DEFAULT_SETUP);
-    // 100k nested arrays (200k characters): rejected by the cap before JSON.parse.
-    expect(loadText('['.repeat(100_000) + ']'.repeat(100_000))).toEqual(DEFAULT_SETUP);
+    // Nested arrays over the cap: rejected by the cap before JSON.parse.
+    expect(loadText('['.repeat(SETUP_STORAGE_MAX_CHARS) + ']'.repeat(SETUP_STORAGE_MAX_CHARS))).toEqual(DEFAULT_SETUP);
   });
 
   it('JSON.parse throwing a stack overflow (RangeError) → defaults', () => {
@@ -303,7 +325,7 @@ describe('loadSetup / saveSetup', () => {
   });
 
   it('saveSetup refuses to write above the cap', () => {
-    const big = Array.from({ length: 2000 }, (_, i) => fakeTimedBuff(i));
+    const big = Array.from({ length: 12_000 }, (_, i) => fakeTimedBuff(i));
     const config = normalizeSetup(undefined, big);
     expect(JSON.stringify(config).length).toBeGreaterThan(SETUP_STORAGE_MAX_CHARS);
     const { storage, data, calls } = memoryStorage({ [SETUP_STORAGE_KEY]: 'previous' });

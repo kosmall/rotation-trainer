@@ -10,14 +10,16 @@ import type { SetupConfig } from './types';
 export const SETUP_STORAGE_KEY = 'rotation-trainer:setup:v1';
 
 /**
- * Longest stored text (UTF-16 code units) that is parsed or written. A full legitimate config is
- * under 1 kB today (383 characters for the default, 854 with every catalog buff tried: one entry
- * per timed catalog buff plus the enabled ids), so 100 000 leaves room for a catalog 100 times
- * larger while bounding the work on corrupt or hostile data: a longer value is ignored
- * before `JSON.parse` (no time or memory spent on a 1 MB string, no 100k-deep nesting reaches the
- * parser), and `saveSetup` refuses to write one.
+ * Longest stored text (UTF-16 code units) that is parsed or written. A config without a rotation
+ * script is under 1 kB today (383 characters for the default, 854 with every catalog buff tried);
+ * a rotation script can be far larger: one at every script limit (200 rules with 128-character
+ * ids, 500-character conditions, 100-character labels and 1000-character comments, 50 defs) is
+ * about 400 000 characters of plain text, and a scenario file (up to 200 000 characters) applied
+ * in the app must stay savable. 1 000 000 covers both while bounding the work on corrupt or
+ * hostile data: a longer value is ignored before `JSON.parse`, and `saveSetup` refuses to write
+ * one.
  */
-export const SETUP_STORAGE_MAX_CHARS = 100_000;
+export const SETUP_STORAGE_MAX_CHARS = 1_000_000;
 
 /** The part of the Web Storage API the setup uses (tests pass in-memory fakes). */
 export type SetupStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;

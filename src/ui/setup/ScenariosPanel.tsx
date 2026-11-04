@@ -111,6 +111,21 @@ function IssuesReport({ parse, title }: { parse: Pick<ScenarioParse, 'errors' | 
   );
 }
 
+/**
+ * The scenario's name after a row button's visible text, for screen readers only: the accessible
+ * name ("Apply… Pipe, then Icon") starts with the visible label ("Apply…"), as WCAG 2.5.3 asks,
+ * and still tells the rows apart.
+ */
+function Named({ name }: { name: string }) {
+  // The space outside the hidden span: an accessible-name computation trims each element's text.
+  return (
+    <>
+      {' '}
+      <span className="sr-only">{name}</span>
+    </>
+  );
+}
+
 function ScenarioSummary({ scenario }: { scenario: Scenario }) {
   const parts = setupParts(scenario);
   const n = scenario.script.rules.length;
@@ -438,20 +453,20 @@ export function ScenariosPanel() {
                     <ScenarioSummary scenario={s} />
                   </div>
                   <div className="sc-actions">
-                    <button type="button" className="btn small primary" aria-label={`Apply ${s.name}…`} onClick={() => setDialog({ kind: 'apply', scenario: s })}>
-                      Apply…
+                    <button type="button" className="btn small primary" onClick={() => setDialog({ kind: 'apply', scenario: s })}>
+                      Apply…<Named name={s.name} />
                     </button>
-                    <button type="button" className="btn small" aria-label={`Export ${s.name}…`} onClick={() => setDialog({ kind: 'export', scenario: s })}>
-                      Export…
+                    <button type="button" className="btn small" onClick={() => setDialog({ kind: 'export', scenario: s })}>
+                      Export…<Named name={s.name} />
                     </button>
-                    <button type="button" className="btn small quiet" aria-label={`Duplicate ${s.name}`} onClick={() => commit(duplicateScenario(entries, entry.id, now()), `Duplicated “${s.name}”.`)}>
-                      Duplicate
+                    <button type="button" className="btn small quiet" onClick={() => commit(duplicateScenario(entries, entry.id, now()), `Duplicated “${s.name}”.`)}>
+                      Duplicate<Named name={s.name} />
                     </button>
-                    <button type="button" className="btn small quiet" aria-label={`Rename ${s.name}…`} onClick={() => setDialog({ kind: 'rename', entry })}>
-                      Rename…
+                    <button type="button" className="btn small quiet" onClick={() => setDialog({ kind: 'rename', entry })}>
+                      Rename…<Named name={s.name} />
                     </button>
-                    <button type="button" className="btn small quiet" aria-label={`Delete ${s.name}…`} onClick={() => setDialog({ kind: 'delete', entry })}>
-                      Delete…
+                    <button type="button" className="btn small quiet" onClick={() => setDialog({ kind: 'delete', entry })}>
+                      Delete…<Named name={s.name} />
                     </button>
                   </div>
                 </li>
@@ -474,11 +489,11 @@ export function ScenariosPanel() {
                   <ScenarioSummary scenario={s} />
                 </div>
                 <div className="sc-actions">
-                  <button type="button" className="btn small" aria-label={`Save to Library ${s.name}`} onClick={() => commit(addScenario(entries, s, now()), `Saved “${s.name}” to the library.`)}>
-                    Save to Library
+                  <button type="button" className="btn small" onClick={() => commit(addScenario(entries, s, now()), `Saved “${s.name}” to the library.`)}>
+                    Save to Library<Named name={s.name} />
                   </button>
-                  <button type="button" className="btn small quiet" aria-label={`Apply ${s.name}…`} onClick={() => setDialog({ kind: 'apply', scenario: s })}>
-                    Apply…
+                  <button type="button" className="btn small quiet" onClick={() => setDialog({ kind: 'apply', scenario: s })}>
+                    Apply…<Named name={s.name} />
                   </button>
                 </div>
               </li>

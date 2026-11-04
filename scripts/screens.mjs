@@ -144,7 +144,7 @@ async function main() {
     // Two example scenarios in the library (the setup itself is unchanged).
     await go('#/setup/scenarios');
     await page.waitForSelector('[aria-label="Example scenarios"]');
-    for (const name of EXAMPLES_TO_SAVE) await page.click(`button[aria-label="Save to Library ${name}"]`);
+    for (const name of EXAMPLES_TO_SAVE) await page.getByRole('button', { name: `Save to Library ${name}`, exact: true }).click();
 
     for (const tab of REPORT_TABS) {
       await go(`#/report/${tab}`);

@@ -115,13 +115,13 @@ describe('Scenarios: library', () => {
   it('Apply asks first, names what it replaces, and applies the script and (optionally) the setup', async () => {
     const trinket = example('potion-heroism-shadowburn');
     const { map } = await open(memory({}, { version: 1, scenarios: [{ id: 'p', scenario: trinket }] }));
-    fireEvent.click(within(saved()!).getByRole('button', { name: `Apply ${trinket.name}…` }));
+    fireEvent.click(within(saved()!).getByRole('button', { name: `Apply… ${trinket.name}` }));
     let d = screen.getByRole('dialog', { name: `Apply “${trinket.name}”?` });
     expect(d.textContent).toMatch(/This replaces your rotation \(the script, or the basic rotation\) and your .*buffs and items/);
     fireEvent.click(within(d).getByRole('button', { name: 'Cancel' }));
     expect(config(map)).not.toHaveProperty('script');
 
-    fireEvent.click(within(saved()!).getByRole('button', { name: `Apply ${trinket.name}…` }));
+    fireEvent.click(within(saved()!).getByRole('button', { name: `Apply… ${trinket.name}` }));
     d = dialog();
     fireEvent.click(within(d).getByRole('checkbox', { name: /Also apply its setup/ }));
     expect(d.textContent).not.toMatch(/and your/);
@@ -130,7 +130,7 @@ describe('Scenarios: library', () => {
     expect(config(map).enabledBuffs).toEqual(DEFAULT_SETUP.enabledBuffs);
     expect(screen.getByText(/plays from the next fight/)).toBeTruthy();
 
-    fireEvent.click(within(saved()!).getByRole('button', { name: `Apply ${trinket.name}…` }));
+    fireEvent.click(within(saved()!).getByRole('button', { name: `Apply… ${trinket.name}` }));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Apply Scenario' }));
     expect(config(map).enabledBuffs).toEqual(trinket.setup!.enabledBuffs);
     goTo('#/setup/rotation');
@@ -138,12 +138,34 @@ describe('Scenarios: library', () => {
     expect(screen.getByText(/Script active/)).toBeTruthy();
   });
 
+  it('per-scenario buttons: the accessible name starts with the visible text (WCAG 2.5.3) and names the scenario', async () => {
+    await open();
+    saveCurrent('Base');
+    const buttons = [
+      ...within(saved()!).getAllByRole('button'),
+      ...within(screen.getByRole('list', { name: 'Example scenarios' })).getAllByRole('button'),
+    ];
+    expect(buttons.length).toBeGreaterThan(5);
+    for (const b of buttons) {
+      const visible = [...b.childNodes]
+        .filter((n) => !(n instanceof HTMLElement && n.classList.contains('sr-only')))
+        .map((n) => n.textContent)
+        .join('')
+        .trim();
+      const name = b.getAttribute('aria-label') ?? b.textContent!.trim();
+      expect(visible.length).toBeGreaterThan(0);
+      expect(name.startsWith(visible), `${JSON.stringify(name)} starts with ${JSON.stringify(visible)}`).toBe(true);
+      expect(name.length).toBeGreaterThan(visible.length);
+    }
+    expect(screen.getByRole('button', { name: 'Apply… Base' })).toBeTruthy();
+  });
+
   it('Duplicate, Rename and Delete (asks first); a blank name is refused', async () => {
     const { map } = await open();
     saveCurrent('Base');
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate Base' }));
     expect(savedNames()).toEqual(['Base', 'Base (copy)']);
-    fireEvent.click(screen.getByRole('button', { name: 'Rename Base (copy)…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rename… Base (copy)' }));
     const input = within(dialog()).getByRole('textbox', { name: 'New name' });
     fireEvent.change(input, { target: { value: '   ' } });
     expect((within(dialog()).getByRole('button', { name: 'Rename' }) as HTMLButtonElement).disabled).toBe(true);
@@ -151,10 +173,10 @@ describe('Scenarios: library', () => {
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Rename' }));
     expect(savedNames()).toEqual(['Base', 'Variant']);
     expect(library(map).map((e) => e.id)).toEqual(['base', 'base-copy']);
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Base…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete… Base' }));
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete “Base”?' })).getByRole('button', { name: 'Cancel' }));
     expect(savedNames()).toEqual(['Base', 'Variant']);
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Base…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete… Base' }));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Delete Scenario' }));
     expect(savedNames()).toEqual(['Variant']);
     expect(library(map).map((e) => e.scenario.name)).toEqual(['Variant']);
@@ -205,7 +227,7 @@ describe('Scenarios: import and export', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(savedNames()).toEqual([example('burst-potion').name]);
 
-    fireEvent.click(screen.getByRole('button', { name: `Export ${example('burst-potion').name}…` }));
+    fireEvent.click(screen.getByRole('button', { name: `Export… ${example('burst-potion').name}` }));
     const exported = (within(dialog()).getByRole('textbox', { name: 'Scenario JSON' }) as HTMLTextAreaElement).value;
     const back = parseScenario(exported, { db });
     expect(back.ok).toBe(true);
@@ -228,7 +250,7 @@ describe('Scenarios: import and export', () => {
     Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     await open(memory({}, { version: 1, scenarios: [{ id: 'b', scenario: example('burst-potion') }] }));
-    fireEvent.click(screen.getByRole('button', { name: `Export ${example('burst-potion').name}…` }));
+    fireEvent.click(screen.getByRole('button', { name: `Export… ${example('burst-potion').name}` }));
     await act(async () => {
       fireEvent.click(within(dialog()).getByRole('button', { name: 'Copy JSON' }));
     });
@@ -301,7 +323,7 @@ describe('Scenarios: examples', () => {
     const trinket = example('trinket-sequencing');
     fireEvent.click(within(list).getByRole('button', { name: `Save to Library ${trinket.name}` }));
     expect(savedNames()).toEqual([trinket.name]);
-    fireEvent.click(within(list).getByRole('button', { name: `Apply ${trinket.name}…` }));
+    fireEvent.click(within(list).getByRole('button', { name: `Apply… ${trinket.name}` }));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Apply Scenario' }));
     expect(config(map).script).toEqual(trinket.script);
     expect(config(map).fightDurationSec).toBe(90);
