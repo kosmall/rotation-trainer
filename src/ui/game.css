@@ -1,73 +1,28 @@
+/*
+ * The editors' shared rules (setup groups, gear, talents, item picker, item use rules, simulator
+ * result, combat text HUD). The legacy one-page layout's rules were removed with it (UI redesign
+ * Task 5). The legacy variable names below follow the design tokens (src/ui/theme/tokens.css), so
+ * everything here follows the app's theme, not the OS colour scheme.
+ */
 :root {
-  --bg: #f3f1ec;
-  --panel: #ffffff;
-  --panel-border: #d8d3c8;
-  --legacy-text: #1d1b18;
-  --muted: #6b655b;
-  --accent: #7b4fc4;
-  --health: #2f9a3a;
-  --legacy-mana: #2f63c4;
-  --legacy-cast: #d9a21b;
-  --track: #e2ddd2;
-  --overlay: rgba(243, 241, 236, 0.95);
-  --bar-track: #47443d;
-  /* Buffs panel: the expiring warning (with a pulse and bold time, never colour alone) and the
-     school-neutral initials tile of an aura without an icon file. */
-  --warn: #b3261e;
-  --buff-tile: #5c5868;
-  color-scheme: light;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #15141a;
-    --panel: #201f27;
-    --panel-border: #34323d;
-    --legacy-text: #ebe8f0;
-    --muted: #9c97a8;
-    --accent: #a77ff0;
-    --health: #3fae4a;
-    --legacy-mana: #3c74e0;
-    --legacy-cast: #e0ae2a;
-    --track: #2c2a34;
-    --overlay: rgba(21, 20, 26, 0.95);
-    --bar-track: #2c2a34;
-    --warn: #ff8a7a;
-    --buff-tile: #5c5868;
-    color-scheme: dark;
-  }
+  --bg: var(--page);
+  --panel: var(--surface);
+  --panel-border: var(--rule);
+  --legacy-text: var(--text);
+  --muted: var(--text-dim);
+  --accent: var(--class);
+  --health: var(--fel);
+  --legacy-cast: var(--cast);
+  --track: var(--surface-2);
+  --bar-track: var(--surface-2);
+  --warn: var(--danger);
+  --buff-tile: var(--surface-2);
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--legacy-text);
-}
-
-.app {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 12px 16px 24px;
-}
-
-.app-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.app-header h1 {
-  font-size: 1.25rem;
-  margin: 0 0 8px;
-}
-
-.app-spec,
 .hint {
   color: var(--muted);
   font-size: 0.85rem;
@@ -81,201 +36,11 @@ kbd {
   background: var(--panel);
 }
 
-.game {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
-  align-items: start;
-}
-
-@media (max-width: 800px) {
-  .game {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.game-main {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.panel,
-.arena,
-.player {
+.panel {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 12px;
-}
-
-/* Live numbers */
-.fight-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 0;
-}
-
-.fight-stats > div {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 6px 10px;
-}
-
-.fight-stats dt {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.fight-stats dd {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* What the DPS leaves out: one quiet line under the live stats and in the end summary. */
-.dps-note {
-  margin: 4px 0 0;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-/* Target */
-.arena {
-  position: relative;
-  min-height: 210px;
-}
-
-.target-name {
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.target-level {
-  color: var(--muted);
-  font-size: 0.8rem;
-  margin-bottom: 6px;
-}
-
-.bar {
-  position: relative;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--bar-track);
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-}
-
-.health-bar .bar-fill {
-  background: var(--health);
-}
-
-.mana-bar .bar-fill {
-  background: var(--legacy-mana);
-}
-
-.bar-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Auras */
-.aura-list {
-  list-style: none;
-  padding: 0;
-  margin: 10px 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.aura {
-  display: grid;
-  grid-template-columns: 36px auto;
-  grid-template-rows: auto auto;
-  column-gap: 6px;
-  align-items: center;
-  font-size: 0.8rem;
-}
-
-.aura-icon {
-  grid-row: span 2;
-  position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.8rem;
-  overflow: hidden;
-}
-
-.aura-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: inherit;
-  user-select: none;
-}
-
-.aura-count {
-  position: absolute;
-  z-index: 1;
-  right: 1px;
-  bottom: 0;
-  font-size: 0.75rem;
-  text-shadow: 0 0 2px #000, 0 0 2px #000;
-}
-
-.aura-time {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Overlays (start, end summary) cover the arena only, so the action bar stays clickable. */
-.overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--overlay);
-  backdrop-filter: blur(2px);
-  border-radius: 8px;
-  padding: 8px;
-}
-
-.overlay-card {
-  text-align: center;
-}
-
-.overlay-card h2 {
-  margin: 0 0 10px;
-  font-size: 1.3rem;
-}
-
-.overlay-card .hint {
-  margin: 8px 0 0;
 }
 
 button.primary {
@@ -289,230 +54,6 @@ button.primary {
   cursor: pointer;
 }
 
-.summary {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 4px 16px;
-  margin: 0 auto 12px;
-  width: max-content;
-  text-align: left;
-}
-
-.summary dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* Player: cast bar, mana, action bar, then the "Your buffs" panel (below the bars, so they never
-   move while buffs come and go) */
-.player {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.player .buffs-panel {
-  margin-top: 2px;
-  padding-top: 10px;
-  border-top: 1px solid var(--panel-border);
-}
-
-.cast-bar {
-  position: relative;
-  height: 24px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--bar-track);
-}
-
-.cast-bar-idle {
-  background: transparent;
-}
-
-.cast-bar-fill {
-  height: 100%;
-  background: var(--legacy-cast);
-}
-
-.cast-bar-name,
-.cast-bar-time {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-.cast-bar-name {
-  left: 8px;
-}
-
-.cast-bar-time {
-  right: 8px;
-  font-variant-numeric: tabular-nums;
-}
-
-.action-bar {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 6px;
-}
-
-/* The item row: slots as large as the spell row's (same columns), its label in the first column. */
-.item-bar {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 6px;
-  align-items: center;
-}
-
-.item-bar-label {
-  min-width: 0;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-align: center;
-  color: var(--muted);
-}
-
-@media (max-width: 560px) {
-  .action-bar,
-  .item-bar {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  /* Six item slots (Z X C V B N) fill one row of six: the label takes a row of its own above them. */
-  .item-bar-label {
-    grid-column: 1 / -1;
-    text-align: left;
-  }
-}
-
-.slot {
-  position: relative;
-  aspect-ratio: 1;
-  min-width: 0;
-  border-radius: 6px;
-  border: 2px solid rgba(0, 0, 0, 0.35);
-  color: #fff;
-  font: inherit;
-  padding: 0;
-  overflow: hidden;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.slot-empty {
-  background: var(--track);
-  border-style: dashed;
-  border-color: var(--panel-border);
-  cursor: default;
-}
-
-.slot-initials {
-  font-weight: 700;
-  font-size: 1rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.slot-icon {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0; /* above the initials, below the GCD sweep, cooldown, key and flash overlays */
-  user-select: none;
-  pointer-events: none;
-}
-
-.slot-key {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 0 2px #000, 0 0 2px #000;
-  z-index: 3;
-}
-
-.slot-empty .slot-key {
-  color: var(--muted);
-  text-shadow: none;
-}
-
-.slot-gcd {
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(rgba(0, 0, 0, 0.6) var(--sweep), transparent 0);
-  z-index: 1;
-}
-
-.slot-cooldown {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  font-weight: 700;
-  font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
-  z-index: 2;
-}
-
-.slot-oom {
-  filter: saturate(0.4);
-  box-shadow: inset 0 0 0 100px rgba(40, 70, 200, 0.45);
-}
-
-.slot-queued {
-  border-color: #ffd34d;
-  box-shadow: 0 0 0 2px #ffd34d;
-}
-
-.slot-flash {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 1px 0;
-  background: rgba(190, 30, 30, 0.92);
-  font-size: 0.65rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
-  text-align: center;
-  z-index: 4;
-  animation: slot-flash 700ms ease-out forwards;
-}
-
-@keyframes slot-flash {
-  0%,
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-/* Side panel */
-.game-side {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .panel h3 {
   margin: 0 0 8px;
   font-size: 1rem;
@@ -523,8 +64,7 @@ button.primary {
   margin-bottom: 4px;
 }
 
-.set ul,
-.priority ol {
+.set ul {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -566,28 +106,6 @@ button.primary {
   flex-basis: 100%;
 }
 
-.priority summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.priority ol {
-  margin-top: 8px;
-  counter-reset: step;
-}
-
-.priority li {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
-}
-
-/* Setup panel (rotation and distance); collapsed by default, in the side column. */
-.setup summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
 .setup-fields {
   margin: 8px 0 0;
   padding: 0;
@@ -627,8 +145,7 @@ button.primary {
 .setup-row select:focus-visible,
 .setup-row input:focus-visible,
 .setup-checks input:focus-visible,
-.setup-sub input:focus-visible,
-.setup summary:focus-visible {
+.setup-sub input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -730,27 +247,6 @@ button.primary {
 .setup-group summary {
   cursor: pointer;
   font-weight: 600;
-}
-
-.setup-count {
-  margin-left: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border-radius: 8px;
-  padding: 0 6px;
-}
-
-.setup-group-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.setup-group-body .hint {
-  margin: 0;
 }
 
 .setup-buffs {
@@ -930,13 +426,6 @@ button.primary {
   margin: 8px 0 0;
 }
 
-/* The setup's name in front of the DPS note. */
-.setup-tag {
-  font-weight: 600;
-  color: var(--legacy-text);
-  margin-right: 6px;
-}
-
 /* Stats at the pull */
 .char-stats dl {
   display: grid;
@@ -971,234 +460,12 @@ button.primary {
   font-size: 0.75rem;
 }
 
-/* Narrow screens: the longest flash label ("Missing aura") must fit a 40-50 px slot. */
-@media (max-width: 700px) {
-  .slot-flash {
-    font-size: 0.5rem;
-  }
-}
-
-/* Player buffs panel ("Your buffs"): active auras with time left and a bar, the scheduled ones
-   still to come, and the enabled setup buffs (collapsed). The active list scrolls inside a fixed
-   height, so many buffs never push the layout. */
-.buffs-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  font-size: 0.8rem;
-}
-
-.buffs-title {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.buffs-subtitle {
-  margin: 2px 0 0;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.buffs-empty {
-  margin: 0;
-  color: var(--muted);
-}
-
-.buffs-active,
-.buffs-upcoming,
-.buffs-permanent {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.buffs-active {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
-  gap: 6px 10px;
-  max-height: 172px;
-  overflow-y: auto;
-}
-
-.buff {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  grid-template-rows: auto 6px;
-  column-gap: 6px;
-  row-gap: 3px;
-  align-items: center;
-  min-width: 0;
-}
-
-.buff-icon {
-  position: relative;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: var(--buff-tile);
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.75rem;
-}
-
-.buff .buff-icon {
-  grid-row: span 2;
-}
-
-.buff-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: inherit;
-  user-select: none;
-}
-
-.buff-count {
-  position: absolute;
-  z-index: 1;
-  right: 1px;
-  bottom: 0;
-  font-size: 0.7rem;
-  text-shadow: 0 0 2px #000, 0 0 2px #000;
-}
-
-.buff-name {
-  min-width: 0;
-  overflow-wrap: anywhere; /* a long name wraps rather than hiding its end */
-  line-height: 1.2;
-}
-
-.buff-time {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.buff-bar {
-  grid-column: 2 / span 2;
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--track);
-}
-
-.buff-bar-fill {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
-
-.buff-expiring .buff-time {
-  color: var(--warn);
-  font-weight: 700;
-}
-
-.buff-expiring .buff-bar-fill {
-  background: var(--warn);
-}
-
-.buff-expiring .buff-icon {
-  animation: buff-pulse 1s ease-in-out infinite;
-}
-
-@keyframes buff-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
-
-.buffs-upcoming {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.buff-upcoming {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.buff-upcoming .buff-icon,
-.buff-permanent .buff-icon {
-  width: 24px;
-  height: 24px;
-  font-size: 0.6rem;
-}
-
-.buff-upcoming-text {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-}
-
-.buffs-setup summary {
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.buffs-setup summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.buffs-permanent {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .buff-expiring .buff-icon {
-    animation: none;
-  }
-}
-
 /* Set bonuses that exist in the game but are not modelled. */
 .bonus.unmodelled .bonus-state {
   background: transparent;
   border: 1px dashed var(--muted);
 }
 
-/* Gear panel (collapsed by default, under the Setup panel; it reuses the Setup panel's styles). */
-.gear {
-  /* Socket colours (gem pips and the colour dots of the gem picker). */
-  --socket-red: #c0392b;
-  --socket-yellow: #d4a017;
-  --socket-blue: #2e6fd1;
-  --socket-orange: #e07b1f;
-  --socket-purple: #8e44ad;
-  --socket-green: #2e8b57;
-  --socket-meta: #8a8790;
-}
-
-.gear-summary-name {
-  margin-left: 6px;
-  font-weight: 400;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.gear button,
 .picker button {
   font: inherit;
   font-size: 0.8rem;
@@ -1210,83 +477,11 @@ button.primary {
   cursor: pointer;
 }
 
-.gear button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.gear button:focus-visible,
-.gear textarea:focus-visible,
 .picker button:focus-visible,
 .picker input:focus-visible,
 .picker select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-}
-
-.gear-slots {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.gear-slot {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  grid-template-areas:
-    'icon label actions'
-    'icon body actions';
-  column-gap: 6px;
-  padding: 5px 0;
-  border-top: 1px solid var(--panel-border);
-  min-width: 0;
-}
-
-.gear-slot-label {
-  grid-area: label;
-  font-size: 0.7rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.gear-slot > .gear-icon {
-  grid-area: icon;
-  align-self: start;
-  margin-top: 2px;
-}
-
-.gear-slot-body {
-  grid-area: body;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.gear-slot-actions {
-  grid-area: actions;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  align-self: start;
-}
-
-.gear-slot-actions button {
-  font-size: 0.72rem;
-  padding: 1px 5px;
-}
-
-.gear-item-name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.gear-item-stats {
-  font-size: 0.75rem;
-  color: var(--muted);
 }
 
 .gear-icon {
@@ -1332,24 +527,6 @@ button.primary {
   background: var(--accent);
 }
 
-.gear-sockets {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.gear .gem-pip {
-  position: relative;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border-radius: 50%;
-  border: 2px solid var(--socket-meta);
-  background: var(--track);
-  overflow: hidden;
-}
-
 .gem-pip-image {
   position: absolute;
   inset: 0;
@@ -1358,15 +535,12 @@ button.primary {
   object-fit: cover;
 }
 
-.gear .gem-pip.socket-red,
 .gem-dot.socket-red {
   border-color: var(--socket-red);
 }
-.gear .gem-pip.socket-yellow,
 .gem-dot.socket-yellow {
   border-color: var(--socket-yellow);
 }
-.gear .gem-pip.socket-blue,
 .gem-dot.socket-blue {
   border-color: var(--socket-blue);
 }
@@ -1379,7 +553,6 @@ button.primary {
 .gem-dot.socket-green {
   border-color: var(--socket-green);
 }
-.gear .gem-pip.socket-meta,
 .gem-dot.socket-meta {
   border-color: var(--socket-meta);
   border-radius: 4px;
@@ -1404,16 +577,6 @@ button.primary {
 
 .gear-socket-bonus-off {
   color: var(--muted);
-}
-
-.gear .gear-enchant {
-  align-self: flex-start;
-  max-width: 100%;
-  text-align: left;
-  font-size: 0.72rem;
-  padding: 1px 5px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
 }
 
 .gear-meta {
@@ -1490,10 +653,6 @@ button.primary {
 .gear-report-error {
   font-weight: 600;
   color: var(--warn);
-}
-
-.gear .setup-group-body > button {
-  align-self: flex-start;
 }
 
 /* Item, gem and enchant picker: a modal list over the page. */
@@ -1647,54 +806,14 @@ button.primary {
   display: none;
 }
 
-/* Beside the fight, the slot list scrolls on its own: "Stats at the pull" stays near the presets. */
-@media (min-width: 801px) {
-  .gear-slots {
-    max-height: 560px;
-    overflow-y: auto;
-    padding-right: 4px;
-    border-bottom: 1px solid var(--panel-border);
-  }
-}
-
 /* Touch screens and narrow windows: tap targets of at least 32 px (WCAG 2.5.8 asks for 24). */
 @media (pointer: coarse), (max-width: 700px) {
-  .gear .gem-pip {
-    width: 32px;
-    height: 32px;
-  }
 
-  .gear .gear-slot-actions button,
-  .gear .gear-enchant,
-  .gear .gear-error button,
-  .gear .setup-group-body > button,
   .setup-preset-buttons button,
-  .picker .picker-close {
+.picker .picker-close {
     min-height: 32px;
     min-width: 32px;
   }
-
-  .gear .gear-slot-actions {
-    gap: 4px;
-  }
-
-  .gear-slot {
-    padding: 6px 0;
-  }
-}
-
-/* Combat text HUD (scrolling combat text): two scroll areas inside the arena, under its overlays.
-   Decorative (aria-hidden), never in the way of a click; moved by transform and opacity only.
-   Outgoing (damage) on the right, over the target; Notifications (buffs, procs, mana, items, ready,
-   low mana) at the bottom left, just above the player's bars. Each text starts at its area's
-   bottom on its lane (--hud-x, --hud-y) and rises --hud-rise over its life (the duration is set
-   per text). Colours: the kind's or school's colour (--hud-color), darkened on the light theme
-   (at least 3.5:1 against the white panel) with a white outline, lightened on the dark theme (at
-   least 5:1 against the panel) with a black outline. */
-/* The notifications' band: the arena's bottom 64 px stay free of the target panel (its debuff list
-   can take several rows, two on a phone), so a notification starts below the list. */
-.arena-hud {
-  padding-bottom: 64px;
 }
 
 .hud {
@@ -2058,10 +1177,7 @@ button.primary {
 
 .item-use-moves button:focus-visible,
 .item-use-fields select:focus-visible,
-.item-use-fields input:focus-visible,
-.sim-panel input:focus-visible,
-.sim-panel button:focus-visible,
-.sim-panel summary:focus-visible {
+.item-use-fields input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -2070,17 +1186,6 @@ button.primary {
   margin: 0;
   font-size: 0.75rem;
   overflow-wrap: anywhere;
-}
-
-/* Simulator panel. */
-.sim-buttons .sim-run:not(:disabled) {
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-.sim-buttons button:disabled {
-  opacity: 0.55;
-  cursor: default;
 }
 
 .sim-progress {
@@ -2110,83 +1215,12 @@ button.primary {
   min-width: 0;
 }
 
-.sim-headline {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.sim-headline strong {
-  font-size: 1.15rem;
-}
-
 .sim-settings {
   margin: 0;
   padding-left: 16px;
   color: var(--muted);
   font-size: 0.78rem;
   overflow-wrap: anywhere;
-}
-
-.sim-link {
-  align-self: flex-start;
-  font: inherit;
-  font-size: 0.78rem;
-  color: var(--accent);
-  background: none;
-  border: 0;
-  padding: 2px 0;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.sim-stats {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2px;
-  margin: 0;
-}
-
-.sim-stats > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  border-bottom: 1px dotted var(--panel-border);
-  min-width: 0;
-}
-
-.sim-stats dt {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.sim-stats dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.sim-histogram {
-  margin: 0;
-}
-
-.sim-histogram svg {
-  display: block;
-  width: 100%;
-  height: 80px;
-  background: var(--bg);
-  border-radius: 4px;
-}
-
-.sim-histogram rect {
-  fill: var(--accent);
-}
-
-.sim-axis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .sim-section h4 {
@@ -2245,8 +1279,7 @@ button.primary {
 }
 
 @media (pointer: coarse), (max-width: 700px) {
-  .item-use-moves button,
-  .sim-link {
+  .item-use-moves button {
     min-height: 32px;
     min-width: 32px;
   }

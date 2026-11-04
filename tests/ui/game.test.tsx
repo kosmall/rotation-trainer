@@ -9,7 +9,7 @@ import { DEFAULT_SETUP } from '../../src/setup/defaults';
 import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
-import { ActionBar } from '../../src/ui/ActionBar';
+import { Bars } from '../../src/ui/fight/Bars';
 import { renderApp } from './renderApp';
 import { SetBonusList } from '../../src/ui/SetBonusList';
 
@@ -223,23 +223,35 @@ function freshSim() {
   });
 }
 
-describe('ActionBar', () => {
+// The legacy ActionBar's unit test, on the Fight screen's bars (the legacy component was removed
+// with the legacy layout, redesign Task 5): `slot-oom` became the `fv-slot-nomana` state.
+describe('Action bar (Bars)', () => {
   it('tints a slot out of mana only when mana is below the effective cost', () => {
     const base = freshSim().snapshot();
     const cost = base.spells['shadow-bolt']?.manaCost ?? 0;
     expect(cost).toBeLessThan(410); // 420 base, Cataclysm 0.95
     const slot = () => screen.getByRole('button', { name: 'Shadow Bolt (1)' });
     const show = (mana: number) =>
-      render(<ActionBar spec={destructionWarlock} snapshot={{ ...base, mana }} flash={null} onPress={() => {}} />);
+      render(
+        <Bars
+          spec={destructionWarlock}
+          snapshot={{ ...base, mana }}
+          flash={null}
+          onPress={() => {}}
+          descriptions={{}}
+          itemIcons={new Set()}
+          nextSpellId={null}
+        />,
+      );
 
     show(410);
-    expect(slot().classList.contains('slot-oom')).toBe(false);
+    expect(slot().classList.contains('fv-slot-nomana')).toBe(false);
     cleanup();
     show(Math.ceil(cost));
-    expect(slot().classList.contains('slot-oom')).toBe(false);
+    expect(slot().classList.contains('fv-slot-nomana')).toBe(false);
     cleanup();
     show(cost - 1);
-    expect(slot().classList.contains('slot-oom')).toBe(true);
+    expect(slot().classList.contains('fv-slot-nomana')).toBe(true);
   });
 });
 

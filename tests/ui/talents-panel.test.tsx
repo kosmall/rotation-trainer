@@ -1,3 +1,9 @@
+// The Talents editor (src/ui/TalentsPanel.tsx, the Setup screen's Talents section). Until the
+// redesign's Task 5 these tests rendered the legacy collapsed "Talents" panel and the legacy layout
+// (GameView); the unit tests now mount the editor the Setup screen hosts (`Harness`, inside a region
+// named "Talents" like the section), the wiring tests run in the app (renderApp): the build is
+// edited on #/setup/talents, the fight is played on #/fight.
+
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,8 +22,8 @@ import { BOSS_TARGET, DEFAULT_DISTANCE_FROM_TARGET_YD } from '../../src/data/com
 import { Simulation } from '../../src/engine/sim';
 import { applySetup } from '../../src/setup/applySetup';
 import { STATIC_SETUP_CATALOG } from '../../src/setup/defaults';
-import { GameView } from '../../src/ui/GameView';
-import { TalentsPanel } from '../../src/ui/TalentsPanel';
+import { TalentsEditor } from '../../src/ui/TalentsPanel';
+import { goTo, renderApp } from './renderApp';
 import { readTalentImport } from '../../src/ui/talentView';
 
 // Same fake clock as the Gear panel tests: fight time moves only through vi.advanceTimersByTime.
@@ -34,6 +40,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  window.location.hash = '';
 });
 
 function advance(ms: number) {
@@ -54,21 +61,28 @@ function fakeDescriptions(): TalentDescriptions {
   return out;
 }
 
-/** The panel, controlled by its own state, recording every emitted build. */
+/**
+ * The editor, controlled by its own state, recording every emitted build. `shown` false: not
+ * mounted (the Setup screen on another section).
+ */
 function Harness({
   initial = destructionTalentString,
   onEmit,
   loadDescriptions = () => Promise.resolve(fakeDescriptions()),
   warnings,
+  shown = true,
 }: {
   initial?: string;
   onEmit?: (t: string) => void;
   loadDescriptions?: () => Promise<TalentDescriptions>;
   warnings?: string[];
+  shown?: boolean;
 }) {
   const [talents, setTalents] = useState(initial);
+  if (!shown) return null;
   return (
-    <TalentsPanel
+    <section aria-label="Talents">
+      <TalentsEditor
       talents={talents}
       presets={PRESETS}
       warnings={warnings}
@@ -77,19 +91,24 @@ function Harness({
         onEmit?.(t);
         setTalents(t);
       }}
-    />
+      />
+    </section>
   );
 }
 
-const panel = () => screen.getByText('Talents', { selector: 'summary' }).closest('details') as HTMLElement;
+/** The Talents editor: the Harness's region, or the Setup screen's Talents section (a region named by its h1). */
+const panel = () => screen.getByRole('region', { name: 'Talents' });
 
-/** Opens the Talents panel (jsdom fires `toggle` late: fired here, as for the Simulator). */
-function openTalents() {
-  const summary = screen.getByText('Talents', { selector: 'summary' });
-  fireEvent.click(summary);
-  act(() => {
-    fireEvent(summary.closest('details')!, new Event('toggle'));
+/** Lets the lazy Setup view's import settle. */
+async function settle() {
+  await act(async () => {
+    await vi.dynamicImportSettled();
   });
+}
+/** Opens Setup → Talents in the app (the editor and its descriptions mount with the section). */
+async function openTalents() {
+  goTo('#/setup/talents');
+  await settle();
 }
 
 /** The talent button whose accessible name starts with "<name>, rank". */
@@ -111,10 +130,12 @@ function memoryStorage(initial: Record<string, string> = {}) {
 const stored = (map: Map<string, string>): SetupConfig => JSON.parse(map.get(SETUP_STORAGE_KEY) ?? 'null') as SetupConfig;
 
 describe('Talents panel (tree editor)', () => {
-  it("renders three trees with 64 talents and the author's ranks; heavy content only while open", () => {
+  it("renders three trees with 64 talents and the author's ranks; heavy content only while the Talents section is shown", async () => {
+    renderApp({ route: '#/setup/gear' });
+    await settle();
+    expect(screen.queryAllByRole('button', { name: /, rank \d+ of \d+/ })).toHaveLength(0); // another section: nothing heavy rendered
+    cleanup();
     render(<Harness />);
-    expect(within(panel()).queryAllByRole('button').length).toBe(0); // closed: nothing heavy rendered
-    openTalents();
     for (const name of ['Affliction', 'Demonology', 'Destruction']) {
       expect(within(panel()).getByRole('group', { name: `${name} tree` })).toBeTruthy();
     }
@@ -133,7 +154,6 @@ describe('Talents panel (tree editor)', () => {
   it('clicking adds a point and updates the counters; a locked talent shows its reason and does nothing', () => {
     const emitted: string[] = [];
     render(<Harness onEmit={(t) => emitted.push(t)} />);
-    openTalents();
     // All 61 points spent: Improved Immolate is locked.
     expect(talent('Improved Immolate').getAttribute('aria-label')).toBe(
       'Improved Immolate, rank 0 of 5, locked: All 61 talent points are spent.',
@@ -157,7 +177,6 @@ describe('Talents panel (tree editor)', () => {
 
   it('prerequisite and row blocks: Conflagrate needs Improved Immolate at full rank; an Affliction row 2 talent needs 5 points', () => {
     render(<Harness />);
-    openTalents();
     fireEvent.contextMenu(talent('Shadow and Flame'));
     expect(talent('Conflagrate').getAttribute('aria-label')).toBe(
       'Conflagrate, rank 0 of 1, locked: Conflagrate needs Improved Immolate at full rank (0/5).',
@@ -174,7 +193,6 @@ describe('Talents panel (tree editor)', () => {
   it('removing a supporting point is blocked with a message', () => {
     const emitted: string[] = [];
     render(<Harness onEmit={(t) => emitted.push(t)} />);
-    openTalents();
     fireEvent.contextMenu(talent('Devastation'));
     expect(status()).toBe('Ruin depends on Devastation at full rank.');
     fireEvent.contextMenu(talent('Improved Shadow Bolt'));
@@ -184,7 +202,6 @@ describe('Talents panel (tree editor)', () => {
 
   it('keyboard and touch: Shift+Enter removes, the details card has − and + buttons; Space on a talent never starts a fight', () => {
     render(<Harness />);
-    openTalents();
     const flame = talent('Shadow and Flame');
     flame.focus();
     fireEvent.focus(flame);
@@ -200,7 +217,6 @@ describe('Talents panel (tree editor)', () => {
 
   it('presets: aria-pressed by deep equality, Custom otherwise; Reset restores the author build', () => {
     render(<Harness />);
-    openTalents();
     fireEvent.click(presetButton('Destro/Nightfall'));
     expect(activeBuild()).toBe('Destro/Nightfall');
     expect(presetButton('Destro/Nightfall').getAttribute('aria-pressed')).toBe('true');
@@ -215,7 +231,6 @@ describe('Talents panel (tree editor)', () => {
 
   it('unmodelled markers and the modelled/unmodelled summary; rotation warnings shown', () => {
     render(<Harness warnings={['Shadowburn finisher: Shadowburn is not available with these talents; the step is skipped.']} />);
-    openTalents();
     expect(talent('Intensity').getAttribute('aria-label')).toBe('Intensity, rank 2 of 2, not modelled, full rank');
     expect(talent('Intensity').className).toContain('talent-unmodelled');
     const list = within(panel()).getByRole('list', { name: 'Not modelled talents in this build' });
@@ -227,7 +242,6 @@ describe('Talents panel (tree editor)', () => {
   it('import: a bare string and a WowSimsExporter export apply; invalid and hostile text never applies and lists the violations', () => {
     const emitted: string[] = [];
     render(<Harness onEmit={(t) => emitted.push(t)} />);
-    openTalents();
     const area = () => within(panel()).getByRole('textbox', { name: 'Talent import' });
     const apply = () => within(panel()).getByRole('button', { name: 'Apply talents' }) as HTMLButtonElement;
     expect(apply().disabled).toBe(true);
@@ -270,7 +284,6 @@ describe('Talents panel (tree editor)', () => {
     const writeText = vi.fn(() => Promise.reject(new Error('denied')));
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(<Harness initial={NIGHTFALL.talents} />);
-    openTalents();
     const exported = (within(panel()).getByRole('textbox', { name: 'Talent string' }) as HTMLTextAreaElement).value;
     expect(exported).toBe(NIGHTFALL.talents);
     expect(readTalentImport(exported)).toEqual({ ok: true, talents: NIGHTFALL.talents });
@@ -282,20 +295,20 @@ describe('Talents panel (tree editor)', () => {
     expect(within(panel()).getByText(/press Ctrl\+C|Copied\./)).toBeTruthy();
   });
 
-  it('typing in the textarea never triggers hotkeys', () => {
-    render(<GameView storage={null} />);
-    openTalents();
+  it('typing in the textarea never triggers hotkeys', async () => {
+    renderApp({ route: '#/fight' });
+    await openTalents();
     const area = within(panel()).getByRole('textbox', { name: 'Talent import' });
     for (const key of ['1', '2', ' ', 'r', 'z', '-', '=']) fireEvent.keyDown(area, { key });
-    expect(screen.queryByRole('progressbar', { name: 'Cast bar' })).toBeNull();
-    expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
     // Space and Enter on a focused talent button belong to it.
     fireEvent.keyDown(talent('Bane'), { key: ' ' });
     fireEvent.keyDown(talent('Bane'), { key: 'Enter' });
+    goTo('#/fight');
+    expect(screen.queryByRole('progressbar', { name: 'Cast bar' })).toBeNull();
     expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
   });
 
-  it('descriptions load lazily: only when the panel opens; loading and failed states, then current and next rank texts', async () => {
+  it('descriptions load lazily: only when the editor is shown; loading and failed states, then current and next rank texts', async () => {
     let resolve!: (d: TalentDescriptions) => void;
     let reject!: (e: unknown) => void;
     const loader = vi.fn(
@@ -305,9 +318,9 @@ describe('Talents panel (tree editor)', () => {
           reject = rej;
         }),
     );
-    render(<Harness loadDescriptions={loader} />);
+    const { rerender } = render(<Harness loadDescriptions={loader} shown={false} />);
     expect(loader).not.toHaveBeenCalled();
-    openTalents();
+    rerender(<Harness loadDescriptions={loader} shown />);
     expect(loader).toHaveBeenCalledTimes(1);
     fireEvent.mouseEnter(talent('Emberstorm'));
     const card = () => within(panel()).getByRole('region', { name: 'Talent details' });
@@ -344,88 +357,100 @@ function decodeTalentsString(text: string): string {
 }
 
 describe('Talents in the game (wiring)', () => {
-  it('stored talents round trip; corrupt stored talents fall back to the author build', () => {
+  it('stored talents round trip; corrupt stored talents fall back to the author build', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
-    openTalents();
+    renderApp({ storage: storage });
+    await openTalents();
     fireEvent.click(presetButton('Affliction'));
     expect(stored(map).talents).toBe(AFFLICTION.talents);
     cleanup();
-    render(<GameView storage={storage} />);
-    openTalents();
+    renderApp({ storage: storage });
+    await openTalents();
     expect(activeBuild()).toBe('Affliction');
     cleanup();
 
     for (const bad of ['9-9-9', 'x'.repeat(500), 42, { a: 1 }]) {
       const s = memoryStorage({ [SETUP_STORAGE_KEY]: JSON.stringify({ ...DEFAULT_SETUP, talents: bad }) });
-      render(<GameView storage={s.storage} />);
-      openTalents();
+      renderApp({ storage: s.storage });
+      await openTalents();
       expect(activeBuild()).toBe('My build (export)');
       cleanup();
     }
     // Back to the author's build: stored as no field.
-    render(<GameView storage={storage} />);
-    openTalents();
+    renderApp({ storage: storage });
+    await openTalents();
     fireEvent.click(within(panel()).getByRole('button', { name: 'Reset to my build' }));
     expect(stored(map).talents).toBeUndefined();
   });
 
-  it('a fight that started keeps its talents until R; Conflagrate appears on slot 8 after the next fight and casts', () => {
-    render(<GameView storage={null} />);
+  it('a fight that started keeps its talents until R; Conflagrate appears on slot 8 after the next fight and casts', async () => {
+    renderApp({ route: '#/fight' });
     expect(screen.getByLabelText('Empty slot (8)')).toBeTruthy();
     fireEvent.keyDown(window, { key: '1' }); // the fight starts
-    openTalents();
+    await openTalents();
     fireEvent.click(presetButton('Destro/Nightfall'));
-    expect(within(panel()).getByText(/running fight keeps its talents/)).toBeTruthy();
+    // The Setup screen's pending note (the legacy panel said "The running fight keeps its talents").
+    expect(within(panel()).getByText(/^Changed since the running fight started/)).toBeTruthy();
+    goTo('#/fight');
     expect(screen.getByLabelText('Empty slot (8)')).toBeTruthy();
     fireEvent.keyDown(window, { key: 'r' });
     expect(screen.getByRole('button', { name: 'Conflagrate (8)' })).toBeTruthy();
-    expect(within(panel()).queryByText(/running fight keeps its talents/)).toBeNull();
+    await openTalents();
+    expect(within(panel()).queryByText(/^Changed since/)).toBeNull();
+    goTo('#/fight');
     // Immolate (2), then Conflagrate (8) once Immolate's DoT is up.
     fireEvent.keyDown(window, { key: '2' });
     advance(2500);
     fireEvent.keyDown(window, { key: '8' });
     advance(100);
     // Cast: Conflagrate's 10 s cooldown runs on its slot (a rejected press would flash a reason instead).
-    expect(screen.getByRole('button', { name: 'Conflagrate (8)' }).querySelector('.slot-cooldown')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Conflagrate (8)' }).querySelector('.fv-slot-cd')).not.toBeNull();
   });
 
-  it('a not-started fight takes a new build at once; the stats at the pull follow the build', () => {
-    render(<GameView storage={null} />);
+  it('a not-started fight takes a new build at once; the stats at the pull follow the build', async () => {
+    renderApp({ route: '#/fight' });
+    await openTalents();
     const before = screen.getByLabelText('Shadow Bolt crit').textContent;
-    openTalents();
     fireEvent.click(presetButton('Destro/Nightfall'));
+    expect(within(panel()).queryByText(/^Changed since/)).toBeNull();
+    goTo('#/fight');
     expect(screen.getByRole('button', { name: 'Conflagrate (8)' })).toBeTruthy();
-    expect(within(panel()).queryByText(/running fight keeps its talents/)).toBeNull();
+    await openTalents();
     fireEvent.click(presetButton('Affliction')); // no Devastation: a lower Shadow Bolt crit
     expect(screen.getByLabelText('Shadow Bolt crit').textContent).not.toBe(before);
+    goTo('#/fight');
     expect(screen.getByLabelText('Empty slot (8)')).toBeTruthy();
   });
 
-  it('GameView forwards the talents to buildSpec', () => {
+  it('the trainer forwards the talents to buildSpec', async () => {
     const calls: unknown[] = [];
     const spy = (...args: Parameters<typeof buildDestructionWarlock>) => {
       calls.push(args[3]);
       return buildDestructionWarlock(...args);
     };
-    render(<GameView storage={null} buildSpec={spy} />);
-    openTalents();
+    renderApp({ buildSpec: spy });
+    await openTalents();
     fireEvent.click(presetButton('Destro/Nightfall'));
     expect(calls).toContain(NIGHTFALL.talents);
   });
 
-  it('a Setup preset keeps the talents; Reset to defaults restores the author build; preset matching ignores kept talents', () => {
+  it('a Setup preset keeps the talents; Reset to Defaults restores the author build; preset matching ignores kept talents', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
-    openTalents();
+    renderApp({ storage: storage });
+    await openTalents();
     fireEvent.click(presetButton('Destro/Nightfall'));
+    goTo('#/setup/buffs');
     expect(screen.getByLabelText('Active preset').textContent).toBe('None');
     fireEvent.click(screen.getByRole('button', { name: SETUP_PRESETS['raid-log'].name }));
     expect(stored(map).talents).toBe(NIGHTFALL.talents);
     expect(screen.getByLabelText('Active preset').textContent).toBe(SETUP_PRESETS['raid-log'].name);
+    await openTalents();
     expect(activeBuild()).toBe('Destro/Nightfall');
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
+    goTo('#/setup/buffs');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to Defaults…' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset to Defaults' }));
     expect(stored(map).talents).toBeUndefined();
+    await openTalents();
     expect(activeBuild()).toBe('My build (export)');
     expect(stored(map)).toEqual(normalizeSetup(DEFAULT_SETUP, SETUP_CATALOG));
   });
@@ -436,18 +461,15 @@ describe('Talents in the game (wiring)', () => {
       requests.push(structuredClone(request.setup));
       return runSimulation(request, options);
     };
-    render(<GameView storage={null} simRunner={runner} />);
-    openTalents();
+    renderApp({ simRunner: runner });
+    await openTalents();
     fireEvent.click(presetButton('Destro/Nightfall'));
-    const summary = screen.getByText('Simulator', { selector: 'summary' });
-    fireEvent.click(summary);
-    act(() => {
-      fireEvent(summary.closest('details')!, new Event('toggle'));
-    });
-    const sim = summary.closest('details') as HTMLElement;
+    goTo('#/report/simulator');
+    for (let i = 0; i < 5; i++) await settle();
+    const sim = screen.getByRole('region', { name: 'Simulator' });
     fireEvent.change(within(sim).getByRole('spinbutton', { name: 'Runs' }), { target: { value: '2' } });
     fireEvent.blur(within(sim).getByRole('spinbutton', { name: 'Runs' }));
-    fireEvent.click(within(sim).getByRole('button', { name: 'Run' }));
+    fireEvent.click(within(sim).getByRole('button', { name: 'Run 2 Fights' }));
     for (let i = 0; i < 200 && within(sim).queryByRole('button', { name: 'Cancel' }) !== null; i++) {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
@@ -457,7 +479,7 @@ describe('Talents in the game (wiring)', () => {
     expect(within(sim).getByText('Talents: Destro/Nightfall')).toBeTruthy();
   });
 
-  it('golden values: the default setup, built the way GameView builds it, still gives 1425.1766666666667 / 1428.3350000000003', () => {
+  it('golden values: the default setup, built the way the trainer builds it, still gives 1425.1766666666667 / 1428.3350000000003', () => {
     const fight = applySetup({
       buildSpec: (w, g, t) => buildDestructionWarlock(w, g, undefined, t),
       catalog: STATIC_SETUP_CATALOG,

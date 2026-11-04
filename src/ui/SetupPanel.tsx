@@ -221,21 +221,6 @@ function OptionRow({
   );
 }
 
-/** A collapsible group of the legacy panel, exposed as a named group. */
-function Group({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
-  return (
-    <details className="setup-group">
-      <summary>
-        {title}
-        {count !== undefined && count > 0 && <span className="setup-count">{count} on</span>}
-      </summary>
-      <div role="group" aria-label={title} className="setup-group-body">
-        {children}
-      </div>
-    </details>
-  );
-}
-
 /**
  * What every group of the setup gets: the catalog (the gear-independent entries and the worn
  * gear's item effects), the current setup (shown, never copied) and the sink of every edit, which
@@ -338,7 +323,7 @@ export function enabledCount(catalog: readonly BuffDef[], config: SetupConfig, g
  * The setup presets: the active preset's name (or "Custom", with the preset the rest matches when
  * only the item-use rules differ), its description, and a button per preset. A preset keeps the
  * chosen fight length, the gear, the item-use rules and the talents (ruling F-2). `children` are
- * added after the preset buttons (the legacy panel's "Reset to defaults").
+ * added after the preset buttons (a button such as "Reset to Defaults…").
  */
 export function SetupPresetBar({
   catalog,
@@ -409,7 +394,7 @@ export function FightGroup({ catalog, config, onChange }: SetupGroupProps) {
         />
       </div>
       <p className="hint">
-        {MIN_FIGHT_SEC} to {MAX_FIGHT_SEC} s. Presets keep it; Reset to defaults sets {DEFAULT_SETUP.fightDurationSec} s.
+        {MIN_FIGHT_SEC} to {MAX_FIGHT_SEC} s. Presets keep it; “Reset to Defaults…” sets {DEFAULT_SETUP.fightDurationSec} s.
       </p>
       <BuffList buffs={catalog.filter((b) => groupOf(b) === 'fight')} catalog={catalog} config={config} onChange={onChange} />
     </>
@@ -665,113 +650,5 @@ export function DistanceField({ catalog, config, onChange }: SetupGroupProps) {
       </div>
       <p className="hint">Sets the travel time of missile spells: Shadow Bolt flies 20 yd/s, so 28 yd is 1.4 s.</p>
     </>
-  );
-}
-
-export interface SetupPanelProps {
-  /**
-   * Every buff the setup can enable: the gear-independent entries and the worn gear's item effects
-   * (`setupCatalogFor(gear, db)`), so "Items and cooldowns" follows the gear.
-   */
-  catalog: readonly BuffDef[];
-  /** The current setup (normalized). The panel shows it and keeps no copy of it. */
-  config: SetupConfig;
-  presets: SetupPresets;
-  /** Receives every edit as a new, normalized config (`normalizeSetup`). */
-  onChange(config: SetupConfig): void;
-  disabled?: boolean;
-  /** The running fight was built with another setup: say that the new one applies after R. */
-  pending?: boolean;
-  /** The fight is over: the pending note then says "finished" instead of "in progress". */
-  fightEnded?: boolean;
-  /** "<item>: <effect>" for every effect of the worn items the trainer does not model (`unmodelledGearEffects`). */
-  unmodelledItemEffects?: readonly string[];
-  /** A note under "Items and cooldowns" (e.g. the item database is still loading). */
-  itemsNote?: string;
-}
-
-/**
- * The collapsed "Setup" panel of the legacy layout (until the redesign's Task 5): presets and
- * "Reset to defaults", the active preset's name, then the groups the Setup screen shows in its
- * own sections (`FightGroup`, `BuffGroup`, `ItemsGroup`, `WarlockOptionsGroup`, `RotationGroup`,
- * `DistanceField`), each in a collapsible group. Presets keep the chosen fight length, the gear
- * and the talents; "Reset to defaults" resets them too (the author's gear and build). Fully
- * controlled: it shows `config` and passes every edit to `onChange` as a new config normalized
- * for `catalog` (exclusive buffs resolved, the later one wins; numbers clamped). Number inputs
- * keep a typed text only while focused.
- */
-export function SetupPanel({
-  catalog,
-  config,
-  presets,
-  onChange,
-  disabled = false,
-  pending = false,
-  fightEnded = false,
-  unmodelledItemEffects = [],
-  itemsNote,
-}: SetupPanelProps) {
-  const group = { catalog, config, onChange };
-  return (
-    <details className="panel setup">
-      <summary>Setup</summary>
-      <fieldset className="setup-fields" disabled={disabled}>
-        <div className="setup-presets">
-          <SetupPresetBar {...group} presets={presets}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.currentTarget.blur();
-                onChange(normalizeSetup(DEFAULT_SETUP, catalog));
-              }}
-            >
-              Reset to defaults
-            </button>
-          </SetupPresetBar>
-          {pending && (
-            <p className="setup-pending">
-              The {fightEnded ? 'finished' : 'running'} fight keeps its setup: the new one applies from the next fight (press R).
-            </p>
-          )}
-        </div>
-
-        <Group title="Fight">
-          <FightGroup {...group} />
-        </Group>
-
-        {BUFF_GROUPS.map((g) => (
-          <Group key={g.id} title={g.title} count={enabledCount(catalog, config, g.id)}>
-            {g.id === 'items' ? (
-              <ItemsGroup
-                {...group}
-                pending={pending}
-                fightEnded={fightEnded}
-                unmodelledItemEffects={unmodelledItemEffects}
-                itemsNote={itemsNote}
-              />
-            ) : (
-              <BuffGroup {...group} group={g.id} />
-            )}
-          </Group>
-        ))}
-
-        <Group title="Warlock options">
-          <WarlockOptionsGroup {...group} />
-        </Group>
-
-        <Group title="Rotation">
-          <RotationGroup {...group} />
-        </Group>
-
-        <Group title="Distance">
-          <DistanceField {...group} />
-        </Group>
-
-        <p className="hint">
-          Saved in this browser. The rotation changes the Priority list at once. Other changes apply to a fight that has not
-          started; a running fight keeps its setup until you press <kbd>R</kbd>.
-        </p>
-      </fieldset>
-    </details>
   );
 }

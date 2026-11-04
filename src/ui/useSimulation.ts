@@ -54,7 +54,7 @@ function freshSeed(): number {
 
 /**
  * What a fight is built from: the spec and the fight settings the setup decides (`applySetup`'s
- * result, src/setup/applySetup.ts). Callers may carry more (GameView adds the config).
+ * result, src/setup/applySetup.ts). Callers may carry more (the TrainerProvider adds the config).
  */
 export interface FightSetup {
   spec: SpecData;

@@ -10,6 +10,7 @@ import { formatDps } from '../format';
 import { histogramSummary, PlusMinusNote, SimulationResult, SimulatorForm } from '../SimulatorPanel';
 import type { SimulatorRun } from '../SimulatorPanel';
 import { ordinal, shareBelow } from './reportView';
+import { countRender } from '../renderCount';
 
 export interface YourFight {
   dps: number;
@@ -18,6 +19,7 @@ export interface YourFight {
 }
 
 export const SimulatorTab = memo(function SimulatorTab({ sim, you }: { sim: SimulatorRun; you: YourFight | null }) {
+  countRender('SimulatorTab');
   const outcome = sim.outcome;
   let mark: number | null = null;
   let note: string | null = null;
@@ -32,7 +34,7 @@ export const SimulatorTab = memo(function SimulatorTab({ sim, you }: { sim: Simu
   }
   return (
     <div className="sim-tab">
-      <SimulatorForm sim={sim} layout="bar" />
+      <SimulatorForm sim={sim} />
       {outcome !== null && (
         <SimulationResult
           result={outcome.result}
@@ -40,7 +42,6 @@ export const SimulatorTab = memo(function SimulatorTab({ sim, you }: { sim: Simu
           copy={sim.copy}
           setCopy={sim.setCopy}
           onReuseSeed={sim.reuseSeed}
-          layout="report"
           histogram={
             <Histogram
               counts={outcome.result.histogram.counts}

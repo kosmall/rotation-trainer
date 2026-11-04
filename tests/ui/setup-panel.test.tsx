@@ -1,5 +1,12 @@
+// The Setup editors (src/ui/SetupPanel.tsx: the preset bar and the groups the Setup screen's
+// sections host). Until the redesign's Task 5 these tests rendered the legacy collapsed "Setup"
+// panel and the legacy layout (GameView); the panel was a container of these same groups, so the
+// unit tests now mount the groups directly (`Groups`, each in a group named like the Setup screen's
+// card), and the wiring tests run in the app (renderApp) on the Setup sections and the Fight screen.
+
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import { DEFAULT_SETUP, setupCatalogFor, SETUP_LIMITS } from '../../src/setup/defaults';
@@ -8,8 +15,18 @@ import { isAlwaysBoundGearEntry } from '../../src/setup/gearEffects';
 import { SETUP_PRESETS } from '../../src/setup/presets';
 import type { SetupConfig, SetupPresetId } from '../../src/setup/types';
 import type { BuffDef } from '../../src/data/types';
-import { GameView } from '../../src/ui/GameView';
-import { SetupPanel } from '../../src/ui/SetupPanel';
+import { SETUP_STORAGE_KEY, type SetupStorage } from '../../src/setup/storage';
+import {
+  BUFF_GROUPS,
+  BuffGroup,
+  DistanceField,
+  FightGroup,
+  ItemsGroup,
+  RotationGroup,
+  SetupPresetBar,
+  WarlockOptionsGroup,
+} from '../../src/ui/SetupPanel';
+import { goTo, renderApp } from './renderApp';
 
 // Same fake clock as game.test.tsx: fight time moves only through vi.advanceTimersByTime.
 const FAKE_NOW = 1_800_000_000_000;
@@ -24,7 +41,35 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.location.hash = '';
 });
+
+/** Lets the lazy Setup view's import settle. */
+async function settle() {
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
+}
+/** Opens a Setup section of the app. */
+async function setupAt(section: string) {
+  goTo(`#/setup/${section}`);
+  await settle();
+}
+/** An in-memory setup storage; `stored()` reads the config the app saved last. */
+function memoryStorage() {
+  const map = new Map<string, string>();
+  const storage: SetupStorage = {
+    getItem: (k) => map.get(k) ?? null,
+    setItem: (k, v) => void map.set(k, String(v)),
+    removeItem: (k) => void map.delete(k),
+  };
+  return { storage, stored: () => JSON.parse(map.get(SETUP_STORAGE_KEY) ?? 'null') as SetupConfig };
+}
+/** "Reset to Defaults…" on Setup → Buffs & consumables, confirmed. */
+function resetToDefaults() {
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to Defaults…' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset to Defaults' }));
+}
 
 function advance(ms: number) {
   act(() => {
@@ -62,11 +107,9 @@ const buff = (id: string): BuffDef => {
   return b;
 };
 
-/** The labels of the Priority panel's steps, in order. */
+/** The labels of the steps of Setup → Rotation's "Priority" list (the legacy Priority panel), in order. */
 function priorityLabels(): string[] {
-  const summary = screen.getByText('Priority', { selector: 'summary' });
-  const panel = summary.closest('details') as HTMLElement;
-  return within(panel)
+  return within(screen.getByRole('list', { name: 'Priority' }))
     .getAllByRole('listitem')
     .map((li) => li.querySelector('strong')?.textContent ?? '');
 }
@@ -74,9 +117,39 @@ function priorityLabels(): string[] {
 type Presets = Readonly<Record<SetupPresetId, { name: string; description?: string; config: SetupConfig }>>;
 
 /**
- * SetupPanel with its own config state, as GameView holds it; the spy sees every config passed
- * on (the panel passes normalized configs only).
+ * The Setup editors as the Setup screen hosts them: the preset bar, then each group in a group
+ * named like its Setup screen card. `disabled` puts them in a disabled fieldset.
  */
+function Groups({
+  config,
+  onChange,
+  presets = SETUP_PRESETS,
+  disabled = false,
+}: {
+  config: SetupConfig;
+  onChange(c: SetupConfig): void;
+  presets?: Presets;
+  disabled?: boolean;
+}) {
+  const group = { catalog: CATALOG, config, onChange };
+  const card = (title: string, body: ReactNode) => (
+    <section role="group" aria-label={title} key={title}>
+      {body}
+    </section>
+  );
+  return (
+    <fieldset disabled={disabled}>
+      <SetupPresetBar {...group} presets={presets} />
+      {card('Fight', <FightGroup {...group} />)}
+      {BUFF_GROUPS.map((g) => card(g.title, g.id === 'items' ? <ItemsGroup {...group} /> : <BuffGroup {...group} group={g.id} />))}
+      {card('Warlock options', <WarlockOptionsGroup {...group} />)}
+      {card('Rotation', <RotationGroup {...group} />)}
+      {card('Distance', <DistanceField {...group} />)}
+    </fieldset>
+  );
+}
+
+/** The groups with their own config state, as the trainer holds it; the spy sees every config passed on (normalized). */
 function Harness({
   onChange,
   initial = DEFAULT_SETUP,
@@ -88,8 +161,7 @@ function Harness({
 }) {
   const [config, setConfig] = useState<SetupConfig>(() => structuredClone(initial));
   return (
-    <SetupPanel
-      catalog={CATALOG}
+    <Groups
       config={config}
       presets={presets}
       onChange={(c) => {
@@ -103,12 +175,10 @@ function Harness({
 /** The config of the last onChange call. */
 const last = (spy: ReturnType<typeof vi.fn>): SetupConfig => spy.mock.calls.at(-1)?.[0] as SetupConfig;
 
-describe('SetupPanel', () => {
-  it('the panel shows the preset selector, a curse selector, checkboxes for Immolate, Corruption and Shadowburn finisher, a Life Tap threshold and the distance', () => {
-    render(<GameView storage={null} />);
-    const summary = screen.getByText('Setup', { selector: 'summary' });
-    expect((summary.closest('details') as HTMLDetailsElement).open).toBe(false); // collapsed
-
+describe('Setup editors', () => {
+  it('Rotation shows the preset selector, a curse selector, checkboxes for Immolate, Corruption and Shadowburn finisher, a Life Tap threshold; Fight settings the distance', async () => {
+    renderApp({ route: '#/setup/rotation' });
+    await settle();
     expect(presetSelect().value).toBe('dot');
     expect(within(presetSelect()).getByRole('option', { name: 'DoT rotation' })).toBeTruthy();
     expect(within(presetSelect()).getByRole('option', { name: 'Shadow Bolt spam + curse' })).toBeTruthy();
@@ -125,13 +195,15 @@ describe('SetupPanel', () => {
     expect(checkbox('Auto (Shadow Bolt cost)').checked).toBe(true);
     expect(lifeTapInput().disabled).toBe(true);
     expect(lifeTapInput().min).toBe('0');
+    await setupAt('fight');
     expect(distanceInput().value).toBe('28');
     expect(distanceInput().min).toBe('0');
     expect(distanceInput().max).toBe('100');
   });
 
-  it('choosing the sb-spam preset removes Immolate and Corruption from the Priority list', () => {
-    render(<GameView storage={null} />);
+  it('choosing the sb-spam preset removes Immolate and Corruption from the Priority list', async () => {
+    renderApp({ route: '#/setup/rotation' });
+    await settle();
     expect(priorityLabels()).toEqual(destructionWarlock.priority.map((s) => s.label));
     expect(priorityLabels()).toContain('Immolate');
 
@@ -146,8 +218,9 @@ describe('SetupPanel', () => {
     expect(priorityLabels()).toEqual(destructionWarlock.priority.map((s) => s.label));
   });
 
-  it('changing a flag marks the preset as Custom', () => {
-    render(<GameView storage={null} />);
+  it('changing a flag marks the preset as Custom', async () => {
+    renderApp({ route: '#/setup/rotation' });
+    await settle();
     expect(within(presetSelect()).queryByRole('option', { name: 'Custom' })).toBeNull();
 
     fireEvent.click(checkbox('Immolate'));
@@ -206,11 +279,11 @@ describe('SetupPanel', () => {
       ...structuredClone(DEFAULT_SETUP),
       rotation: { ...DEFAULT_SETUP.rotation, lifeTapBelowMana },
     });
-    const props = { catalog: CATALOG, presets: SETUP_PRESETS, onChange };
-    const { rerender } = render(<SetupPanel {...props} config={withLifeTap('auto')} />);
-    rerender(<SetupPanel {...props} config={withLifeTap(1234)} />);
+    const props = { presets: SETUP_PRESETS, onChange };
+    const { rerender } = render(<Groups {...props} config={withLifeTap('auto')} />);
+    rerender(<Groups {...props} config={withLifeTap(1234)} />);
     expect(lifeTapInput().value).toBe('1234');
-    rerender(<SetupPanel {...props} config={withLifeTap('auto')} />);
+    rerender(<Groups {...props} config={withLifeTap('auto')} />);
     fireEvent.click(checkbox('Auto (Shadow Bolt cost)'));
     expect(last(onChange).rotation.lifeTapBelowMana).toBe(1234);
   });
@@ -241,10 +314,8 @@ describe('SetupPanel', () => {
     expect(last(onChange).distanceYd).toBe(0);
   });
 
-  it('disabled disables every control', () => {
-    render(
-      <SetupPanel catalog={CATALOG} config={DEFAULT_SETUP} presets={SETUP_PRESETS} onChange={() => {}} disabled />,
-    );
+  it('every control is a form control a disabled fieldset disables', () => {
+    render(<Groups config={DEFAULT_SETUP} onChange={() => {}} disabled />);
     for (const el of [
       presetSelect(),
       curseSelect(),
@@ -254,7 +325,7 @@ describe('SetupPanel', () => {
       startInput('Heroism / Bloodlust'),
       fightLengthInput(),
       screen.getByRole('radio', { name: 'Fel Armor' }),
-      screen.getByRole('button', { name: 'Reset to defaults' }),
+      screen.getByRole('button', { name: 'Raid as in my log' }),
     ]) {
       expect(el.matches(':disabled')).toBe(true);
     }
@@ -421,12 +492,9 @@ describe('SetupPanel', () => {
     expect(activePreset()).toBe('None');
   });
 
-  it('Fight group: length input clamps (abc ignored, 5 -> 10, 9999 -> 600), Heroism start/duration inputs behave as before, the warning appears when start > length; Items group no longer lists Heroism', () => {
+  it('Fight group: length input clamps (abc ignored, 5 -> 10, 9999 -> 600), Heroism start/duration inputs behave as before, the warning appears when start > length; Items group no longer lists Heroism', async () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    // The first group of the panel.
-    const groupTitles = [...document.querySelectorAll('.setup-group > summary')].map((s) => s.firstChild?.textContent);
-    expect(groupTitles[0]).toBe('Fight');
     const fight = screen.getByRole('group', { name: 'Fight' });
     const length = within(fight).getByRole('spinbutton', { name: 'Fight length (s)' }) as HTMLInputElement;
     expect(length.value).toBe('60');
@@ -480,6 +548,12 @@ describe('SetupPanel', () => {
     expect(items.textContent).toContain('item row (Z X C V B N;'); // 6 slots since gear item effects
     expect(items.textContent).toContain('Use automatically (bot, simulator)');
     expect(items.textContent).not.toMatch(/you do not press/i);
+
+    // The legacy panel listed "Fight" first; on the Setup screen it is the Fight settings section's first card.
+    cleanup();
+    renderApp({ route: '#/setup/fight' });
+    await settle();
+    expect(document.querySelector('.sv-section .sv-card')?.getAttribute('aria-label')).toBe('Fight');
   });
 
   it('a bound item shows its item row key, as applySetup binds it (the worn Icon always first, then the enabled potions and rune in catalog order)', () => {
@@ -503,45 +577,60 @@ describe('SetupPanel', () => {
     expect(keyOf('Band of the Eternal Sage')).toBeNull();
   });
 
-  it('presets keep the chosen fight length (ruling F-2); Reset to defaults resets it to 60', () => {
-    const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
+  it('presets keep the chosen fight length (ruling F-2); Reset to Defaults resets it to 60', async () => {
+    const { storage, stored } = memoryStorage();
+    renderApp({ route: '#/setup/fight', storage });
+    await settle();
     fireEvent.change(fightLengthInput(), { target: { value: '90' } });
     fireEvent.blur(fightLengthInput());
 
+    await setupAt('buffs');
     fireEvent.click(screen.getByRole('button', { name: 'Raid as in my log' }));
-    expect(last(onChange)).toEqual({ ...SETUP_PRESETS['raid-log'].config, fightDurationSec: 90 });
+    expect(stored()).toEqual({ ...SETUP_PRESETS['raid-log'].config, fightDurationSec: 90 });
     expect(activePreset()).toBe('Raid as in my log');
+    await setupAt('fight');
     expect(fightLengthInput().value).toBe('90');
 
+    await setupAt('buffs');
     fireEvent.click(screen.getByRole('button', { name: 'None' }));
-    expect(last(onChange)).toEqual({ ...SETUP_PRESETS.none.config, fightDurationSec: 90 });
+    expect(stored()).toEqual({ ...SETUP_PRESETS.none.config, fightDurationSec: 90 });
     expect(activePreset()).toBe('None');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
-    expect(last(onChange)).toEqual(DEFAULT_SETUP);
+    resetToDefaults();
+    expect(stored()).toEqual(DEFAULT_SETUP);
+    await setupAt('fight');
     expect(fightLengthInput().value).toBe('60');
   });
 
-  it('Reset to defaults restores DEFAULT_SETUP', () => {
-    const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
+  it('Reset to Defaults restores DEFAULT_SETUP', async () => {
+    const { storage, stored } = memoryStorage();
+    renderApp({ route: '#/setup/buffs', storage });
+    await settle();
     fireEvent.click(checkbox('Arcane Brilliance'));
+    await setupAt('rotation');
     fireEvent.change(curseSelect(), { target: { value: 'doom' } });
+    await setupAt('fight');
     fireEvent.change(startInput('Heroism / Bloodlust'), { target: { value: '12' } });
-    fireEvent.click(screen.getByRole('radio', { name: 'No armor' }));
     fireEvent.change(distanceInput(), { target: { value: '5' } });
+    await setupAt('class');
+    fireEvent.click(screen.getByRole('radio', { name: 'No armor' }));
+    await setupAt('buffs');
     expect(activePreset()).toBe('Custom');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
-    expect(last(onChange)).toEqual(DEFAULT_SETUP);
-    expect(Object.isFrozen(last(onChange))).toBe(false); // a fresh copy, editable
+    resetToDefaults();
+    expect(stored()).toEqual(DEFAULT_SETUP);
     expect(activePreset()).toBe('None');
     expect(checkbox('Arcane Brilliance').checked).toBe(false);
+    fireEvent.click(checkbox('Misery')); // a fresh config: editable after the reset
+    expect(stored().enabledBuffs).toEqual(['misery']);
+    fireEvent.click(checkbox('Misery'));
+    await setupAt('rotation');
     expect(curseSelect().value).toBe('elements');
+    await setupAt('fight');
     expect(startInput('Heroism / Bloodlust').value).toBe('0');
-    expect((screen.getByRole('radio', { name: 'Fel Armor' }) as HTMLInputElement).checked).toBe(true);
     expect(distanceInput().value).toBe('28');
+    await setupAt('class');
+    expect((screen.getByRole('radio', { name: 'Fel Armor' }) as HTMLInputElement).checked).toBe(true);
   });
 
   it('the real presets: every preset button gives a config equal to its preset', () => {
@@ -580,13 +669,24 @@ describe('SetupPanel', () => {
   });
 });
 
-describe('SetupPanel in GameView', () => {
-  it('changing the distance does not change a running fight', () => {
-    render(<GameView storage={null} />);
+// The legacy "Setup panel in GameView" wiring tests in the app: the distance is edited on Setup →
+// Fight settings, the fight is played on the Fight screen (leaving it pauses a running fight; Space
+// resumes it, as the Paused card says).
+describe('Setup editors in the app', () => {
+  /** Back to the Fight screen; a fight paused by leaving it resumes. */
+  function fightAgain() {
+    goTo('#/fight');
+    if (screen.queryByRole('region', { name: 'Paused' })) fireEvent.keyDown(window, { key: ' ' });
+  }
+
+  it('changing the distance does not change a running fight', async () => {
+    renderApp({ route: '#/fight' });
     fireEvent.keyDown(window, { key: '1' }); // Shadow Bolt: cast ends 2431, lands 3831 at 28 yd
     advance(500);
+    await setupAt('fight');
     fireEvent.change(distanceInput(), { target: { value: '0' } });
     expect(distanceInput().value).toBe('0');
+    fightAgain();
 
     advance(2500); // 3000: past the cast end, which is when it would land at 0 yd
     expect(castBar()).toBeNull();
@@ -595,11 +695,13 @@ describe('SetupPanel in GameView', () => {
     expect(totalDamage()).toBeGreaterThan(0);
   });
 
-  it('after R the new distance applies', () => {
-    render(<GameView storage={null} />);
+  it('after R the new distance applies', async () => {
+    renderApp({ route: '#/fight' });
     fireEvent.keyDown(window, { key: '1' });
     advance(500);
+    await setupAt('fight');
     fireEvent.change(distanceInput(), { target: { value: '0' } });
+    goTo('#/fight');
     fireEvent.keyDown(window, { key: 'r' });
     expect(startOverlay()).not.toBeNull();
 
@@ -609,40 +711,51 @@ describe('SetupPanel in GameView', () => {
     expect(totalDamage()).toBeGreaterThan(0);
   });
 
-  it('a distance set before the first press applies to that fight', () => {
-    render(<GameView storage={null} />);
+  it('a distance set before the first press applies to that fight', async () => {
+    renderApp({ route: '#/setup/fight' });
+    await settle();
     fireEvent.change(distanceInput(), { target: { value: '0' } });
+    goTo('#/fight');
     fireEvent.keyDown(window, { key: '1' });
     advance(2500);
     expect(totalDamage()).toBeGreaterThan(0);
   });
 
-  it('keys typed into the panel inputs do not trigger spells', () => {
-    render(<GameView storage={null} />);
-    const summary = screen.getByText('Setup', { selector: 'summary' });
+  it('keys typed into the Setup inputs do not trigger spells', async () => {
+    renderApp({ route: '#/setup/fight' });
+    await settle();
     const textarea = document.createElement('textarea');
     document.body.appendChild(textarea);
     try {
-      // Text-like fields own every key; toggles (summary, checkbox) own only Space (see the next test).
-      const targets = () => [distanceInput(), presetSelect(), textarea];
+      // Text-like fields own every key; on the Setup screen no key reaches the fight at all.
+      const targets = () => [distanceInput(), textarea];
       for (const target of targets()) {
         fireEvent.keyDown(target, { key: '1' });
-        expect(castBar()).toBeNull();
         fireEvent.keyDown(target, { key: ' ' });
-        expect(startOverlay()).not.toBeNull(); // Space did not start the fight
       }
+      await setupAt('rotation');
+      fireEvent.keyDown(presetSelect(), { key: '1' });
+      fireEvent.keyDown(presetSelect(), { key: ' ' });
+      goTo('#/fight');
+      expect(castBar()).toBeNull();
+      expect(startOverlay()).not.toBeNull(); // Space did not start the fight
 
       // In a running fight: R and Escape typed there neither reset the fight nor cancel the cast.
       fireEvent.keyDown(window, { key: '1' });
       advance(500);
+      await setupAt('fight');
       for (const target of targets()) {
         fireEvent.keyDown(target, { key: 'r' });
         fireEvent.keyDown(target, { key: 'Escape' });
-        expect(castBar()).not.toBeNull();
-        expect(screen.getByLabelText('Elapsed').textContent).toBe('0.5 / 60s');
       }
+      await setupAt('rotation');
+      fireEvent.keyDown(presetSelect(), { key: 'r' });
+      fireEvent.keyDown(presetSelect(), { key: 'Escape' });
+      fightAgain();
+      expect(castBar()).not.toBeNull();
+      expect(screen.getByLabelText('Elapsed').textContent).toBe('0:00.5 / 1:00');
 
-      // The same keys outside the panel still work.
+      // The same keys on the Fight screen still work.
       fireEvent.keyDown(window, { key: 'Escape' });
       expect(castBar()).toBeNull();
     } finally {
@@ -650,19 +763,19 @@ describe('SetupPanel in GameView', () => {
     }
   });
 
-  it('after clicking a summary or a checkbox the other hotkeys still work; only Space and Enter belong to them', () => {
-    render(<GameView storage={null} />);
-    const setupSummary = screen.getByText('Setup', { selector: 'summary' });
-    for (const toggle of [setupSummary, screen.getByText('Priority', { selector: 'summary' })]) {
-      fireEvent.keyDown(toggle, { key: ' ' });
-      fireEvent.keyDown(toggle, { key: 'Enter' });
-      expect(startOverlay()).not.toBeNull(); // Space did not start the fight
-    }
+  it("after clicking a toggle (the dock's Combat text switch, a Setup checkbox) the other hotkeys still work; only Space and Enter belong to them", async () => {
+    renderApp({ route: '#/setup/rotation' });
+    await settle();
     fireEvent.keyDown(checkbox('Immolate'), { key: ' ' });
+    goTo('#/fight');
     expect(startOverlay()).not.toBeNull();
+    const toggle = within(screen.getByRole('complementary', { name: 'Fight details' })).getByRole('checkbox', { name: 'Combat text' });
+    fireEvent.keyDown(toggle, { key: ' ' });
+    fireEvent.keyDown(toggle, { key: 'Enter' });
+    expect(startOverlay()).not.toBeNull(); // Space did not start the fight
 
     // A key that is not Space/Enter pressed with a toggle focused reaches the action bar.
-    fireEvent.keyDown(setupSummary, { key: '1' });
+    fireEvent.keyDown(toggle, { key: '1' });
     expect(castBar()).not.toBeNull();
   });
 });

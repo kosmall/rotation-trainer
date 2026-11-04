@@ -11,8 +11,8 @@ import { SETUP_PRESETS } from '../../src/setup/presets';
 import { SETUP_STORAGE_KEY, type SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { createFightSimulation } from '../../src/sim-runner/fight';
-import { GameView } from '../../src/ui/GameView';
-import { SetupPanel } from '../../src/ui/SetupPanel';
+import { ItemsGroup, RotationGroup, SetupPresetBar } from '../../src/ui/SetupPanel';
+import { goTo, renderApp } from './renderApp';
 import { quagBloodgemGear } from '../fixtures/item-use-reference';
 
 // The item-use rules editor in the Setup panel's Rotation group (simulator Task 3). Fully
@@ -31,25 +31,32 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.location.hash = '';
 });
 
 const db = itemDbSync();
 
-/** SetupPanel with its own config, the catalog following the config's gear (as GameView does). */
+/**
+ * The Setup editors the item rules touch (the setup presets, Items and cooldowns, Rotation: the
+ * groups the legacy Setup panel held until redesign Task 5) with their own config, the catalog
+ * following the config's gear (as the trainer does).
+ */
 function Harness({ initial, onChange }: { initial: SetupConfig; onChange(c: SetupConfig): void }) {
   const [config, setConfig] = useState<SetupConfig>(() => normalizeSetup(structuredClone(initial), SETUP_CATALOG, db));
   const catalog = setupCatalogFor(setupGear(config), db);
+  const group = {
+    catalog,
+    config,
+    onChange: (c: SetupConfig) => {
+      onChange(c);
+      setConfig(c);
+    },
+  };
   return (
     <>
-      <SetupPanel
-        catalog={catalog}
-        config={config}
-        presets={SETUP_PRESETS}
-        onChange={(c) => {
-          onChange(c);
-          setConfig(c);
-        }}
-      />
+      <SetupPresetBar {...group} presets={SETUP_PRESETS} />
+      <ItemsGroup {...group} />
+      <RotationGroup {...group} />
       <button
         type="button"
         onClick={() => {
@@ -241,15 +248,19 @@ describe('ItemUseEditor in the game', () => {
     return { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => void map.set(k, v), removeItem: (k) => void map.delete(k) };
   }
 
-  it('the Priority list follows a rule at once; typing in the editor never triggers hotkeys', () => {
-    render(<GameView storage={storage(setup({ enabledBuffs: ['destruction-potion'] }))} />);
+  it('the Priority list follows a rule at once; typing in the editor never triggers hotkeys', async () => {
+    renderApp({ route: '#/setup/rotation', storage: storage(setup({ enabledBuffs: ['destruction-potion'] })) });
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
     fireEvent.change(triggerSelect('Destruction Potion'), { target: { value: 'at' } });
     const sec = spin('Destruction Potion: from second');
     sec.focus();
     for (const key of ['1', 'z', ' ', 'r']) fireEvent.keyDown(sec, { key });
     typeInto(sec, '45');
-    const priority = screen.getByText('Priority', { selector: 'summary' }).closest('details')!;
+    const priority = screen.getByRole('list', { name: 'Priority' });
     expect(priority.textContent).toMatch(/from 45 s on/);
+    goTo('#/fight');
     expect(screen.queryByRole('button', { name: /^start the fight$/i })).not.toBeNull();
     expect(screen.queryByRole('progressbar', { name: 'Cast bar' })).toBeNull();
     act(() => {

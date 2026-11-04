@@ -1,15 +1,13 @@
-// The "Simulator" panel (simulator Task 3; spec §2 B; docs/data-sources.md Part H): plays the
-// next fight's setup N times with the bot, off the main thread (src/sim-runner/client.ts), and
-// shows mean DPS with σ, the standard error, a 95% interval, percentiles, a histogram and the
-// per-spell, item, uptime and mana numbers. A run takes a snapshot of the setup at the click: a
-// setup changed while it runs does not change it, and the result is labelled with the settings it
-// came from. Running disables nothing in the game. Collapsed by default; its body is rendered only
-// while it is open (the run and its result live in the panel and survive closing it).
-// UI redesign Task 4: the state is `useSimulatorRun`, the body `SimulatorForm` + `SimulationResult`,
-// shared with the Report's Simulator tab (src/ui/report/SimulatorTab.tsx); the panel stays for the
-// legacy layout until Task 5.
+// The Simulator (simulator Task 3; spec §2 B; docs/data-sources.md Part H): plays the next fight's
+// setup N times with the bot, off the main thread (src/sim-runner/client.ts), and shows mean DPS
+// with σ, the standard error, a 95% interval, percentiles and the per-spell, item, uptime and mana
+// numbers. A run takes a snapshot of the setup at the click, and the result is labelled with the
+// settings it came from. Running disables nothing in the game.
+// UI redesign: the state is `useSimulatorRun`, the form `SimulatorForm` and the result
+// `SimulationResult`; the Report's Simulator tab (src/ui/report/SimulatorTab.tsx) lays them out.
+// The legacy collapsed panel was removed with the legacy layout (redesign Task 5).
 
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { SPELL_QUEUE_WINDOW_MS } from '../data/common/ratings';
 import type { ItemDb } from '../data/items/types';
@@ -179,6 +177,12 @@ export interface SimulatorPanelProps {
   spellQueueWindowMs?: number;
   /** Runs the simulation (default `lazyRunSimulation`: a worker, or the main thread). Tests inject one. */
   runner?: SimRunner;
+  /**
+   * Called once per finished run with its result and the config it played (the Report passes the
+   * trainer's `recordSimulation`, so the Setup summary's "Simulate this setup" shows it). Never for a
+   * failed or cancelled run.
+   */
+  onResult?(result: SimResult, config: SetupConfig): void;
 }
 
 interface Running {
@@ -219,7 +223,7 @@ export interface SimulatorRun {
 }
 
 /**
- * The Simulator's state and actions, shared by the legacy panel and the Report's Simulator tab:
+ * The Simulator's state and actions, used by the Report's Simulator tab:
  * Runs (clamped to 1-100 000 on blur) and Seed (blank: random, shown with the result), Run /
  * Cancel, progress (the bar every update, a polite text at most once per second) and the result.
  * A failed or cancelled run keeps the previous result; unmounting the owner stops a run.
@@ -233,6 +237,7 @@ export function useSimulatorRun({
   presetName,
   spellQueueWindowMs = SPELL_QUEUE_WINDOW_MS,
   runner = lazyRunSimulation,
+  onResult,
 }: SimulatorPanelProps): SimulatorRun {
   const id = useId();
   const [runsText, setRunsText] = useState(String(DEFAULT_RUNS));
@@ -322,6 +327,7 @@ export function useSimulatorRun({
         setOutcome({ result, label, config: runConfig });
         setCopy(null);
         setStatus(`Done: ${formatInt(result.runs)} fights in ${durationText(performance.now() - startedAt)}.`);
+        onResult?.(result, runConfig);
       },
       (error: unknown) => {
         if (runId !== runIdRef.current) return;
@@ -375,42 +381,10 @@ export function runButtonLabel(runs: number): string {
 }
 
 /**
- * The collapsed "Simulator" panel after Combat text (the legacy layout, until UI redesign Task 5):
- * the form and the result in a `<details>` whose body is rendered only while open (the run and its
- * result live in the panel and survive closing it). Memoized: GameView renders every animation frame.
+ * The Simulator's form as the Report's run bar (UI redesign spec §5.3): Runs, Seed, "Run 1,000
+ * Fights" / Cancel, the estimate, the database warning, the progress bar and the status line.
  */
-export const SimulatorPanel = memo(function SimulatorPanel(props: SimulatorPanelProps) {
-  const [open, setOpen] = useState(false);
-  const sim = useSimulatorRun(props);
-  return (
-    <details className="panel setup sim-panel" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>Simulator</summary>
-      {open && (
-        <div className="setup-fields">
-          <SimulatorForm sim={sim} layout="panel" />
-          {sim.outcome !== null && (
-            <SimulationResult
-              result={sim.outcome.result}
-              label={sim.outcome.label}
-              copy={sim.copy}
-              setCopy={sim.setCopy}
-              onReuseSeed={sim.reuseSeed}
-              layout="panel"
-            />
-          )}
-          <PlusMinusNote />
-        </div>
-      )}
-    </details>
-  );
-});
-
-/**
- * The Simulator's form: Runs, Seed, Run / Cancel, the database warning, the progress bar and the
- * status line. `layout` 'panel': the legacy stacked rows and "Run"; 'bar': the Report's run bar
- * (UI redesign spec §5.3) and "Run 1,000 Fights".
- */
-export function SimulatorForm({ sim, layout }: { sim: SimulatorRun; layout: 'panel' | 'bar' }) {
+export function SimulatorForm({ sim }: { sim: SimulatorRun }) {
   const { id, running } = sim;
   const runsField = (
     <input
@@ -433,7 +407,7 @@ export function SimulatorForm({ sim, layout }: { sim: SimulatorRun; layout: 'pan
       min={0}
       max={MAX_SEED}
       step={1}
-      placeholder={layout === 'bar' ? 'random…' : 'random'}
+      placeholder="random…"
       value={sim.seedText}
       onChange={(e) => sim.changeSeed(e.target.value)}
       onBlur={sim.commitSeed}
@@ -442,15 +416,15 @@ export function SimulatorForm({ sim, layout }: { sim: SimulatorRun; layout: 'pan
   const runButton = (
     <button
       type="button"
-      className={layout === 'bar' ? 'btn primary sim-run' : 'sim-run'}
+      className="btn primary sim-run"
       disabled={running !== null || sim.blockedByDb}
       onClick={sim.run}
     >
-      {layout === 'bar' ? runButtonLabel(sim.runs) : 'Run'}
+      {runButtonLabel(sim.runs)}
     </button>
   );
   const cancelButton = running !== null && (
-    <button type="button" className={layout === 'bar' ? 'btn' : undefined} onClick={sim.cancel}>
+    <button type="button" className="btn" onClick={sim.cancel}>
       Cancel
     </button>
   );
@@ -482,50 +456,22 @@ export function SimulatorForm({ sim, layout }: { sim: SimulatorRun; layout: 'pan
     </>
   );
 
-  if (layout === 'bar') {
-    return (
-      <>
-        <div className="runbar">
-          <div className="runbar-field">
-            <label htmlFor={`${id}-runs`}>Runs</label>
-            {runsField}
-          </div>
-          <div className="runbar-field">
-            <label htmlFor={`${id}-seed`}>Seed</label>
-            {seedField}
-          </div>
-          {runButton}
-          {cancelButton}
-          <span className="note">
-            Estimate: {aboutText(sim.estimateMs)} in the background. The game keeps running. A blank seed draws a random one.
-          </span>
-        </div>
-        {after}
-      </>
-    );
-  }
   return (
     <>
-      <p className="hint">
-        Plays the next fight&apos;s setup (gear, talents, buffs, rotation and item rules, fight length) many times with the bot and
-        shows the average. The game keeps running meanwhile.
-      </p>
-      <div className="setup-row">
-        <label htmlFor={`${id}-runs`}>Runs</label>
-        {runsField}
-      </div>
-      <p className="hint">
-        1 to 100 000. Estimate: {aboutText(sim.estimateMs)} (≈{MS_PER_60S_FIGHT} ms per 60 s fight measured in a background
-        worker; longer fights and more items take longer).
-      </p>
-      <div className="setup-row">
-        <label htmlFor={`${id}-seed`}>Seed</label>
-        {seedField}
-      </div>
-      <p className="hint">Blank: a random seed (shown with the result). The same seed, runs and setup give the same result.</p>
-      <div className="setup-preset-buttons sim-buttons">
+      <div className="runbar">
+        <div className="runbar-field">
+          <label htmlFor={`${id}-runs`}>Runs</label>
+          {runsField}
+        </div>
+        <div className="runbar-field">
+          <label htmlFor={`${id}-seed`}>Seed</label>
+          {seedField}
+        </div>
         {runButton}
         {cancelButton}
+        <span className="note">
+          Estimate: {aboutText(sim.estimateMs)} in the background. Leaving the Report stops the run. A blank seed draws a random one.
+        </span>
       </div>
       {after}
     </>
@@ -577,12 +523,7 @@ export interface SimulationResultProps {
   copy: CopyState;
   setCopy(state: CopyState): void;
   onReuseSeed(seed: number): void;
-  /** 'panel': the legacy panel's stacked result; 'report': the Report's cards (spec §5.3). */
-  layout: 'panel' | 'report';
-  /**
-   * The Report's histogram (a chart the Report draws: the mean and "You" lines); the panel draws its
-   * own plain histogram. Ignored by the panel layout.
-   */
+  /** The histogram (a chart the Report draws: the mean and "You" lines). */
   histogram?: ReactNode;
   /** The Report's sentence under the histogram (where your fight sits), or null. */
   histogramNote?: string | null;
@@ -591,7 +532,7 @@ export interface SimulationResultProps {
 }
 
 /** The result region ("Simulation result"): mean, σ, SEM, CI, percentiles, histogram, per spell, items, uptime, mana, copy. */
-export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, layout, histogram, histogramNote, histogramCaption }: SimulationResultProps) {
+export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, histogram, histogramNote, histogramCaption }: SimulationResultProps) {
   const p = result.percentiles;
   const spells = useMemo(() => spellRows(result), [result]);
   const text = useMemo(() => resultText(result, label), [result, label]);
@@ -621,7 +562,7 @@ export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, la
   const reuse = (
     <button
       type="button"
-      className={layout === 'report' ? 'btn small' : 'sim-link'}
+      className="btn small"
       aria-label={`Reuse seed ${label.seed}`}
       onClick={() => onReuseSeed(label.seed)}
     >
@@ -629,7 +570,7 @@ export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, la
     </button>
   );
   const stats = (
-    <dl className={layout === 'report' ? 'statgrid' : 'sim-stats'}>
+    <dl className="statgrid">
       <Stat name="Mean DPS" value={formatDps(result.meanDps)} />
       <Stat name="Standard deviation (σ)" value={formatDps(result.stdDev)} />
       <Stat name="Standard error of the mean" value={formatDps(result.stdErr)} />
@@ -647,7 +588,7 @@ export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, la
     <>
       <Section title="Per spell">
         <div className="sim-table-wrap tbl-wrap">
-          <table className={layout === 'report' ? 'dmg sim-table' : 'sim-table'}>
+          <table className="dmg sim-table">
             <caption className="visually-hidden sr-only">Per spell</caption>
             <thead>
               <tr>
@@ -695,14 +636,14 @@ export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, la
           ))}
         </ul>
       </Section>
-      <dl className={layout === 'report' ? 'statgrid' : 'sim-stats'}>
+      <dl className="statgrid">
         <Stat name="Mana spent per fight" value={formatInt(result.meanManaSpent)} />
         <Stat name="Life Taps per fight" value={perFight(result.meanLifeTaps)} />
       </dl>
       <div className="setup-preset-buttons sim-copy">
         <button
           type="button"
-          className={layout === 'report' ? 'btn' : undefined}
+          className="btn"
           onClick={() => {
             void doCopy();
           }}
@@ -715,93 +656,42 @@ export function SimulationResult({ result, label, copy, setCopy, onReuseSeed, la
     </>
   );
 
-  if (layout === 'report') {
-    return (
-      <section className="sim-result sim-result-report" role="region" aria-label="Simulation result">
-        <div className="sim-grid">
-          <div className="card">
-            <h2>
-              Mean DPS{' '}
-              <small>
-                {formatInt(result.runs)} runs, seed {label.seed}
-              </small>
-            </h2>
-            <p className="sim-big tnum">
-              {formatDps(result.meanDps)}
-              <small> ± {formatDps(result.stdErr)} SEM</small>
-            </p>
-            <p className="note">
-              95% of the time the true mean lies between {formatDps(result.ci95[0])} and {formatDps(result.ci95[1])}.
-            </p>
-            {stats}
-            {settings}
-            {reuse}
-          </div>
-          <div className="card">
-            <h2>
-              DPS of {formatInt(result.runs)} {result.runs === 1 ? 'fight' : 'fights'}{' '}
-              <small>{histogramCaption ?? 'The bot with this setup'}</small>
-            </h2>
-            {histogram}
-            {histogramNote && <p className="note">{histogramNote}</p>}
-          </div>
-        </div>
-        <div className="card sim-details">{details}</div>
-      </section>
-    );
-  }
   return (
-    <section className="sim-result" role="region" aria-label="Simulation result">
-      <p className="sim-headline">
-        Mean <strong>{formatDps(result.meanDps)}</strong> DPS ± {formatDps(result.stdErr)} (standard error), σ{' '}
-        {formatDps(result.stdDev)}
-      </p>
-      {settings}
-      {reuse}
-      {stats}
-      <Histogram result={result} />
-      {details}
+    <section className="sim-result sim-result-report" role="region" aria-label="Simulation result">
+      <div className="sim-grid">
+        <div className="card">
+          <h2>
+            Mean DPS{' '}
+            <small>
+              {formatInt(result.runs)} runs, seed {label.seed}
+            </small>
+          </h2>
+          <p className="sim-big tnum">
+            {formatDps(result.meanDps)}
+            <small> ± {formatDps(result.stdErr)} SEM</small>
+          </p>
+          <p className="note">
+            95% of the time the true mean lies between {formatDps(result.ci95[0])} and {formatDps(result.ci95[1])}.
+          </p>
+          {stats}
+          {settings}
+          {reuse}
+        </div>
+        <div className="card">
+          <h2>
+            DPS of {formatInt(result.runs)} {result.runs === 1 ? 'fight' : 'fights'}{' '}
+            <small>{histogramCaption ?? 'The bot with this setup'}</small>
+          </h2>
+          {histogram}
+          {histogramNote && <p className="note">{histogramNote}</p>}
+        </div>
+      </div>
+      <div className="card sim-details">{details}</div>
     </section>
   );
 }
 
-/** The DPS histogram: one image with a text summary (no per-bar focus stops). */
-function Histogram({ result }: { result: SimResult }) {
-  const summaryId = useId();
-  const { counts, binStart, binWidth } = result.histogram;
-  const peak = Math.max(...counts);
-  const peakIndex = counts.indexOf(peak);
-  const width = 400;
-  const height = 100;
-  const barW = width / counts.length;
-  return (
-    <figure className="sim-histogram">
-      <svg
-        role="img"
-        aria-label="DPS histogram"
-        aria-describedby={summaryId}
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-      >
-        {counts.map((c, i) =>
-          c === 0 ? null : (
-            <rect key={i} x={i * barW + 0.5} width={Math.max(barW - 1, 1)} y={height - (c / peak) * height} height={(c / peak) * height} />
-          ),
-        )}
-      </svg>
-      <div className="sim-axis" aria-hidden="true">
-        <span>{formatDps(result.min)}</span>
-        <span>median {formatDps(result.median)}</span>
-        <span>{formatDps(result.max)}</span>
-      </div>
-      <figcaption id={summaryId} className="hint">
-        {histogramSummary(result, peakIndex, peak, binStart, binWidth)}
-      </figcaption>
-    </figure>
-  );
-}
-
-/** The histogram in one sentence (the panel's caption and the Report chart's description). */
+/** The histogram in one sentence (the Report chart's description). */
 export function histogramSummary(result: SimResult, peakIndex?: number, peak?: number, binStart = result.histogram.binStart, binWidth = result.histogram.binWidth): string {
   const counts = result.histogram.counts;
   const top = peak ?? Math.max(...counts);

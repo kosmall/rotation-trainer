@@ -51,9 +51,26 @@ function ScriptRules({ config, spec, catalog }: { config: SetupConfig; spec: Spe
 }
 
 /**
+ * The priority the next fight plays (the basic rotation's or the script's, compiled), in order:
+ * the step's name and its condition in words (spec §3.4: the legacy "Priority" panel).
+ */
+function PriorityList({ priority }: { priority: SpecData['priority'] }) {
+  return (
+    <ol className="priority-list" aria-label="Priority">
+      {priority.map((step) => (
+        <li key={step.key ?? step.spellId}>
+          <strong>{step.label}</strong>
+          <span className="note">{step.hint}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
  * Rotation: the Basic / Script switch. Basic: preset, curse, DoTs, Life Tap and the item use
  * rules. Script: the active script's rules (read only until the script editor lands) and "Clear
- * Script…" (it asks first).
+ * Script…" (it asks first). Under both: the priority the next fight plays.
  */
 export function RotationSection() {
   const { state, actions } = useTrainer();
@@ -102,6 +119,11 @@ export function RotationSection() {
           <ScriptRules config={config} spec={nextFight.spec} catalog={nextFight.catalog} />
         </SetupCard>
       )}
+      <div className="sv-priority">
+        <SetupCard title="Priority of the next fight" count={`${nextFight.spec.priority.length} steps`} width="full">
+          <PriorityList priority={nextFight.spec.priority} />
+        </SetupCard>
+      </div>
       {confirming && (
         <ConfirmDialog
           title="Clear the Script?"

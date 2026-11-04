@@ -64,12 +64,5 @@ export function useUiFlag(storage: UiStorage | null, key: string, fallback: bool
   return [value, set];
 }
 
-type CountsHost = { __RENDER_COUNTS__?: Record<string, number> };
-
-/** Counts a render of `name` in `globalThis.__RENDER_COUNTS__` (development and tests only). */
-export function countRender(name: string): void {
-  if (!import.meta.env.DEV) return;
-  const host = globalThis as CountsHost;
-  const counts = (host.__RENDER_COUNTS__ ??= {});
-  counts[name] = (counts[name] ?? 0) + 1;
-}
+/** The dev-only render counter (src/ui/renderCount.ts), re-exported for the Fight components. */
+export { countRender } from '../renderCount';

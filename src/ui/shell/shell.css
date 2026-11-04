@@ -2,7 +2,7 @@
  * The app shell (UI redesign Task 1): base rules, skip link, header, mode links, spec chip, status
  * chips, theme button, mobile tab bar, shortcuts dialog. Ported from the prototype's "Top bar",
  * "Buttons" and "Responsive" sections (docs/design/prototype/styles.css). Base rules stay minimal
- * while the legacy layout (game.css) is on the Fight screen.
+ * beside game.css (the shared editor rules).
  */
 
 html {

@@ -16,6 +16,7 @@ import type { ChipLabels } from '../state/TrainerProvider';
 import { botShareText, reportModel, reportText } from './reportModel';
 import type { ReportModel } from './reportModel';
 import './report.css';
+import { countRender } from '../renderCount';
 
 const DamageTab = lazy(() => import('./DamageTab').then((m) => ({ default: m.DamageTab })));
 const TimelineTab = lazy(() => import('./TimelineTab').then((m) => ({ default: m.TimelineTab })));
@@ -52,6 +53,7 @@ export function ReportView({ tab }: { tab: ReportTab }) {
     talentsName: meta.labels.talents,
     presetName: meta.labels.setupPreset,
     runner: meta.simRunner,
+    onResult: actions.recordSimulation,
   });
   const { reset } = actions;
   const ended = meta.phase === 'ended';
@@ -93,6 +95,7 @@ function TabPanel({ tab, model, sim }: { tab: ReportTab; model: ReportModel | nu
 }
 
 const ReportTabs = memo(function ReportTabs({ tab }: { tab: ReportTab }) {
+  countRender('ReportTabs');
   const link = (t: ReportTab) => (
     <a key={t} href={routeHref({ mode: 'report', tab: t })} aria-current={t === tab ? 'page' : undefined}>
       {REPORT_TAB_TITLES[t]}
@@ -137,6 +140,7 @@ const PLAYED_WITH: readonly { key: keyof ChipLabels; section: SetupSection }[] =
 ];
 
 const ReportHead = memo(function ReportHead({ model, onFightAgain }: { model: ReportModel; onFightAgain(): void }) {
+  countRender('ReportHead');
   const { last, bot, totals, durationMs, kpis } = model;
   const share = botShareText(model);
   const [copied, setCopied] = useState<{ fightId: number; manual: boolean } | null>(null);

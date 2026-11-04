@@ -7,7 +7,7 @@ import { memo } from 'react';
 import { SPELL_QUEUE_WINDOW_MS } from '../../data/common/ratings';
 import type { SpecData } from '../../data/types';
 import type { SimSnapshot, SpellDef } from '../../engine/types';
-import type { SlotFlash } from '../ActionBar';
+import type { SlotFlash } from './slotFlash';
 import { formatInt, remainingText, secondsText } from '../format';
 import { ITEM_SLOT_KEYS, SPELL_SLOT_KEYS } from '../keys';
 import { SpellIcon } from '../SpellIcon';

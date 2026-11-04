@@ -1,10 +1,9 @@
-// The "Combat text" panel (scrolling combat text Task 2): the HUD preferences. Fully controlled:
+// The "Combat text" settings (scrolling combat text Task 2): the HUD preferences. Fully controlled:
 // it shows `settings` and passes every edit to `onChange` normalized (`normalizeHudSettings`);
 // the caller saves it. Interface preferences only: never part of the fight setup, usable while a
 // fight runs (the next texts follow the change).
 
 import { memo, useId, useState } from 'react';
-import type { ReactNode } from 'react';
 import { DEFAULT_HUD_SETTINGS, HUD_SETTING_LIMITS, normalizeHudSettings } from './hudSettings';
 import type { HudAnimation, HudSettings } from './hudSettings';
 
@@ -92,22 +91,9 @@ export interface CombatTextSettingsProps {
 }
 
 /**
- * The collapsed "Combat text" panel in the side column, after Setup and Gear: the whole HUD on or
- * off, a checkbox per category, the animation style, the numbers (clamped on blur), icons and
- * spell names, and "Reset to defaults". Hotkeys stay with the fight except in the number fields
- * and the select (ruling S5, GameView's guard).
- */
-export const CombatTextSettings = memo(function CombatTextSettings({ settings, onChange }: CombatTextSettingsProps) {
-  return (
-    <LazyDetails className="panel setup hud-settings" summary="Combat text">
-      <CombatTextForm settings={settings} onChange={onChange} />
-    </LazyDetails>
-  );
-});
-
-/**
- * The combat text settings without the panel's `<details>` (the Setup screen's Combat text section
- * and the legacy panel's body).
+ * The combat text settings (the Setup screen's Interface → Combat text section): the whole HUD on
+ * or off, a checkbox per category, the animation style, the numbers (clamped on blur), icons and
+ * spell names, and "Reset to defaults". Hotkeys never reach the fight from the Setup screen.
  */
 export const CombatTextForm = memo(function CombatTextForm({ settings, onChange }: CombatTextSettingsProps) {
   const id = useId();
@@ -161,17 +147,3 @@ export const CombatTextForm = memo(function CombatTextForm({ settings, onChange 
     </div>
   );
 });
-
-/**
- * A `<details>` whose body is rendered only while it is open: the collapsed panel adds no form
- * controls to the page (less work per frame for the browser, assistive tools and tests).
- */
-function LazyDetails({ className, summary, children }: { className: string; summary: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <details className={className} open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>{summary}</summary>
-      {open && children}
-    </details>
-  );
-}

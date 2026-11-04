@@ -14,8 +14,10 @@ import { TalentsSection } from './sections/TalentsSection';
 import { SetupRail } from './SetupRail';
 import { SummaryAside } from './SummaryAside';
 import './setup.css';
+import { countRender } from '../renderCount';
 
 function Section({ section }: { section: SetupSection }) {
+  countRender('SetupSection');
   switch (section) {
     case 'gear':
       return <GearSection />;

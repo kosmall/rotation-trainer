@@ -1,7 +1,7 @@
 // Combat text HUD (scrolling combat text Task 2, design spec §3-4): the floating texts over the
 // arena. `CombatTextLayer` feeds a `HudQueue` from the fight (new log entries and snapshot changes,
 // once per snapshot, i.e. per animation frame) and keeps the texts in its own state, so a text
-// coming or going never re-renders GameView; `CombatTextHud` draws them. Motion is CSS only
+// coming or going never re-renders the Fight view; `CombatTextHud` draws them. Motion is CSS only
 // (game.css, "Combat text HUD"): no timer per text; a text leaves when the queue expires it in the
 // frame loop or when its animation ends (after the fight, when there are no more frames).
 

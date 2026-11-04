@@ -14,6 +14,7 @@ import { enabledCount } from '../SetupPanel';
 import { useTrainer } from '../state/TrainerProvider';
 import type { TrainerMeta, TrainerState } from '../state/TrainerProvider';
 import { classOptionsOf } from './sections/classOptions';
+import { countRender } from '../renderCount';
 
 /** What a rail resolver reads: the trainer's state and meta (`useTrainer`). */
 export interface RailContext {
@@ -168,6 +169,7 @@ function RailIconView({ icon }: { icon: RailIcon }) {
  * with its icon, name and value; Keybinds disabled. Memoized: re-renders on setup edits only.
  */
 export const SetupRail = memo(function SetupRail({ active }: { active: SetupSection }) {
+  countRender('SetupRail');
   const { state, meta } = useTrainer();
   const ctx: RailContext = { state, meta };
   return (

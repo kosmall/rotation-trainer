@@ -4,7 +4,8 @@ import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import type { AuraView } from '../../src/engine/types';
 import { renderApp } from './renderApp';
 import { SpellIcon, iconUrl } from '../../src/ui/SpellIcon';
-import { AuraList } from '../../src/ui/TargetPanel';
+import { TargetFrame } from '../../src/ui/fight/TargetFrame';
+import { targetDebuffViews } from '../../src/ui/fight/fightView';
 
 afterEach(() => {
   cleanup();
@@ -76,31 +77,36 @@ describe('aura icons', () => {
     ...extra,
   });
 
-  it('shows the aura icon on each chip, with its count', () => {
+  // The legacy AuraList's tests on the Fight screen's target frame (the legacy component was removed
+  // with the legacy layout, redesign Task 5): the count is `.fv-aura-count`, the tile `.fv-aura-icon`.
+  const debuffs = (auras: Record<string, AuraView>) =>
     render(
-      <AuraList
-        spec={destructionWarlock}
-        label="Target debuffs"
-        auras={{
-          corruption: view('corruption'),
-          'shadow-vulnerability': view('shadow-vulnerability', { charges: 4 }),
-        }}
+      <TargetFrame
+        damageTotal={0}
+        debuffs={targetDebuffViews(auras, destructionWarlock, new Set(), 60_000, 'running')}
+        reduceMotion={false}
       />,
     );
+
+  it('shows the aura icon on each chip, with its count', () => {
+    debuffs({
+      corruption: view('corruption'),
+      'shadow-vulnerability': view('shadow-vulnerability', { charges: 4 }),
+    });
     const chips = screen.getAllByRole('listitem');
-    const corruption = chips.find((li) => li.textContent?.includes('Corruption'));
-    const isb = chips.find((li) => li.textContent?.includes('Shadow Vulnerability'));
+    const corruption = chips.find((li) => li.getAttribute('aria-label')?.startsWith('Corruption'));
+    const isb = chips.find((li) => li.getAttribute('aria-label')?.startsWith('Shadow Vulnerability'));
     const icon = (id: string) => destructionWarlock.auras.find((a) => a.id === id)?.icon;
     expect(corruption?.querySelector('img')?.getAttribute('src')).toContain(`/icons/spells/${icon('corruption')}.jpg`);
     expect(isb?.querySelector('img')?.getAttribute('src')).toContain(`/icons/spells/${icon('shadow-vulnerability')}.jpg`);
-    expect(isb?.querySelector('.aura-count')?.textContent).toBe('4');
+    expect(isb?.querySelector('.fv-aura-count')?.textContent).toBe('4');
   });
 
   it('falls back to the initials when the aura icon fails', () => {
-    render(<AuraList spec={destructionWarlock} label="Target debuffs" auras={{ corruption: view('corruption') }} />);
+    debuffs({ corruption: view('corruption') });
     const chip = screen.getByRole('listitem');
     fireEvent.error(chip.querySelector('img') as HTMLImageElement);
     expect(chip.querySelector('img')).toBeNull();
-    expect(chip.querySelector('.aura-icon')?.textContent).toContain('Co');
+    expect(chip.querySelector('.fv-aura-icon')?.textContent).toContain('Co');
   });
 });

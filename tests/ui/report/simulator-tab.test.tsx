@@ -1,6 +1,7 @@
-// The Report's Simulator tab (UI redesign Task 4): the Simulator panel's tests (tests/ui/simulator-panel.test.tsx,
-// which keeps testing the legacy panel until Task 5) migrated to renderApp('#/report/simulator'),
-// plus the "You" marker after a fight. jsdom has no Worker: the default runner runs on the main
+// The Report's Simulator tab (UI redesign Task 4): the legacy Simulator panel's tests migrated to
+// renderApp('#/report/simulator') (the panel and its test file were removed with the legacy layout in
+// Task 5, its last tests are the four at the end of this file), plus the "You" marker after a fight
+// and the Setup summary's last simulation. jsdom has no Worker: the default runner runs on the main
 // thread in chunks yielding with setTimeout(0), so the fake timers are advanced.
 
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
@@ -12,6 +13,7 @@ import { DEFAULT_SETUP } from '../../../src/setup/defaults';
 import { SETUP_STORAGE_KEY, type SetupStorage } from '../../../src/setup/storage';
 import type { SetupConfig } from '../../../src/setup/types';
 import { formatDps } from '../../../src/ui/format';
+import panelSource from '../../../src/ui/SimulatorPanel.tsx?raw';
 import { goTo, renderApp } from '../renderApp';
 
 const FAKE_NOW = 1_800_000_000_000;
@@ -336,5 +338,84 @@ describe('Report: Simulator tab', () => {
     const region = resultRegion()!;
     expect(within(region).getByText(/^You [\d,]+\.\d$/)).toBeTruthy();
     expect(within(region).getByText(/Your fight \([\d,]+\.\d\) sits at about the \d+(st|nd|rd|th) percentile of the bot’s fights with this setup\./)).toBeTruthy();
+  });
+
+  it('a finished run is the Setup summary\'s last simulation: "Simulate this setup" shows its mean and SEM; a failed or cancelled run records nothing', async () => {
+    const { runner, held } = holdingRunner();
+    await openSimulator({ simRunner: runner });
+    await runWith('20', '7');
+    const mean = stat('Mean DPS');
+    const sem = stat('Standard error of the mean');
+    // A second run that is cancelled leaves the recorded one as it was.
+    fireEvent.click(runButton());
+    expect(held).toHaveLength(1);
+    fireEvent.click(cancelButton()!);
+    goTo('#/setup/gear');
+    await settle();
+    const card = within(screen.getByRole('complementary', { name: 'Next fight summary' })).getByRole('region', { name: 'Simulate this setup' });
+    expect(within(card).getByLabelText('Last simulated DPS').textContent).toBe(`${mean} ± ${sem} DPS`);
+    expect(card.textContent).toContain('20 runs, seed 7.');
+    expect(card.textContent).not.toContain('The setup changed since.');
+  });
+
+  // The legacy panel's last tests (tests/ui/simulator-panel.test.tsx until Task 5), in the Report.
+
+  it('renders its body only on its own tab: the Report loads it lazily (the legacy panel: only while open)', async () => {
+    renderApp({ route: '#/report/damage' });
+    await settle();
+    expect(screen.queryByRole('region', { name: 'Simulator' })).toBeNull();
+    expect(screen.queryByRole('spinbutton', { name: 'Runs' })).toBeNull();
+    goTo('#/report/simulator');
+    await settle();
+    expect(runsInput().value).toBe('1000');
+    expect(seedInput().value).toBe('');
+    expect(within(panel()).getByText(/estimate/i)).toBeTruthy();
+  });
+
+  it('a run keeps the setup of the click: leaving the Report cancels it, and a setup edited meanwhile plays in the next run', async () => {
+    const { runner, held } = holdingRunner();
+    await openSimulator({ simRunner: runner });
+    await runWith('5', '1'); // the first run is not held
+    setRuns('40');
+    setSeed('9');
+    fireEvent.click(runButton());
+    expect(held).toHaveLength(1);
+    expect(held[0]!.request.setup.rotation.curse).toBe('elements');
+    goTo('#/setup/rotation'); // the Report unmounts: the run stops
+    await settle();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Curse' }), { target: { value: 'agony' } });
+    goTo('#/report/simulator');
+    await settle();
+    expect(cancelButton()).toBeNull();
+    expect(held[0]!.request.setup.rotation.curse).toBe('elements'); // the cancelled run never saw the edit
+    fireEvent.click(runButton());
+    expect(held).toHaveLength(2);
+    expect(held[1]!.request.setup.rotation.curse).toBe('agony');
+  });
+
+  it('the fight keys do nothing on the Report: a run goes on, no fight starts (the legacy panel: the game kept working)', async () => {
+    const { runner, held } = holdingRunner();
+    await openSimulator({ simRunner: runner });
+    await runWith('5', '1');
+    fireEvent.click(runButton()); // held open
+    await act(async () => {});
+    expect(cancelButton()).not.toBeNull();
+    for (const key of ['1', ' ', 'r', 'Escape']) fireEvent.keyDown(window, { key });
+    expect(cancelButton()).not.toBeNull(); // still running
+    expect(held).toHaveLength(1);
+    expect(screen.queryByRole('progressbar', { name: 'Cast bar' })).toBeNull();
+    goTo('#/fight');
+    expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
+  });
+
+  it("the default runner is loaded on the first Run (the client and core are not in the main chunk) and gives simulate()'s result", async () => {
+    // Only type imports of the client and the core; the runner is a dynamic import().
+    expect(panelSource).not.toMatch(/^import (?!type )[^;]*'\.\.\/sim-runner\/(client|run|stats)'/m);
+    expect(panelSource).toContain("import('../sim-runner/client')");
+    await openSimulator();
+    await runWith('20', '77');
+    const expected = await simulate({ setup: DEFAULT_SETUP, runs: 20, seed: 77, spellQueueWindowMs: 400 }, NO_YIELD);
+    expect(stat('Mean DPS')).toBe(formatDps(expected.meanDps));
+    expect(stat('Standard deviation (σ)')).toBe(formatDps(expected.stdDev));
   });
 });

@@ -8,100 +8,25 @@
 // primitives or arrays rebuilt once per snapshot.
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { buffTimeText, isExpiring, timeLeftWords } from '../buffsView';
-import type { BuffViews } from '../buffsView';
 import { CombatTextLayer } from '../CombatTextHud';
 import { secondsText } from '../format';
 import { navigate, routeHref } from '../shell/router';
 import { useFightFrame, useTrainer } from '../state/TrainerProvider';
 import { StartOverlay } from '../StartOverlay';
-import { AuraRow } from './AuraRow';
 import { Bars } from './Bars';
 import { Dock } from './Dock';
 import { botRun } from '../report/botRun';
 import { EndCard } from './EndCard';
 import { dpsNoteText, nextUp, playedWithTags, targetDebuffViews } from './fightView';
-import type { AuraIconView } from './fightView';
 import { usePrefersReducedMotion, useUiFlag } from './hooks';
 import { Hud } from './Hud';
+import { PlayerBuffs, playerBuffIcons } from './PlayerBuffs';
 import type { HudMark } from './Hud';
 import { FIVE_SECOND_RULE_MS, PlayerFrame } from './PlayerFrame';
 import { TARGET_NAME, TargetFrame } from './TargetFrame';
 import { useFightHotkeys } from './useFightHotkeys';
 import { World } from './World';
 import './fight.css';
-
-/** The player's buffs as icon views: active (with time), upcoming (dimmed, "in 4.9s"), setup (small). */
-function playerBuffIcons(views: BuffViews, phase: 'ready' | 'running' | 'ended') {
-  const active: AuraIconView[] = views.active.map((b) => ({
-    id: b.auraId,
-    name: b.name,
-    icon: b.icon,
-    iconKind: b.iconKind ?? 'spell',
-    time: buffTimeText(b.remainingMs),
-    count: b.count,
-    label: `${b.name}, ${timeLeftWords(b.remainingMs)}`,
-    title: `${b.name}: ${b.description}`,
-    variant: 'mine',
-    expiring: phase !== 'ended' && isExpiring(b.remainingMs),
-  }));
-  const upcoming: AuraIconView[] = views.upcoming.map((u, i) => {
-    const when = phase === 'ready' ? `at ${secondsText(u.startsAtMs)} s` : `in ${secondsText(u.inMs)} s`;
-    return {
-      id: `${u.auraId}-${u.startsAtMs}-${i}`,
-      name: u.name,
-      icon: u.icon,
-      iconKind: u.iconKind ?? 'spell',
-      time: phase === 'ready' ? `${secondsText(u.startsAtMs)}s` : `in ${secondsText(u.inMs)}`,
-      count: null,
-      label: `${u.name} ${when}`,
-      title: `${u.name} ${when}`,
-      variant: 'upcoming',
-      expiring: false,
-    };
-  });
-  const setup: AuraIconView[] = views.permanent.map((p) => ({
-    id: p.id,
-    name: p.name,
-    icon: p.icon,
-    iconKind: p.iconKind ?? 'spell',
-    time: null,
-    count: null,
-    label: p.name,
-    title: `${p.name}: ${p.description}`,
-    variant: 'passive',
-    expiring: false,
-  }));
-  return { active, upcoming, setup };
-}
-
-interface PlayerBuffsProps {
-  active: readonly AuraIconView[];
-  upcoming: readonly AuraIconView[];
-  setup: readonly AuraIconView[];
-  reduceMotion: boolean;
-}
-
-/** "Your buffs" (top right, as the game's buff frame): timed buffs, upcoming ones, the setup's. */
-const PlayerBuffs = memo(function PlayerBuffs({ active, upcoming, setup, reduceMotion }: PlayerBuffsProps) {
-  return (
-    <section className="fv-player-buffs" aria-label="Your buffs">
-      <h2 className="sr-only">Your buffs</h2>
-      {active.length === 0 ? (
-        <p className="sr-only">No active buffs</p>
-      ) : (
-        <AuraRow label="Active buffs" views={active} reduceMotion={reduceMotion} />
-      )}
-      {upcoming.length > 0 && <AuraRow label="Upcoming buffs" views={upcoming} reduceMotion={reduceMotion} />}
-      {setup.length > 0 && (
-        <>
-          <AuraRow label="Setup buffs" views={setup} reduceMotion={reduceMotion} className="fv-auras-setup" />
-          <span className="fv-lab">Setup buffs last the whole fight</span>
-        </>
-      )}
-    </section>
-  );
-});
 
 /** The paused card: a running fight whose screen was left (Space, a spell or this button resumes). */
 const PausedCard = memo(function PausedCard({ atMs, onResume }: { atMs: number; onResume(): void }) {
@@ -187,7 +112,9 @@ export function FightView() {
   const toggleDock = useCallback(() => setDockOpen(!dockOpen), [dockOpen, setDockOpen]);
   const onCombatText = useCallback((on: boolean) => changeHudSettings({ ...hudSettings, enabled: on }), [changeHudSettings, hudSettings]);
   const specLine = `${meta.spec.specName} ${meta.spec.className}`;
-  const labels = meta.labels;
+  // The start card names the setup of the fight a press starts (built already: a stored gear that
+  // waits for the item database plays the default gear until it loads); the rotation is the next one.
+  const labels = { ...meta.fightLabels, rotation: meta.labels.rotation };
   const playedWith = useMemo(() => playedWithTags(meta.fightLabels), [meta.fightLabels]);
   // The bot's DPS in this same fight (same setup and seed; Report Task 4), once the fight has ended.
   const lastFight = meta.lastFight;

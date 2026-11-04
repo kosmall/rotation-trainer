@@ -3,7 +3,7 @@
 // element in a layout effect), the cooldown time, the reject flash and the coach glow.
 
 import { memo, useLayoutEffect, useRef } from 'react';
-import type { SlotFlash } from '../ActionBar';
+import type { SlotFlash } from './slotFlash';
 import { initials } from '../format';
 import { SpellIcon } from '../SpellIcon';
 

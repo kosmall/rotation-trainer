@@ -35,8 +35,8 @@ export const CUSTOM_GEAR_NAME = 'Custom';
 /** Where the item database stands: not asked for yet, loading, loaded, failed (Reload the page). */
 export type GearDbStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-export interface GearPanelProps {
-  /** The setup's gear (17 entries, `ITEM_SLOTS` order). The panel keeps no copy of it. */
+export interface GearEditorProps {
+  /** The setup's gear (17 entries, `ITEM_SLOTS` order). The editor keeps no copy of it. */
   gear: readonly (EquippedItem | null)[];
   /** The preset buttons, in order (`offeredGearPresets()`). */
   presets: readonly GearPreset[];
@@ -47,10 +47,7 @@ export interface GearPanelProps {
    * was chosen); the caller runs `normalizeSetup` on the config.
    */
   onChange(gear: Gear, presetId?: string): void;
-  disabled?: boolean;
   status?: GearDbStatus;
-  /** The panel was opened (the caller loads the database). */
-  onOpen?(): void;
   /** Reload the page after the database failed to load (the setup is saved). */
   onReload?(): void;
   /** The running fight was built with another setup: the new gear applies after R. */
@@ -120,34 +117,7 @@ function GearIcon({ icon, name }: { icon?: string; name: string }) {
 }
 
 /**
- * The collapsed "Gear" panel of the legacy layout (until the redesign's Task 5): the Gear editor
- * (`GearEditor`) and its Import and Export (`GearIoActions`) in a `<details>`. Opening it asks for
- * the item database (`onOpen`).
- */
-export function GearPanel({ disabled = false, onOpen, ...props }: GearPanelProps) {
-  const active = useMemo(() => matchingPreset(props.gear, props.presets), [props.gear, props.presets]);
-  return (
-    <details
-      className="panel gear setup"
-      onToggle={(e) => {
-        if ((e.currentTarget as HTMLDetailsElement).open) onOpen?.();
-      }}
-    >
-      <summary>
-        Gear <span className="gear-summary-name">{active?.name ?? CUSTOM_GEAR_NAME}</span>
-      </summary>
-      <fieldset className="setup-fields" disabled={disabled}>
-        <GearEditor {...props} />
-        {props.db !== null && <GearIoActions gear={props.gear} db={props.db} onApply={(g) => props.onChange(g)} />}
-      </fieldset>
-    </details>
-  );
-}
-
-export type GearEditorProps = Omit<GearPanelProps, 'disabled' | 'onOpen'>;
-
-/**
- * The Gear editor (the Setup screen's Gear section and the legacy panel's body): the gear presets
+ * The Gear editor (the Setup screen's Gear section): the gear presets
  * (the pressed one matches the gear exactly, else "Custom") with the active preset's note, the 17
  * slots as a character pane (left and right columns, the weapons under them) around the selected
  * slot's item card (stats, sockets with their gem, the socket bonus, the enchant, the set; Change

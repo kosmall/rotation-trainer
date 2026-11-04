@@ -28,5 +28,6 @@ export function SpellIcon({ icon, className, kind = 'spell' }: { icon: string; c
   const src = kind === 'item' ? itemIconUrl(icon) : kind === 'talent' ? talentIconUrl(icon) : iconUrl(icon);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   if (failedSrc === src) return null;
-  return <img className={className} src={src} alt="" draggable={false} onError={() => setFailedSrc(src)} />;
+  // 56 x 56: every icon file (npm run icons); the attributes reserve the box before it loads.
+  return <img className={className} src={src} width={56} height={56} alt="" draggable={false} onError={() => setFailedSrc(src)} />;
 }

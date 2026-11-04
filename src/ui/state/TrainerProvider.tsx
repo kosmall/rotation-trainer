@@ -17,8 +17,8 @@ import type { SetupStorage } from '../../setup/storage';
 import type { AppliedSetup, SetupConfig } from '../../setup/types';
 import type { SimRunner } from '../../sim-runner/client';
 import type { SimResult } from '../../sim-runner/types';
-import { REJECT_LABELS } from '../ActionBar';
-import type { SlotFlash } from '../ActionBar';
+import { REJECT_LABELS } from '../fight/slotFlash';
+import type { SlotFlash } from '../fight/slotFlash';
 import { auraSources, buildBuffViews } from '../buffsView';
 import type { BuffViews } from '../buffsView';
 import type { GearDbStatus } from '../GearPanel';
@@ -27,7 +27,6 @@ import { buildHudContext } from '../hudEvents';
 import type { HudContext } from '../hudEvents';
 import { loadHudSettings, normalizeHudSettings, saveHudSettings } from '../hudSettings';
 import type { HudSettings, HudStorage } from '../hudSettings';
-import { useAuraTotals } from '../PlayerBuffsPanel';
 import { useSimulation } from '../useSimulation';
 import type { UiStorage } from '../theme/theme';
 import {
@@ -268,7 +267,6 @@ export interface FightFrame {
   logSince(index: number): readonly LogEvent[];
   flash: SlotFlash | null;
   buffViews: BuffViews;
-  buffTotals: ReturnType<typeof useAuraTotals>;
   hudContext: HudContext;
   itemDescriptions: Readonly<Record<string, string>>;
   itemIcons: ReadonlySet<string>;
@@ -536,7 +534,6 @@ export function TrainerProvider({
       }),
     [snapshot, fight],
   );
-  const buffTotals = useAuraTotals(buffViews.active);
 
   const specName = nextFight.spec.name;
   const specClass = nextFight.spec.className;
@@ -591,12 +588,11 @@ export function TrainerProvider({
       logSince,
       flash,
       buffViews,
-      buffTotals,
       hudContext,
       itemDescriptions: itemDescriptionsOfFight,
       itemIcons: itemIconsOfFight,
     }),
-    [snapshot, fight, fightId, logSince, flash, buffViews, buffTotals, hudContext, itemDescriptionsOfFight, itemIconsOfFight],
+    [snapshot, fight, fightId, logSince, flash, buffViews, hudContext, itemDescriptionsOfFight, itemIconsOfFight],
   );
 
   return (

@@ -1,4 +1,10 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+// The Gear editor (src/ui/GearPanel.tsx) on Setup → Gear. Until the redesign's Task 5 these tests
+// rendered the legacy layout (GameView) with its collapsed "Gear" panel; they now run in the app
+// (renderApp): the gear is edited on #/setup/gear (opening it asks for the item database, as
+// opening the legacy panel did), the stats at the pull are the Setup summary's, and the fight is
+// played on #/fight (leaving it pauses a running fight).
+
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GEAR_PRESETS, gearPresetById } from '../../src/data/classes/warlock/gearPresets';
 import { ITEM_SLOTS } from '../../src/data/items/db';
@@ -11,11 +17,11 @@ import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { parseWowSimsExport } from '../../src/setup/wowsimsGear';
-import { GameView } from '../../src/ui/GameView';
+import { goTo, renderApp } from './renderApp';
 import { itemIconUrl } from '../../src/ui/SpellIcon';
 import authorExport from '../../docs/samples/wowsimsexporter-destruction-warlock.json';
 
-// Same fake clock as the other GameView tests: fight time moves only through
+// Same fake clock as the other app tests: fight time moves only through
 // vi.advanceTimersByTime. Promises (the database load) are not faked: `flush` runs them.
 const FAKE_NOW = 1_800_000_000_000;
 
@@ -29,16 +35,17 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.location.hash = '';
 });
 
-// The database through the test-only seam (GameView `loadDb`); app code only uses loadItemDb.
+// The database through the test-only seam (the trainer's `loadDb`); app code only uses loadItemDb.
 const db: ItemDb = itemDbSync();
 const loadDb = () => Promise.resolve(db);
 
 /** The author's real export (ruling R23), as the text WowSimsExporter copies. */
 const SAMPLE = JSON.stringify(authorExport);
 
-/** Runs pending timers due now (the <details> toggle event) and settled promises (the database load). */
+/** Runs pending timers due now and settled promises (the lazy Setup view, the database load). */
 async function flush() {
   await act(async () => {
     vi.advanceTimersByTime(0);
@@ -73,11 +80,20 @@ function memoryStorage(config?: unknown) {
 const stored = (map: Map<string, string>): SetupConfig => JSON.parse(map.get(SETUP_STORAGE_KEY) ?? 'null') as SetupConfig;
 const withGear = (gear: unknown, extra: Record<string, unknown> = {}) => ({ ...structuredClone(DEFAULT_SETUP), gear, ...extra });
 
-const gearSummary = () => screen.getByText('Gear', { selector: 'summary' });
-const gearPanel = () => gearSummary().closest('details') as HTMLDetailsElement;
+/** Setup → Gear (a region named by its h1). */
+const gearPanel = () => screen.getByRole('region', { name: 'Gear' });
+/** Opens Setup → Gear (a running fight pauses while the Setup screen is shown). */
 async function openGear() {
-  fireEvent.click(gearSummary());
+  goTo('#/setup/gear');
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
   await flush();
+}
+/** Back to the Fight screen; a fight paused by leaving it resumes (Space, as the Paused card says). */
+function fightAgain() {
+  goTo('#/fight');
+  if (screen.queryByRole('region', { name: 'Paused' })) press(' ');
 }
 const slotRow = (slot: string) => {
   const row = gearPanel().querySelector(`[data-slot="${slot}"]`);
@@ -106,15 +122,18 @@ const option = (name: string) => {
   if (!b) throw new Error(`no option ${name}`);
   return b;
 };
-const gearTag = () => screen.getAllByText(/^Gear: /)[0]?.textContent;
+/** The gear of the fight that has not started yet: the start card's gear link (Fight screen). */
+const startCardGear = () => screen.getByRole('region', { name: 'Fight' }).querySelector('a[href="#/setup/gear"]')?.textContent;
+/** The header's Gear chip: pending while the running fight keeps another gear. */
+const gearChip = () => within(screen.getByRole('list', { name: 'Next fight' })).getByRole('link', { name: /^Gear/ });
 
 const T6 = gearPresetById('t6')!;
 const T4 = gearPresetById('t4')!;
 
 describe('Gear panel', () => {
   it('renders 17 slots for the default gear with item names', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
-    expect(gearPanel().open).toBe(false); // collapsed, like the Setup panel
+    renderApp({ storage: null, loadDb });
+    expect(screen.queryByRole('region', { name: 'Gear' })).toBeNull(); // the Fight screen: no editor until Setup → Gear opens
     await openGear();
     expect(gearPanel().querySelectorAll('[data-slot]')).toHaveLength(17);
     DEFAULT_GEAR.forEach((entry, i) => {
@@ -133,7 +152,7 @@ describe('Gear panel', () => {
   });
 
   it('choosing a preset changes the gear and the stats at the pull; Custom after editing a slot', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     expect(statText('Shadow power')).toBe('1,300');
     const names = within(within(gearPanel()).getByRole('group', { name: 'Gear presets' }))
@@ -163,7 +182,7 @@ describe('Gear panel', () => {
   });
 
   it('the item picker filters by slot and search text and picking an item updates the slot; unique duplicates rejected with a message', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     expect(dialog().getAttribute('aria-label')).toBe('Choose Head item');
@@ -201,7 +220,7 @@ describe('Gear panel', () => {
   });
 
   it('the item picker hides effect-only items behind a toggle and marks unmodelled effects and Horde-only items', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     fireEvent.click(within(card('trinket1')).getByRole('button', { name: 'Change Trinket 1' }));
     expect(optionNames()).not.toContain('The Lightning Capacitor'); // no stats, only an effect
@@ -219,7 +238,7 @@ describe('Gear panel', () => {
   });
 
   it('gems offered by colour; socket bonus line toggles when colours match; meta requirement status', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     const hands = () => card('hands');
     expect(within(hands()).getByLabelText('Socket bonus').textContent).toMatch(/inactive/i);
@@ -259,7 +278,7 @@ describe('Gear panel', () => {
   });
 
   it('enchants per slot', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     expect(within(card('neck')).queryByRole('button', { name: /enchant/i })).toBeNull(); // necks take none
     fireEvent.click(within(card('head')).getByRole('button', { name: /^Head enchant: Glyph of Power/ }));
@@ -278,7 +297,7 @@ describe('Gear panel', () => {
 
   it("import: paste the author's sample -> report and apply; unknown ids listed; invalid text -> error message, no change", async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} loadDb={loadDb} />);
+    renderApp({ storage, loadDb });
     await openGear();
     fireEvent.click(presetButton('T6'));
     fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Import Gear…' }));
@@ -311,7 +330,7 @@ describe('Gear panel', () => {
   });
 
   it('export contains the current items and round-trips', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     fireEvent.click(presetButton('T4'));
     fireEvent.click(within(gearPanel()).getByRole('button', { name: 'Export Gear' }));
@@ -341,7 +360,7 @@ describe('Gear panel', () => {
   });
 
   it('typing in the search/import fields never triggers hotkeys (Z, R, digits)', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     // Import and Export are dialogs: one at a time.
     for (const [open, field] of [
@@ -353,15 +372,15 @@ describe('Gear panel', () => {
       for (const key of ['1', '5', 'z', 'Z', 'r', 'R', ' ']) fireEvent.keyDown(box, { key });
       fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
     }
-    expect(startOverlay()).not.toBeNull();
     fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     const search = within(dialog()).getByRole('searchbox', { name: 'Search' });
     for (const key of ['1', '2', 'z', 'x', 'r', 'R', ' ']) fireEvent.keyDown(search, { key });
     fireEvent.keyDown(within(dialog()).getByRole('combobox', { name: 'Phase' }), { key: '1' });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
+    goTo('#/fight');
     expect(startOverlay()).not.toBeNull();
     expect(castBar()?.textContent ?? '').not.toContain('Shadow Bolt');
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
-    // The hotkeys still work outside the fields.
+    // The hotkeys still work on the Fight screen.
     press('1');
     expect(startOverlay()).toBeNull();
     expect(castBar()?.textContent).toContain('Shadow Bolt');
@@ -369,7 +388,7 @@ describe('Gear panel', () => {
 
   it('setup storage round trip keeps the gear; corrupt stored gear falls back to default', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} loadDb={loadDb} />);
+    renderApp({ storage, loadDb });
     expect(map.size).toBe(0); // loading never writes
     await openGear();
     fireEvent.click(presetButton('T6'));
@@ -377,10 +396,22 @@ describe('Gear panel', () => {
     expect(stored(map).gearPresetId).toBe('t6');
     cleanup();
 
-    // Reload: the stored gear needs the database, which loads without opening the panel. Until it
-    // has, the fight is built with the default gear (never with a gear the tables cannot build).
-    render(<GameView storage={storage} loadDb={loadDb} />);
+    // Reload: the stored gear needs the database, which loads without opening Setup → Gear. Until
+    // it has, the fight is built with the default gear (never with a gear the tables cannot build).
+    // (A held load: the Setup screen's summary shows the stats, and its lazy import settles first.)
+    let release: () => void = () => {};
+    const held = vi.fn(() => new Promise<ItemDb>((r) => (release = () => r(db))));
+    renderApp({ route: '#/setup/buffs', storage, loadDb: held });
+    await flush();
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    expect(held).toHaveBeenCalledTimes(1);
     expect(statText('Shadow power')).toBe('1,300');
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
     await flush();
     expect(statText('Shadow power')).toBe('1,350');
     await openGear();
@@ -388,7 +419,7 @@ describe('Gear panel', () => {
     cleanup();
 
     for (const bad of ['garbage', 42, [1, 2, 3], { 0: { id: 1 } }]) {
-      render(<GameView storage={memoryStorage(withGear(bad)).storage} loadDb={loadDb} />);
+      renderApp({ storage: memoryStorage(withGear(bad)).storage, loadDb });
       await openGear();
       expect(activeGear(), JSON.stringify(bad)).toBe('My gear (export)');
       expect(statText('Shadow power')).toBe('1,300');
@@ -400,58 +431,70 @@ describe('Gear panel', () => {
     odd[0] = { id: 999999, gems: [34220] };
     odd[1] = { id: 31051 }; // a head item in the neck slot
     odd[2] = { id: '31054', __proto__: { id: 31054 } };
-    render(<GameView storage={memoryStorage(withGear(odd)).storage} loadDb={loadDb} />);
+    renderApp({ storage: memoryStorage(withGear(odd)).storage, loadDb });
     await openGear();
     for (const slot of ['head', 'neck', 'shoulder']) expect(slotRow(slot).textContent).toContain('Empty');
     expect(slotRow('chest').textContent).toContain('Robes of Rhonin');
   });
 
   it('a fight that has started keeps its gear until R', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     // A fight that has not started takes the gear at once.
     fireEvent.click(presetButton('T4'));
-    expect(gearTag()).toBe('Gear: T4');
+    goTo('#/fight');
+    expect(startCardGear()).toBe('T4');
+    expect(gearChip().classList.contains('pending')).toBe(false);
     press('1');
     advance(500);
+    await openGear();
     fireEvent.click(presetButton('T6'));
-    expect(gearTag()).toBe('Gear: T4'); // the running fight keeps its gear
+    expect(gearChip().classList.contains('pending')).toBe(true); // the running fight keeps its gear (T4)
     expect(statText('Shadow power')).toBe('1,350'); // the next fight's stats
-    expect(gearPanel().textContent).toMatch(/applies from the next fight/);
+    expect(gearPanel().textContent).toMatch(/it applies after you reset the fight/);
+    goTo('#/fight');
     press('r');
-    expect(gearTag()).toBe('Gear: T6');
-    expect(gearPanel().textContent).not.toMatch(/applies from the next fight/);
+    expect(startCardGear()).toBe('T6');
+    expect(gearChip().classList.contains('pending')).toBe(false);
+    await openGear();
+    expect(gearPanel().textContent).not.toMatch(/it applies after you reset the fight/);
   });
 
   it('setup presets keep the gear; Reset to defaults resets it to the author gear', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} loadDb={loadDb} />);
+    renderApp({ storage, loadDb });
     await openGear();
     fireEvent.click(presetButton('T6'));
-    fireEvent.click(screen.getByText('Setup', { selector: 'summary' }));
+    goTo('#/setup/buffs');
     fireEvent.click(screen.getByRole('button', { name: 'Raid as in my log' }));
-    expect(activeGear()).toBe('T6');
     expect(stored(map).gear).toEqual(T6.gear);
     expect(stored(map).enabledBuffs.length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'None' }));
+    await openGear();
     expect(activeGear()).toBe('T6');
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
-    expect(activeGear()).toBe('My gear (export)');
+    goTo('#/setup/buffs');
+    fireEvent.click(screen.getByRole('button', { name: 'None' }));
+    await openGear();
+    expect(activeGear()).toBe('T6');
+    goTo('#/setup/buffs');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to Defaults…' }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Reset to Defaults' }));
     expect(stored(map)).not.toHaveProperty('gear');
     expect(statText('Shadow power')).toBe('1,300');
+    await openGear();
+    expect(activeGear()).toBe('My gear (export)');
   });
 
   it('a database that fails to load shows an error with Reload the page; the fight keeps the default gear', async () => {
     const failing = vi.fn(() => Promise.reject(new Error('chunk failed')));
     const reload = vi.fn();
     const { storage } = memoryStorage(withGear(structuredClone(T6.gear), { gearPresetId: 't6' }));
-    render(<GameView storage={storage} loadDb={failing} onReload={reload} />);
+    renderApp({ storage, loadDb: failing, onReload: reload });
     await flush();
     expect(failing).toHaveBeenCalledTimes(1); // the stored gear needs the database: loaded at mount
-    expect(statText('Shadow power')).toBe('1,300');
-    expect(gearTag()).toBe('Gear: My gear (export)');
+    expect(startCardGear()).toBe('My gear (export)');
     await openGear();
-    // Opening the panel does not ask again: a browser keeps a failed import() (and after a
+    expect(statText('Shadow power')).toBe('1,300');
+    // Opening Setup → Gear does not ask again: a browser keeps a failed import() (and after a
     // redeploy the old chunk is gone), only a reload helps; the setup is saved.
     expect(failing).toHaveBeenCalledTimes(1);
     const alert = within(gearPanel()).getByRole('alert');
@@ -465,40 +508,39 @@ describe('Gear panel', () => {
     expect(failing).toHaveBeenCalledTimes(1);
     expect(within(gearPanel()).getByRole('alert').textContent).toMatch(/could not load/i);
     expect(statText('Shadow power')).toBe('1,300');
-    expect(gearTag()).toBe('Gear: My gear (export)');
+    goTo('#/fight');
+    expect(startCardGear()).toBe('My gear (export)');
   });
 
   it('keys pressed inside the open picker never reach the fight; Escape still closes it', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     const voidheart = option('Voidheart Crown');
     voidheart.focus();
-    for (const key of ['1', 'z', 'Z', 'r', ' ', 'Enter', '=']) {
-      fireEvent.keyDown(voidheart, { key });
-      expect(startOverlay(), key).not.toBeNull(); // nothing started the fight
-    }
+    for (const key of ['1', 'z', 'Z', 'r', ' ', 'Enter', '=']) fireEvent.keyDown(voidheart, { key });
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
+    goTo('#/fight');
+    expect(startOverlay()).not.toBeNull(); // nothing started the fight
 
-    press('1'); // outside the picker the hotkeys work
+    press('1'); // on the Fight screen the hotkeys work
     advance(500);
     expect(castBar()?.textContent).toContain('Shadow Bolt');
+    await openGear();
     fireEvent.click(within(card('head')).getByRole('button', { name: 'Change Head' }));
     const closeButton = within(dialog()).getByRole('button', { name: 'Close' });
-    for (const key of ['r', 'R', '2', 'x']) {
-      fireEvent.keyDown(closeButton, { key });
-      expect(startOverlay(), key).toBeNull(); // not reset
-      expect(castBar()?.textContent, key).toContain('Shadow Bolt'); // no other cast
-    }
+    for (const key of ['r', 'R', '2', 'x']) fireEvent.keyDown(closeButton, { key });
     fireEvent.keyDown(closeButton, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(castBar()?.textContent).toContain('Shadow Bolt'); // Escape closed the list, it did not cancel the cast
+    expect(screen.queryByRole('dialog')).toBeNull(); // Escape closed the list
+    fightAgain();
+    expect(startOverlay()).toBeNull(); // not reset
+    expect(castBar()?.textContent).toContain('Shadow Bolt'); // no other cast, and Escape did not cancel it
   });
 
   it('shows a loading state until the database arrives; the default gear needs no database', async () => {
     let resolve: (d: ItemDb) => void = () => {};
     const slow = vi.fn(() => new Promise<ItemDb>((r) => (resolve = r)));
-    render(<GameView storage={null} loadDb={slow} />);
+    renderApp({ storage: null, loadDb: slow });
     await flush();
     expect(slow).not.toHaveBeenCalled(); // the author's gear builds from the embedded tables
     await openGear();
@@ -512,7 +554,7 @@ describe('Gear panel', () => {
   });
 
   it('set bonuses list every bonus with its real piece counts (Voidheart 4/4, its 4-piece modelled and active since Task 6) and unmodelled ones', async () => {
-    render(<GameView storage={null} loadDb={loadDb} />);
+    renderApp({ storage: null, loadDb });
     await openGear();
     fireEvent.click(presetButton('T4'));
     const sets = screen.getByRole('region', { name: 'Set bonuses' });
@@ -534,18 +576,25 @@ describe('Gear panel', () => {
     // Stage 2a warned here ("enabled but not worn: the fight still counts its effect"); since the
     // effects are derived from the worn gear, such an id is inactive (design spec §2 B).
     const { storage } = memoryStorage({ ...structuredClone(DEFAULT_SETUP), enabledBuffs: ['band-of-the-eternal-sage'] });
-    render(<GameView storage={storage} loadDb={loadDb} />);
-    await openGear();
+    renderApp({ storage, loadDb });
     const items = () => screen.getByRole('group', { name: 'Items and cooldowns' });
+    goTo('#/setup/items');
+    await flush();
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
     expect(within(items()).getByRole('checkbox', { name: 'Band of the Eternal Sage' })).toBeTruthy();
+    await openGear();
     fireEvent.click(presetButton('T6'));
     expect(gearPanel().textContent).not.toMatch(/not worn/);
+    goTo('#/setup/items');
+    expect(screen.getByRole('main').textContent).not.toMatch(/not worn/);
     expect(within(items()).queryByRole('checkbox', { name: 'Band of the Eternal Sage' })).toBeNull();
   });
 
   it('every offered preset is matched by deep equality, whatever the key order', async () => {
     const t6 = T6.gear.map((e) => (e ? { gems: e.gems, ...(e.enchant ? { enchant: e.enchant } : {}), id: e.id } : null));
-    render(<GameView storage={memoryStorage(withGear(t6)).storage} loadDb={loadDb} />);
+    renderApp({ storage: memoryStorage(withGear(t6)).storage, loadDb });
     await openGear();
     expect(activeGear()).toBe('T6');
     expect(GEAR_PRESETS.length).toBeGreaterThan(6);

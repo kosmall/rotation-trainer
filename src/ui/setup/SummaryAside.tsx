@@ -14,6 +14,7 @@ import { SetBonusList } from '../SetBonusList';
 import { routeHref } from '../shell/router';
 import { useTrainer } from '../state/TrainerProvider';
 import type { LastSimulation } from '../state/TrainerProvider';
+import { countRender } from '../renderCount';
 
 /** Crit chance added by the modifiers that match `spell` (id and school), or that match every spell when it is undefined. */
 function critDelta(modifiers: readonly SpellModifier[], spell?: SpellDef): number {
@@ -113,6 +114,7 @@ function SimulateCard({ last, config }: { last: LastSimulation | null; config: S
  * on setup edits only.
  */
 export const SummaryAside = memo(function SummaryAside() {
+  countRender('SummaryAside');
   const { state, meta } = useTrainer();
   const spec = state.nextFight.spec;
   return (

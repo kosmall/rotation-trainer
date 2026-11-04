@@ -1,7 +1,14 @@
-import { act, cleanup, render, renderHook, screen, within } from '@testing-library/react';
+// "Your buffs" on the Fight screen (src/ui/fight/PlayerBuffs.tsx). Until the redesign's Task 5 these
+// tests covered the legacy layout's PlayerBuffsPanel; they now cover the component that replaced it,
+// with the same inputs (the views of src/ui/buffsView.ts). The legacy panel's per-entry bars
+// (remaining / total, `useAuraTotals`) and its collapsed "Setup buffs (N)" <details> are gone in
+// the redesign (spec §5.2: icons with timers, the setup's buffs as a small second row); the time
+// left they showed is in each entry's label and time text, tested here and in setup-wiring.
+
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ActiveBuffView, PermanentBuffView, UpcomingBuffView } from '../../src/ui/buffsView';
-import { PlayerBuffsPanel, useAuraTotals } from '../../src/ui/PlayerBuffsPanel';
+import { PlayerBuffs, playerBuffIcons } from '../../src/ui/fight/PlayerBuffs';
 
 afterEach(cleanup);
 
@@ -42,19 +49,17 @@ interface PanelProps {
   active?: ActiveBuffView[];
   upcoming?: UpcomingBuffView[];
   permanent?: PermanentBuffView[];
-  totals?: ReadonlyMap<string, number>;
   phase?: 'ready' | 'running' | 'ended';
+  reduceMotion?: boolean;
 }
 
 function renderPanel(p: PanelProps = {}) {
+  const icons = playerBuffIcons(
+    { active: p.active ?? [], upcoming: p.upcoming ?? [], permanent: p.permanent ?? [] },
+    p.phase ?? 'running',
+  );
   return render(
-    <PlayerBuffsPanel
-      active={p.active ?? []}
-      upcoming={p.upcoming ?? []}
-      permanent={p.permanent ?? []}
-      totals={p.totals ?? new Map()}
-      phase={p.phase ?? 'running'}
-    />,
+    <PlayerBuffs active={icons.active} upcoming={icons.upcoming} setup={icons.setup} reduceMotion={p.reduceMotion ?? false} />,
   );
 }
 
@@ -62,80 +67,70 @@ const panel = () => screen.getByRole('region', { name: 'Your buffs' });
 const activeList = () => within(panel()).getByRole('list', { name: 'Active buffs' });
 const entry = (name: RegExp | string) => within(activeList()).getByRole('listitem', { name });
 
-describe('PlayerBuffsPanel', () => {
+describe('Your buffs (PlayerBuffs)', () => {
   it('renders the three parts: active, upcoming and the setup buffs', () => {
     renderPanel({
       active: [heroism(22100), potion(4300, { count: 2 })],
       upcoming: [upcomingHeroism(30000, 12000)],
       permanent: PERMANENT,
-      totals: new Map([['heroism', 40000]]),
     });
     const items = within(activeList()).getAllByRole('listitem');
     expect(items.map((li) => li.getAttribute('aria-label'))).toEqual([
       'Heroism / Bloodlust, 23 seconds left',
       'Destruction Potion, 5 seconds left',
     ]);
-    expect(items[0]?.textContent).toContain('Heroism / Bloodlust');
-    expect(items[0]?.querySelector('.buff-time')?.textContent).toBe('23s');
-    expect(items[1]?.querySelector('.buff-time')?.textContent).toBe('4.3s');
-    expect(items[1]?.querySelector('.buff-count')?.textContent).toBe('2');
-    expect(items[0]?.querySelector('.buff-count')).toBeNull();
+    expect(items[0]?.querySelector('.fv-aura-time')?.textContent).toBe('23s');
+    expect(items[1]?.querySelector('.fv-aura-time')?.textContent).toBe('4.3s');
+    expect(items[1]?.querySelector('.fv-aura-count')?.textContent).toBe('2');
+    expect(items[0]?.querySelector('.fv-aura-count')).toBeNull();
     // Icons over a school-neutral initials tile; the description in the tooltip.
     expect(items[0]?.querySelector('img')?.getAttribute('src')).toContain('ability_shaman_heroism.jpg');
-    expect(items[0]?.querySelector('.buff-icon')?.textContent).toContain('HB');
+    expect(items[0]?.querySelector('.fv-aura-icon')?.textContent).toContain('HB');
     expect(items[0]?.getAttribute('title')).toBe('Heroism / Bloodlust: +30% spell haste for 40 s.');
 
     const upcoming = within(panel()).getByRole('list', { name: 'Upcoming buffs' });
-    expect(within(upcoming).getAllByRole('listitem').map((li) => li.querySelector('.buff-upcoming-text')?.textContent)).toEqual([
-      'Heroism / Bloodlust in 12.0 s',
-    ]);
+    expect(within(upcoming).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'))).toEqual(['Heroism / Bloodlust in 12.0 s']);
+    expect(within(upcoming).getByRole('listitem').querySelector('.fv-aura-time')?.textContent).toBe('in 12.0');
 
-    const details = panel().querySelector('details');
-    expect(details?.querySelector('summary')?.textContent).toBe('Setup buffs (2)');
-    const setup = within(details as HTMLElement).getByRole('list', { name: 'Setup buffs', hidden: true });
-    const setupItems = within(setup).getAllByRole('listitem', { hidden: true });
-    expect(setupItems.map((li) => li.getAttribute('title'))).toEqual([
-      'Arcane Brilliance: +40 intellect.',
-      'Blessing of Kings: +10% stats.',
-    ]);
+    const setup = within(panel()).getByRole('list', { name: 'Setup buffs' });
+    const setupItems = within(setup).getAllByRole('listitem');
+    expect(setupItems.map((li) => li.getAttribute('title'))).toEqual(['Arcane Brilliance: +40 intellect.', 'Blessing of Kings: +10% stats.']);
     expect(setupItems.map((li) => li.getAttribute('aria-label'))).toEqual(['Arcane Brilliance', 'Blessing of Kings']);
     // No counters or times on the setup buffs.
-    expect(setup.querySelector('.buff-time')).toBeNull();
+    expect(setup.querySelector('.fv-aura-time')).toBeNull();
   });
 
   it('in ready the upcoming entries show the second they start at', () => {
     renderPanel({ phase: 'ready', upcoming: [upcomingHeroism(6400, 6400)] });
     const upcoming = within(panel()).getByRole('list', { name: 'Upcoming buffs' });
-    expect(within(upcoming).getByRole('listitem').querySelector('.buff-upcoming-text')?.textContent).toBe(
-      'Heroism / Bloodlust at 6.4 s',
-    );
+    expect(within(upcoming).getByRole('listitem').getAttribute('aria-label')).toBe('Heroism / Bloodlust at 6.4 s');
+    expect(within(upcoming).getByRole('listitem').querySelector('.fv-aura-time')?.textContent).toBe('6.4s');
   });
 
-  it('the bar shows remaining / total, full without a total yet, never over 100%', () => {
-    renderPanel({
-      active: [heroism(20000), potion(15000), heroism(1000, { auraId: 'other', name: 'Other' })],
-      totals: new Map([
-        ['heroism', 40000],
-        ['other', 500], // a stale total smaller than the time left: clamped
-      ]),
-    });
-    const width = (name: RegExp) => (entry(name).querySelector('.buff-bar-fill') as HTMLElement).style.width;
-    expect(width(/^Heroism/)).toBe('50%');
-    expect(width(/^Destruction Potion/)).toBe('100%');
-    expect(width(/^Other/)).toBe('100%');
-    // Decorative: not a progressbar (the time is in the entry's label).
+  it('the time left of each entry is its own (the legacy bar: remaining / total)', () => {
+    renderPanel({ active: [heroism(20000), potion(15000), heroism(1000, { auraId: 'other', name: 'Other' })] });
+    expect(entry(/^Heroism/).getAttribute('aria-label')).toBe('Heroism / Bloodlust, 20 seconds left');
+    expect(entry(/^Destruction Potion/).querySelector('.fv-aura-time')?.textContent).toBe('15s');
+    expect(entry(/^Other/).querySelector('.fv-aura-time')?.textContent).toBe('1.0s');
+    // Decorative: no progressbar (the time is in the entry's label).
     expect(within(panel()).queryAllByRole('progressbar')).toEqual([]);
   });
 
-  it('buff-expiring below 5000 ms and not at 5000', () => {
+  it('expiring below 5000 ms and not at 5000; it pulses unless the user asks for reduced motion', () => {
     renderPanel({ active: [heroism(5000), potion(4999)] });
-    expect(entry(/^Heroism/).classList.contains('buff-expiring')).toBe(false);
-    expect(entry(/^Destruction Potion/).classList.contains('buff-expiring')).toBe(true);
+    expect(entry(/^Heroism/).classList.contains('expiring')).toBe(false);
+    expect(entry(/^Destruction Potion/).classList.contains('expiring')).toBe(true);
+    expect(entry(/^Destruction Potion/).classList.contains('pulse')).toBe(true);
+    cleanup();
+    renderPanel({ active: [potion(4999)], reduceMotion: true });
+    expect(entry(/^Destruction Potion/).classList.contains('expiring')).toBe(true);
+    expect(entry(/^Destruction Potion/).classList.contains('pulse')).toBe(false);
   });
 
   it('no pulse once the fight has ended', () => {
     renderPanel({ phase: 'ended', active: [potion(0)] });
-    expect(entry(/^Destruction Potion/).classList.contains('buff-expiring')).toBe(false);
+    expect(entry(/^Destruction Potion/).classList.contains('expiring')).toBe(false);
+    expect(entry(/^Destruction Potion/).classList.contains('pulse')).toBe(false);
   });
 
   it('the stylesheet pulses expiring buffs and turns the pulse off under prefers-reduced-motion', async () => {
@@ -145,68 +140,27 @@ describe('PlayerBuffsPanel', () => {
     const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
     // (Not `new URL(path, import.meta.url)`: Vite rewrites that into a served asset URL.)
     const testFile = decodeURIComponent(new URL(import.meta.url).pathname);
-    const css = fs.readFileSync(testFile.replace(/tests\/ui\/[^/]+$/, 'src/ui/game.css'), 'utf8');
-    expect(css).toMatch(/\.buff-expiring[^{]*\{[^}]*animation:/);
-    const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/);
-    expect(reduced?.[1]).toMatch(/\.buff-expiring[^{]*\{[^}]*animation: none/);
+    const css = fs.readFileSync(testFile.replace(/tests\/ui\/[^/]+$/, 'src/ui/fight/fight.css'), 'utf8');
+    expect(css).toMatch(/\.fv-aura\.pulse[^{]*\{[^}]*animation:/);
+    const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)?.join('\n') ?? '';
+    expect(reduced).toMatch(/\.fv-aura\.pulse \.fv-aura-icon[^{]*\{[^}]*animation: none/);
   });
 
-  it('empty state: "No active buffs", no upcoming list, no setup section', () => {
+  it('empty state: "No active buffs" (for screen readers), no upcoming list, no setup row', () => {
     renderPanel();
     expect(within(panel()).getByText('No active buffs')).toBeTruthy();
     expect(within(panel()).queryByRole('list', { name: 'Upcoming buffs' })).toBeNull();
-    expect(panel().querySelector('details')).toBeNull();
+    expect(within(panel()).queryByRole('list', { name: 'Setup buffs' })).toBeNull();
   });
 
-  it('details closed by default; its toggle is a plain <summary> (the S5 hotkey guard covers it)', () => {
-    renderPanel({ permanent: PERMANENT });
-    const details = panel().querySelector('details') as HTMLDetailsElement;
-    expect(details.open).toBe(false);
-    const summary = details.querySelector('summary') as HTMLElement;
-    // GameView's guard gives Space and Enter to a focused `summary` and lets every other hotkey
-    // through; nothing here adds a tabindex or a key handler of its own (the wiring test is Task 2's).
-    expect(summary.matches('summary')).toBe(true);
-    expect(summary.getAttribute('tabindex')).toBeNull();
-    expect(panel().querySelectorAll('button, input, [tabindex]')).toHaveLength(0);
+  it('nothing in it takes focus or keys (the fight hotkeys stay with the arena)', () => {
+    renderPanel({ active: [heroism(10000)], permanent: PERMANENT });
+    expect(panel().querySelectorAll('button, input, summary, [tabindex]')).toHaveLength(0);
   });
 
   it('a missing icon file leaves the initials tile', () => {
     renderPanel({ active: [heroism(10000, { icon: null })] });
     expect(entry(/^Heroism/).querySelector('img')).toBeNull();
-    expect(entry(/^Heroism/).querySelector('.buff-icon')?.textContent).toBe('HB');
-  });
-});
-
-describe('useAuraTotals', () => {
-  it('remembers the largest time seen per application, restarts on a refresh and after a fade', () => {
-    const { result, rerender } = renderHook(({ active }: { active: ActiveBuffView[] }) => useAuraTotals(active), {
-      initialProps: { active: [heroism(40000)] },
-    });
-    expect([...result.current]).toEqual([['heroism', 40000]]);
-    rerender({ active: [heroism(30000), potion(15000)] });
-    expect([...result.current]).toEqual([
-      ['heroism', 40000],
-      ['destruction-potion', 15000],
-    ]);
-    rerender({ active: [potion(14000)] });
-    expect([...result.current]).toEqual([['destruction-potion', 15000]]);
-    rerender({ active: [potion(13000), heroism(20000)] });
-    expect([...result.current]).toEqual([
-      ['destruction-potion', 15000],
-      ['heroism', 20000],
-    ]);
-    act(() => rerender({ active: [potion(14500), heroism(19000)] })); // potion refreshed to 14.5 s
-    expect(result.current.get('destruction-potion')).toBe(14500);
-    expect(result.current.get('heroism')).toBe(20000);
-  });
-
-  it('the same list again returns the same map (no re-render storm)', () => {
-    const list = [heroism(40000)];
-    const { result, rerender } = renderHook(({ active }: { active: ActiveBuffView[] }) => useAuraTotals(active), {
-      initialProps: { active: list },
-    });
-    const first = result.current;
-    rerender({ active: list });
-    expect(result.current).toBe(first);
+    expect(entry(/^Heroism/).querySelector('.fv-aura-icon')?.textContent).toBe('HB');
   });
 });

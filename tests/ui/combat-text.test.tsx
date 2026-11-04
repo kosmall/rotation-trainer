@@ -10,7 +10,6 @@ import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { assignSteps, CombatTextLayer, HUD_STACK_STEPS } from '../../src/ui/CombatTextHud';
-import { GameView } from '../../src/ui/GameView';
 import { AppShell } from '../../src/ui/shell/AppShell';
 import { TrainerProvider } from '../../src/ui/state/TrainerProvider';
 import { goTo, renderApp } from './renderApp';
@@ -49,7 +48,7 @@ vi.mock('../../src/ui/fight/TargetFrame', async (importOriginal) => {
   const { createElement } = await import('react');
   return {
     ...actual,
-    // Not memoized: renders once per render of the Fight view (as the legacy TargetPanel did per GameView render).
+    // Not memoized: renders once per render of the Fight view (as the legacy TargetPanel did per legacy layout render).
     TargetFrame: (props: Parameters<typeof actual.TargetFrame>[0]) => {
       h.targetRenders += 1;
       return createElement(actual.TargetFrame, props);

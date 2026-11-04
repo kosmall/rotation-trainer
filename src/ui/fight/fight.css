@@ -259,8 +259,11 @@
   background: linear-gradient(#8ee36a, var(--fel) 45%, #3e8f22);
 }
 .fv-bar-resource > i {
-  /* The darker middle keeps the white label readable (spec §4.2: #3466d6 gives 4.9:1). */
-  background: linear-gradient(#7aa8ff, #3466d6 45%, #2350b8);
+  /* Every stop behind the white label is at least 4.5:1 (spec §4.2: the darker mana middle
+     #3466d6; the light #4a86ff token gives only 3.42:1, so it never sits under text). The gloss is
+     a 1px inset line above the text. tests/ui/contrast.test.ts checks these stops. */
+  background: linear-gradient(#3a6ee0, #3466d6 45%, #2350b8);
+  box-shadow: inset 0 1px 0 rgba(170, 200, 255, 0.55);
 }
 .fv-bar > span {
   position: relative;

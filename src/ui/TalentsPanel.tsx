@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { TalentPreset } from '../data/classes/warlock/talentPresets';
 import { destructionTalentString } from '../data/classes/warlock/talents';
@@ -31,8 +31,8 @@ import {
 
 type DescriptionState = { status: 'idle' | 'loading' | 'error'; data?: undefined } | { status: 'ready'; data: TalentDescriptions };
 
-export interface TalentsPanelProps {
-  /** The setup's build as a talent string (`setupTalents(config)`). The panel keeps no copy of it. */
+export interface TalentsEditorProps {
+  /** The setup's build as a talent string (`setupTalents(config)`). The editor keeps no copy of it. */
   talents: string;
   /** The preset buttons, in order (`offeredTalentPresets()`). */
   presets: readonly Readonly<TalentPreset>[];
@@ -48,60 +48,11 @@ export interface TalentsPanelProps {
   fightEnded?: boolean;
   /** Rotation steps the build cannot play (`rotationWarnings`). */
   warnings?: readonly string[];
-  /** Loads the rank descriptions (default `loadTalentDescriptions`, a lazy chunk), asked for when the panel first opens. */
+  /** Loads the rank descriptions (default `loadTalentDescriptions`, a lazy chunk), asked for when the editor mounts. */
   loadDescriptions?: () => Promise<TalentDescriptions>;
   /** The build "Reset to my build" restores (default: the author's). */
   defaultTalents?: string;
 }
-
-/**
- * The collapsed "Talents" panel: presets (pressed when the build equals one, else "Custom"), Reset
- * to my build, the points per tree and left, the three trees as grids (a button per talent: click,
- * Enter or Space adds a point; right click, Shift+Enter or the details card's − removes one), a
- * details card with the rank descriptions (loaded lazily) and whether the talent is modelled, the
- * modelled / not modelled summary, the rotation warnings, import and export of the talent string.
- * Fully controlled; the trees are rendered only while the panel is open. Memoized: GameView
- * renders every animation frame.
- */
-export const TalentsPanel = memo(function TalentsPanel({
-  talents,
-  presets,
-  onChange,
-  disabled = false,
-  pending = false,
-  fightEnded = false,
-  warnings = [],
-  loadDescriptions = loadTalentDescriptions,
-  defaultTalents = destructionTalentString,
-}: TalentsPanelProps) {
-  const [open, setOpen] = useState(false);
-  const [descriptions, requestDescriptions] = useTalentDescriptions(loadDescriptions);
-
-  useEffect(() => {
-    if (open) requestDescriptions();
-  }, [open, requestDescriptions]);
-
-  return (
-    <details className="panel setup talents" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>Talents</summary>
-      {open && (
-        <fieldset className="setup-fields" disabled={disabled}>
-          <TalentsBody
-            talents={talents}
-            presets={presets}
-            onChange={onChange}
-            pending={pending}
-            fightEnded={fightEnded}
-            warnings={warnings}
-            descriptions={descriptions}
-            onRetry={requestDescriptions}
-            defaultTalents={defaultTalents}
-          />
-        </fieldset>
-      )}
-    </details>
-  );
-});
 
 /** The rank descriptions: loaded once when first asked for (a failed load is not cached: Try again asks once more). */
 function useTalentDescriptions(loadDescriptions: () => Promise<TalentDescriptions>): [DescriptionState, () => void] {
@@ -129,9 +80,13 @@ function useTalentDescriptions(loadDescriptions: () => Promise<TalentDescription
 }
 
 /**
- * The Talents editor without the panel's `<details>` (the Setup screen's Talents section): the same
- * body as the legacy panel; the rank descriptions load when it mounts. The three trees sit side by
- * side from 1280 px (setup.css).
+ * The Talents editor (the Setup screen's Talents section): presets (pressed when the build equals
+ * one, else "Custom"), Reset to my build, the points per tree and left, the three trees as grids (a
+ * button per talent: click, Enter or Space adds a point; right click, Shift+Enter or the details
+ * card's − removes one), a details card with the rank descriptions (loaded when the editor mounts,
+ * so only when the Talents section is shown) and whether the talent is modelled, the modelled / not
+ * modelled summary, the rotation warnings, import and export of the talent string. Fully
+ * controlled. The three trees sit side by side from 1280 px (setup.css).
  */
 export function TalentsEditor({
   talents,
@@ -143,7 +98,7 @@ export function TalentsEditor({
   warnings = [],
   loadDescriptions = loadTalentDescriptions,
   defaultTalents = destructionTalentString,
-}: TalentsPanelProps) {
+}: TalentsEditorProps) {
   const [descriptions, requestDescriptions] = useTalentDescriptions(loadDescriptions);
   useEffect(() => {
     requestDescriptions();
@@ -250,7 +205,7 @@ function TalentsBody({ talents, presets, onChange, pending, fightEnded, warnings
         <p className="hint">
           Click a talent (or Enter, Space) to add a point; right click, Shift+Enter or − in the details to remove one. Talents apply
           to a fight that has not started; a running fight keeps its build until you press <kbd>R</kbd>. The Setup presets keep
-          the talents; Reset to defaults there restores your build.
+          the talents; “Reset to Defaults…” (Buffs &amp; consumables) restores your build.
         </p>
         {pending && (
           <p className="setup-pending">

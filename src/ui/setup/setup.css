@@ -410,6 +410,47 @@
   border-radius: var(--r-frame);
   background: var(--surface);
 }
+.sv .sv-priority {
+  margin-top: var(--s5);
+}
+.sv .priority-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-frame);
+  background: var(--surface);
+}
+.sv .priority-list li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 32px minmax(140px, 220px) minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: baseline;
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+.sv .priority-list li:last-child {
+  border-bottom: 0;
+}
+.sv .priority-list li::before {
+  content: counter(step);
+  color: var(--text-dim);
+  font: 700 var(--t-13) / 1.4 var(--font-num);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+@media (max-width: 899px) {
+  .sv .priority-list li {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+  .sv .priority-list li .note {
+    grid-column: 2;
+  }
+}
 .sv .rule {
   counter-increment: rule;
   display: grid;

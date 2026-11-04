@@ -1,5 +1,5 @@
 // Pure label helpers of the trainer state (moved from GameView): the names the header chips, the
-// legacy panels and the Simulator show for a setup, and which Setup sections changed since the
+// Setup editors and the Simulator show for a setup, and which Setup sections changed since the
 // running fight was built.
 
 import { ROTATION_PRESETS } from '../../data/classes/warlock/rotation';
