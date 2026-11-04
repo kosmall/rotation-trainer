@@ -250,7 +250,7 @@ describe('ItemUseEditor in the game', () => {
     typeInto(sec, '45');
     const priority = screen.getByText('Priority', { selector: 'summary' }).closest('details')!;
     expect(priority.textContent).toMatch(/from 45 s on/);
-    expect(screen.queryByRole('button', { name: 'Start the fight' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /^start the fight$/i })).not.toBeNull();
     expect(screen.queryByRole('progressbar', { name: 'Cast bar' })).toBeNull();
     act(() => {
       vi.advanceTimersByTime(10);

@@ -40,6 +40,8 @@ import {
 } from './selectors';
 import type { ChipSection } from './selectors';
 
+const SIMULATION_OPTIONS = { pauseOnLeave: true } as const;
+
 /** How long a rejected press shows its reason on the slot. */
 const FLASH_MS = 700;
 
@@ -182,6 +184,11 @@ export interface TrainerActions {
   reset(): void;
   /** Presses an action bar slot (0-based): casts its spell or flashes the reason it cannot. */
   pressSlot(slot: number): void;
+  /**
+   * A fight view is on screen: call on mount, call the returned function on unmount. Leaving the
+   * last one pauses a running fight (spec §3.3, Q1; `useSimulation`'s `pauseOnLeave`).
+   */
+  attachFightView(): () => void;
 }
 
 export interface ChipLabels {
@@ -195,6 +202,8 @@ export interface ChipLabels {
 export interface TrainerMeta {
   /** The fight's phase (changes three times per fight, never per frame). */
   phase: SimSnapshot['phase'];
+  /** A running fight is paused because the Fight screen was left (Space or a spell resumes it). */
+  paused: boolean;
   /** The next fight's names, for the header chips and the Simulator. */
   labels: ChipLabels;
   /** The running (or ended) fight's own names (the fight stats and its summary). */
@@ -359,7 +368,8 @@ export function TrainerProvider({
       ...applySetup({ buildSpec: build, catalog: STATIC_SETUP_CATALOG, config: fightConfig, db }),
     };
   }, [buildSpec, config, db]);
-  const { snapshot, fight, cast, cancel, reset, start, logSince, fightId } = useSimulation(nextFight);
+  // Leaving the Fight screen pauses the fight (spec §3.3, author's answer to Q1).
+  const { snapshot, fight, cast, cancel, reset, start, logSince, fightId, paused, attach } = useSimulation(nextFight, SIMULATION_OPTIONS);
   const phase = snapshot.phase;
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
@@ -495,12 +505,14 @@ export function TrainerProvider({
       cancel,
       reset: doReset,
       pressSlot,
+      attachFightView: attach,
     }),
-    [changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, onReload, start, cast, cancel, doReset, pressSlot],
+    [changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, onReload, start, cast, cancel, doReset, pressSlot, attach],
   );
   const meta = useMemo<TrainerMeta>(
     () => ({
       phase,
+      paused,
       labels,
       fightLabels,
       pending,
@@ -510,7 +522,7 @@ export function TrainerProvider({
       uiStorage: store,
       simRunner,
     }),
-    [phase, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner],
+    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner],
   );
   const trainer = useMemo<TrainerValue>(() => ({ state, actions, meta }), [state, actions, meta]);
   const frame = useMemo<FightFrame>(

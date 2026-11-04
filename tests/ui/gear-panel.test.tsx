@@ -56,7 +56,7 @@ function advance(ms: number) {
 }
 
 const press = (key: string) => fireEvent.keyDown(window, { key });
-const startOverlay = () => screen.queryByRole('button', { name: 'Start the fight' });
+const startOverlay = () => screen.queryByRole('button', { name: /^start the fight$/i });
 const castBar = () => screen.queryByRole('progressbar', { name: 'Cast bar' });
 
 /** An in-memory Web Storage holding `config` (when given). */

@@ -57,7 +57,7 @@ const cancelButton = () => within(panel()).queryByRole('button', { name: 'Cancel
 const resultRegion = () => within(panel()).queryByRole('region', { name: 'Simulation result' });
 const stat = (name: string) => within(resultRegion()!).getByLabelText(name).textContent;
 const castBar = () => screen.queryByRole('progressbar', { name: 'Cast bar' });
-const startOverlay = () => screen.queryByRole('button', { name: 'Start the fight' });
+const startOverlay = () => screen.queryByRole('button', { name: /^start the fight$/i });
 
 function setRuns(value: string) {
   fireEvent.change(runsInput(), { target: { value } });

@@ -288,11 +288,11 @@ describe('Talents panel (tree editor)', () => {
     const area = within(panel()).getByRole('textbox', { name: 'Talent import' });
     for (const key of ['1', '2', ' ', 'r', 'z', '-', '=']) fireEvent.keyDown(area, { key });
     expect(screen.queryByRole('progressbar', { name: 'Cast bar' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Start the fight' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
     // Space and Enter on a focused talent button belong to it.
     fireEvent.keyDown(talent('Bane'), { key: ' ' });
     fireEvent.keyDown(talent('Bane'), { key: 'Enter' });
-    expect(screen.getByRole('button', { name: 'Start the fight' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
   });
 
   it('descriptions load lazily: only when the panel opens; loading and failed states, then current and next rank texts', async () => {

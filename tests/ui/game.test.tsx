@@ -10,7 +10,7 @@ import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { ActionBar } from '../../src/ui/ActionBar';
-import { GameView } from '../../src/ui/GameView';
+import { renderApp } from './renderApp';
 import { SetBonusList } from '../../src/ui/SetBonusList';
 
 // Fake clock: requestAnimationFrame, performance.now and Date all move only through
@@ -48,13 +48,13 @@ function press(key: string, init: KeyboardEventInit = {}) {
 }
 
 const castBar = () => screen.queryByRole('progressbar', { name: 'Cast bar' });
-const startOverlay = () => screen.queryByRole('button', { name: 'Start the fight' });
+const startOverlay = () => screen.queryByRole('button', { name: /^start the fight$/i });
 const amount = (el: HTMLElement) => Number((el.textContent ?? '').replace(/[^0-9.]/g, ''));
 const totalDamage = () => amount(screen.getByLabelText('Total damage'));
 
-describe('GameView', () => {
-  it('pressing "1" in the rendered GameView casts the spell bound to slot 0', () => {
-    render(<GameView storage={null} />);
+describe('Fight screen (#/fight)', () => {
+  it('pressing "1" on the Fight screen casts the spell bound to slot 0', () => {
+    renderApp({ route: '#/fight' });
     expect(destructionWarlock.keybinds[0]).toBe('shadow-bolt');
     expect(castBar()).toBeNull();
 
@@ -67,13 +67,13 @@ describe('GameView', () => {
     expect(castBar()).toBeNull();
     // At the default 28 yd the bolt (cast ends 2431) is still in flight until 3831.
     expect(totalDamage()).toBe(0);
-    expect(screen.getByLabelText('Elapsed').textContent).toBe('3.0 / 60s');
+    expect(screen.getByLabelText('Elapsed').textContent).toBe('0:03.0 / 1:00');
     advance(1000);
     expect(totalDamage()).toBeGreaterThan(0);
   });
 
   it('Esc during a cast removes the cast bar and logs cast-cancel', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     press('1');
     advance(500);
     expect(castBar()).not.toBeNull();
@@ -86,18 +86,18 @@ describe('GameView', () => {
   });
 
   it('Space before the fight hides the start overlay', () => {
-    render(<GameView storage={null} />);
-    expect(screen.getByText('Ready when you are')).toBeTruthy();
+    renderApp({ route: '#/fight' });
+    expect(screen.getByRole('heading', { name: /^ready when you are$/i })).toBeTruthy();
     expect(startOverlay()).not.toBeNull();
 
     press(' ');
     expect(startOverlay()).toBeNull();
     advance(1000);
-    expect(screen.getByLabelText('Elapsed').textContent).toBe('1.0 / 60s');
+    expect(screen.getByLabelText('Elapsed').textContent).toBe('0:01.0 / 1:00');
   });
 
   it('after 60 s the end summary shows total damage and DPS; Reset starts over', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     press('1');
     advance(61000);
 
@@ -107,7 +107,7 @@ describe('GameView', () => {
     expect(damage).toBeGreaterThan(0);
     expect(dps).toBeCloseTo(damage / 60, 0);
     expect(within(summary).getByLabelText('Duration').textContent).toBe('60.0 s');
-    expect(screen.getByLabelText('Elapsed').textContent).toBe('60.0 / 60s');
+    expect(screen.getByLabelText('Elapsed').textContent).toBe('1:00.0 / 1:00');
 
     fireEvent.click(within(summary).getByRole('button', { name: 'Reset' }));
     expect(screen.queryByRole('region', { name: 'Fight summary' })).toBeNull();
@@ -117,7 +117,7 @@ describe('GameView', () => {
 
   it('the live stats and the end summary both say what the DPS leaves out', () => {
     const note = 'No raid buffs, consumables or trinket effects — approximate (see docs/data-sources.md)';
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     expect(screen.getAllByText(note)).toHaveLength(1); // under the live stats, before the fight
     press('1');
     advance(61000);
@@ -127,7 +127,7 @@ describe('GameView', () => {
   });
 
   it('the live DPS and the summary DPS use one format (one decimal, thousands separators)', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     press('1');
     advance(61000);
     const texts = screen.getAllByLabelText('DPS').map((el) => el.textContent);
@@ -137,24 +137,24 @@ describe('GameView', () => {
   });
 
   it('R resets a running fight', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     press('1');
     advance(1000);
     press('r');
     expect(castBar()).toBeNull();
     expect(startOverlay()).not.toBeNull();
-    expect(screen.getByLabelText('Elapsed').textContent).toBe('0.0 / 60s');
+    expect(screen.getByLabelText('Elapsed').textContent).toBe('0:00.0 / 1:00');
   });
 
   it('key auto-repeat is ignored', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     press('1', { repeat: true });
     expect(castBar()).toBeNull();
     expect(startOverlay()).not.toBeNull();
   });
 
   it('the empty slot 8 does nothing', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     expect(destructionWarlock.keybinds[7]).toBe('');
     expect(screen.queryByRole('button', { name: /\(8\)$/ })).toBeNull();
     expect(screen.getByLabelText('Empty slot (8)')).toBeTruthy();
@@ -166,7 +166,7 @@ describe('GameView', () => {
   });
 
   it('a rejected press shows the reason on the slot', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     press('1');
     press('1'); // Shadow Bolt is still being cast, beyond the spell queue window
     const flash = screen.getByRole('status');
@@ -179,7 +179,7 @@ describe('GameView', () => {
   });
 
   it('an accepted press of a flashing slot clears its rejection flash', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     const castMs = freshSim().snapshot().spells['shadow-bolt']?.castTimeMs ?? 0;
     // Busy at 1800 (cast end beyond the queue window), queued at 2100 (within it).
     expect(castMs - 1800).toBeGreaterThan(SPELL_QUEUE_WINDOW_MS);
@@ -194,7 +194,7 @@ describe('GameView', () => {
   });
 
   it('the tooltip shows the effective (talented, hasted) cast time and cost', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     const { castTimeMs, manaCost } = freshSim().snapshot().spells['shadow-bolt'] ?? { castTimeMs: 0, manaCost: 0 };
     expect(castTimeMs).toBeLessThan(2500); // Bane and gear haste, from the 3000 ms base
     const title = screen.getByRole('button', { name: 'Shadow Bolt (1)' }).getAttribute('title') ?? '';
@@ -206,7 +206,7 @@ describe('GameView', () => {
   });
 
   it('clicking a slot casts its spell', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     fireEvent.click(screen.getByRole('button', { name: 'Immolate (2)' }));
     expect(castBar()?.textContent).toContain('Immolate');
   });
@@ -271,8 +271,8 @@ describe('SetBonusList', () => {
   });
 });
 
-describe('GameView: the "Your buffs" panel', () => {
-  /** A stored setup, as GameView loads it at mount. */
+describe('Fight screen: "Your buffs"', () => {
+  /** A stored setup, as the trainer loads it at mount. */
   function storedSetup(p: Partial<SetupConfig>): SetupStorage {
     const map = new Map([[SETUP_STORAGE_KEY, JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...p })]]);
     return {
@@ -282,35 +282,35 @@ describe('GameView: the "Your buffs" panel', () => {
     };
   }
   const panel = () => screen.getByRole('region', { name: 'Your buffs' });
-  const activeLabels = () =>
-    within(panel())
-      .queryAllByRole('listitem')
-      .filter((li) => li.classList.contains('buff'))
-      .map((li) => li.getAttribute('aria-label'));
+  const activeLabels = () => {
+    const list = within(panel()).queryByRole('list', { name: 'Active buffs' });
+    return list ? within(list).queryAllByRole('listitem').map((li) => li.getAttribute('aria-label')) : [];
+  };
 
-  it('replaces the small "Buffs" list; the target debuff list stays', () => {
-    render(<GameView storage={storedSetup({ enabledBuffs: ['heroism', 'misery'] })} />);
+  it('replaces the small "Buffs" list; the target debuff list stays; the buffs sit apart from the bars', () => {
+    renderApp({ route: '#/fight', storage: storedSetup({ enabledBuffs: ['heroism', 'misery'] }) });
     press('1');
     advance(100);
     expect(screen.queryByRole('list', { name: 'Buffs' })).toBeNull();
     expect(activeLabels()).toEqual(['Heroism / Bloodlust, 40 seconds left']);
-    expect(screen.getByRole('list', { name: 'Target debuffs' })).toBeTruthy();
-    // The panel sits in the player's area, after the action bar: the bars never move while buffs come and go.
-    const player = document.querySelector('.player') as HTMLElement;
-    expect(player.contains(panel())).toBe(true);
+    expect(screen.getByRole('list', { name: 'Debuffs on the target' })).toBeTruthy();
+    // The redesign puts the buffs in the arena's top right (as the game's buff frame), apart from the
+    // player frame and the bars: the bars never move while buffs come and go.
+    expect(panel().closest('.fv-arena')).not.toBeNull();
+    expect(screen.getByRole('region', { name: 'You' }).contains(panel())).toBe(false);
     const bar = screen.getByRole('toolbar', { name: 'Action bar' });
-    expect(bar.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(panel().contains(bar)).toBe(false);
+    expect(bar.closest('.fv-bars')?.contains(panel())).toBe(false);
   });
 
   it('no extra timers: advancing fake timers does not create intervals (vi.getTimerCount unchanged)', () => {
-    render(
-      <GameView
-        storage={storedSetup({
-          enabledBuffs: ['heroism', 'destruction-potion', 'arcane-brilliance'],
-          timed: { heroism: { startSec: 3, durationSec: 40 } },
-        })}
-      />,
-    );
+    renderApp({
+      route: '#/fight',
+      storage: storedSetup({
+        enabledBuffs: ['heroism', 'destruction-potion', 'arcane-brilliance'],
+        timed: { heroism: { startSec: 3, durationSec: 40 } },
+      }),
+    });
     press('z'); // the potion: an active entry with a bar; Heroism upcoming
     advance(100);
     const count = vi.getTimerCount(); // the animation frame loop only
@@ -322,24 +322,26 @@ describe('GameView: the "Your buffs" panel', () => {
     expect(activeLabels()).toContain('Heroism / Bloodlust, 33 seconds left'); // 3 s + 40 s, at 10.1 s
   });
 
-  it("keys still work after clicking the 'Setup buffs' summary (S5: Space and Enter are its own; 1, X and R act)", () => {
-    render(<GameView storage={storedSetup({ enabledBuffs: ['arcane-brilliance', 'destruction-potion'] })} />);
-    const summary = within(panel()).getByText('Setup buffs (1)');
-    const details = summary.closest('details') as HTMLDetailsElement;
-    fireEvent.click(summary);
-    expect(details.open).toBe(true);
-    summary.focus();
-    fireEvent.keyDown(summary, { key: ' ' });
-    fireEvent.keyDown(summary, { key: 'Enter' });
-    expect(startOverlay()).not.toBeNull(); // they toggle the section, not the fight
+  it("keys still work after clicking the dock's 'Coach glow' switch (S5: Space and Enter are its own; 1, X and R act)", () => {
+    // The redesign shows the setup buffs as a row of small icons (no collapsible section): the
+    // toggle on the Fight screen is now the dock's switch.
+    renderApp({ route: '#/fight', storage: storedSetup({ enabledBuffs: ['arcane-brilliance', 'destruction-potion'] }) });
+    expect(within(within(panel()).getByRole('list', { name: 'Setup buffs' })).getAllByRole('listitem')).toHaveLength(1);
+    const toggle = screen.getByRole('checkbox', { name: 'Coach glow' }) as HTMLInputElement;
+    fireEvent.click(toggle);
+    expect(toggle.checked).toBe(false);
+    toggle.focus();
+    fireEvent.keyDown(toggle, { key: ' ' });
+    fireEvent.keyDown(toggle, { key: 'Enter' });
+    expect(startOverlay()).not.toBeNull(); // they toggle the switch, not the fight
 
-    fireEvent.keyDown(summary, { key: 'x' }); // the item row (X: the potion; Z is the worn Icon): starts the fight
+    fireEvent.keyDown(toggle, { key: 'x' }); // the item row (X: the potion; Z is the worn Icon): starts the fight
     expect(startOverlay()).toBeNull();
     expect(activeLabels()).toEqual(['Destruction Potion, 15 seconds left']);
-    fireEvent.keyDown(summary, { key: '1' });
+    fireEvent.keyDown(toggle, { key: '1' });
     expect(castBar()?.textContent).toContain('Shadow Bolt');
     advance(500);
-    fireEvent.keyDown(summary, { key: 'r' });
+    fireEvent.keyDown(toggle, { key: 'r' });
     expect(startOverlay()).not.toBeNull();
     expect(activeLabels()).toEqual([]);
     expect(within(panel()).getByText('No active buffs')).toBeTruthy();

@@ -53,7 +53,7 @@ function advance(ms: number) {
 }
 
 const press = (key: string) => fireEvent.keyDown(window, { key });
-const startOverlay = () => screen.queryByRole('button', { name: 'Start the fight' });
+const startOverlay = () => screen.queryByRole('button', { name: /^start the fight$/i });
 
 function memoryStorage(config?: unknown) {
   const map = new Map<string, string>();

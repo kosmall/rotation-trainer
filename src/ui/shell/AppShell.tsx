@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LegacyLayout } from '../GameView';
+import { FightView } from '../fight/FightView';
 import { useTrainer } from '../state/TrainerProvider';
 import { useTheme } from '../theme/theme';
 import { Header } from './Header';
@@ -13,16 +13,6 @@ import './shell.css';
 // Setup and Report load on first visit; the Fight (the first screen) is in the main bundle.
 const SetupPlaceholder = lazy(() => import('./PlaceholderViews').then((m) => ({ default: m.SetupPlaceholder })));
 const ReportPlaceholder = lazy(() => import('./PlaceholderViews').then((m) => ({ default: m.ReportPlaceholder })));
-
-/** The Fight view of this stage: the legacy all-in-one layout (Task 2 replaces it with the arena). */
-function FightView() {
-  return (
-    <div className="app legacy-host">
-      <h1 className="sr-only">Fight</h1>
-      <LegacyLayout />
-    </div>
-  );
-}
 
 function View({ route }: { route: Route }) {
   switch (route.mode) {
@@ -78,7 +68,8 @@ export function AppShell() {
     returnFocusRef.current = null;
     if (back?.isConnected) back.focus();
   }, []);
-  useGlobalShortcuts({ enabled: meta.phase !== 'running' && !helpOpen, goTo, openHelp });
+  // Off while a fight runs (every key is the fight's then); a paused fight (the screen was left) does not count.
+  useGlobalShortcuts({ enabled: (meta.phase !== 'running' || meta.paused) && !helpOpen, goTo, openHelp });
 
   return (
     <>

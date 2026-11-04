@@ -115,15 +115,20 @@ describe('App shell: header and modes', () => {
     for (const a of links) expect(a.classList.contains('pending')).toBe(false);
   });
 
-  it('a chip whose section changed since the running fight started gets the pending marker', () => {
-    renderApp({ route: '#/fight' });
+  it('a chip whose section changed since the running fight started gets the pending marker', async () => {
+    // The setup fields are on the Setup screen (the interim view shows the legacy panels until Task 3).
+    renderApp({ route: '#/setup/fight' });
+    await settle();
     // Before the fight starts an edit applies at once: nothing is pending.
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Distance from target (yd)' }), { target: { value: '20' } });
     expect(chip(/^Fight/).classList.contains('pending')).toBe(false);
     expect(chip(/^Fight/).textContent).toContain('20 yd');
 
+    goTo('#/fight');
     press(' ');
     advance(100);
+    goTo('#/setup/fight'); // leaving the Fight screen pauses the fight; it is still the running one
+    await settle();
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Distance from target (yd)' }), { target: { value: '25' } });
     const fight = chip(/^Fight/);
     expect(fight.classList.contains('pending')).toBe(true);
@@ -131,7 +136,8 @@ describe('App shell: header and modes', () => {
     expect(fight.textContent).toContain('applies after reset');
     for (const name of [/^Setup/, /^Gear/, /^Talents/, /^Rotation/]) expect(chip(name).classList.contains('pending')).toBe(false);
 
-    // R starts the next fight with the edit: nothing pending any more.
+    // R (on the Fight screen) starts the next fight with the edit: nothing pending any more.
+    goTo('#/fight');
     press('r');
     expect(chip(/^Fight/).classList.contains('pending')).toBe(false);
   });
@@ -214,13 +220,14 @@ describe('App shell: global shortcuts', () => {
     expect(window.location.hash).toBe('#/fight');
   });
 
-  it('"g s" typed into a field does nothing', () => {
-    renderApp({ route: '#/fight' });
+  it('"g s" typed into a field does nothing', async () => {
+    renderApp({ route: '#/setup/fight' });
+    await settle();
     const field = screen.getByRole('spinbutton', { name: 'Distance from target (yd)' });
     field.focus();
     press('g', field);
     press('s', field);
-    expect(window.location.hash).toBe('#/fight');
+    expect(window.location.hash).toBe('#/setup/fight');
   });
 
   it('"g s" does nothing while a fight runs', () => {
@@ -259,8 +266,9 @@ describe('App shell: global shortcuts', () => {
     expect(document.activeElement).toBe(theme);
   });
 
-  it('the shortcuts dialog closes with its Close button; "?" in a field does nothing', () => {
-    renderApp({ route: '#/fight' });
+  it('the shortcuts dialog closes with its Close button; "?" in a field does nothing', async () => {
+    renderApp({ route: '#/setup/fight' });
+    await settle();
     const field = screen.getByRole('spinbutton', { name: 'Distance from target (yd)' });
     fireEvent.keyDown(field, { key: '?', shiftKey: true });
     expect(screen.queryByRole('dialog')).toBeNull();

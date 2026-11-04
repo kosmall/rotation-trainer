@@ -21,6 +21,25 @@ export interface SimulationControls<S extends FightSetup = FightSetup> {
   logSince(index: number): readonly LogEvent[];
   /** Counts the Simulations built: a new number means a new fight (reset, or a rebuilt fight not started yet). */
   fightId: number;
+  /**
+   * The running fight's clock is stopped because no fight view is attached (`pauseOnLeave`); the
+   * next `start()` or accepted `cast()` resumes it from the same fight time. False otherwise.
+   */
+  paused: boolean;
+  /**
+   * A fight view is on screen (`pauseOnLeave`): call on mount, call the returned function on
+   * unmount. When the last one goes, a running fight pauses (its loop stops; fight time stays).
+   * Attaching does not resume a paused fight: Space or a spell does. A no-op without `pauseOnLeave`.
+   */
+  attach(): () => void;
+}
+
+export interface SimulationOptions {
+  /**
+   * Only an attached fight view runs the clock (UI redesign spec §3.3, Q1: leaving the Fight
+   * screen pauses the fight). Without it (default) the clock runs whenever the fight does.
+   */
+  pauseOnLeave?: boolean;
 }
 
 let seedCounter = 0;
@@ -60,7 +79,8 @@ function createSimulation(setup: FightSetup): Simulation {
  * when `setup` changes (a new object), so a setup changed before the first press applies to that
  * fight. Pass a memoized object: every new object counts as a change.
  */
-export function useSimulation<S extends FightSetup>(setup: S): SimulationControls<S> {
+export function useSimulation<S extends FightSetup>(setup: S, options: SimulationOptions = {}): SimulationControls<S> {
+  const pauseOnLeave = options.pauseOnLeave === true;
   const simRef = useRef<Simulation | null>(null);
   /** The setup the current Simulation was built with. */
   const builtRef = useRef<S>(setup);
@@ -76,10 +96,15 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
   /** performance.now() at fight time 0, or null before the fight starts. */
   const startedAtRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
+  /** Fight views attached (`attach`). */
+  const attachedRef = useRef(0);
+  const pauseOnLeaveRef = useRef(pauseOnLeave);
+  const [paused, setPaused] = useState(false);
 
   useLayoutEffect(() => {
     setupRef.current = setup;
-  }, [setup]);
+    pauseOnLeaveRef.current = pauseOnLeave;
+  }, [setup, pauseOnLeave]);
 
   const sim = useCallback((): Simulation => {
     // Not reached after the first render; uses the last built setup so that a setup change does
@@ -112,12 +137,44 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
     frameRef.current = null;
   }, []);
 
-  /** Starts the wall clock and the frame loop once the Simulation is running. */
-  const ensureClock = useCallback(() => {
+  /** Stops the loop and the wall clock of a running fight; fight time stays where it is. */
+  const pause = useCallback(() => {
     if (sim().snapshot().phase !== 'running') return;
-    if (startedAtRef.current === null) startedAtRef.current = performance.now();
+    catchUp();
+    stopLoop();
+    startedAtRef.current = null;
+    setPaused(true);
+    setSnapshot(sim().snapshot());
+  }, [catchUp, sim, stopLoop]);
+
+  /**
+   * Starts (or resumes) the wall clock and the frame loop once the Simulation is running: fight
+   * time continues from the snapshot's `nowMs` (0 at the start). With `pauseOnLeave` and no fight
+   * view attached the fight pauses instead.
+   */
+  const ensureClock = useCallback(() => {
+    const s = sim().snapshot();
+    if (s.phase !== 'running') return;
+    if (pauseOnLeaveRef.current && attachedRef.current === 0) {
+      if (startedAtRef.current !== null || frameRef.current !== null) pause();
+      else setPaused(true);
+      return;
+    }
+    if (startedAtRef.current === null) startedAtRef.current = performance.now() - s.nowMs;
+    setPaused(false);
     if (frameRef.current === null) frameRef.current = requestAnimationFrame(frame);
-  }, [frame, sim]);
+  }, [frame, pause, sim]);
+
+  const attach = useCallback(() => {
+    attachedRef.current += 1;
+    let attached = true;
+    return () => {
+      if (!attached) return;
+      attached = false;
+      attachedRef.current -= 1;
+      if (attachedRef.current === 0 && pauseOnLeaveRef.current) pause();
+    };
+  }, [pause]);
 
   const cast = useCallback(
     (spellId: string): CastResult => {
@@ -145,6 +202,7 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
   const reset = useCallback(() => {
     stopLoop();
     startedAtRef.current = null;
+    setPaused(false);
     const next = setupRef.current;
     simRef.current = createSimulation(next);
     builtRef.current = next;
@@ -168,5 +226,5 @@ export function useSimulation<S extends FightSetup>(setup: S): SimulationControl
     return stopLoop;
   }, [ensureClock, stopLoop]);
 
-  return { snapshot, fight, cast, cancel, reset, start, logSince, fightId };
+  return { snapshot, fight, cast, cancel, reset, start, logSince, fightId, paused, attach };
 }

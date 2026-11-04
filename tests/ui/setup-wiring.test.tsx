@@ -34,7 +34,7 @@ function advance(ms: number) {
 
 const press = (key: string) => fireEvent.keyDown(window, { key });
 const castBar = () => screen.queryByRole('progressbar', { name: 'Cast bar' });
-const startOverlay = () => screen.queryByRole('button', { name: 'Start the fight' });
+const startOverlay = () => screen.queryByRole('button', { name: /^start the fight$/i });
 const checkbox = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
 const spin = (name: string) => screen.getByRole('spinbutton', { name }) as HTMLInputElement;
 const distanceInput = () => spin('Distance from target (yd)');

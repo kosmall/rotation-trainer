@@ -13,7 +13,6 @@ import { CombatTextLayer } from './CombatTextHud';
 import { CombatTextSettings } from './CombatTextSettings';
 import { formatDps, formatInt, secondsText } from './format';
 import { GearPanel } from './GearPanel';
-import { keyToSlot } from './keys';
 import { ManaBar } from './ManaBar';
 import { SetBonusList } from './SetBonusList';
 import { PlayerBuffsPanel } from './PlayerBuffsPanel';
@@ -22,17 +21,12 @@ import { TalentsPanel } from './TalentsPanel';
 import { StartOverlay } from './StartOverlay';
 import { TargetPanel } from './TargetPanel';
 import { SimulatorPanel } from './SimulatorPanel';
-import { MODAL, TEXT_TARGETS, TOGGLE_TARGETS } from './shell/shortcuts';
+import { EndCard } from './fight/EndCard';
+import { DPS_NOTE_NO_BUFFS, DPS_NOTE_WITH_BUFFS, dpsNoteText, playedWithTags } from './fight/fightView';
+import { useFightHotkeys } from './fight/useFightHotkeys';
 import { GEAR_PRESETS_OFFERED, TALENT_PRESETS_OFFERED } from './state/selectors';
 import { TrainerProvider, useFightFrame, useTrainer } from './state/TrainerProvider';
 import type { TrainerProviderProps } from './state/TrainerProvider';
-
-function isHotkeyBlocked(event: KeyboardEvent): boolean {
-  const { target } = event;
-  if (!(target instanceof Element)) return false;
-  if (target.matches(TEXT_TARGETS) || target.closest(MODAL) !== null) return true;
-  return target.matches(TOGGLE_TARGETS) && (event.key === ' ' || event.key === 'Enter');
-}
 
 /** The legacy all-in-one view's props: the trainer's (`TrainerProviderProps`). */
 export type GameViewProps = TrainerProviderProps;
@@ -59,33 +53,17 @@ export function GameView(props: GameViewProps) {
 export function LegacyLayout() {
   const { state, actions, meta } = useTrainer();
   const { snapshot, fight, fightId, logSince, flash, buffViews, buffTotals, hudContext, itemDescriptions, itemIcons } = useFightFrame();
-  const { config, hudSettings, itemDb, nextFight, talents, talentWarnings, gearHints, unmodelledItemEffects, itemsNote } = state;
-  const { changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, reload, start, cancel, reset, pressSlot } = actions;
-  const { labels, fightLabels, anyPending: pending, talentsPending, simRunner } = meta;
-  const db = itemDb.db;
+  const { hudSettings } = state;
+  const { start, cancel, reset, pressSlot, attachFightView } = actions;
+  const { fightLabels } = meta;
   // The running (or ended) fight's own spec: its auras, spells and keybinds.
   const spec = fight.spec;
-  const priority = nextFight.spec.priority;
 
   const fightRemainingMs = Math.max(0, snapshot.durationMs - snapshot.nowMs);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isHotkeyBlocked(event)) return; // e.g. digits or Z typed into a number field, Space on a focused <summary>
-      const slot = keyToSlot(event.key); // 1-9, 0, -, = and the item row's keys (ITEM_SLOT_KEYS, either case)
-      const handled = slot !== undefined || event.key === 'Escape' || event.key === ' ' || event.key === 'r' || event.key === 'R';
-      if (!handled) return;
-      event.preventDefault();
-      if (event.repeat) return; // a held key must not spam the queue
-      if (slot !== undefined) pressSlot(slot);
-      else if (event.key === 'Escape') cancel();
-      else if (event.key === ' ') start(); // no-op once the fight runs
-      else reset();
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cancel, reset, pressSlot, start]);
+  // The fight's keys and clock belong to this view while it is mounted (the shared hook).
+  useEffect(() => attachFightView(), [attachFightView]);
+  useFightHotkeys({ pressSlot, cancel, start, reset });
 
   return (
     <div className="game">
@@ -110,12 +88,13 @@ export function LegacyLayout() {
           />
           {snapshot.phase === 'ready' && <StartOverlay onStart={start} />}
           {snapshot.phase === 'ended' && (
-            <EndSummary
-              snapshot={snapshot}
-              config={fight.config}
-              presetName={fightLabels.setupPreset}
-              gearName={fightLabels.gear}
-              talentsName={fightLabels.talents}
+            <EndCard
+              dps={snapshot.dps}
+              damageTotal={snapshot.damageTotal}
+              durationMs={snapshot.nowMs}
+              botDps={null}
+              dpsNote={dpsNoteText(fight.config.enabledBuffs)}
+              playedWith={playedWithTags(fightLabels)}
               onReset={reset}
             />
           )}
@@ -142,68 +121,84 @@ export function LegacyLayout() {
         </div>
       </main>
       <aside className="game-side">
-        <SetupPanel
-          catalog={nextFight.catalog}
-          config={config}
-          presets={SETUP_PRESETS}
-          onChange={changeConfig}
-          pending={pending}
-          fightEnded={snapshot.phase === 'ended'}
-          unmodelledItemEffects={unmodelledItemEffects}
-          itemsNote={itemsNote}
-        />
-        <GearPanel
-          gear={setupGear(config)}
-          presets={GEAR_PRESETS_OFFERED}
-          db={db}
-          status={itemDb.status}
-          onChange={changeGear}
-          onOpen={requestDb}
-          onReload={reload}
-          pending={pending}
-          fightEnded={snapshot.phase === 'ended'}
-          hints={gearHints}
-        />
-        <TalentsPanel
-          talents={talents}
-          presets={TALENT_PRESETS_OFFERED}
-          onChange={changeTalents}
-          pending={talentsPending}
-          fightEnded={snapshot.phase === 'ended'}
-          warnings={talentWarnings}
-        />
-        <CombatTextSettings settings={hudSettings} onChange={changeHudSettings} />
-        <SimulatorPanel
-          config={config}
-          db={db}
-          dbStatus={itemDb.status}
-          gearName={labels.gear}
-          talentsName={labels.talents}
-          presetName={labels.setupPreset}
-          runner={simRunner}
-        />
-        <CharacterStats spec={nextFight.spec} />
-        <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} unmodelled={UNMODELLED_SETS} />
-        <details className="panel priority">
-          <summary>Priority</summary>
-          <ol>
-            {priority.map((step) => (
-              <li key={step.key ?? step.spellId}>
-                <strong>{step.label}</strong>
-                <span className="hint">{step.hint}</span>
-              </li>
-            ))}
-          </ol>
-        </details>
+        <LegacySetupPanels />
       </aside>
     </div>
   );
 }
 
-/** What the trainer's DPS leaves out (full list: docs/data-sources.md, "What the DPS excludes"). */
-const DPS_NOTE_NO_BUFFS = 'No raid buffs, consumables or trinket effects — approximate (see docs/data-sources.md)';
-const DPS_NOTE_WITH_BUFFS =
-  'Includes the enabled buffs; trinket/proc effects not selected are excluded — approximate (see docs/data-sources.md)';
+/**
+ * The legacy side column: the Setup, Gear, Talents, Combat text and Simulator panels, the stats at
+ * the pull, the set bonuses and the priority. Until the Setup screen (redesign Task 3) replaces
+ * them, the interim Setup view shows them too.
+ */
+export function LegacySetupPanels() {
+  const { state, actions, meta } = useTrainer();
+  const { fight } = useFightFrame();
+  const { config, hudSettings, itemDb, nextFight, talents, talentWarnings, gearHints, unmodelledItemEffects, itemsNote } = state;
+  const { changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, reload } = actions;
+  const { labels, anyPending: pending, talentsPending, simRunner, phase } = meta;
+  const db = itemDb.db;
+  const spec = fight.spec;
+  const priority = nextFight.spec.priority;
+  return (
+    <>
+      <SetupPanel
+        catalog={nextFight.catalog}
+        config={config}
+        presets={SETUP_PRESETS}
+        onChange={changeConfig}
+        pending={pending}
+        fightEnded={phase === 'ended'}
+        unmodelledItemEffects={unmodelledItemEffects}
+        itemsNote={itemsNote}
+      />
+      <GearPanel
+        gear={setupGear(config)}
+        presets={GEAR_PRESETS_OFFERED}
+        db={db}
+        status={itemDb.status}
+        onChange={changeGear}
+        onOpen={requestDb}
+        onReload={reload}
+        pending={pending}
+        fightEnded={phase === 'ended'}
+        hints={gearHints}
+      />
+      <TalentsPanel
+        talents={talents}
+        presets={TALENT_PRESETS_OFFERED}
+        onChange={changeTalents}
+        pending={talentsPending}
+        fightEnded={phase === 'ended'}
+        warnings={talentWarnings}
+      />
+      <CombatTextSettings settings={hudSettings} onChange={changeHudSettings} />
+      <SimulatorPanel
+        config={config}
+        db={db}
+        dbStatus={itemDb.status}
+        gearName={labels.gear}
+        talentsName={labels.talents}
+        presetName={labels.setupPreset}
+        runner={simRunner}
+      />
+      <CharacterStats spec={nextFight.spec} />
+      <SetBonusList sets={spec.sets} setPieces={spec.setup.setPieces} unmodelled={UNMODELLED_SETS} />
+      <details className="panel priority">
+        <summary>Priority</summary>
+        <ol>
+          {priority.map((step) => (
+            <li key={step.key ?? step.spellId}>
+              <strong>{step.label}</strong>
+              <span className="hint">{step.hint}</span>
+            </li>
+          ))}
+        </ol>
+      </details>
+    </>
+  );
+}
 
 /** The fight's setup and gear names and what its DPS leaves out (depends on whether any buff is enabled). */
 function DpsNote({
@@ -255,38 +250,6 @@ function FightStats({ snapshot, config, presetName, gearName, talentsName }: Fig
         </div>
       </dl>
       <DpsNote config={config} presetName={presetName} gearName={gearName} talentsName={talentsName} />
-    </div>
-  );
-}
-
-function EndSummary({ snapshot, config, presetName, gearName, talentsName, onReset }: FightInfoProps & { onReset(): void }) {
-  return (
-    <div className="overlay">
-      <section className="overlay-card" role="region" aria-label="Fight summary">
-        <h2>Fight over</h2>
-        <dl className="summary">
-          <dt>Total damage</dt>
-          <dd aria-label="Total damage">{formatInt(snapshot.damageTotal)}</dd>
-          <dt>DPS</dt>
-          <dd aria-label="DPS">{formatDps(snapshot.dps)}</dd>
-          <dt>Duration</dt>
-          <dd aria-label="Duration">{secondsText(snapshot.nowMs)} s</dd>
-        </dl>
-        <DpsNote config={config} presetName={presetName} gearName={gearName} talentsName={talentsName} />
-        <button
-          type="button"
-          className="primary"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            onReset();
-          }}
-        >
-          Reset
-        </button>
-        <p className="hint">
-          or press <kbd>R</kbd>
-        </p>
-      </section>
     </div>
   );
 }

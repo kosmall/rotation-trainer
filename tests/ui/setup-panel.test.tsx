@@ -33,7 +33,7 @@ function advance(ms: number) {
 }
 
 const castBar = () => screen.queryByRole('progressbar', { name: 'Cast bar' });
-const startOverlay = () => screen.queryByRole('button', { name: 'Start the fight' });
+const startOverlay = () => screen.queryByRole('button', { name: /^start the fight$/i });
 const amount = (el: HTMLElement) => Number((el.textContent ?? '').replace(/[^0-9.]/g, ''));
 const totalDamage = () => amount(screen.getByLabelText('Total damage'));
 

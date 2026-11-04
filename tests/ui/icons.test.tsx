@@ -2,11 +2,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { destructionWarlock } from '../../src/data/classes/warlock/destruction';
 import type { AuraView } from '../../src/engine/types';
-import { GameView } from '../../src/ui/GameView';
+import { renderApp } from './renderApp';
 import { SpellIcon, iconUrl } from '../../src/ui/SpellIcon';
 import { AuraList } from '../../src/ui/TargetPanel';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.location.hash = '';
+});
 
 const spell = (id: string) => {
   const def = destructionWarlock.spells.find((s) => s.id === id);
@@ -43,7 +46,7 @@ describe('SpellIcon', () => {
 
 describe('action bar icons', () => {
   it('every bound slot shows its spell icon and the empty slot shows none', () => {
-    const { container } = render(<GameView storage={null} />);
+    const { container } = renderApp({ route: '#/fight' });
     const filled = destructionWarlock.keybinds.filter((id) => id !== '');
     expect(filled.length).toBeGreaterThan(0);
     for (const id of filled) {
@@ -52,11 +55,11 @@ describe('action bar icons', () => {
       expect(img?.getAttribute('src'), def.name).toContain(`/icons/spells/${def.icon}.jpg`);
     }
     // Slots: one image per bound slot, nothing for the intentionally empty slot 8.
-    expect(container.querySelectorAll('.action-bar img').length).toBe(filled.length);
+    expect(container.querySelectorAll('.fv-actionbar img').length).toBe(filled.length);
   });
 
   it('keeps the initials as the fallback when an icon file is missing', () => {
-    render(<GameView storage={null} />);
+    renderApp({ route: '#/fight' });
     const button = slotButton('Shadow Bolt');
     fireEvent.error(button.querySelector('img') as HTMLImageElement);
     expect(button.querySelector('img')).toBeNull();
