@@ -6,8 +6,8 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatInt } from '../format';
 import type { ReportModel } from './reportModel';
-import { filterLog } from './reportView';
-import type { LogKind, LogRow } from './reportView';
+import { filterLog } from './reportViewModel';
+import type { LogKind, LogRow } from './reportViewModel';
 
 /** Row height in px (CSS `.log-row` matches it). */
 export const LOG_ROW_PX = 28;

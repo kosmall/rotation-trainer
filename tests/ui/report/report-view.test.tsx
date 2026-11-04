@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETUP } from '../../../src/setup/defaults';
 import { SETUP_STORAGE_KEY } from '../../../src/setup/storage';
 import type { SetupStorage } from '../../../src/setup/storage';
-import type { LogRow } from '../../../src/ui/report/reportView';
+import type { LogRow } from '../../../src/ui/report/reportViewModel';
 import { LogList } from '../../../src/ui/report/LogTab';
 import { goTo, renderApp } from '../renderApp';
 

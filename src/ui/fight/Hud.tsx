@@ -4,7 +4,7 @@
 
 import { memo, useId } from 'react';
 import { formatDps, formatInt } from '../format';
-import { clockText } from './fightView';
+import { clockText } from './fightViewModel';
 
 export interface HudMark {
   atMs: number;

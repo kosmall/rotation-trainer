@@ -9,7 +9,7 @@ import { Histogram } from '../charts/Histogram';
 import { formatDps } from '../format';
 import { histogramSummary, PlusMinusNote, SimulationResult, SimulatorForm } from '../SimulatorPanel';
 import type { SimulatorRun } from '../SimulatorPanel';
-import { ordinal, shareBelow } from './reportView';
+import { ordinal, shareBelow } from './reportViewModel';
 import { countRender } from '../renderCount';
 
 export interface YourFight {

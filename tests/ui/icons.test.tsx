@@ -5,7 +5,7 @@ import type { AuraView } from '../../src/engine/types';
 import { renderApp } from './renderApp';
 import { SpellIcon, iconUrl } from '../../src/ui/SpellIcon';
 import { TargetFrame } from '../../src/ui/fight/TargetFrame';
-import { targetDebuffViews } from '../../src/ui/fight/fightView';
+import { targetDebuffViews } from '../../src/ui/fight/fightViewModel';
 
 afterEach(() => {
   cleanup();

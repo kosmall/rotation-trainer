@@ -8,8 +8,8 @@ import type { PriorityStep, SpecData } from '../../data/types';
 import type { LogEvent, SimSnapshot } from '../../engine/types';
 import { formatDps, formatInt, secondsText } from '../format';
 import { SpellIcon } from '../SpellIcon';
-import { logTicker, meterRows, nextUpRows, soFar, topRows } from './fightView';
-import type { MeterRow, NextRow, SoFarRow, TickerRow } from './fightView';
+import { logTicker, meterRows, nextUpRows, soFar, topRows } from './fightViewModel';
+import type { MeterRow, NextRow, SoFarRow, TickerRow } from './fightViewModel';
 import { countRender, useThrottledValue } from './hooks';
 
 /** How often the dock's slow parts take new numbers (fight time). */

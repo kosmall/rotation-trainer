@@ -8,7 +8,7 @@ import type { PriorityStep } from '../../../src/data/types';
 import type { Simulation } from '../../../src/engine/sim';
 import type { LogEvent } from '../../../src/engine/types';
 import { createFightSimulation } from '../../../src/sim-runner/fight';
-import { clockText, logTicker, meterRows, nextUp, nextUpRows, soFar, targetDebuffViews, topRows } from '../../../src/ui/fight/fightView';
+import { clockText, logTicker, meterRows, nextUp, nextUpRows, soFar, targetDebuffViews, topRows } from '../../../src/ui/fight/fightViewModel';
 
 /** The default setup with a few buffs (Heroism, the potion, a raid debuff): items and auras in the fight. */
 function appliedFight() {

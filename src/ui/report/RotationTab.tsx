@@ -6,7 +6,7 @@ import { memo } from 'react';
 import { formatInt } from '../format';
 import { RowIcon } from './DamageTab';
 import type { ReportModel } from './reportModel';
-import type { RotationRow } from './reportView';
+import type { RotationRow } from './reportViewModel';
 
 function Row({ row, model }: { row: RotationRow; model: ReportModel }) {
   const diff = row.bot === null ? 0 : row.you - row.bot;

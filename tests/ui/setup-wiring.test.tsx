@@ -7,7 +7,7 @@ import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { goTo, renderApp } from './renderApp';
 import { TargetFrame } from '../../src/ui/fight/TargetFrame';
-import { targetDebuffViews } from '../../src/ui/fight/fightView';
+import { targetDebuffViews } from '../../src/ui/fight/fightViewModel';
 import { applySetup } from '../../src/setup/applySetup';
 import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
 

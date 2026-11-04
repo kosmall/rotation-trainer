@@ -7,7 +7,7 @@ import { buffTimeText, isExpiring, timeLeftWords } from '../buffsView';
 import type { BuffViews } from '../buffsView';
 import { secondsText } from '../format';
 import { AuraRow } from './AuraRow';
-import type { AuraIconView } from './fightView';
+import type { AuraIconView } from './fightViewModel';
 
 /** The player's buffs as icon views: active (with time), upcoming (dimmed, "in 4.9s"), setup (small). */
 export function playerBuffIcons(views: BuffViews, phase: 'ready' | 'running' | 'ended') {

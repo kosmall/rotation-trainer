@@ -17,7 +17,7 @@ import { Bars } from './Bars';
 import { Dock } from './Dock';
 import { botRun } from '../report/botRun';
 import { EndCard } from './EndCard';
-import { dpsNoteText, nextUp, playedWithTags, targetDebuffViews } from './fightView';
+import { dpsNoteText, nextUp, playedWithTags, targetDebuffViews } from './fightViewModel';
 import { usePrefersReducedMotion, useUiFlag } from './hooks';
 import { Hud } from './Hud';
 import { PlayerBuffs, playerBuffIcons } from './PlayerBuffs';

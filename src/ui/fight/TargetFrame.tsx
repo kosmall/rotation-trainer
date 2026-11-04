@@ -3,7 +3,7 @@
 
 import { memo } from 'react';
 import { formatInt } from '../format';
-import type { AuraIconView } from './fightView';
+import type { AuraIconView } from './fightViewModel';
 import { UnitFrame } from './UnitFrame';
 
 /** The dummy's display name and level: a level 73 raid boss (src/data/common/target.ts, BOSS_TARGET). */

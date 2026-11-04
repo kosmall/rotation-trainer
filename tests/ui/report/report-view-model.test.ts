@@ -26,7 +26,7 @@ import {
   spellTable,
   spellTotals,
   targetAuraIds,
-} from '../../../src/ui/report/reportView';
+} from '../../../src/ui/report/reportViewModel';
 import { applyScenario, scenarios, SEEDS } from '../../fixtures/item-use-reference';
 
 const db = itemDbSync();

@@ -4,8 +4,8 @@
 
 import type { LogEvent, School } from '../../engine/types';
 import type { LaneRow } from '../charts/Lanes';
-import { soFar } from '../fight/fightView';
-import type { SoFarRow } from '../fight/fightView';
+import { soFar } from '../fight/fightViewModel';
+import type { SoFarRow } from '../fight/fightViewModel';
 import { formatDps, formatInt, secondsText } from '../format';
 import type { LastFight } from '../state/TrainerProvider';
 import { botRun } from './botRun';
@@ -23,8 +23,8 @@ import {
   spellTable,
   spellTotals,
   targetAuraIds,
-} from './reportView';
-import type { AuraUptime, Insight, LogRow, Namer, RotationRow, SpellRow, SpellTotals } from './reportView';
+} from './reportViewModel';
+import type { AuraUptime, Insight, LogRow, Namer, RotationRow, SpellRow, SpellTotals } from './reportViewModel';
 
 export interface ReportModel {
   last: LastFight;

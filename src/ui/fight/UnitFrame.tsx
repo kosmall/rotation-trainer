@@ -5,7 +5,7 @@
 import { memo } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { AuraRow } from './AuraRow';
-import type { AuraIconView } from './fightView';
+import type { AuraIconView } from './fightViewModel';
 
 interface FrameProps {
   /** The frame's accessible name ("Target", "You"). */

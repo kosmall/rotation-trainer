@@ -6,7 +6,7 @@
 import { memo } from 'react';
 import { initials } from '../format';
 import { SpellIcon } from '../SpellIcon';
-import type { AuraIconView } from './fightView';
+import type { AuraIconView } from './fightViewModel';
 
 interface AuraIconProps {
   view: AuraIconView;

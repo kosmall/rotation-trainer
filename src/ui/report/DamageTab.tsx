@@ -10,7 +10,7 @@ import { formatDps, formatInt, secondsText } from '../format';
 import { SpellIcon } from '../SpellIcon';
 import { AlertIcon, CheckIcon } from './reportIcons';
 import type { ReportModel } from './reportModel';
-import type { NamedThing } from './reportView';
+import type { NamedThing } from './reportViewModel';
 
 const pct = (x: number | null) => (x === null ? 'n/a' : `${(x * 100).toFixed(1)}%`);
 const intOrNa = (x: number | null) => (x === null ? 'n/a' : formatInt(x));
