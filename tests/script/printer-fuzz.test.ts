@@ -61,11 +61,29 @@ describe('printer', () => {
       ["casting=='it\\'s'", "casting == 'it\\'s'"],
       ['-0.50', '-0.5'],
       ['0.0000001', '0.0000001'],
+      // A variable or true/false as the first argument of an id function is kept apart from a bare id.
+      ['minGap((mana.pct), 3)', 'minGap((mana.pct), 3)'],
+      ['has((true))', 'has((true))'],
+      ['has(true)', 'has(true)'],
     ];
     for (const [text, printed] of cases) {
       const r = parseExpr(text);
       expect(r.ok).toBe(true);
       if (r.ok) expect([text, printExpr(r.ast)]).toEqual([text, printed]);
+    }
+  });
+
+  it('round trip: a variable or true/false first argument of an id function stays one (not a bare id)', () => {
+    const asts: Expr[] = [
+      { kind: 'call', fn: 'minGap', args: [{ kind: 'var', path: 'a.b' }, { kind: 'num', value: 100 }] },
+      { kind: 'call', fn: 'has', args: [{ kind: 'var', path: 'heroism.active' }] },
+      { kind: 'call', fn: 'dotRefreshDue', args: [{ kind: 'bool', value: false }] },
+      { kind: 'call', fn: 'manaCost', args: [{ kind: 'bool', value: true }, { kind: 'var', path: 'mana' }] },
+    ];
+    for (const x of asts) {
+      const r = parseExpr(printExpr(x));
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(r.ast).toEqual(x);
     }
   });
 

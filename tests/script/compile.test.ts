@@ -184,6 +184,30 @@ describe('compileScript', () => {
     expect(r.steps).toHaveLength(200);
     expect(r.errors[0]).toMatchObject({ path: 'rules' });
   });
+
+  it('rules past the reported-issue cap (200 of each kind) are still left out for their errors and unknown ids', () => {
+    // Each of the first rules has 60 errors (unknown variables) or 20 warnings (unknown auras), so
+    // the issue lists fill up before the later rules are read.
+    const manyErrors = Array.from({ length: 60 }, (_, i) => `x${i}`).join(' && ');
+    const warnHeavy = Array.from({ length: 20 }, (_, i) => `self.aura.z${i}.active`).join(' || ');
+    const script = {
+      rules: [
+        ...Array.from({ length: 4 }, () => ({ action: 'cast', id: 'immolate', if: manyErrors })),
+        ...Array.from({ length: 12 }, () => ({ action: 'cast', id: 'life-tap', if: warnHeavy })),
+        { action: 'wait' },
+        { action: 'cast', id: 'no-such-spell' },
+        { action: 'cast', id: 'life-tap', if: 'target.aura.nope.active || true' },
+        { action: 'cast', id: 'shadow-bolt' },
+      ],
+    };
+    expect(manyErrors.length).toBeLessThanOrEqual(500);
+    expect(warnHeavy.length).toBeLessThanOrEqual(500);
+    const r = compileScript(script, CTX);
+    expect(r.errors).toHaveLength(200);
+    expect(r.warnings.filter((w) => !w.message.startsWith('rule left out')).length).toBe(200);
+    expect(r.steps.map((s) => [s.key, s.kind, s.spellId])).toEqual([['rules[19]', 'cast', 'shadow-bolt']]);
+    for (const i of [16, 17, 18]) expect(r.warnings.some((w) => w.path === `rules[${i}]` && w.message.startsWith('rule left out'))).toBe(true);
+  });
 });
 
 describe('the bot plays compiled scripts', () => {

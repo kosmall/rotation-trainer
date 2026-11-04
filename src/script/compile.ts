@@ -99,8 +99,15 @@ function taintedDefs(defs: Readonly<Record<string, Expr>>, errors: readonly Scri
  * new step objects on every call; never throws.
  */
 export function compileScript(script: unknown, ctx: ScriptContext): CompiledScript {
-  const { errors, warnings } = validateScript(script as Script, ctx);
-  const out: CompiledScript = { steps: [], keys: [], warnings: [...warnings], errors: [...errors] };
+  // Every issue decides which rules are left out (a rule past the reported cap too); the first
+  // SCRIPT_LIMITS.issues of each kind are reported.
+  const { errors, warnings } = validateScript(script as Script, ctx, { maxIssues: Infinity });
+  const out: CompiledScript = {
+    steps: [],
+    keys: [],
+    warnings: warnings.slice(0, SCRIPT_LIMITS.issues),
+    errors: errors.slice(0, SCRIPT_LIMITS.issues),
+  };
   try {
     if (!isRecord(script)) return out;
     const rules = own(script, 'rules');

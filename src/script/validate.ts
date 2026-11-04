@@ -32,9 +32,10 @@ const shortText = (v: unknown) => {
 class Issues {
   readonly errors: ScriptIssue[] = [];
   readonly warnings: ScriptIssue[] = [];
+  constructor(private readonly cap: number) {}
   add(kind: 'errors' | 'warnings', issue: ScriptIssue): void {
     const list = this[kind];
-    if (list.length >= SCRIPT_LIMITS.issues) return;
+    if (list.length >= this.cap) return;
     if (issue.suggestion === undefined) delete issue.suggestion;
     list.push(issue);
   }
@@ -207,10 +208,11 @@ function validateRule(raw: unknown, i: number, ctx: ScriptContext, issues: Issue
  *   `wait` rule without `if`, fields of the wrong type, label / comment too long;
  * - warnings: ids not in the context (spells, auras, items not worn or not enabled; closest
  *   suggested), `cast` of an item action, `has()` of an absent id, unknown rule fields.
- * Issues are in script order (defs first); at most `SCRIPT_LIMITS.issues` of each kind.
+ * Issues are in script order (defs first); at most `SCRIPT_LIMITS.issues` of each kind
+ * (`maxIssues`: compileScript reads them all, so a rule past the cap is still left out).
  */
-export function validateScript(script: Script, ctx: ScriptContext): ScriptValidation {
-  const issues = new Issues();
+export function validateScript(script: Script, ctx: ScriptContext, options?: { maxIssues?: number }): ScriptValidation {
+  const issues = new Issues(options?.maxIssues ?? SCRIPT_LIMITS.issues);
   try {
     const raw: unknown = script;
     if (!isRecord(raw)) {
