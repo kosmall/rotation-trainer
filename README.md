@@ -447,7 +447,9 @@ setup (gear, talenty, buffy, ustawienia walki, opcje klasy). Biblioteka w przegl
 - **Save Current as Scenario…**: nazwa, opis i „Include the setup”. Bez aktywnego skryptu zapisuje
   rotację podstawową przekonwertowaną na skrypt.
 - **Apply…** pyta i mówi, co zastąpi (rotację, a z „Also apply its setup” także gear, talenty,
-  buffy…); pokazuje też ostrzeżenia scenariusza wobec bieżącego setupu.
+  buffy…); pokazuje też ostrzeżenia scenariusza wobec bieżącego setupu. Każde pole setupu
+  scenariusza zastępuje całe pole bieżącego setupu: scenariusz z `"enabledBuffs": ["heroism"]`
+  zostawia włączony tylko Heroism (bez raid buffów, które były włączone).
 - **Export…**: „Copy JSON” albo „Download File”. **Import Scenario…**: wklej tekst albo wybierz plik
   (do 200 000 znaków); raport walidacji (błędy blokują zapis, ostrzeżenia nie) i podgląd przed
   „Save to Library”. Pliki są traktowane jako niezaufane (limity rozmiaru i głębokości, bez `eval`).
@@ -479,6 +481,9 @@ Simulatorze (Web Worker, migawka z chwili kliknięcia).
   Zaskakującego zwycięzcę sprawdź jeszcze raz innym ziarnem albo większą liczbą walk.
 - Scenariusz z błędem wobec bieżącego setupu blokuje Run i ma link do Scenarios. Ostatni wynik
   zostaje po przejściu do innej zakładki lub trybu (do przeładowania strony).
+- Porównanie odpowiada na pytanie „który **cały** scenariusz daje więcej DPS”: scenariusze z innym
+  gearem, buffami albo długością walki różnią się też tym. Żeby zmierzyć jedną zmianę reguły, zostaw
+  resztę bez zmian (np. dwa scenariusze bez części setupu albo z tym samym setupem).
 
 ## Symulator
 
@@ -589,4 +594,4 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/scenarios` | format scenariusza, biblioteka i jej zapis, przykłady, CLI (`scenario:validate`, `scenario:run`, `scenario:compare`) |
 | `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, odpalenia reguł, porównanie sparowane, Web Worker i jego klient |
 | `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie, ScriptEditor, ScenariosPanel), `report/` i `charts/` (raport, ComparePanel, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
-| `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |
+| `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `script`, `scenarios`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |

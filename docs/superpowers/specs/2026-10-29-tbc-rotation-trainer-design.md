@@ -172,6 +172,14 @@ Jeden spec, osobny plan implementacji i commit na etap:
    `../plans/2026-11-04-ui-redesign.md`, prototyp `docs/design/prototype/`, zrzuty prawdziwej
    aplikacji `docs/design/app/` (`npm run screens`). Zakładki Damage, Timeline, Log, Rotation i
    Simulator raportu pochodzą z tej przebudowy (część etapu 3 poniżej).
+   2f. Skrypty rotacji (reguły z warunkami `if`), scenariusze (biblioteka, import i eksport JSON,
+   format i walidator dla agentów AI) i porównywanie scenariuszy na tych samych ziarnach (nowy
+   element, poza pierwotną listą). **Zrobione** (Setup → Rotation → Script, Setup → Scenarios,
+   Report → Compare, `npm run scenario:*`): specyfikacja
+   `2026-11-03-rotation-scripts-and-scenarios-design.md`, plan
+   `../plans/2026-11-03-rotation-scripts-and-scenarios.md`; format `docs/scenario-format.md`;
+   gramatyka, zmienne, kompilator, statystyka i ograniczenia w `docs/data-sources.md`, „Part J:
+   rotation scripts”.
 3. Zakładki Rotation, Damage, Log, scoring i bot.
 4. Dispele, setup przed pullem, scenariusze (np. limitowana mana).
 5. Kolejne klasy i speki, po jednym na raz (w tym wariant Fire dla Destruction Warlocka); dla

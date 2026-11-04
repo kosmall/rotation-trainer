@@ -231,7 +231,7 @@ dropped, **each with a warning** saying what was used instead.
 | `talents` | string | a talent preset id (`destro-nightfall`) or talent string; the author's build if absent |
 | `gear` | array of exactly 17 entries | gear in slot order (section 11 "Gear slots"); each `null` or `{ "id": <item id>, "enchant"?: <id>, "gems"?: [<gem ids>] }`; unknown items or items that do not fit the slot become `null` (warning). Absent: the author's gear |
 | `gearPresetId` | string `[a-z0-9-]` | label only (with `gear`) |
-| `enabledBuffs` | array of buff ids (up to 100) | buffs, debuffs, consumables and Heroism that are on (section 11); one per exclusive group (flask, food, ...): a later one replaces an earlier one |
+| `enabledBuffs` | array of buff ids (up to 100) | buffs, debuffs, consumables and Heroism that are on (section 11); one per exclusive group (flask, food, ...): a later one replaces an earlier one. It replaces the **whole** list of the setup it is applied to (the default setup has none on, but a player's setup in the app may have raid buffs): list every buff the scenario should have |
 | `timed` | `{ "<buff id>": { "startSec": 0-600, "durationSec": 1-600 } }` | when a timed buff (Heroism) comes up; only the given buffs change |
 | `distanceYd` | number 0-100 | distance to the target (Shadow Bolt flight time); default 28 |
 | `fightDurationSec` | integer 10-600 | fight length; default 60 |
@@ -318,6 +318,12 @@ The bottom six rules are the basic DoT rotation (exactly what "Convert to script
   (a press during the global cooldown is rejected and the bot moves on).
 - **Wait without a way out**: a `wait` with an `if` that stays true holds every rule below it.
 - **Strings for numbers**: `"fightDurationSec": "90"` becomes 60 with a warning; write `90`.
+- **A partial buff list**: `"enabledBuffs": ["heroism"]` means *only* Heroism. Applied in the app with
+  its setup, it switches off the player's raid buffs and consumables; list them all if they belong in
+  the scenario.
+- **Comparing different setups**: a comparison measures the whole scenario. Two scenarios with
+  different fight lengths, gear or buffs differ by those too; to measure one rule, keep the rest equal
+  (for example leave `setup` out of both and compare them on the same setup).
 
 ## 9. Validator and runner
 
