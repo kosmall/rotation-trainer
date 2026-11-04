@@ -67,6 +67,37 @@ zostają na górze jako przegląd i **kursor**):
 - "Copy this second" / "Copy fight log (CSV)": sekunda po sekundzie (kolumny: second, damage, casts, auras up/down,
   items, mana) do schowka; ułatwia wklejenie do agenta AI. Bez żadnej zmiany silnika.
 
+### E. Historia walk i ranking najwyższego DPS (uzupełnienie autora)
+
+- **Historia walk** (`rotation-trainer:history:v1`, osobny klucz, wersjonowany, try/catch, limit rozmiaru): każda
+  **zagrana** walka (log zapisany, bo człowiek nie jest powtarzalny; maks. 20 ostatnich, ≤ 1,5 MB łącznie, najstarsze
+  wypadają) oraz **kluczowe walki symulacji** (highest/typical/lowest jako odnośniki: ziarno + numer przebiegu +
+  pełny zrzut ustawień, log odtwarzany na żądanie; maks. 10 ostatnich symulacji). Wpis: `id`, `kind`
+  ('played' | 'sim-highest' | 'sim-typical' | 'sim-lowest'), czas zapisu, DPS, ziarno, długość walki, zrzut
+  ustawień (§F), opcjonalnie nazwa/notatka użytkownika i gwiazdka (przypięcie, nie wypada z limitu).
+- **Ranking Highest DPS:** tabela top N (domyślnie 10) po DPS z całej historii (zagrane + kluczowe z symulacji),
+  filtry: rodzaj (zagrane | symulacje | wszystkie), ta sama długość walki (domyślnie włączone, bo DPS zależy od
+  długości), ten sam skrót ustawień (gear+talenty). Wiersz: miejsce, DPS, rodzaj, data, skrót gear/talenty/rotacja
+  (nazwy presetów lub "custom"), długość. **Klik otwiera tę walkę w tym samym podglądzie** (Fight source →
+  "History: #n"; te same zakładki Damage/Timeline/Log/Rotation i Moment by moment co dla każdej innej walki).
+- Selektor "Fight source" dostaje pozycję **History…** (lista historii + ranking w jednym panelu "Fights").
+- Błędy zapisu (pełny storage): komunikat widoczny, nigdy cicho; wpisy uszkodzone pomijane.
+
+### F. Pełny obraz walki: użyte ustawienia (Setup used)
+
+Każda przeglądana walka (zagrana, z symulacji, z historii) ma swój **zrzut ustawień** (`SetupConfig` znormalizowany
+w chwili walki, nie bieżący) i panel **"Setup used"** w Report (zwijany, nad zakładkami albo zakładka obok Damage):
+- **Ekwipunek:** 17 slotów (ikona, nazwa przedmiotu, gemy/enchant/socket bonus), aktywne bonusy zestawów, efekty
+  przedmiotów (on-use/proc) i statystyki na pullu (te same liczby co "Stats at the pull" w Setup, liczone z zrzutu).
+- **Talenty:** nazwa presetu lub "custom", punkty w drzewach, lista wykupionych talentów z rangami (ikony),
+  niezamodelowane oznaczone.
+- **Buffy i consumables:** włączone buffy/debuffy, timed cooldowns, reguły użycia przedmiotów i trinketów.
+- **Rotacja:** tryb podstawowy (ustawienia) albo skrypt (lista reguł, odpalenia reguł z symulacji, gdy są),
+  długość walki, dystans, opcje klasy, ziarno.
+- Przycisk **"Use this setup"** (z potwierdzeniem, co zostanie zastąpione) przywraca zrzut jako bieżący setup, żeby
+  odtworzyć i poprawiać walkę z historii.
+- Gdy zrzut wymaga bazy przedmiotów, a ta jeszcze się ładuje, panel pokazuje stan ładowania, nie błąd.
+
 ## 3. Zasady
 
 - Brak zmian w silniku i bocie; `sim-runner` dostaje tylko dodatek do wyniku (`keyFights`) i `replayFight`; **żadna liczba
@@ -86,5 +117,5 @@ zostają na górze jako przegląd i **kursor**):
 
 ## 5. Poza zakresem (później)
 
-Porównanie dwóch walk obok siebie (diff), walki kluczowe w Compare, zapis/import logów, animacja odtwarzania w czasie
+Porównanie dwóch walk obok siebie (diff; ranking i historia już w zakresie), eksport/import historii, walki kluczowe w Compare, zapis/import logów, animacja odtwarzania w czasie
 rzeczywistym.
