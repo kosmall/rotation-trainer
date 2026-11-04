@@ -9,8 +9,11 @@
 // dependency of the project: the global install is used (`npm root -g`). Outside `npm test`.
 //
 // The data: one 20 s fight with the "Raid as in my log" setup and a fixed key pattern, played once
-// (ready, running and ended shots); a 1,000-fight simulation (seed 41207) for the Simulator tab, then
-// the Setup sections (their summary shows that run). Each route is shot in every variant in turn.
+// (ready, running and ended shots); two example scenarios saved to the library; a 1,000-fight
+// simulation (seed 41207) for the Simulator tab and a 500-run comparison of the current setup with
+// the two scenarios for the Compare tab, then the Setup sections (their summary shows that run);
+// last, the trinket example applied, for the script editor (setup-rotation-script). Each route is
+// shot in every variant in turn.
 
 import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -44,6 +47,8 @@ const VARIANTS = [
   { width: 390, height: 844, theme: 'dark' },
   { width: 390, height: 844, theme: 'light' },
 ];
+/** Example scenarios (docs/scenarios) saved to the library for the Scenarios and Compare shots. */
+const EXAMPLES_TO_SAVE = ['Potion and Icon in the Heroism window', 'Shadowburn on cooldown, held for the finish'];
 const KEYS = ['3', '2', '1', '1', '9', '1', '1', '6', '1', '1'];
 
 async function waitForServer(url, ms = 15000) {
@@ -136,12 +141,25 @@ async function main() {
     }
     await capture('fight-ended');
 
+    // Two example scenarios in the library (the setup itself is unchanged).
+    await go('#/setup/scenarios');
+    await page.waitForSelector('[aria-label="Example scenarios"]');
+    for (const name of EXAMPLES_TO_SAVE) await page.click(`button[aria-label="Save to Library ${name}"]`);
+
     for (const tab of REPORT_TABS) {
       await go(`#/report/${tab}`);
       if (tab === 'simulator') {
         await page.fill('input[placeholder="random…"]', '41207');
         await page.click('button.sim-run');
         await page.waitForSelector('[aria-label="Simulation result"]', { timeout: 120000 });
+        await page.waitForTimeout(300);
+      }
+      if (tab === 'compare') {
+        for (const name of EXAMPLES_TO_SAVE) await page.getByRole('checkbox', { name: new RegExp(`^${name}`) }).check();
+        await page.getByRole('spinbutton', { name: 'Runs' }).fill('500');
+        await page.getByRole('spinbutton', { name: 'Seed' }).fill('41207');
+        await page.click('button.sim-run');
+        await page.waitForSelector('[aria-label="Comparison result"]', { timeout: 120000 });
         await page.waitForTimeout(300);
       }
       await capture(`report-${tab}`);
@@ -151,6 +169,13 @@ async function main() {
       await go(`#/setup/${section}`);
       await capture(`setup-${section}`);
     }
+    // The script editor with the user's trinket example (applied with its setup).
+    await go('#/setup/scenarios');
+    await page.click('button[aria-label="Apply Pipe, then Icon (trinket sequencing)…"]');
+    await page.click('button:text-is("Apply Scenario")');
+    await go('#/setup/rotation');
+    await page.waitForSelector('[aria-label="Rotation rules"]');
+    await capture('setup-rotation-script');
     await context.close();
   } finally {
     await browser.close();

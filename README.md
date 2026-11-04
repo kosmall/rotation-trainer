@@ -63,7 +63,7 @@ pasku.
   aktywny czas GCD, uptime DoT-ów), „Played with …” z linkami do sekcji, „Fight Again” i „Copy
   Report”. Zakładki: **Damage** (tabela czarów, buffy i przedmioty, wykres DPS, „What to look at”),
   **Timeline**, **Log** (filtr, wirtualizowana lista), **Rotation** (Ty vs bot), **Simulator**,
-  **Compare** (na razie pusty stan). Bez walki działają tylko Simulator i Compare. Opuszczenie
+  **Compare** (porównanie scenariuszy na tych samych ziarnach). Bez walki działają tylko Simulator i Compare. Opuszczenie
   raportu przerywa trwającą symulację.
 
 | Trasa | Widok |
@@ -90,7 +90,8 @@ Gdzie trafiły dawne panele:
 | Setup: Items and cooldowns | Setup → Items & cooldowns (z podglądem paska Items) |
 | Setup: Fight (długość, Heroism) i Distance | Setup → Fight settings |
 | Setup: Warlock options | Setup → Warlock options |
-| Setup: Rotation i Item use | Setup → Rotation (tryb Basic; tryb Script pokazuje reguły skryptu) |
+| Setup: Rotation i Item use | Setup → Rotation (tryb Basic; tryb Script to edytor skryptu rotacji) |
+| (nowe) Scenariusze, Compare | Setup → Scenarios (biblioteka, import, eksport, przykłady), Report → Compare |
 | Priority | Setup → Rotation („Priority of the next fight”), Fight → dock „Next by the script”, Report → Rotation |
 | Gear, Talents | Setup → Gear (import i eksport w okienkach), Setup → Talents |
 | Combat text | Setup → Combat text; szybki przełącznik w docku |
@@ -407,6 +408,78 @@ pasek akcji razem z walką, która go używa: z talentem Conflagrate slot `8` to
 rzucasz go sam, gdy Immolate jest na celu). Pisanie w polach importu i eksportu nie uruchamia
 skrótów klawiszowych.
 
+## Skrypty rotacji
+
+Tryb **Script** w Setup → Rotation zastępuje stałe pola konfiguratora listą reguł z warunkami (jak
+APL): bot, Simulator i podpowiedź „Next by the script” grają pierwszą regułę, której warunek jest
+prawdziwy i której akcję gra przyjmie; akcja odrzucona (cooldown, brak many) przechodzi do
+następnej reguły. Dopóki skrypt ma reguły, gra **zamiast** rotacji podstawowej (napis „Script
+active”, ustawienia trybu Basic są wtedy wyszarzone i czekają).
+
+- **Reguła**: włącznik, akcja (`Cast` czaru, `Use` przedmiotu, np. `item:29370` albo
+  `destruction-potion`, `Wait`: nic nie rób, gdy warunek jest prawdziwy), id z listy czarów i
+  przedmiotów buildu (albo „Other id…” i pole tekstowe), warunek, a pod „…” etykieta i komentarz.
+  Strzałki zmieniają kolejność, są też „Duplicate” i „Delete”. Pusty warunek = zawsze. Liczba po
+  prawej to średnia odpaleń reguły na walkę z ostatniej symulacji tego samego setupu.
+- **Warunki** to tekst: `&&`, `||`, `!`, nawiasy, porównania, liczby, np.
+  `heroism.active && target.aura.shadow-vulnerability.active` albo `use.item:281735.count >= 1`
+  (sekwencja: trinket 2 po trinkecie 1). Pełna gramatyka i lista zmiennych:
+  `docs/scenario-format.md` i `docs/data-sources.md`, „Part J”. Panel **Variables and Ids** obok
+  szuka zmiennych, funkcji i id buildu; „Insert” wstawia tekst w miejsce kursora ostatniego warunku.
+- **Walidacja na żywo**: błąd składni pod polem z pozycją („rules[0].if: column 7: …”), nieznane id
+  jako ostrzeżenie z podpowiedzią („Did you mean “immolate”?”); reguła z błędem albo nieznanym id
+  jest pomijana (lista „Priority of the next fight” pokazuje, co naprawdę gra). U góry licznik
+  „N errors, M warnings”.
+- **Named Conditions** (`defs`): warunek pisany raz i używany jako `$nazwa` (bez cykli).
+- **Convert From Basic Rotation** zamienia rotację podstawową (z regułami przedmiotów) w równoważny
+  skrypt: te same walki, krok w krok (gdy skrypt już jest, najpierw pyta). **Clear Script…** wraca
+  do rotacji podstawowej (pyta). **Edit as JSON** pokazuje cały skrypt jako tekst; „Apply JSON”
+  działa tylko dla poprawnego skryptu.
+- Skrypt jest częścią setupu (zapis w `rotation-trainer:setup:v1`) i działa od następnej walki
+  (walka, która jeszcze się nie zaczęła, bierze go od razu). Pisanie w polach nie uruchamia skrótów.
+
+## Scenariusze (Setup → Scenarios)
+
+Scenariusz to plik JSON (`rotation-trainer.scenario`, wersja 1): nazwa, opis, skrypt i opcjonalnie
+setup (gear, talenty, buffy, ustawienia walki, opcje klasy). Biblioteka w przeglądarce (osobny klucz
+`rotation-trainer:scenarios:v1`, do 100 scenariuszy):
+
+- **Save Current as Scenario…**: nazwa, opis i „Include the setup”. Bez aktywnego skryptu zapisuje
+  rotację podstawową przekonwertowaną na skrypt.
+- **Apply…** pyta i mówi, co zastąpi (rotację, a z „Also apply its setup” także gear, talenty,
+  buffy…); pokazuje też ostrzeżenia scenariusza wobec bieżącego setupu.
+- **Export…**: „Copy JSON” albo „Download File”. **Import Scenario…**: wklej tekst albo wybierz plik
+  (do 200 000 znaków); raport walidacji (błędy blokują zapis, ostrzeżenia nie) i podgląd przed
+  „Save to Library”. Pliki są traktowane jako niezaufane (limity rozmiaru i głębokości, bez `eval`).
+- **Duplicate**, **Rename…**, **Delete…** (pyta). **Examples**: przykłady z `docs/scenarios/`
+  (m.in. „Pipe, then Icon”: trinket 1 w Heroismie z Improved Shadow Bolt, potem trinket 2).
+- Gdy przeglądarka nie pozwala zapisać, panel mówi „Not saved…”; biblioteka działa wtedy do
+  przeładowania strony (wyeksportuj, co chcesz zachować).
+
+**Scenariusz od agenta AI:** daj agentowi `docs/scenario-format.md` (format, zmienne, id, przykłady,
+gotowy szablon prośby) i `docs/scenario.schema.json`. Agent może sam sprawdzić plik bez przeglądarki:
+`npm run scenario:validate -- plik.json`, `npm run scenario:run -- plik.json --runs 1000 --seed 1`
+i `npm run scenario:compare -- a.json b.json`. Gotowy plik wklej w „Import Scenario…”.
+
+## Porównanie scenariuszy (Report → Compare)
+
+Zaznacz 2-5 pozycji: „Current setup” i scenariusze z biblioteki (każdy gra na bieżącym setupie z
+własnymi częściami setupu, jak „Apply” z „Also apply its setup”). Pierwsza (pole **Baseline**) to
+punkt odniesienia. Runs, Seed, „Compare N Scenarios”, Cancel i pasek postępu działają jak w
+Simulatorze (Web Worker, migawka z chwili kliknięcia).
+
+- **Te same ziarna**: walka nr i każdego scenariusza ma to samo ziarno, więc różnice są
+  **sparowane** i dużo dokładniejsze niż porównanie dwóch osobnych symulacji.
+- **Tabela**: ranking, średni DPS, σ, SEM, **Δ vs baseline**, błąd standardowy różnic
+  sparowanych, 95% przedział Δ i werdykt („Better/Worse (significant)”, gdy przedział nie obejmuje
+  0, inaczej „No clear difference”). Pod spodem histogramy obok siebie i średnie odpalenia każdej
+  reguły na walkę.
+- **Zastrzeżenie**: każdy scenariusz to osobny test wobec bazowego, bez poprawki na wielokrotne
+  porównania: przy 4 testach szansa, że któryś „istotny” werdykt jest przypadkiem, to około 19%.
+  Zaskakującego zwycięzcę sprawdź jeszcze raz innym ziarnem albo większą liczbą walk.
+- Scenariusz z błędem wobec bieżącego setupu blokuje Run i ma link do Scenarios. Ostatni wynik
+  zostaje po przejściu do innej zakładki lub trybu (do przeładowania strony).
+
 ## Symulator
 
 Zakładka **Report → Simulator** gra setup **następnej walki** (gear, talenty, buffy, rotacja z
@@ -496,6 +569,11 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 - Etap 2b (talenty): specyfikacja `docs/superpowers/specs/2026-11-03-talents-stage-2b-design.md`,
   plan `docs/superpowers/plans/2026-11-03-talents-stage-2b.md`; tabela efektów talentów, powody
   niezamodelowanych, presety i uproszczenia: `docs/data-sources.md`, „Part I: talents”
+- Skrypty rotacji, scenariusze i porównania: specyfikacja
+  `docs/superpowers/specs/2026-11-03-rotation-scripts-and-scenarios-design.md`, plan
+  `docs/superpowers/plans/2026-11-03-rotation-scripts-and-scenarios.md`; format scenariusza dla ludzi
+  i agentów AI: `docs/scenario-format.md`, schemat `docs/scenario.schema.json`, przykłady
+  `docs/scenarios/`; gramatyka, zmienne i statystyka: `docs/data-sources.md`, „Part J”
 - Źródło każdej liczby (wowsims, Wowhead), założenia i otwarte pytania: `docs/data-sources.md`
 - Decyzje projektowe (kolejka czarów): `docs/decisions/`
 
@@ -507,6 +585,8 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/data` | dane gry: współczynniki, cel, katalog buffów, Destruction Warlock (czary, aury, talenty, przedmioty, zestawy, presety gearu, rotacja), baza przedmiotów (`src/data/items`) |
 | `src/setup` | setup walki: domyślne ustawienia i ich walidacja, presety, zapis w `localStorage`, zamiana setupu na dane walki, walidacja gearu, import i eksport wowsims |
 | `src/bot` | bot grający listę priorytetów (punkt odniesienia DPS) |
-| `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, Web Worker i jego klient |
-| `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie), `report/` i `charts/` (raport, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
+| `src/script` | język skryptów rotacji (bez Reacta): parser, walidacja, kompilator, konwerter z rotacji podstawowej |
+| `src/scenarios` | format scenariusza, biblioteka i jej zapis, przykłady, CLI (`scenario:validate`, `scenario:run`, `scenario:compare`) |
+| `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, odpalenia reguł, porównanie sparowane, Web Worker i jego klient |
+| `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie, ScriptEditor, ScenariosPanel), `report/` i `charts/` (raport, ComparePanel, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |
