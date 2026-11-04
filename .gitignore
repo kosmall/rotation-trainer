@@ -7,3 +7,7 @@ coverage
 # ralph-loop plugin state
 .claude/ralph-loop.local.md
 .claude/worktrees/
+
+# regenerable with npm run screens (only 1440 and 390-dark are kept in git)
+docs/design/app/*-1024-dark.png
+docs/design/app/*-390-light.png
