@@ -1,0 +1,23 @@
+# Fight timeline and key fights Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development.
+
+**Goal:** Report gets a "Fight source" selector (last played fight, simulation highest / typical / lowest DPS fight) and a second-by-second "Moment by moment" explorer on the Timeline tab, built from the fight log.
+
+**Spec:** `docs/superpowers/specs/2026-11-05-fight-timeline-and-key-fights-design.md`. Builds on `docs/superpowers/specs|plans/2026-11-04-ui-redesign*`, `src/sim-runner/*`, `src/ui/report/*`, `src/ui/state/TrainerProvider.tsx`.
+
+**Global constraints:** no engine/bot change; every existing golden and simulator result byte-identical; `npm run typecheck && npm test && npm run build` green; no files whose names differ only by case; follow the redesign's Global Constraints (accessible names, hotkey guard, class-agnostic shell, render budget, a11y, tokens); UI preferences only under `rotation-trainer:ui:v1`.
+
+### Task K1: key fights and replay (sim-runner)
+**Files:** `src/sim-runner/{types,run,stats}.ts` (add `KeyFight`, `SimResult.keyFights`, selection of highest/lowest/typical during aggregation; typical = closest to mean, ties to the lower run), new `src/sim-runner/replay.ts` (`replayFight(request, run): { log: readonly LogEvent[]; dps: number; seed: number; durationMs }`, sharing the run-building code with `run.ts`, no duplication), `src/sim-runner/client.ts`/`worker.ts` only if the result type crosses them, `tests/sim-runner/key-fights.test.ts`, `docs/data-sources.md` (Part K).
+- [ ] RED tests: keyFights present and correct for known small runs (hand-checked), identical result numbers to before (existing fixtures untouched), `replayFight(...).dps` bit-equal to the recorded `dps` for all three fights with default setup, raid-log setup, item-use rules and a script scenario; replay log equals the log of a direct `createFightSimulation` + `runBot` with `mixSeed(seed, run)`; abort/worker paths unaffected; `npm run scenario:run` output unchanged except optionally listing key fights.
+- [ ] Implement, `npm run typecheck && npm test && npm run build`, commit `feat(sim-runner): key fights and deterministic replay`.
+
+### Task K2: second buckets view-model and fight source in the provider
+**Files:** `src/ui/report/secondsModel.ts` (pure `secondBuckets(log, durationMs, namer)`, `stateAt(log, ms)` with active buffs/debuffs and remaining time, `eventJumps(...)`, CSV export), `src/ui/report/reportModel.ts` (`buildReportModel` from any `{log, config, seed, durationMs}` source), `src/ui/state/TrainerProvider.tsx` (`meta.lastSimulation` keeps the request config and `keyFights`; `meta.reportSource` selection state + `actions.setReportSource`; replay on demand, memoized per source), tests `tests/ui/report/seconds-model.test.ts` (sums per spell equal `damageTotal` and the Damage table; aura windows equal uptimes; pre-pull events; second boundaries [N, N+1); hostile/empty logs) and provider tests.
+- [ ] RED, implement, verify (typecheck/test/build), commit `feat(ui): second buckets model and report fight source`.
+
+### Task K3: UI: Fight source selector and Moment by moment
+**Files:** `src/ui/report/FightSourceSelect.tsx`, `src/ui/report/MomentByMoment.tsx` (cursor/scrubber, second panel, all-seconds list virtualised, filters, jump buttons, bot row, copy buttons), `src/ui/report/TimelineTab.tsx` (cursor on lanes and DPS chart; keyboard ←/→, Shift, Home/End), `src/ui/report/ReportView.tsx` (selector above the tabs; Damage/Timeline/Log/Rotation use the selected source; simulation-source summary shows deviation from the mean in σ), `src/ui/report/report.css`, `scripts/screens.mjs` (new screenshots: timeline moment view and a simulation key fight, 1440 dark/light and 390 dark only in git), `README.md` (Polish), tests `tests/ui/report/moment-by-moment.test.tsx`, `fight-source.test.tsx`; update `tests/ui` where tab content changed (no assertion weakened).
+- [ ] RED, implement, `npm run typecheck && npm test && npm run build`, Playwright smoke (global `require('playwright')`, vite preview killed by PID): play a fight, open Timeline, step through seconds, run a 200-run simulation, switch among highest/typical/lowest, check numbers equal the key-fight DPS, phone 390 px, read screenshots and fix defects; commit `feat(ui): moment-by-moment timeline and simulation key fights`.
+- [ ] Final review of the whole feature (spec §2–§4 checklist, independent recomputation of per-second sums from the raw log, replay equality, render budget), fixes, docs commit.
