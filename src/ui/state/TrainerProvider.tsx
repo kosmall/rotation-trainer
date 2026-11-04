@@ -18,6 +18,8 @@ import type { AppliedSetup, SetupConfig } from '../../setup/types';
 import type { ScenarioEntry } from '../../scenarios/library';
 import type { SimRunner } from '../../sim-runner/client';
 import type { CompareResult, SimRequest, SimResult } from '../../sim-runner/types';
+import { fightFromLast, replaySimFight, SIM_KIND } from '../report/reportModel';
+import type { KeyFightWhich, ReportFight } from '../report/reportModel';
 import { REJECT_LABELS } from '../fight/slotFlash';
 import type { SlotFlash } from '../fight/slotFlash';
 import { auraSources, buildBuffViews } from '../buffsView';
@@ -42,6 +44,9 @@ import {
 import type { ChipSection } from './selectors';
 
 const SIMULATION_OPTIONS = { pauseOnLeave: true } as const;
+
+const PLAYED_SOURCE: ReportSourceId = Object.freeze({ kind: 'played' });
+const NO_REPORT_FIGHT: ReportFightState = Object.freeze({ status: 'none' });
 
 /** How long a rejected press shows its reason on the slot. */
 const FLASH_MS = 700;
@@ -87,6 +92,28 @@ function talentRotationWarnings(config: SetupConfig): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * A config applied as the game applies it (the next fight, a history fight): `applySetup` with the
+ * static catalog and the spec built by `buildSpec` (with the database only for a gear and once it
+ * has loaded), the catalog of the config's gear. Pass a config the database is not needed for, or
+ * the database (the caller checks `gearNeedsDb`).
+ */
+export function fightOfConfig(
+  config: SetupConfig,
+  db: ItemDb | null,
+  buildSpec: NonNullable<TrainerProviderProps['buildSpec']> = buildDestructionWarlock,
+): NextFight {
+  // The talents are forwarded: the game plays the build the priority (applySetup) is built for.
+  const build = (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], talents?: string) =>
+    gear === undefined || db === null ? buildSpec(warlock, gear, undefined, talents) : buildSpec(warlock, gear, db, talents);
+  return {
+    config,
+    // "Items and cooldowns" follows the worn gear: its effects, derived (never a fixed list).
+    catalog: setupCatalogFor(setupGear(config), db),
+    ...applySetup({ buildSpec: build, catalog: STATIC_SETUP_CATALOG, config, db }),
+  };
 }
 
 /** The config without its gear (the author's gear). */
@@ -231,7 +258,29 @@ export interface TrainerActions {
   changeScenarios(entries: readonly ScenarioEntry[]): boolean;
   /** Keeps a finished comparison as the last one (`meta.lastComparison`); not saved across reloads. */
   recordComparison(comparison: LastComparison): void;
+  /** Picks the fight the Report shows (`meta.reportSource`, `meta.reportFight`). */
+  setReportSource(source: ReportSourceId): void;
 }
+
+/**
+ * Which fight the Report shows (spec §2 A): the last played fight, or one of the last simulation's
+ * key fights (`SimResult.keyFights`: highest DPS, typical, lowest DPS). A fight that ends switches
+ * back to the played fight.
+ */
+export type ReportSourceId = { kind: 'played' } | { kind: 'sim'; which: KeyFightWhich };
+
+/**
+ * The selected source's fight (`meta.reportFight`): 'ready' with the fight; 'none' before any
+ * fight has ended (the played source); 'unavailable' when there is nothing to replay (no
+ * simulation, or a result without key fights) with a reason to show; 'loading' while the item
+ * database a replay needs loads; 'error' when a replay failed (its message).
+ */
+export type ReportFightState =
+  | { status: 'ready'; fight: ReportFight }
+  | { status: 'none' }
+  | { status: 'unavailable'; reason: string }
+  | { status: 'loading'; reason: string }
+  | { status: 'error'; message: string };
 
 /** The last finished comparison: its result and the names of its rows, in request order. */
 export interface LastComparison {
@@ -241,8 +290,14 @@ export interface LastComparison {
   configs: SetupConfig[];
 }
 
-/** The last finished simulation and the setup it ran (in memory only, as the Simulator's result). */
+/**
+ * The last finished simulation and the setup it ran (in memory only, as the Simulator's result):
+ * its result (with `keyFights`, the runs the Report replays) and the setup snapshot, the normalized
+ * config at the simulation's start; the result carries the runs, seed and spell queue window.
+ */
 export interface LastSimulation {
+  /** Counts the simulations recorded on this page (the key fights' source keys). */
+  id: number;
   result: SimResult;
   config: SetupConfig;
 }
@@ -298,6 +353,10 @@ export interface TrainerMeta {
   lastSimulation: LastSimulation | null;
   /** The last finished comparison, or null (`actions.recordComparison`). */
   lastComparison: LastComparison | null;
+  /** The Report's fight source (`actions.setReportSource`). */
+  reportSource: ReportSourceId;
+  /** The source's fight, replayed on demand and memoized per source. */
+  reportFight: ReportFightState;
 }
 
 export interface TrainerValue {
@@ -466,15 +525,7 @@ export function TrainerProvider({
     // Never build a gear the author tables do not know without the database: buildSetup would skip
     // the unknown ids silently (a wrong DPS). Until it loads, the author's gear.
     const fightConfig = config.gear !== undefined && db === null && gearNeedsDb(config.gear) ? withoutGear(config) : config;
-    // The talents are forwarded: the game plays the build the priority (applySetup) is built for.
-    const build = (warlock: WarlockOptions, gear?: readonly (EquippedItem | null)[], talents?: string) =>
-      gear === undefined || db === null ? buildSpec(warlock, gear, undefined, talents) : buildSpec(warlock, gear, db, talents);
-    return {
-      config: fightConfig,
-      // "Items and cooldowns" follows the worn gear: its effects, derived (never a fixed list).
-      catalog: setupCatalogFor(setupGear(fightConfig), db),
-      ...applySetup({ buildSpec: build, catalog: STATIC_SETUP_CATALOG, config: fightConfig, db }),
-    };
+    return fightOfConfig(fightConfig, db, buildSpec);
   }, [buildSpec, config, db]);
   // Leaving the Fight screen pauses the fight (spec §3.3, author's answer to Q1).
   const { snapshot, fight, cast, cancel, reset, start, logSince, fightId, seed, paused, attach } = useSimulation(nextFight, SIMULATION_OPTIONS);
@@ -482,7 +533,10 @@ export function TrainerProvider({
   // The last ended fight (the Report): taken once when a fight ends, kept after R (state set during
   // render, React's "information from previous renders" pattern: no effect, no extra commit).
   const [lastFight, setLastFight] = useState<LastFight | null>(null);
+  const [reportSource, setReportSource] = useState<ReportSourceId>(PLAYED_SOURCE);
   if (phase === 'ended' && lastFight?.id !== fightId) {
+    // A fight that ends is what the Report shows next.
+    setReportSource(PLAYED_SOURCE);
     setLastFight({
       id: fightId,
       log: logSince(0),
@@ -557,7 +611,46 @@ export function TrainerProvider({
   const talentsPending = started && setupTalents(fight.config) !== talents;
   const pending = useMemo(() => (anyPending ? pendingSections(fight.config, config) : NO_PENDING), [anyPending, fight.config, config]);
   const [lastSimulation, setLastSimulation] = useState<LastSimulation | null>(null);
-  const recordSimulation = useCallback((result: SimResult, simConfig: SetupConfig) => setLastSimulation({ result, config: simConfig }), []);
+  const simulationCount = useRef(0);
+  /** Replayed fights by source key (the current simulation's key fights). */
+  const replays = useRef(new Map<string, ReportFight>());
+  const recordSimulation = useCallback((result: SimResult, simConfig: SetupConfig) => {
+    replays.current.clear();
+    simulationCount.current += 1;
+    setLastSimulation({ id: simulationCount.current, result, config: simConfig });
+  }, []);
+  const dbStatus = itemDb.status;
+  // The Report's fight: the played one as is, a key fight replayed once from the simulation's
+  // setup snapshot (a few ms on the main thread) and kept per source key.
+  const reportFight = useMemo<ReportFightState>(() => {
+    if (reportSource.kind === 'played') return lastFight === null ? NO_REPORT_FIGHT : { status: 'ready', fight: fightFromLast(lastFight) };
+    if (lastSimulation === null) return { status: 'unavailable', reason: 'No simulation yet: run the simulator to see its key fights.' };
+    const which = reportSource.which;
+    const keyFight = lastSimulation.result.keyFights?.[which];
+    if (keyFight === undefined) return { status: 'unavailable', reason: 'This result has no key fights: run the simulation again.' };
+    const key = `sim:${lastSimulation.id}:${which}`;
+    const hit = replays.current.get(key);
+    if (hit !== undefined) return { status: 'ready', fight: hit };
+    const simConfig = lastSimulation.config;
+    const needsDb = simConfig.gear !== undefined && gearNeedsDb(simConfig.gear);
+    if (needsDb && db === null) {
+      return dbStatus === 'error'
+        ? { status: 'error', message: 'The item database could not load, and this fight’s gear needs it.' }
+        : { status: 'loading', reason: 'Loading the item database for this fight’s gear…' };
+    }
+    try {
+      const fight = replaySimFight(lastSimulation, keyFight.run, SIM_KIND[which], key, needsDb ? db : null);
+      replays.current.set(key, fight);
+      return { status: 'ready', fight };
+    } catch (error) {
+      return { status: 'error', message: `This fight could not be replayed: ${error instanceof Error ? error.message : String(error)}` };
+    }
+  }, [reportSource, lastFight, lastSimulation, db, dbStatus]);
+  // A replay waiting for the item database asks for it.
+  const replayWantsDb = reportFight.status === 'loading';
+  useEffect(() => {
+    if (replayWantsDb) requestDb();
+  }, [replayWantsDb, requestDb]);
   const [lastComparison, setLastComparison] = useState<LastComparison | null>(null);
   const recordComparison = useCallback((comparison: LastComparison) => setLastComparison(comparison), []);
   const [flash, setFlash] = useState<SlotFlash | null>(null);
@@ -640,6 +733,7 @@ export function TrainerProvider({
       recordSimulation,
       changeScenarios,
       recordComparison,
+      setReportSource,
     }),
     [
       changeConfig,
@@ -675,8 +769,27 @@ export function TrainerProvider({
       lastFight,
       lastSimulation,
       lastComparison,
+      reportSource,
+      reportFight,
     }),
-    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner, compareRunner, lastFight, lastSimulation, lastComparison],
+    [
+      phase,
+      paused,
+      labels,
+      fightLabels,
+      pending,
+      anyPending,
+      talentsPending,
+      identity,
+      store,
+      simRunner,
+      compareRunner,
+      lastFight,
+      lastSimulation,
+      lastComparison,
+      reportSource,
+      reportFight,
+    ],
   );
   const trainer = useMemo<TrainerValue>(() => ({ state, actions, meta }), [state, actions, meta]);
   const frame = useMemo<FightFrame>(
