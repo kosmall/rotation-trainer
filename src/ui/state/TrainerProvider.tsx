@@ -18,7 +18,7 @@ import type { AppliedSetup, SetupConfig } from '../../setup/types';
 import type { ScenarioEntry } from '../../scenarios/library';
 import type { SimRunner } from '../../sim-runner/client';
 import type { CompareResult, SimRequest, SimResult } from '../../sim-runner/types';
-import { fightFromLast, replaySimFight, SIM_KIND } from '../report/reportModel';
+import { fightFromInput, fightFromLast, replaySimFight, SIM_KIND } from '../report/reportModel';
 import type { KeyFightWhich, ReportFight } from '../report/reportModel';
 import { REJECT_LABELS } from '../fight/slotFlash';
 import type { SlotFlash } from '../fight/slotFlash';
@@ -32,6 +32,8 @@ import { loadHudSettings, normalizeHudSettings, saveHudSettings } from '../hudSe
 import type { HudSettings, HudStorage } from '../hudSettings';
 import { useSimulation } from '../useSimulation';
 import type { UiStorage } from '../theme/theme';
+import { loadHistory, recordPlayed, recordSimulation as recordSimulationInHistory, removeHistoryEntry, saveHistory, updateHistoryEntry } from './history';
+import type { HistoryEntry, HistoryPatch } from './history';
 import {
   fightSettingsName,
   gearName,
@@ -260,14 +262,36 @@ export interface TrainerActions {
   recordComparison(comparison: LastComparison): void;
   /** Picks the fight the Report shows (`meta.reportSource`, `meta.reportFight`). */
   setReportSource(source: ReportSourceId): void;
+  /** Shows a history entry's fight in the Report (the source `{ kind: 'history', id }`). */
+  openHistoryFight(id: string): void;
+  /**
+   * "Use this setup": the history entry's setup snapshot becomes the current setup (normalized and
+   * saved like any edit, `changeConfig`). False for an unknown id.
+   */
+  useSnapshotAsSetup(id: string): boolean;
+  /** Names, notes or pins a history entry (and saves the history). */
+  updateHistoryEntry(id: string, patch: HistoryPatch): void;
+  /** Removes a history entry (and saves the history). */
+  removeHistoryEntry(id: string): void;
 }
 
 /**
- * Which fight the Report shows (spec §2 A): the last played fight, or one of the last simulation's
- * key fights (`SimResult.keyFights`: highest DPS, typical, lowest DPS). A fight that ends switches
- * back to the played fight.
+ * The fight history (`rotation-trainer:history:v1`, src/ui/state/history.ts): loaded once at mount,
+ * newest first; every ended fight and every simulation's key fights are added. `saved`: whether the
+ * last change reached the storage ('memory': no storage was given; 'failed': the storage refused
+ * it, full or blocked: shown to the user, the history lives until the page reloads).
  */
-export type ReportSourceId = { kind: 'played' } | { kind: 'sim'; which: KeyFightWhich };
+export interface FightHistory {
+  entries: readonly HistoryEntry[];
+  saved: 'yes' | 'memory' | 'failed';
+}
+
+/**
+ * Which fight the Report shows (spec §2 A, E): the last played fight, one of the last simulation's
+ * key fights (`SimResult.keyFights`: highest DPS, typical, lowest DPS), or a history entry. A
+ * fight that ends switches back to the played fight.
+ */
+export type ReportSourceId = { kind: 'played' } | { kind: 'sim'; which: KeyFightWhich } | { kind: 'history'; id: string };
 
 /**
  * The selected source's fight (`meta.reportFight`): 'ready' with the fight; 'none' before any
@@ -357,6 +381,8 @@ export interface TrainerMeta {
   reportSource: ReportSourceId;
   /** The source's fight, replayed on demand and memoized per source. */
   reportFight: ReportFightState;
+  /** The fight history (played fights and simulations' key fights). */
+  history: FightHistory;
 }
 
 export interface TrainerValue {
@@ -610,20 +636,93 @@ export function TrainerProvider({
   const anyPending = started && JSON.stringify(fight.config) !== JSON.stringify(config);
   const talentsPending = started && setupTalents(fight.config) !== talents;
   const pending = useMemo(() => (anyPending ? pendingSections(fight.config, config) : NO_PENDING), [anyPending, fight.config, config]);
+  // The fight history: loaded once, every change saved (a refusal is shown, never silent).
+  const [history, setHistory] = useState<FightHistory>(() => ({ entries: loadHistory(store), saved: store === null ? 'memory' : 'yes' }));
+  const historyRef = useRef<readonly HistoryEntry[]>(history.entries);
+  const commitHistory = useCallback(
+    (entries: readonly HistoryEntry[]) => {
+      if (entries === historyRef.current) return;
+      historyRef.current = entries;
+      setHistory({ entries, saved: store === null ? 'memory' : saveHistory(store, entries) ? 'yes' : 'failed' });
+    },
+    [store],
+  );
+  // Every ended fight goes into the history once, with the setup it was played with (its snapshot).
+  const recordedFight = useRef<LastFight | null>(null);
+  useEffect(() => {
+    if (lastFight === null || recordedFight.current === lastFight) return;
+    recordedFight.current = lastFight;
+    const { log, snapshot, config: played, seed: fightSeed } = lastFight;
+    commitHistory(recordPlayed(historyRef.current, { log, final: snapshot, config: played, seed: fightSeed, durationMs: snapshot.durationMs }, Date.now()).entries);
+  }, [lastFight, commitHistory]);
+  const updateEntry = useCallback((id: string, patch: HistoryPatch) => commitHistory(updateHistoryEntry(historyRef.current, id, patch)), [commitHistory]);
+  const removeEntry = useCallback((id: string) => commitHistory(removeHistoryEntry(historyRef.current, id)), [commitHistory]);
+  const openHistoryFight = useCallback((id: string) => setReportSource({ kind: 'history', id }), []);
+  const useSnapshotAsSetup = useCallback(
+    (id: string) => {
+      const entry = historyRef.current.find((e) => e.id === id);
+      if (entry === undefined) return false;
+      changeConfig(entry.config);
+      return true;
+    },
+    [changeConfig],
+  );
+
   const [lastSimulation, setLastSimulation] = useState<LastSimulation | null>(null);
   const simulationCount = useRef(0);
   /** Replayed fights by source key (the current simulation's key fights). */
   const replays = useRef(new Map<string, ReportFight>());
-  const recordSimulation = useCallback((result: SimResult, simConfig: SetupConfig) => {
-    replays.current.clear();
-    simulationCount.current += 1;
-    setLastSimulation({ id: simulationCount.current, result, config: simConfig });
-  }, []);
+  /** History fights by entry (a renamed or pinned entry is a new object: built again). */
+  const historyFights = useRef(new WeakMap<HistoryEntry, ReportFight>());
+  const recordSimulation = useCallback(
+    (result: SimResult, simConfig: SetupConfig) => {
+      replays.current.clear();
+      simulationCount.current += 1;
+      setLastSimulation({ id: simulationCount.current, result, config: simConfig });
+      commitHistory(recordSimulationInHistory(historyRef.current, { result, config: simConfig }, Date.now()));
+    },
+    [commitHistory],
+  );
   const dbStatus = itemDb.status;
   // The Report's fight: the played one as is, a key fight replayed once from the simulation's
   // setup snapshot (a few ms on the main thread) and kept per source key.
   const reportFight = useMemo<ReportFightState>(() => {
     if (reportSource.kind === 'played') return lastFight === null ? NO_REPORT_FIGHT : { status: 'ready', fight: fightFromLast(lastFight) };
+    if (reportSource.kind === 'history') {
+      const entry = history.entries.find((e) => e.id === reportSource.id);
+      if (entry === undefined) return { status: 'unavailable', reason: 'This fight is no longer in the history.' };
+      const hit = historyFights.current.get(entry);
+      if (hit !== undefined) return { status: 'ready', fight: hit };
+      const needsDb = entry.config.gear !== undefined && gearNeedsDb(entry.config.gear);
+      if (needsDb && db === null) {
+        return dbStatus === 'error'
+          ? { status: 'error', message: 'The item database could not load, and this fight’s gear needs it.' }
+          : { status: 'loading', reason: 'Loading the item database for this fight’s gear…' };
+      }
+      const key = `history:${entry.id}`;
+      try {
+        const fight =
+          entry.kind === 'played'
+            ? fightFromInput(
+                { key, kind: 'played', log: entry.log, config: entry.config, seed: entry.seed, durationMs: entry.durationMs, final: entry.final },
+                fightOfConfig(entry.config, needsDb ? db : null, buildSpec),
+              )
+            : replaySimFight(
+                {
+                  result: { runs: entry.runs, seed: entry.baseSeed, spellQueueWindowMs: entry.spellQueueWindowMs, meanDps: entry.meanDps, stdDev: entry.stdDev },
+                  config: entry.config,
+                },
+                entry.run,
+                entry.kind,
+                key,
+                needsDb ? db : null,
+              );
+        historyFights.current.set(entry, fight);
+        return { status: 'ready', fight };
+      } catch (error) {
+        return { status: 'error', message: `This fight could not be replayed: ${error instanceof Error ? error.message : String(error)}` };
+      }
+    }
     if (lastSimulation === null) return { status: 'unavailable', reason: 'No simulation yet: run the simulator to see its key fights.' };
     const which = reportSource.which;
     const keyFight = lastSimulation.result.keyFights?.[which];
@@ -645,7 +744,7 @@ export function TrainerProvider({
     } catch (error) {
       return { status: 'error', message: `This fight could not be replayed: ${error instanceof Error ? error.message : String(error)}` };
     }
-  }, [reportSource, lastFight, lastSimulation, db, dbStatus]);
+  }, [reportSource, lastFight, lastSimulation, history.entries, db, dbStatus, buildSpec]);
   // A replay waiting for the item database asks for it.
   const replayWantsDb = reportFight.status === 'loading';
   useEffect(() => {
@@ -734,6 +833,10 @@ export function TrainerProvider({
       changeScenarios,
       recordComparison,
       setReportSource,
+      openHistoryFight,
+      useSnapshotAsSetup,
+      updateHistoryEntry: updateEntry,
+      removeHistoryEntry: removeEntry,
     }),
     [
       changeConfig,
@@ -751,6 +854,10 @@ export function TrainerProvider({
       recordSimulation,
       changeScenarios,
       recordComparison,
+      openHistoryFight,
+      useSnapshotAsSetup,
+      updateEntry,
+      removeEntry,
     ],
   );
   const meta = useMemo<TrainerMeta>(
@@ -771,6 +878,7 @@ export function TrainerProvider({
       lastComparison,
       reportSource,
       reportFight,
+      history,
     }),
     [
       phase,
@@ -789,6 +897,7 @@ export function TrainerProvider({
       lastComparison,
       reportSource,
       reportFight,
+      history,
     ],
   );
   const trainer = useMemo<TrainerValue>(() => ({ state, actions, meta }), [state, actions, meta]);
