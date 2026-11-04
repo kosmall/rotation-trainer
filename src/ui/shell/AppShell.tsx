@@ -11,13 +11,13 @@ import { TabBar } from './TabBar';
 import './shell.css';
 
 // Setup and Report load on first visit; the Fight (the first screen) is in the main bundle.
-const SetupPlaceholder = lazy(() => import('./PlaceholderViews').then((m) => ({ default: m.SetupPlaceholder })));
+const SetupView = lazy(() => import('../setup/SetupView').then((m) => ({ default: m.SetupView })));
 const ReportView = lazy(() => import('../report/ReportView').then((m) => ({ default: m.ReportView })));
 
 function View({ route }: { route: Route }) {
   switch (route.mode) {
     case 'setup':
-      return <SetupPlaceholder section={route.section} />;
+      return <SetupView section={route.section} />;
     case 'report':
       return <ReportView tab={route.tab} />;
     default:

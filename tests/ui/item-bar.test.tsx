@@ -89,7 +89,7 @@ describe('Item bar', () => {
     expect(spellRow.querySelectorAll('.fv-slot')).toHaveLength(12);
 
     // Enabled in another order than the catalog's (on the Setup screen); ticking the Icon adds no slot.
-    goTo('#/setup/buffs');
+    goTo('#/setup/items');
     await settle();
     for (const name of [DR, DP, SMP]) fireEvent.click(checkbox(name));
     fireEvent.click(autoUse(ICON));
@@ -112,14 +112,14 @@ describe('Item bar', () => {
     expect(within(screen.getByRole('toolbar', { name: 'Action bar' })).queryByRole('button', { name: new RegExp(`^${DP}`) })).toBeNull();
 
     // Only the bound slots: two items take Z and X, no empty slot is shown.
-    goTo('#/setup/buffs');
+    goTo('#/setup/items');
     await settle();
     fireEvent.click(checkbox(DP));
     fireEvent.click(checkbox(SMP));
     goTo('#/fight');
     expect(itemButtons().map((b) => b.getAttribute('aria-label'))).toEqual([`${ICON} (Z)`, `${DR} (X)`]);
     // Unticking the Icon keeps it on the row (only the bot stops using it).
-    goTo('#/setup/buffs');
+    goTo('#/setup/items');
     await settle();
     fireEvent.click(autoUse(ICON));
     goTo('#/fight');

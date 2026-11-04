@@ -1,9 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { UNMODELLED_SETS } from '../data/classes/warlock/sets';
-import type { SpecData } from '../data/types';
-import { activeSetBonuses } from '../engine/sets';
-import { computeStats } from '../engine/stats';
-import type { RawStats, SimSnapshot, SpellDef, SpellModifier } from '../engine/types';
+import type { SimSnapshot } from '../engine/types';
 import { setupGear } from '../setup/gear';
 import { SETUP_PRESETS } from '../setup/presets';
 import type { SetupConfig } from '../setup/types';
@@ -24,6 +21,7 @@ import { SimulatorPanel } from './SimulatorPanel';
 import { EndCard } from './fight/EndCard';
 import { DPS_NOTE_NO_BUFFS, DPS_NOTE_WITH_BUFFS, dpsNoteText, playedWithTags } from './fight/fightView';
 import { useFightHotkeys } from './fight/useFightHotkeys';
+import { CharacterStats } from './setup/SummaryAside';
 import { GEAR_PRESETS_OFFERED, TALENT_PRESETS_OFFERED } from './state/selectors';
 import { TrainerProvider, useFightFrame, useTrainer } from './state/TrainerProvider';
 import type { TrainerProviderProps } from './state/TrainerProvider';
@@ -251,70 +249,5 @@ function FightStats({ snapshot, config, presetName, gearName, talentsName }: Fig
       </dl>
       <DpsNote config={config} presetName={presetName} gearName={gearName} talentsName={talentsName} />
     </div>
-  );
-}
-
-/** Crit chance added by the modifiers that match `spell` (id and school), or that match every spell when it is undefined. */
-function critDelta(modifiers: readonly SpellModifier[], spell?: SpellDef): number {
-  let sum = 0;
-  for (const m of modifiers) {
-    const matches = spell
-      ? (m.spellIds === undefined || m.spellIds.includes(spell.id)) &&
-        (m.schools === undefined || m.schools.includes(spell.school))
-      : m.spellIds === undefined && m.schools === undefined;
-    if (matches) sum += m.critPctDelta ?? 0;
-  }
-  return sum;
-}
-
-const pct = (n: number) => `${n.toFixed(2)}%`;
-
-/**
- * The character at the pull of the next fight, as the Simulation builds it (spec stat bonuses,
- * active set bonuses, multipliers; timed buffs not counted). Crit includes the crit modifiers
- * (Moonkin Aura, Totem of Wrath, talents), which `computeStats` leaves out but the Simulation
- * adds to every roll: "Spell crit" those for every spell (a character sheet's value), "Shadow
- * Bolt crit" those that match Shadow Bolt too (Devastation).
- */
-function CharacterStats({ spec }: { spec: SpecData }) {
-  const view = useMemo(() => {
-    const sets = activeSetBonuses(spec.sets, spec.setup.setPieces);
-    const bonuses: Partial<RawStats> = {};
-    for (const b of [spec.statBonuses, ...sets.map((s) => s.statBonuses ?? {})]) {
-      for (const key of Object.keys(b) as (keyof RawStats)[]) bonuses[key] = (bonuses[key] ?? 0) + (b[key] ?? 0);
-    }
-    const stats = computeStats(spec.setup, bonuses);
-    const modifiers = [...spec.modifiers, ...spec.setup.modifiers, ...sets.flatMap((s) => s.modifiers ?? [])];
-    const bolt = spec.spells.find((s) => s.id === 'shadow-bolt');
-    return {
-      stats,
-      spellCrit: stats.critPct + critDelta(modifiers),
-      boltCrit: bolt ? stats.critPct + critDelta(modifiers, bolt) : null,
-    };
-  }, [spec]);
-  const { stats } = view;
-  const rows: [string, string][] = [
-    ['Shadow power', formatInt(stats.power.shadow)],
-    ['Fire power', formatInt(stats.power.fire)],
-    ['Spell crit', pct(view.spellCrit)],
-    ...(view.boltCrit === null ? [] : ([['Shadow Bolt crit', pct(view.boltCrit)]] as [string, string][])),
-    ['Spell hit', pct(stats.hitPct)],
-    ['Spell haste', pct(stats.hastePct)],
-    ['Max mana', formatInt(stats.maxMana)],
-    ['Mana regen (mp5)', formatInt(stats.mp5RegenPerSec * 5)],
-  ];
-  return (
-    <section className="panel char-stats" aria-label="Stats at the pull">
-      <h3>Stats at the pull</h3>
-      <dl>
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd aria-label={label}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="hint">Next fight, before timed buffs. Crit includes the crit modifiers the fight rolls with.</p>
-    </section>
   );
 }

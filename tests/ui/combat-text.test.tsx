@@ -158,16 +158,11 @@ function boltThenLifeTap() {
   advance(50);
 }
 
-/**
- * Opens the "Combat text" panel. A browser fires `toggle` after the click (as a task); jsdom's
- * comes later than the test, so it is fired here: the panel renders its body once open.
- */
-function openCombatText(): HTMLDetailsElement {
-  const summary = screen.getByText('Combat text', { selector: 'summary' });
-  const details = summary.closest('details') as HTMLDetailsElement;
-  fireEvent.click(summary);
-  fireEvent(details, new Event('toggle'));
-  return details;
+/** Opens Setup, Combat text (the lazy Setup view settles); returns the settings card. */
+async function openCombatText(): Promise<HTMLElement> {
+  goTo('#/setup/combat-text');
+  await settle();
+  return screen.getByRole('group', { name: 'Combat text settings' });
 }
 
 async function readFightCss(): Promise<string> {
@@ -291,7 +286,6 @@ describe('Combat text HUD: texts in the fight', () => {
     // first key back on the Fight screen resumes it): the cap is what limits the texts now.
     goTo('#/setup/combat-text');
     await settle();
-    openCombatText();
     const duration = screen.getByLabelText('Text duration (ms)');
     fireEvent.change(duration, { target: { value: '4000' } });
     fireEvent.blur(duration);
@@ -382,7 +376,6 @@ describe('Combat text HUD: texts in the fight', () => {
     // Change the setup (fight length) while ready, on the Setup screen: the fight is rebuilt at once.
     goTo('#/setup/fight');
     await settle();
-    fireEvent.click(within(document.querySelector('.legacy-setup') as HTMLElement).getByText('Setup'));
     const length = screen.getByLabelText('Fight length (s)');
     fireEvent.change(length, { target: { value: '90' } });
     fireEvent.blur(length);
@@ -657,20 +650,20 @@ describe('Combat text settings panel', () => {
     ['Low mana below (%)', 'lowManaPct', 5, 80],
   ];
 
-  it('is a collapsible panel in the side column next to Setup and Gear', () => {
-    render(<GameView storage={memoryStorage().storage} />);
-    expect(screen.queryByLabelText('Damage')).toBeNull(); // collapsed: no controls rendered
-    const details = open();
-    expect(screen.getByLabelText('Damage')).toBeTruthy();
-    expect(details.classList.contains('panel')).toBe(true);
-    expect(details.closest('.game-side')).not.toBeNull();
-    expect(details.open).toBe(true);
+  it('is the Setup screen\'s Interface, Combat text section (no settings form on the Fight screen)', async () => {
+    renderApp({ route: '#/fight', storage: memoryStorage().storage });
+    expect(screen.queryByLabelText('Damage')).toBeNull(); // the Fight screen has only the dock's quick switch
+    const card = await open();
+    expect(within(card).getByLabelText('Damage')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Combat text');
+    const link = within(screen.getByRole('navigation', { name: 'Setup sections' })).getByRole('link', { name: /^Combat text/ });
+    expect(link.getAttribute('aria-current')).toBe('page');
   });
 
-  it('every checkbox switches its setting, shown and saved', () => {
+  it('every checkbox switches its setting, shown and saved', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
-    open();
+    renderApp({ storage });
+    await open();
     for (const [label, key] of CHECKBOXES) {
       const box = screen.getByLabelText(label) as HTMLInputElement;
       expect(box.checked, label).toBe(DEFAULT_HUD_SETTINGS[key]);
@@ -680,21 +673,22 @@ describe('Combat text settings panel', () => {
     }
   });
 
-  it('the animation select offers Straight and Parabola and is saved', () => {
+  it('the animation select offers Straight and Parabola and is saved', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
-    open();
+    renderApp({ storage });
+    await open();
     const select = screen.getByLabelText('Animation') as HTMLSelectElement;
     expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Straight up', 'Parabola']);
     fireEvent.change(select, { target: { value: 'parabola' } });
     expect(storedHud(map).animation).toBe('parabola');
+    goTo('#/fight');
     expect(hudRoot()!.classList.contains('hud-parabola')).toBe(true);
   });
 
-  it('number inputs take values in range at once and clamp on blur', () => {
+  it('number inputs take values in range at once and clamp on blur', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
-    open();
+    renderApp({ storage });
+    await open();
     for (const [label, key, min, max] of NUMBERS) {
       const input = screen.getByLabelText(label) as HTMLInputElement;
       expect(Number(input.value), label).toBe(DEFAULT_HUD_SETTINGS[key]);
@@ -716,10 +710,10 @@ describe('Combat text settings panel', () => {
     }
   });
 
-  it('Reset to defaults restores every setting', () => {
+  it('Reset to defaults restores every setting', async () => {
     const { storage, map } = memoryStorage({}, { fontPx: 30, crits: false, animation: 'parabola' });
-    render(<GameView storage={storage} />);
-    const details = open();
+    renderApp({ storage });
+    const details = await open();
     expect((screen.getByLabelText('Font size (px)') as HTMLInputElement).value).toBe('30');
     fireEvent.click(within(details).getByRole('button', { name: 'Reset combat text to defaults' }));
     expect(storedHud(map)).toEqual(DEFAULT_HUD_SETTINGS);
@@ -728,25 +722,25 @@ describe('Combat text settings panel', () => {
     expect((screen.getByLabelText('Animation') as HTMLSelectElement).value).toBe('straight');
   });
 
-  it('settings are saved and restored on the next mount (their own key, not the setup)', () => {
+  it('settings are saved and restored on the next mount (their own key, not the setup)', async () => {
     const { storage, map } = memoryStorage();
     const setupBefore = map.get(SETUP_STORAGE_KEY);
-    const first = render(<GameView storage={storage} />);
-    open();
+    const first = renderApp({ storage });
+    await open();
     fireEvent.click(screen.getByLabelText('Misses'));
     fireEvent.change(screen.getByLabelText('Most texts at once'), { target: { value: '9' } });
     first.unmount();
     expect(map.get(SETUP_STORAGE_KEY)).toBe(setupBefore);
-    render(<GameView storage={storage} />);
-    open();
+    renderApp({ storage });
+    await open();
     expect((screen.getByLabelText('Misses') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Most texts at once') as HTMLInputElement).value).toBe('9');
   });
 
-  it('corrupt stored settings fall back to defaults; a throwing storage still works', () => {
+  it('corrupt stored settings fall back to defaults; a throwing storage still works', async () => {
     const corrupt = memoryStorage({}, '{"fontPx": "huge", "enabled": 7, "__proto__": {"enabled": false}');
-    render(<GameView storage={corrupt.storage} />);
-    open();
+    renderApp({ storage: corrupt.storage });
+    await open();
     expect((screen.getByLabelText('Font size (px)') as HTMLInputElement).value).toBe('16');
     expect((screen.getByLabelText('Show combat text') as HTMLInputElement).checked).toBe(true);
     cleanup();
@@ -762,46 +756,50 @@ describe('Combat text settings panel', () => {
         throw new Error('denied');
       },
     };
-    render(<GameView storage={throwing} />);
-    open();
+    renderApp({ storage: throwing });
+    await open();
     fireEvent.click(screen.getByLabelText('Damage'));
     expect((screen.getByLabelText('Damage') as HTMLInputElement).checked).toBe(false);
+    goTo('#/fight');
     boltThenLifeTap();
     expect(textOf(/Mana$/)).toBeTruthy();
   });
 
-  it('typing in the settings inputs never triggers hotkeys', () => {
-    render(<GameView storage={memoryStorage().storage} />);
-    open();
+  it('typing in the settings inputs never triggers hotkeys (the fight keys belong to the Fight screen)', async () => {
+    renderApp({ storage: memoryStorage().storage });
+    await open();
     const input = screen.getByLabelText('Font size (px)');
     const select = screen.getByLabelText('Animation');
-    for (const target of [input, select]) {
+    const box = screen.getByLabelText('Misses');
+    for (const target of [input, select, box]) {
       target.focus();
       for (const key of ['1', '6', ' ', 'z', 'r', 'Escape']) press(key, target);
     }
+    goTo('#/fight');
     expect(castBar()).toBeNull();
     expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
-    // A checkbox keeps only Space and Enter (ruling S5): 1 still casts.
-    const box = screen.getByLabelText('Misses');
-    press(' ', box);
-    expect(screen.getByRole('button', { name: /^start the fight$/i })).toBeTruthy();
-    press('1', box);
+    // On the Fight screen the keys work again.
+    press('1');
     expect(castBar()).not.toBeNull();
   });
 
-  it('works while a fight is running: a change applies to the next texts', () => {
+  it('works while a fight is running: a change applies to the next texts', async () => {
     const { storage } = memoryStorage({}, {});
-    render(<GameView storage={storage} buildSpec={NEVER_CRIT} />);
+    renderApp({ storage, buildSpec: NEVER_CRIT });
     press('1');
     advance(1000);
-    open();
+    await open(); // the fight pauses while the Setup screen is shown
     fireEvent.click(screen.getByLabelText('Spell names'));
     fireEvent.change(screen.getByLabelText('Font size (px)'), { target: { value: '20' } });
+    goTo('#/fight');
+    press(' '); // resumes from the same fight time
     advance(3000); // the bolt lands at about 3.83 s
     const hit = texts('outgoing')[0]!;
     expect(hit.textContent).toMatch(/^Shadow Bolt \d{1,3}(,\d{3})*$/);
     expect(fontPx(hit)).toBe(20);
+    await open();
     fireEvent.click(screen.getByLabelText('Show combat text'));
+    goTo('#/fight');
     expect(hudRoot()).toBeNull();
     expect(within(screen.getByRole('toolbar', { name: 'Action bar' })).getAllByRole('button').length).toBeGreaterThan(0);
   });

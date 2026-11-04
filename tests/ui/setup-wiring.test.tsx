@@ -6,6 +6,7 @@ import { SETUP_STORAGE_KEY } from '../../src/setup/storage';
 import type { SetupStorage } from '../../src/setup/storage';
 import type { SetupConfig } from '../../src/setup/types';
 import { GameView } from '../../src/ui/GameView';
+import { goTo, renderApp } from './renderApp';
 import { TargetPanel } from '../../src/ui/TargetPanel';
 import { applySetup } from '../../src/setup/applySetup';
 import { buildDestructionWarlock } from '../../src/data/classes/warlock/destruction';
@@ -24,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.location.hash = '';
 });
 
 function advance(ms: number) {
@@ -87,17 +89,60 @@ function upcomingTexts(): string[] {
 /** "27.34%" -> 27.34 */
 const statValue = (label: string) => Number((screen.getByLabelText(label).textContent ?? '').replace(/[^0-9.]/g, ''));
 
+/** Lets the lazy Setup view's import settle. */
+async function settle() {
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
+}
+/** Opens a Setup section (a running fight pauses while the Setup screen is shown). */
+async function setupAt(section: string) {
+  goTo(`#/setup/${section}`);
+  await settle();
+}
+/** Back to the Fight screen; a fight paused by leaving it resumes (Space, as the Paused card says). */
+function fightAgain() {
+  goTo('#/fight');
+  if (screen.queryByRole('region', { name: 'Paused' })) press(' ');
+}
+const elapsed = () => screen.getByLabelText('Elapsed').textContent;
+/** The "Setup" chip of the header ("Setup None"). */
+const setupChip = () => within(screen.getByRole('list', { name: 'Next fight' })).getByRole('link', { name: /^Setup/ }).textContent;
+/** The section header's pending note (null when none). */
+const pendingNote = () => document.querySelector('.sv .note.pending[role="status"]')?.textContent ?? null;
+/** An entry of "Your buffs" (Fight screen) by its name: the icon's label "<name>, 15 seconds left". */
+function fightBuff(name: string): HTMLElement | undefined {
+  const panel = screen.getByRole('region', { name: 'Your buffs' });
+  const list = within(panel).queryByRole('list', { name: 'Active buffs' });
+  if (!list) return undefined;
+  return within(list)
+    .queryAllByRole('listitem')
+    .find((li) => li.getAttribute('aria-label')?.startsWith(`${name}, `));
+}
+/** A debuff on the target (Fight screen) by its name: "Misery, 60s left". */
+function targetDebuff(name: string): HTMLElement | undefined {
+  const list = screen.queryByRole('list', { name: 'Debuffs on the target' });
+  if (!list) return undefined;
+  return within(list)
+    .queryAllByRole('listitem')
+    .find((li) => li.getAttribute('aria-label')?.startsWith(`${name}, `));
+}
+
 describe('Setup wiring', () => {
-  it('settings are saved on change and restored on the next mount', () => {
+  it('settings are saved on change and restored on the next mount', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/buffs', storage });
+    await settle();
     expect(storage.setItem).not.toHaveBeenCalled(); // loading never writes
 
     fireEvent.click(checkbox('Arcane Brilliance'));
     expect(stored(map).enabledBuffs).toEqual(['arcane-brilliance']);
+    await setupAt('fight');
     fireEvent.change(distanceInput(), { target: { value: '12' } });
     fireEvent.change(spin('Heroism / Bloodlust start (s)'), { target: { value: '6.4' } });
+    await setupAt('class');
     fireEvent.click(screen.getByRole('radio', { name: 'Demon Armor' }));
+    await setupAt('rotation');
     fireEvent.change(screen.getByRole('combobox', { name: 'Curse' }), { target: { value: 'doom' } });
     const saved = stored(map);
     expect(saved).toEqual(normalizeSetup(saved, SETUP_CATALOG)); // storage holds a normalized config
@@ -107,21 +152,28 @@ describe('Setup wiring', () => {
     expect(saved.rotation.curse).toBe('doom');
 
     cleanup();
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/buffs', storage });
+    await settle();
     expect(checkbox('Arcane Brilliance').checked).toBe(true);
+    expect(screen.getByLabelText('Active preset').textContent).toBe('Custom');
+    await setupAt('fight');
     expect(distanceInput().value).toBe('12');
     expect(spin('Heroism / Bloodlust start (s)').value).toBe('6.4');
+    await setupAt('class');
     expect((screen.getByRole('radio', { name: 'Demon Armor' }) as HTMLInputElement).checked).toBe(true);
+    await setupAt('rotation');
     expect((screen.getByRole('combobox', { name: 'Curse' }) as HTMLSelectElement).value).toBe('doom');
-    expect(screen.getByLabelText('Active preset').textContent).toBe('Custom');
   });
 
-  it('corrupt stored data mounts with defaults and no crash', () => {
+  it('corrupt stored data mounts with defaults and no crash', async () => {
     for (const text of ['{not json', '"x"', 'null', '[]', '{"version":2}', 'x'.repeat(200_000)]) {
       const { storage } = memoryStorage({ [SETUP_STORAGE_KEY]: text });
-      render(<GameView storage={storage} />);
+      renderApp({ route: '#/setup/buffs', storage });
+      await settle();
       expect(screen.getByLabelText('Active preset').textContent).toBe('None');
+      await setupAt('fight');
       expect(distanceInput().value).toBe('28');
+      goTo('#/fight');
       expect(screen.getByText(NOTE_NO_BUFFS)).toBeTruthy();
       press('1');
       expect(castBar()).not.toBeNull();
@@ -137,34 +189,42 @@ describe('Setup wiring', () => {
       rotation: { curse: 'bogus', lifeTapBelowMana: -1 },
     });
     const { storage } = memoryStorage({ [SETUP_STORAGE_KEY]: partly });
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/buffs', storage });
+    await settle();
     expect(checkbox('Misery').checked).toBe(true);
+    await setupAt('fight');
     expect(distanceInput().value).toBe('100');
     expect(spin('Heroism / Bloodlust start (s)').value).toBe('0');
     expect(spin('Heroism / Bloodlust duration (s)').value).toBe('40');
+    await setupAt('rotation');
     expect((screen.getByRole('combobox', { name: 'Curse' }) as HTMLSelectElement).value).toBe('elements');
     expect(checkbox('Auto (Shadow Bolt cost)').checked).toBe(true);
+    goTo('#/fight');
     press('1');
     expect(castBar()).not.toBeNull();
   });
 
-  it('enabling Heroism with start 0 makes the first Shadow Bolt shorter (~1.87 s) in the next fight, while the running fight is unchanged until R', () => {
-    render(<GameView storage={null} />);
+  it('enabling Heroism with start 0 makes the first Shadow Bolt shorter (~1.87 s) in the next fight, while the running fight is unchanged until R', async () => {
+    renderApp({ route: '#/fight' });
     press('1'); // Shadow Bolt, 2431 ms without Heroism
     advance(500);
+    await setupAt('fight');
     fireEvent.click(checkbox('Heroism / Bloodlust'));
-    expect(screen.getByText(/applies from the next fight/i)).toBeTruthy();
+    expect(pendingNote()).toMatch(/applies after you reset the fight/i);
+    fightAgain();
 
     advance(1500); // 2000: a hasted bolt (1870) would be done
     expect(castBar()).not.toBeNull();
-    expect(selfBuff(HEROISM)).toBeUndefined();
+    expect(fightBuff(HEROISM)).toBeUndefined();
     advance(500); // 2500
     expect(castBar()).toBeNull();
 
     press('r');
-    expect(screen.queryByText(/applies from the next fight/i)).toBeNull();
+    await setupAt('fight');
+    expect(pendingNote()).toBeNull();
+    goTo('#/fight');
     press('1');
-    expect(selfBuff(HEROISM)).toBeDefined();
+    expect(fightBuff(HEROISM)).toBeDefined();
     // Frames come every 16 ms (fake requestAnimationFrame), so the checks keep a frame's margin.
     advance(1840);
     expect(castBar()).not.toBeNull();
@@ -172,9 +232,11 @@ describe('Setup wiring', () => {
     expect(castBar()).toBeNull();
   });
 
-  it('a setup changed before the first press applies to that fight at once', () => {
-    render(<GameView storage={null} />);
+  it('a setup changed before the first press applies to that fight at once', async () => {
+    renderApp({ route: '#/setup/fight' });
+    await settle();
     fireEvent.click(checkbox('Heroism / Bloodlust'));
+    goTo('#/fight');
     press('1'); // cast() starts the fight first, so Heroism (at 0) hastes this very cast
     advance(1840);
     expect(castBar()).not.toBeNull();
@@ -182,111 +244,128 @@ describe('Setup wiring', () => {
     expect(castBar()).toBeNull();
   });
 
-  it('storage unavailable (throws): the app still works and keeps settings in memory', () => {
+  it('storage unavailable (throws): the app still works and keeps settings in memory', async () => {
     const { storage } = memoryStorage({}, true);
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/buffs', storage });
+    await settle();
     fireEvent.click(checkbox('Arcane Brilliance'));
     expect(storage.setItem).toHaveBeenCalled();
     expect(checkbox('Arcane Brilliance').checked).toBe(true);
+    await setupAt('fight');
     fireEvent.change(distanceInput(), { target: { value: '0' } });
     expect(distanceInput().value).toBe('0');
+    goTo('#/fight');
     expect(screen.getByText(NOTE_WITH_BUFFS)).toBeTruthy();
 
     press('1');
     advance(2500); // at 0 yd the bolt lands at its cast end (2431)
     expect(Number(screen.getByLabelText('Total damage').textContent?.replace(/\D/g, ''))).toBeGreaterThan(0);
+    await setupAt('buffs');
     expect(checkbox('Arcane Brilliance').checked).toBe(true);
   });
 
-  it('the DPS note changes with the enabled buffs and the preset name is shown in the summary', () => {
-    render(<GameView storage={null} />);
+  it('the DPS note changes with the enabled buffs and the preset name is shown in the header and the summary', async () => {
+    renderApp({ route: '#/fight' });
     expect(screen.getByText(NOTE_NO_BUFFS)).toBeTruthy();
     expect(screen.queryByText(NOTE_WITH_BUFFS)).toBeNull();
-    expect(screen.getAllByText('Setup: None')).toHaveLength(1);
+    expect(setupChip()).toBe('Setup None');
 
     // Warlock options are not buffs: the note stays.
+    await setupAt('class');
     fireEvent.click(screen.getByRole('radio', { name: 'No armor' }));
+    expect(setupChip()).toBe('Setup Custom');
+    goTo('#/fight');
     expect(screen.getByText(NOTE_NO_BUFFS)).toBeTruthy();
-    expect(screen.getByText('Setup: Custom')).toBeTruthy();
+    await setupAt('buffs');
     fireEvent.click(screen.getByRole('button', { name: 'None' }));
-    expect(screen.getByText('Setup: None')).toBeTruthy();
+    expect(setupChip()).toBe('Setup None');
 
     fireEvent.click(checkbox('Misery'));
+    expect(setupChip()).toBe('Setup Custom');
+    goTo('#/fight');
     expect(screen.getByText(NOTE_WITH_BUFFS)).toBeTruthy();
     expect(screen.queryByText(NOTE_NO_BUFFS)).toBeNull();
-    expect(screen.getByText('Setup: Custom')).toBeTruthy();
 
     press('1');
     advance(61000);
-    const summary = screen.getByRole('region', { name: 'Fight summary' });
-    expect(within(summary).getByText(NOTE_WITH_BUFFS)).toBeTruthy();
-    expect(within(summary).getByText('Setup: Custom')).toBeTruthy();
+    const summary = () => screen.getByRole('region', { name: 'Fight summary' });
+    expect(within(summary()).getByText(NOTE_WITH_BUFFS)).toBeTruthy();
+    expect(within(summary()).getByText('Setup: Custom')).toBeTruthy();
 
     // The ended fight keeps its note and name; the next one shows the new setup.
+    await setupAt('buffs');
     fireEvent.click(checkbox('Misery'));
-    expect(within(summary).getByText(NOTE_WITH_BUFFS)).toBeTruthy();
-    expect(within(summary).getByText('Setup: Custom')).toBeTruthy();
+    goTo('#/fight');
+    expect(within(summary()).getByText(NOTE_WITH_BUFFS)).toBeTruthy();
+    expect(within(summary()).getByText('Setup: Custom')).toBeTruthy();
     press('r');
     expect(screen.getByText(NOTE_NO_BUFFS)).toBeTruthy();
-    expect(screen.getByText('Setup: None')).toBeTruthy();
+    expect(setupChip()).toBe('Setup None');
   });
 
-  it("keys typed into the panel's inputs do not cast", () => {
-    render(<GameView storage={null} />);
+  it("keys typed into the Setup screen's inputs do not cast (the fight keys belong to the Fight screen)", async () => {
+    renderApp({ route: '#/setup/rotation' });
+    await settle();
     fireEvent.click(checkbox('Auto (Shadow Bolt cost)')); // enables the Life Tap number
-    const inputs = () => [
-      spin('Heroism / Bloodlust start (s)'),
-      spin('Heroism / Bloodlust duration (s)'),
-      spin('Life Tap below mana'),
-      distanceInput(),
-    ];
-    for (const input of inputs()) {
-      for (const key of ['1', '6', ' ', 'r', 'Escape']) {
-        fireEvent.keyDown(input, { key });
-        expect(castBar(), `${key} in ${input.getAttribute('aria-label') ?? input.id}`).toBeNull();
-        expect(startOverlay()).not.toBeNull();
+    const typeInto = async () => {
+      await setupAt('rotation');
+      const inputs = [spin('Life Tap below mana')];
+      for (const input of inputs) for (const key of ['1', '6', ' ', 'r', 'Escape', '2']) fireEvent.keyDown(input, { key });
+      await setupAt('fight');
+      for (const input of [spin('Heroism / Bloodlust start (s)'), spin('Heroism / Bloodlust duration (s)'), distanceInput()]) {
+        for (const key of ['1', '6', ' ', 'r', 'Escape', '2']) fireEvent.keyDown(input, { key });
       }
-    }
+    };
+    await typeInto();
+    goTo('#/fight');
+    expect(castBar()).toBeNull();
+    expect(startOverlay()).not.toBeNull();
     // Space and Enter on a buff checkbox or an armor radio belong to it: they do not start the fight.
-    for (const toggle of [checkbox('Misery'), screen.getByRole('radio', { name: 'Fel Armor' })]) {
-      fireEvent.keyDown(toggle, { key: ' ' });
-      fireEvent.keyDown(toggle, { key: 'Enter' });
-      expect(startOverlay()).not.toBeNull();
-    }
+    await setupAt('buffs');
+    fireEvent.keyDown(checkbox('Misery'), { key: ' ' });
+    fireEvent.keyDown(checkbox('Misery'), { key: 'Enter' });
+    await setupAt('class');
+    const fel = screen.getByRole('radio', { name: 'Fel Armor' });
+    fireEvent.keyDown(fel, { key: ' ' });
+    fireEvent.keyDown(fel, { key: 'Enter' });
+    goTo('#/fight');
+    expect(startOverlay()).not.toBeNull();
 
-    // In a running fight, digits typed into a start field neither cast nor reset.
+    // In a running fight, digits typed into a Setup field neither cast nor reset.
     press('1');
     advance(500);
-    for (const input of inputs()) {
-      fireEvent.keyDown(input, { key: '2' });
-      fireEvent.keyDown(input, { key: 'r' });
-      expect(castBar()?.textContent).toContain('Shadow Bolt');
-      expect(screen.getByLabelText('Elapsed').textContent).toBe('0.5 / 60s');
-    }
+    await typeInto();
+    fightAgain();
+    expect(castBar()?.textContent).toContain('Shadow Bolt');
+    expect(elapsed()).toBe('0:00.5 / 1:00');
   });
 
-  it('target debuffs and timed buffs show their icons; a whole-fight debuff shows the time to the fight end, not an hour', () => {
-    render(<GameView storage={null} />);
+  it('target debuffs and timed buffs show their icons; a whole-fight debuff shows the time to the fight end, not an hour', async () => {
+    renderApp({ route: '#/setup/buffs' });
+    await settle();
     fireEvent.click(checkbox('Misery'));
+    await setupAt('fight');
     fireEvent.click(checkbox('Heroism / Bloodlust'));
+    goTo('#/fight');
     press('1');
     advance(100);
 
-    const misery = auraChip('Target debuffs', 'Misery');
+    const misery = targetDebuff('Misery');
     expect(misery?.querySelector('img')?.getAttribute('src')).toContain('/icons/spells/spell_shadow_misery.jpg');
-    expect(misery?.querySelector('.aura-time')?.textContent).toBe('60s'); // 59.9 s left in the fight
-    const heroism = selfBuff(HEROISM);
+    expect(misery?.getAttribute('aria-label')).toBe('Misery, 60s left'); // 59.9 s left in the fight
+    const heroism = fightBuff(HEROISM);
     expect(heroism?.querySelector('img')?.getAttribute('src')).toContain('/icons/spells/ability_shaman_heroism.jpg');
-    expect(heroism?.querySelector('.buff-time')?.textContent).toBe('40s');
+    expect(heroism?.querySelector('.fv-aura-time')?.textContent).toBe('40s');
 
     advance(30000); // 30.1 s: 29.9 s of the fight left
-    expect(auraChip('Target debuffs', 'Misery')?.querySelector('.aura-time')?.textContent).toBe('30s');
+    expect(targetDebuff('Misery')?.getAttribute('aria-label')).toBe('Misery, 30s left');
     advance(25000); // 55.1 s
-    expect(auraChip('Target debuffs', 'Misery')?.querySelector('.aura-time')?.textContent).toBe('5s');
+    expect(targetDebuff('Misery')?.getAttribute('aria-label')).toBe('Misery, 5.0s left');
   });
 
-  it('the shown crit includes the crit modifiers (Moonkin Aura, Totem of Wrath), as the simulation rolls it', () => {
-    render(<GameView storage={null} />);
+  it('the shown crit includes the crit modifiers (Moonkin Aura, Totem of Wrath), as the simulation rolls it', async () => {
+    renderApp({ route: '#/setup/buffs' });
+    await settle();
     const spellCrit = statValue('Spell crit');
     const boltCrit = statValue('Shadow Bolt crit');
     expect(boltCrit).toBeGreaterThan(spellCrit); // Devastation adds to destruction spells only
@@ -299,48 +378,60 @@ describe('Setup wiring', () => {
     expect(statValue('Shadow Bolt crit')).toBeCloseTo(boltCrit + 8 + 20 / CRIT_RATING_PER_PCT, 1);
   });
 
-  it('a running fight keeps the auras and icons of its own setup when the setup changes', () => {
-    render(<GameView storage={null} />);
+  it('a running fight keeps the auras and icons of its own setup when the setup changes', async () => {
+    renderApp({ route: '#/setup/buffs' });
+    await settle();
     fireEvent.click(checkbox('Misery'));
+    goTo('#/fight');
     press('1');
     advance(100);
+    await setupAt('buffs');
     fireEvent.click(checkbox('Misery')); // off for the next fight
+    fightAgain();
     advance(100);
-    const misery = auraChip('Target debuffs', 'Misery');
+    const misery = targetDebuff('Misery');
     expect(misery).toBeDefined();
     expect(misery?.querySelector('img')?.getAttribute('src')).toContain('spell_shadow_misery.jpg');
   });
 
-  it('the default stored setup equals DEFAULT_SETUP after a round trip through the panel', () => {
+  it('the default stored setup equals DEFAULT_SETUP after a round trip through the panel (Reset to Defaults, confirmed)', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/buffs', storage });
+    await settle();
     fireEvent.click(checkbox('Misery'));
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to Defaults…' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset to Defaults' }));
     expect(stored(map)).toEqual(DEFAULT_SETUP);
   });
 
-  it('Space on a focused setup button presses it and does not start the fight', () => {
-    render(<GameView storage={null} />);
-    const reset = screen.getByRole('button', { name: 'Reset to defaults' });
+  it('Space and digits on a focused Setup button never reach the fight (the fight keys belong to the Fight screen)', async () => {
+    renderApp({ route: '#/setup/buffs' });
+    await settle();
+    const reset = screen.getByRole('button', { name: 'Reset to Defaults…' });
     fireEvent.keyDown(reset, { key: ' ' });
+    fireEvent.keyDown(reset, { key: '1' });
+    goTo('#/fight');
     expect(startOverlay()).not.toBeNull();
-    fireEvent.keyDown(reset, { key: '1' }); // other hotkeys still reach the action bar
+    expect(castBar()).toBeNull();
+    press('1'); // on the Fight screen the keys work
     expect(castBar()).not.toBeNull();
   });
 
-  it('the pending-setup note follows the config: gone when an edit is undone, "finished" after the end', () => {
-    render(<GameView storage={null} />);
+  it('the pending-setup note follows the config: gone when an edit is undone, "last fight" after the end', async () => {
+    renderApp({ route: '#/fight' });
     press('1');
     advance(500);
-    const note = () => document.querySelector('.setup-pending')?.textContent ?? null;
-    expect(note()).toBeNull();
+    await setupAt('buffs');
+    expect(pendingNote()).toBeNull();
     fireEvent.click(checkbox('Misery'));
-    expect(note()).toMatch(/^The running fight keeps its setup/);
+    expect(pendingNote()).toMatch(/^Changed since the running fight started/);
     fireEvent.click(checkbox('Misery')); // back to what the fight uses
-    expect(note()).toBeNull();
+    expect(pendingNote()).toBeNull();
     fireEvent.click(checkbox('Misery'));
+    fightAgain();
     advance(61_000);
-    expect(note()).toMatch(/^The finished fight keeps its setup/);
+    await setupAt('buffs');
+    expect(pendingNote()).toMatch(/^Changed since the last fight/);
   });
 });
 
@@ -379,46 +470,44 @@ describe('Target debuffs: own aura under the raid one', () => {
 });
 
 describe('Fight length (item actions and fight settings, Task 3)', () => {
-  /** A stored setup, as GameView loads it at mount. */
+  /** A stored setup, as the trainer loads it at mount. */
   const storedSetup = (p: Partial<SetupConfig>) =>
     memoryStorage({ [SETUP_STORAGE_KEY]: JSON.stringify({ ...structuredClone(DEFAULT_SETUP), ...p }) }).storage;
-  const elapsed = () => screen.getByLabelText('Elapsed').textContent;
   const digits = (label: string, root: HTMLElement = document.body) =>
     Number(within(root).getByLabelText(label).textContent?.replace(/[^0-9.]/g, ''));
 
-  it('a 30 s fight: the label reads "/ 30s", the fight ends at 30 s and the summary DPS uses 30 s', () => {
-    render(<GameView storage={storedSetup({ fightDurationSec: 30 })} />);
-    expect(elapsed()).toBe('0.0 / 30s');
+  it('a 30 s fight: the clock reads "/ 0:30", the fight ends at 30 s and the summary DPS uses 30 s', () => {
+    renderApp({ route: '#/fight', storage: storedSetup({ fightDurationSec: 30 }) });
+    expect(elapsed()).toBe('0:00.0 / 0:30');
     press('1');
     advance(10_000);
-    expect(elapsed()).toBe('10.0 / 30s');
+    expect(elapsed()).toBe('0:10.0 / 0:30');
     advance(19_000);
     expect(screen.queryByRole('region', { name: 'Fight summary' })).toBeNull();
     advance(2_000);
     const summary = screen.getByRole('region', { name: 'Fight summary' });
     expect(within(summary).getByLabelText('Duration').textContent).toBe('30.0 s');
-    expect(elapsed()).toBe('30.0 / 30s');
+    expect(elapsed()).toBe('0:30.0 / 0:30');
     const damage = digits('Total damage', summary);
     expect(damage).toBeGreaterThan(0);
     expect(digits('DPS', summary)).toBeCloseTo(damage / 30, 0);
   });
 
   it('a 30 s fight with Heroism at 10 s: a Shadow Bolt started at 12 s is hasted', () => {
-    render(
-      <GameView
-        storage={storedSetup({
-          fightDurationSec: 30,
-          enabledBuffs: ['heroism'],
-          timed: { heroism: { startSec: 10, durationSec: 40 } },
-        })}
-      />,
-    );
+    renderApp({
+      route: '#/fight',
+      storage: storedSetup({
+        fightDurationSec: 30,
+        enabledBuffs: ['heroism'],
+        timed: { heroism: { startSec: 10, durationSec: 40 } },
+      }),
+    });
     press('1'); // 0: unhasted bolt, 2431 ms
     advance(2_500);
     expect(castBar()).toBeNull();
-    expect(selfBuff(HEROISM)).toBeUndefined();
+    expect(fightBuff(HEROISM)).toBeUndefined();
     advance(9_500); // 12 s
-    expect(selfBuff(HEROISM)).toBeDefined();
+    expect(fightBuff(HEROISM)).toBeDefined();
     press('1');
     advance(1_840);
     expect(castBar()).not.toBeNull();
@@ -426,77 +515,87 @@ describe('Fight length (item actions and fight settings, Task 3)', () => {
     expect(castBar()).toBeNull();
   });
 
-  it('a 30 s fight with Heroism at 45 s: it never applies, and the panel warns against the chosen length', () => {
-    render(
-      <GameView
-        storage={storedSetup({
-          fightDurationSec: 30,
-          enabledBuffs: ['heroism'],
-          timed: { heroism: { startSec: 45, durationSec: 40 } },
-        })}
-      />,
-    );
+  it('a 30 s fight with Heroism at 45 s: it never applies, and the Setup screen warns against the chosen length', async () => {
+    renderApp({
+      route: '#/setup/fight',
+      storage: storedSetup({
+        fightDurationSec: 30,
+        enabledBuffs: ['heroism'],
+        timed: { heroism: { startSec: 45, durationSec: 40 } },
+      }),
+    });
+    await settle();
     expect(screen.getByText('Starts after the fight ends (30 s): no effect.')).toBeTruthy();
+    goTo('#/fight');
     press('1');
     advance(26_000);
     press('1'); // 26 s: still unhasted
     advance(1_900);
     expect(castBar()).not.toBeNull();
-    expect(selfBuff(HEROISM)).toBeUndefined();
+    expect(fightBuff(HEROISM)).toBeUndefined();
     advance(3_000);
     expect(screen.getByRole('region', { name: 'Fight summary' })).toBeTruthy();
-    expect(selfBuff(HEROISM)).toBeUndefined();
+    expect(fightBuff(HEROISM)).toBeUndefined();
   });
 
-  it('changing the length in the panel applies to a not-started fight at once and after R to a running one; it is saved', () => {
+  it('changing the length on the Setup screen applies to a not-started fight at once and after R to a running one; it is saved', async () => {
     const { storage, map } = memoryStorage();
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/fight', storage });
+    await settle();
     const length = () => spin('Fight length (s)');
     fireEvent.change(length(), { target: { value: '30' } });
-    expect(elapsed()).toBe('0.0 / 30s'); // not started: at once
     expect(stored(map).fightDurationSec).toBe(30);
+    goTo('#/fight');
+    expect(elapsed()).toBe('0:00.0 / 0:30'); // not started: at once
 
     press('1');
     advance(1_000);
+    await setupAt('fight');
     fireEvent.change(length(), { target: { value: '45' } });
-    expect(elapsed()).toBe('1.0 / 30s'); // the running fight keeps its length
-    expect(document.querySelector('.setup-pending')?.textContent).toMatch(/^The running fight keeps its setup/);
+    expect(pendingNote()).toMatch(/^Changed since the running fight started/);
+    fightAgain();
+    expect(elapsed()).toBe('0:01.0 / 0:30'); // the running fight keeps its length
     advance(30_000);
     expect(within(screen.getByRole('region', { name: 'Fight summary' })).getByLabelText('Duration').textContent).toBe('30.0 s');
 
     press('r');
-    expect(elapsed()).toBe('0.0 / 45s');
+    expect(elapsed()).toBe('0:00.0 / 0:45');
     expect(stored(map).fightDurationSec).toBe(45);
 
     // Kept on the next mount.
     cleanup();
-    render(<GameView storage={storage} />);
+    renderApp({ route: '#/setup/fight', storage });
+    await settle();
     expect(length().value).toBe('45');
-    expect(elapsed()).toBe('0.0 / 45s');
+    goTo('#/fight');
+    expect(elapsed()).toBe('0:00.0 / 0:45');
   });
 
-  it('a length changed during a running fight: the Heroism warning uses the new length at once', () => {
-    render(
-      <GameView storage={storedSetup({ enabledBuffs: ['heroism'], timed: { heroism: { startSec: 40, durationSec: 40 } } })} />,
-    );
+  it('a length changed during a running fight: the Heroism warning uses the new length at once', async () => {
+    renderApp({ route: '#/setup/fight', storage: storedSetup({ enabledBuffs: ['heroism'], timed: { heroism: { startSec: 40, durationSec: 40 } } }) });
+    await settle();
     expect(screen.queryByText(/starts after the fight ends/i)).toBeNull(); // 40 s in a 60 s fight
+    goTo('#/fight');
     press('1');
     advance(500);
+    await setupAt('fight');
     fireEvent.change(spin('Fight length (s)'), { target: { value: '30' } });
     expect(screen.getByText('Starts after the fight ends (30 s): no effect.')).toBeTruthy();
-    expect(elapsed()).toBe('0.5 / 60s'); // the running fight is still 60 s long
+    goTo('#/fight');
+    expect(elapsed()).toBe('0:00.5 / 1:00'); // the running fight is still 60 s long
+    await setupAt('fight');
     fireEvent.change(spin('Fight length (s)'), { target: { value: '41' } });
     expect(screen.queryByText(/starts after the fight ends/i)).toBeNull();
   });
 
   it('a 120 s fight: runs past 60 s, mana regen ticks and a second Life Tap work, ends at 120 s', () => {
-    render(<GameView storage={storedSetup({ fightDurationSec: 120 })} />);
-    expect(elapsed()).toBe('0.0 / 120s');
+    renderApp({ route: '#/fight', storage: storedSetup({ fightDurationSec: 120 }) });
+    expect(elapsed()).toBe('0:00.0 / 2:00');
     const mana = () => Number(screen.getByRole('progressbar', { name: 'Mana' }).getAttribute('aria-valuenow'));
     press('1');
     advance(61_000);
     expect(screen.queryByRole('region', { name: 'Fight summary' })).toBeNull();
-    expect(elapsed()).toBe('61.0 / 120s');
+    expect(elapsed()).toBe('1:01.0 / 2:00');
     press('1'); // a Shadow Bolt spends mana
     advance(2_500);
     const afterBolt = mana();
@@ -514,10 +613,13 @@ describe('Fight length (item actions and fight settings, Task 3)', () => {
     advance(20_000);
     const summary = screen.getByRole('region', { name: 'Fight summary' });
     expect(within(summary).getByLabelText('Duration').textContent).toBe('120.0 s');
-    expect(elapsed()).toBe('120.0 / 120s');
+    expect(elapsed()).toBe('2:00.0 / 2:00');
   });
 });
 
+// The legacy "Your buffs" panel (PlayerBuffsPanel) of the legacy layout: it stays on GameView
+// until the redesign's Task 5 removes the legacy layout (the Fight screen's own "Your buffs" is
+// tested in tests/ui/fight; the setup edits here go through the legacy panel, which still exists).
 describe('Your buffs panel in the game view (player buffs panel, Task 2)', () => {
   /** A stored setup, as GameView loads it at mount. */
   const storedSetup = (p: Partial<SetupConfig>) =>

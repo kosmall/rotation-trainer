@@ -1,7 +1,7 @@
 // The shell's own UI icons (UI redesign spec §4.5): 24×24 SVG, stroke 1.7, from the prototype
 // (docs/design/prototype/index.html). Decorative: `aria-hidden`, the link or button carries the name.
 
-export type ShellIconName = 'setup' | 'fight' | 'report' | 'sun' | 'moon' | 'keys';
+export type ShellIconName = 'setup' | 'fight' | 'report' | 'sun' | 'moon' | 'keys' | 'text';
 
 const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
@@ -34,6 +34,8 @@ function paths(name: ShellIconName) {
       );
     case 'moon':
       return <path {...stroke} d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />;
+    case 'text':
+      return <path {...stroke} d="M5 18l4-12 4 12M6.5 14h5M16 18V9M14 9h4" />;
     case 'keys':
       return (
         <>

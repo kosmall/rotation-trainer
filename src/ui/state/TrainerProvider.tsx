@@ -16,6 +16,7 @@ import { browserStorage, loadSetup, saveSetup } from '../../setup/storage';
 import type { SetupStorage } from '../../setup/storage';
 import type { AppliedSetup, SetupConfig } from '../../setup/types';
 import type { SimRunner } from '../../sim-runner/client';
+import type { SimResult } from '../../sim-runner/types';
 import { REJECT_LABELS } from '../ActionBar';
 import type { SlotFlash } from '../ActionBar';
 import { auraSources, buildBuffViews } from '../buffsView';
@@ -189,6 +190,17 @@ export interface TrainerActions {
    * last one pauses a running fight (spec §3.3, Q1; `useSimulation`'s `pauseOnLeave`).
    */
   attachFightView(): () => void;
+  /**
+   * Keeps a finished simulation as the last one (`meta.lastSimulation`, the Setup summary's
+   * "Simulate this setup" card); `config` is the setup it ran. Not saved across reloads.
+   */
+  recordSimulation(result: SimResult, config: SetupConfig): void;
+}
+
+/** The last finished simulation and the setup it ran (in memory only, as the Simulator's result). */
+export interface LastSimulation {
+  result: SimResult;
+  config: SetupConfig;
 }
 
 export interface ChipLabels {
@@ -237,6 +249,8 @@ export interface TrainerMeta {
   simRunner: SimRunner | undefined;
   /** The last ended fight, or null before any fight has ended (the Report). */
   lastFight: LastFight | null;
+  /** The last finished simulation, or null (`actions.recordSimulation`). */
+  lastSimulation: LastSimulation | null;
 }
 
 export interface TrainerValue {
@@ -467,6 +481,8 @@ export function TrainerProvider({
   const anyPending = started && JSON.stringify(fight.config) !== JSON.stringify(config);
   const talentsPending = started && setupTalents(fight.config) !== talents;
   const pending = useMemo(() => (anyPending ? pendingSections(fight.config, config) : NO_PENDING), [anyPending, fight.config, config]);
+  const [lastSimulation, setLastSimulation] = useState<LastSimulation | null>(null);
+  const recordSimulation = useCallback((result: SimResult, simConfig: SetupConfig) => setLastSimulation({ result, config: simConfig }), []);
   const [flash, setFlash] = useState<SlotFlash | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -545,8 +561,9 @@ export function TrainerProvider({
       reset: doReset,
       pressSlot,
       attachFightView: attach,
+      recordSimulation,
     }),
-    [changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, onReload, start, cast, cancel, doReset, pressSlot, attach],
+    [changeConfig, changeGear, changeTalents, changeHudSettings, requestDb, onReload, start, cast, cancel, doReset, pressSlot, attach, recordSimulation],
   );
   const meta = useMemo<TrainerMeta>(
     () => ({
@@ -561,8 +578,9 @@ export function TrainerProvider({
       uiStorage: store,
       simRunner,
       lastFight,
+      lastSimulation,
     }),
-    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner, lastFight],
+    [phase, paused, labels, fightLabels, pending, anyPending, talentsPending, identity, store, simRunner, lastFight, lastSimulation],
   );
   const trainer = useMemo<TrainerValue>(() => ({ state, actions, meta }), [state, actions, meta]);
   const frame = useMemo<FightFrame>(
