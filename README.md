@@ -64,7 +64,9 @@ pasku.
   Report”. Zakładki: **Damage** (tabela czarów, buffy i przedmioty, wykres DPS, „What to look at”),
   **Timeline**, **Log** (filtr, wirtualizowana lista), **Rotation** (Ty vs bot), **Simulator**,
   **Compare** (porównanie scenariuszy na tych samych ziarnach). Bez walki działają tylko Simulator i Compare. Opuszczenie
-  raportu przerywa trwającą symulację.
+  raportu przerywa trwającą symulację. Nad zakładkami **Fight source** wybiera pokazywaną walkę
+  (ostatnia zagrana, kluczowe walki symulacji albo walka z historii), a **Setup Used** pokazuje
+  ustawienia tej walki (opis niżej, „Podgląd walki i kluczowe walki”).
 
 | Trasa | Widok |
 |---|---|
@@ -485,6 +487,48 @@ Simulatorze (Web Worker, migawka z chwili kliknięcia).
   gearem, buffami albo długością walki różnią się też tym. Żeby zmierzyć jedną zmianę reguły, zostaw
   resztę bez zmian (np. dwa scenariusze bez części setupu albo z tym samym setupem).
 
+## Podgląd walki i kluczowe walki (Report)
+
+- **Fight source** (nad zakładkami): **Last Played Fight** (ostatnia zagrana walka), **Highest DPS**,
+  **Typical** (DPS najbliższy średniej; remis: mniejszy numer przebiegu) i **Lowest DPS** ostatniej
+  symulacji w tej sesji, oraz **History…**. Każda opcja pokazuje DPS i ziarno („seed 3100366287,
+  run #107”). Walka z symulacji jest **odtwarzana** na żądanie z migawki ustawień symulacji (nie z
+  bieżącego setupu), więc jej log i DPS są bit w bit takie jak w symulatorze; logów symulacji nie
+  trzymamy. Wybrana walka napędza wszystkie zakładki walki (Damage, Timeline, Log, Rotation).
+  Walka z symulacji to walka bota, więc zamiast „% of the bot” nagłówek pokazuje **odchylenie od
+  średniej symulacji w σ** (np. „+3.1σ from the simulation’s mean”). Wynik bez kluczowych walk
+  (sprzed tej funkcji) ma opcje nieaktywne z podpowiedzią „Run the simulation again”. Koniec nowej
+  walki przełącza z powrotem na zagraną walkę.
+- **Timeline → Moment by moment**: tory i wykres DPS na górze to przegląd z **kursorem** (klik
+  wybiera sekundę, pasek pokazuje ją na obu). Suwak „Second”: ←/→ ±1 s, Shift ±5 s, Home/End; pole
+  „Go to (s)” (12.4 s to sekunda 12); przyciski „Jump to” (następna/poprzednia zmiana aury, użycie
+  przedmiotu, crit, odrzucenie z kolejki). Panel sekundy N (okno [N, N+1) s, wszystko z logu):
+  obrażenia sumą i per czar (trafienia, crity, chybienia, tiki), rozpoczęte, ukończone i przerwane
+  casty z czasem rzucania, kolejka (z powodem odrzucenia), użyte przedmioty, zyski many (Life Tap,
+  mikstury, regeneracja), zmiany aur (↑ up, ↻ refresh, ↓ down) i aury aktywne na początku sekundy
+  (Twoje i na celu, z pozostałym czasem). Log nie zapisuje many na koniec sekundy ani stacków, więc
+  ich nie pokazujemy. Przy zagranej walce wiersz „Bot: …” mówi, co bot zrobił w tej samej sekundzie
+  (to samo ziarno i setup). **All seconds**: wirtualizowana lista wszystkich sekund (DPS dotąd,
+  obrażenia, najmocniejszy czar, ikony buffów), filtry Damage / Auras / Items / Drops i wyszukiwanie
+  po nazwie; klik ustawia kursor. Zdarzenia przed pullem liczą się w sekundzie 0 (z oznaczeniem).
+- **Eksport**: „Copy This Second” i „Copy Fight Log (CSV)” (kolumny: second, damage, casts, auras
+  up, auras down, items, mana) kopiują do schowka, np. do wklejenia agentowi AI.
+- **History… (panel Fights)**: każda zagrana walka (z logiem; 20 najnowszych w ≤ 1,5 MB) i kluczowe
+  walki każdej symulacji (jako odnośniki: ziarno, numer przebiegu, migawka ustawień; 10 najnowszych
+  symulacji) są zapisywane pod osobnym kluczem `rotation-trainer:history:v1` i przeżywają
+  przeładowanie strony. **Highest DPS**: top 10 po DPS z filtrami (wszystkie / zagrane / symulacje,
+  ta sama długość walki — domyślnie włączone, bo DPS zależy od długości — i ten sam gear z
+  talentami). Klik „Open” otwiera walkę w tych samych zakładkach. Na liście: Pin (przypięta walka
+  nigdy nie wypada z limitu), Rename, Remove (z potwierdzeniem). Gdy przeglądarka odmówi zapisu
+  (pełny storage), Report pokazuje komunikat, a historia żyje do przeładowania.
+- **Setup Used** (przycisk nad zakładkami): migawka ustawień pokazywanej walki z chwili jej startu:
+  17 slotów (przedmiot, gemy, enchant, socket bonus), bonusy zestawów, efekty przedmiotów, „Stats at
+  the pull” tej walki, talenty z rangami (niezamodelowane oznaczone), buffy i consumables, priorytet
+  z regułami przedmiotów (przy walce z symulacji: średnie odpalenia reguł), długość, odległość,
+  opcje klasy i ziarno. **Use This Setup…** (z potwierdzeniem) robi z migawki bieżący setup tą samą
+  drogą co każda edycja (normalizacja, zapis), żeby odtworzyć i poprawiać walkę z historii. Gdy gear
+  wymaga bazy przedmiotów, a ta się wczytuje, panel pokazuje stan ładowania.
+
 ## Symulator
 
 Zakładka **Report → Simulator** gra setup **następnej walki** (gear, talenty, buffy, rotacja z
@@ -506,7 +550,7 @@ regułami przedmiotów, długość walki, odległość) wiele razy botem i pokaz
   mediana, percentyle 5/25/75/95, histogram, tabela czarów (udział, obrażenia, rzuty, crit, miss),
   średnie użycia przedmiotów, uptime DoT-ów i buffów, zużyta mana i liczba Life Tapów. „Copy
   result” kopiuje wynik jako tekst (bez schowka: tekst zaznaczony do skopiowania). Wynik nie jest
-  zapisywany.
+  zapisywany (jego kluczowe walki trafiają do historii, „History…” w Report).
 - **Co znaczy ±**: **σ** (odchylenie standardowe) to rozrzut pojedynczych walk: około 2/3 walk
   mieści się w średnia ± σ, 95% w ± 2σ; więcej walk go nie zmniejsza. **Błąd standardowy** średniej
   (σ/√runs) mówi, jak dokładnie znamy średnią: 4× więcej walk to 2× mniejszy błąd. Dwa setupy
@@ -579,6 +623,9 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
   `docs/superpowers/plans/2026-11-03-rotation-scripts-and-scenarios.md`; format scenariusza dla ludzi
   i agentów AI: `docs/scenario-format.md`, schemat `docs/scenario.schema.json`, przykłady
   `docs/scenarios/`; gramatyka, zmienne i statystyka: `docs/data-sources.md`, „Part J”
+- Podgląd walki sekunda po sekundzie, kluczowe walki, historia i ranking: specyfikacja
+  `docs/superpowers/specs/2026-11-05-fight-timeline-and-key-fights-design.md`, plan
+  `docs/superpowers/plans/2026-11-05-fight-timeline-and-key-fights.md`; powtórka walk: `docs/data-sources.md`, „Part K”
 - Źródło każdej liczby (wowsims, Wowhead), założenia i otwarte pytania: `docs/data-sources.md`
 - Decyzje projektowe (kolejka czarów): `docs/decisions/`
 
@@ -593,5 +640,5 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/script` | język skryptów rotacji (bez Reacta): parser, walidacja, kompilator, konwerter z rotacji podstawowej |
 | `src/scenarios` | format scenariusza, biblioteka i jej zapis, przykłady, CLI (`scenario:validate`, `scenario:run`, `scenario:compare`) |
 | `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, odpalenia reguł, porównanie sparowane, Web Worker i jego klient |
-| `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie, ScriptEditor, ScenariosPanel), `report/` i `charts/` (raport, ComparePanel, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
+| `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider, historia walk), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie, ScriptEditor, ScenariosPanel), `report/` i `charts/` (raport, Moment by moment, Fights, Setup Used, ComparePanel, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `script`, `scenarios`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |

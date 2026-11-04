@@ -12,8 +12,12 @@
 // (ready, running and ended shots); two example scenarios saved to the library; a 1,000-fight
 // simulation (seed 41207) for the Simulator tab and a 500-run comparison of the current setup with
 // the two scenarios for the Compare tab, then the Setup sections (their summary shows that run);
-// last, the trinket example applied, for the script editor (setup-rotation-script). Each route is
-// shot in every variant in turn.
+// last, the trinket example applied, for the script editor (setup-rotation-script). After the
+// Report's tabs, the fight timeline and key fights shots: the played fight second by second
+// (report-timeline-moment), the simulation's highest DPS fight (report-timeline-key-fight), the
+// Fights panel (report-fights), a fight opened from the history (report-history-fight) and its
+// Setup Used (report-setup-used). Each route is shot in every variant in turn; only 1440 dark and
+// light and 390 dark are kept in git (.gitignore).
 
 import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -164,6 +168,28 @@ async function main() {
       }
       await capture(`report-${tab}`);
     }
+    // Fight timeline and key fights: Moment by moment of the played fight and of a key fight, the
+    // Fights panel, a history fight and the setup it was simulated with.
+    const source = () => page.getByRole('group', { name: 'Fight source' });
+    await go('#/report/timeline');
+    await page.getByRole('button', { name: 'Next aura change' }).click();
+    await page.getByRole('button', { name: 'Next aura change' }).click();
+    await capture('report-timeline-moment');
+    await source().getByRole('button', { name: /^Highest DPS/ }).click();
+    await page.waitForTimeout(300);
+    await page.getByRole('button', { name: 'Next item use' }).click();
+    await capture('report-timeline-key-fight');
+    await source().getByRole('button', { name: /^History/ }).click();
+    await page.waitForSelector('[aria-label="Fights"]');
+    await capture('report-fights');
+    await page.locator('table[aria-label="Highest DPS"] tbody tr').first().getByRole('button', { name: /^Open / }).click();
+    await go('#/report/damage');
+    await capture('report-history-fight');
+    await page.getByRole('button', { name: 'Setup Used' }).click();
+    await page.waitForSelector('[aria-label="Gear of this fight"]', { timeout: 30000 });
+    await capture('report-setup-used');
+    await page.getByRole('button', { name: 'Hide Setup Used' }).click();
+    await source().getByRole('button', { name: /^Last Played Fight/ }).click();
     // After the Report: the Setup summary's "Simulate this setup" shows the run.
     for (const section of SETUP_SECTIONS) {
       await go(`#/setup/${section}`);
@@ -171,7 +197,7 @@ async function main() {
     }
     // The script editor with the user's trinket example (applied with its setup).
     await go('#/setup/scenarios');
-    await page.click('button[aria-label="Apply Pipe, then Icon (trinket sequencing)…"]');
+    await page.getByRole('button', { name: 'Apply… Pipe, then Icon (trinket sequencing)', exact: true }).first().click();
     await page.click('button:text-is("Apply Scenario")');
     await go('#/setup/rotation');
     await page.waitForSelector('[aria-label="Rotation rules"]');
