@@ -14,8 +14,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 94.7 | 94.5 | 94.3 | 96.4 | 91.5 | 91.2 | 82.3 | 82.4 | 92.7 | 94.4 | 92.2 | 93.0 | 84.9 | 86.3 | 87.9 | 86.5 | 78.9 | 79.5 | 79.6 | 81.9 |
-| AFF_DRAINTANK | 120.7 | 117.5 | 114.5 | 112.2 | 112.9 | 110.8 | 121.4 | 120.1 | 123.5 | 122.5 | 121.8 | 123.3 | 120.3 | 117.2 | 123.7 | 119.0 | 114.8 | 82.9 | 80.7 | 87.8 |
+| AFF_WRACK | 90.8 | 85.9 | 84.6 | 86.1 | 84.4 | 83.2 | 77.7 | 78.6 | 90.7 | 87.7 | 88.7 | 84.7 | 81.3 | 77.3 | 76.3 | 72.4 | 79.7 | 74.2 | 72.2 | 75.9 |
+| AFF_DRAINTANK | 120.7 | 117.5 | 114.5 | 112.2 | 112.9 | 110.8 | 121.4 | 120.1 | 123.5 | 122.5 | 121.8 | 123.3 | 120.3 | 117.2 | 123.7 | 119.0 | 114.8 | 82.4 | 74.7 | 77.1 |
 | DEMO_PACT_R1 | 123.8 | 121.0 | 120.4 | 119.3 | 120.1 | 120.6 | 114.0 | 103.4 | 97.6 | 100.9 | 98.3 | 93.0 | 86.5 | 79.9 | 79.0 | 80.7 | 78.9 | 74.5 | 80.0 | 67.4 |
 | DEMO_PACT_VIDEO | 123.8 | 121.0 | 120.4 | 118.9 | 119.0 | 117.3 | 116.2 | 100.9 | 104.3 | 110.3 | 105.3 | 90.8 | 88.2 | 80.6 | 82.8 | 80.0 | 80.8 | 77.7 | 81.6 | 71.3 |
 | DEMO_PACT_R2 | 121.3 | 120.0 | 119.2 | 118.6 | 119.0 | 118.2 | 114.1 | 113.2 | 111.1 | 108.6 | 106.3 | 91.1 | 86.7 | 86.0 | 83.6 | 77.4 | 87.6 | 84.5 | 81.6 | 74.2 |
@@ -26,8 +26,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 19.1 | 19.5 | 19.5 | 19.1 | 19.4 | 19.2 | 20.5 | 20.4 | 18.3 | 18.3 | 18.6 | 18.6 | 19.8 | 19.3 | 19.1 | 19.4 | 20.0 | 20.1 | 20.1 | 20.1 |
-| AFF_DRAINTANK | 21.8 | 22.6 | 23.4 | 24.1 | 23.9 | 24.5 | 21.6 | 22.0 | 21.2 | 21.4 | 21.6 | 21.2 | 21.9 | 22.7 | 21.1 | 21.9 | 22.3 | 19.4 | 20.0 | 19.0 |
+| AFF_WRACK | 21.6 | 22.9 | 23.2 | 22.7 | 22.2 | 21.9 | 23.3 | 22.6 | 19.1 | 19.8 | 19.5 | 20.2 | 20.9 | 21.2 | 21.3 | 22.3 | 21.0 | 22.2 | 22.2 | 21.8 |
+| AFF_DRAINTANK | 21.8 | 22.6 | 23.4 | 24.1 | 23.9 | 24.5 | 21.6 | 22.0 | 21.2 | 21.4 | 21.6 | 21.2 | 21.9 | 22.7 | 21.1 | 21.9 | 22.3 | 20.4 | 21.7 | 21.6 |
 | DEMO_PACT_R1 | 16.9 | 17.4 | 17.2 | 17.3 | 16.7 | 16.7 | 17.3 | 18.7 | 19.6 | 19.2 | 19.3 | 20.1 | 20.8 | 22.0 | 21.5 | 21.7 | 22.8 | 23.6 | 22.5 | 24.4 |
 | DEMO_PACT_VIDEO | 16.9 | 17.4 | 17.2 | 17.6 | 17.2 | 17.6 | 17.4 | 19.0 | 18.7 | 17.9 | 18.2 | 20.3 | 20.7 | 21.8 | 21.1 | 21.6 | 22.1 | 22.7 | 22.1 | 23.6 |
 | DEMO_PACT_R2 | 17.0 | 17.4 | 17.1 | 17.3 | 16.7 | 16.7 | 17.1 | 17.2 | 17.4 | 17.7 | 17.8 | 20.1 | 20.7 | 20.9 | 20.6 | 21.6 | 20.8 | 21.3 | 21.6 | 22.8 |
@@ -38,8 +38,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 934 | 980 | 992 | 989 | 1056 | 1077 | 1082 | 1090 | 1173 | 1176 | 1194 | 1211 | 1288 | 1298 | 1352 | 1378 | 1430 | 1442 | 1510 | 1506 |
-| AFF_DRAINTANK | 946 | 1001 | 1025 | 1034 | 1094 | 1101 | 1228 | 1269 | 1291 | 1319 | 1338 | 1468 | 1499 | 1521 | 1667 | 1743 | 1860 | 1409 | 1475 | 1476 |
+| AFF_WRACK | 998 | 1014 | 1039 | 1054 | 1106 | 1132 | 1131 | 1148 | 1197 | 1211 | 1228 | 1268 | 1347 | 1406 | 1470 | 1515 | 1505 | 1555 | 1598 | 1611 |
+| AFF_DRAINTANK | 946 | 1001 | 1025 | 1034 | 1094 | 1101 | 1228 | 1269 | 1291 | 1319 | 1338 | 1468 | 1499 | 1521 | 1667 | 1743 | 1860 | 1483 | 1550 | 1574 |
 | DEMO_PACT_R1 | 518 | 533 | 590 | 605 | 656 | 657 | 665 | 670 | 828 | 844 | 892 | 912 | 1007 | 1040 | 1133 | 1126 | 1105 | 1120 | 1170 | 1259 |
 | DEMO_PACT_VIDEO | 518 | 533 | 590 | 598 | 656 | 665 | 675 | 680 | 681 | 683 | 730 | 917 | 1000 | 1045 | 1122 | 1138 | 1109 | 1130 | 1188 | 1263 |
 | DEMO_PACT_R2 | 557 | 569 | 634 | 644 | 702 | 718 | 738 | 737 | 740 | 751 | 787 | 957 | 1056 | 1071 | 1155 | 1196 | 1138 | 1156 | 1236 | 1292 |
@@ -50,8 +50,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | -2 | -14 | -11 | -12 | 23 | 27 | 86 | 96 | 24 | 21 | 19 | 19 | 42 | 63 | 70 | 80 | 145 | 162 | 89 | 95 |
-| AFF_DRAINTANK | -735 | -779 | -799 | -806 | -855 | -861 | -965 | -994 | -1008 | -1032 | -1046 | -1145 | -1166 | -1185 | -1300 | -1337 | -1397 | 127 | 68 | 58 |
+| AFF_WRACK | -158 | -134 | -107 | -86 | -31 | -2 | 52 | 75 | -1 | 11 | 16 | 28 | 56 | 106 | 112 | 145 | 154 | 200 | 115 | 122 |
+| AFF_DRAINTANK | -735 | -779 | -799 | -806 | -855 | -861 | -965 | -994 | -1008 | -1032 | -1046 | -1145 | -1166 | -1185 | -1300 | -1337 | -1397 | 136 | 83 | 91 |
 | DEMO_PACT_R1 | 0 | 0 | 3 | 6 | 25 | 29 | 69 | 106 | 130 | 177 | 200 | 243 | 261 | 338 | 366 | 400 | 458 | 499 | 503 | 582 |
 | DEMO_PACT_VIDEO | 0 | 0 | 3 | 6 | 9 | 15 | 33 | 84 | 96 | 136 | 175 | 239 | 256 | 323 | 349 | 375 | 429 | 465 | 473 | 542 |
 | DEMO_PACT_R2 | 0 | 1 | 4 | 5 | 12 | 27 | 63 | 95 | 119 | 157 | 182 | 258 | 280 | 330 | 349 | 391 | 410 | 444 | 473 | 535 |
@@ -62,8 +62,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 7.2 | 7.4 | 7.3 | 7.2 | 7.5 | 7.4 | 6.7 | 6.5 | 7.4 | 7.4 | 7.1 | 7.3 | 6.3 | 5.8 | 6.4 | 6.4 | 5.8 | 6.1 | 5.7 | 5.9 |
-| AFF_DRAINTANK | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.1 | 0.2 | 6.0 | 5.6 | 6.2 |
+| AFF_WRACK | 6.4 | 6.3 | 6.6 | 6.8 | 7.3 | 7.3 | 7.1 | 7.1 | 7.6 | 7.2 | 7.3 | 7.1 | 6.7 | 6.0 | 6.2 | 6.1 | 7.1 | 6.9 | 5.6 | 6.3 |
+| AFF_DRAINTANK | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.1 | 0.2 | 7.0 | 5.5 | 5.9 |
 | DEMO_PACT_R1 | 4.2 | 4.4 | 4.7 | 4.8 | 5.2 | 5.2 | 5.2 | 4.7 | 5.7 | 6.2 | 6.4 | 6.3 | 6.3 | 6.2 | 6.9 | 7.0 | 6.6 | 6.1 | 7.4 | 6.1 |
 | DEMO_PACT_VIDEO | 4.2 | 4.4 | 4.7 | 4.7 | 5.1 | 5.1 | 5.2 | 4.2 | 4.5 | 5.4 | 5.6 | 6.3 | 6.4 | 6.2 | 7.3 | 7.0 | 7.4 | 7.1 | 7.8 | 6.5 |
 | DEMO_PACT_R2 | 4.7 | 4.6 | 5.1 | 5.1 | 5.6 | 5.7 | 5.8 | 6.0 | 5.9 | 6.2 | 6.4 | 6.9 | 7.0 | 7.4 | 7.6 | 7.0 | 8.4 | 8.3 | 8.0 | 7.2 |
@@ -74,8 +74,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 7.2 | 7.4 | 7.3 | 7.2 | 7.5 | 7.4 | 6.7 | 6.5 | 7.4 | 7.4 | 7.1 | 7.3 | 6.3 | 5.8 | 6.4 | 6.4 | 5.8 | 6.1 | 5.7 | 5.9 |
-| AFF_DRAINTANK | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.1 | 0.2 | 6.0 | 5.6 | 6.2 |
+| AFF_WRACK | 6.4 | 6.3 | 6.6 | 6.8 | 7.3 | 7.3 | 7.1 | 7.1 | 7.6 | 7.2 | 7.3 | 7.1 | 6.7 | 6.0 | 6.2 | 6.1 | 7.1 | 6.9 | 5.6 | 6.3 |
+| AFF_DRAINTANK | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.1 | 0.2 | 7.0 | 5.5 | 5.9 |
 | DEMO_PACT_R1 | 4.2 | 4.4 | 4.7 | 4.8 | 5.2 | 5.2 | 5.2 | 4.7 | 5.7 | 6.2 | 6.4 | 6.3 | 6.3 | 6.2 | 6.9 | 7.0 | 6.6 | 6.1 | 7.4 | 6.1 |
 | DEMO_PACT_VIDEO | 4.2 | 4.4 | 4.7 | 4.7 | 5.1 | 5.1 | 5.2 | 4.2 | 4.5 | 5.4 | 5.6 | 6.3 | 6.4 | 6.2 | 7.3 | 7.0 | 7.4 | 7.1 | 7.8 | 6.5 |
 | DEMO_PACT_R2 | 4.7 | 4.6 | 5.1 | 5.1 | 5.6 | 5.7 | 5.8 | 6.0 | 5.9 | 6.2 | 6.4 | 6.9 | 7.0 | 7.4 | 7.6 | 7.0 | 8.4 | 8.3 | 8.0 | 7.2 |
@@ -86,8 +86,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 37.3 | 38.4 | 37.5 | 38.0 | 37.4 | 36.7 | 30.7 | 29.7 | 37.1 | 38.1 | 34.9 | 36.1 | 28.8 | 26.8 | 30.4 | 29.8 | 24.4 | 25.4 | 24.7 | 26.3 |
-| AFF_DRAINTANK | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.4 | 1.0 | 26.9 | 25.6 | 30.9 |
+| AFF_WRACK | 34.6 | 31.2 | 31.8 | 33.2 | 33.6 | 33.0 | 29.8 | 30.0 | 36.6 | 34.0 | 34.0 | 31.6 | 28.9 | 25.0 | 25.1 | 23.4 | 30.1 | 26.8 | 21.8 | 25.6 |
+| AFF_DRAINTANK | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.4 | 1.0 | 31.3 | 23.4 | 25.3 |
 | DEMO_PACT_R1 | 29.7 | 30.8 | 33.3 | 34.2 | 37.1 | 37.2 | 33.7 | 27.3 | 30.5 | 34.9 | 34.2 | 32.1 | 29.4 | 26.7 | 28.9 | 30.3 | 26.6 | 23.0 | 30.3 | 21.0 |
 | DEMO_PACT_VIDEO | 29.7 | 30.8 | 33.3 | 32.9 | 36.3 | 36.0 | 36.3 | 24.2 | 26.9 | 33.2 | 32.1 | 30.9 | 30.3 | 27.1 | 31.9 | 29.8 | 30.2 | 27.7 | 32.0 | 23.8 |
 | DEMO_PACT_R2 | 32.4 | 32.0 | 35.8 | 35.7 | 39.7 | 39.6 | 38.0 | 37.8 | 36.5 | 36.7 | 36.0 | 33.6 | 32.5 | 33.8 | 32.8 | 27.9 | 36.8 | 34.8 | 32.4 | 26.7 |
@@ -98,8 +98,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 28 | 27 | 27 | 27 | 29 | 30 | 33 | 33 | 31 | 30 | 31 | 30 | 33 | 33 | 32 | 33 | 37 | 36 | 36 | 34 |
-| AFF_DRAINTANK | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 3 | 35 | 35 | 33 |
+| AFF_WRACK | 25 | 25 | 26 | 26 | 28 | 30 | 31 | 32 | 31 | 31 | 31 | 32 | 33 | 35 | 36 | 37 | 34 | 36 | 37 | 35 |
+| AFF_DRAINTANK | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 3 | 33 | 36 | 35 |
 | DEMO_PACT_R1 | 14 | 15 | 16 | 16 | 18 | 17 | 20 | 23 | 24 | 23 | 25 | 26 | 30 | 32 | 34 | 32 | 31 | 33 | 31 | 37 |
 | DEMO_PACT_VIDEO | 14 | 15 | 16 | 15 | 17 | 17 | 18 | 23 | 22 | 20 | 23 | 28 | 29 | 32 | 32 | 33 | 31 | 32 | 31 | 35 |
 | DEMO_PACT_R2 | 16 | 15 | 17 | 17 | 19 | 19 | 20 | 21 | 21 | 22 | 24 | 28 | 30 | 30 | 32 | 35 | 29 | 30 | 32 | 35 |
@@ -110,8 +110,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 85 | 86 | 86 | 86 | 83 | 85 | 76 | 77 | 85 | 85 | 85 | 87 | 85 | 88 | 89 | 90 | 89 | 89 | 85 | 85 |
-| AFF_DRAINTANK | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 99 | 99 | 100 | 100 | 99 | 97 | 89 | 82 | 87 |
+| AFF_WRACK | 83 | 79 | 79 | 82 | 80 | 82 | 74 | 79 | 86 | 83 | 86 | 87 | 88 | 90 | 89 | 88 | 91 | 90 | 84 | 86 |
+| AFF_DRAINTANK | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 99 | 99 | 100 | 100 | 99 | 97 | 91 | 82 | 84 |
 | DEMO_PACT_R1 | 100 | 100 | 100 | 100 | 100 | 100 | 98 | 93 | 93 | 99 | 98 | 98 | 98 | 96 | 100 | 99 | 95 | 94 | 99 | 100 |
 | DEMO_PACT_VIDEO | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 92 | 94 | 102 | 100 | 99 | 100 | 99 | 102 | 102 | 99 | 99 | 102 | 103 |
 | DEMO_PACT_R2 | 100 | 100 | 100 | 100 | 100 | 99 | 99 | 98 | 98 | 100 | 98 | 95 | 95 | 97 | 100 | 100 | 100 | 99 | 99 | 100 |
@@ -134,8 +134,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 67.4 | 63.1 | 68.4 | 69.3 | 57.0 | 57.9 | 50.2 | 50.5 | 59.7 | 58.1 | 59.4 | 57.7 | 57.4 | 57.6 | 56.9 | 52.6 | 54.0 | 51.8 | 59.7 | 57.3 |
-| AFF_DRAINTANK | 99.1 | 108.2 | 103.8 | 99.4 | 99.4 | 95.5 | 109.3 | 107.4 | 111.3 | 109.9 | 108.5 | 110.5 | 106.2 | 102.5 | 108.7 | 92.0 | 77.8 | 55.5 | 58.9 | 59.6 |
+| AFF_WRACK | 54.7 | 50.4 | 56.0 | 50.9 | 47.4 | 47.7 | 45.7 | 43.9 | 48.7 | 49.1 | 47.8 | 44.8 | 41.2 | 35.8 | 43.2 | 30.7 | 31.1 | 29.9 | 41.2 | 38.4 |
+| AFF_DRAINTANK | 99.1 | 108.2 | 103.8 | 99.4 | 99.4 | 95.5 | 109.3 | 107.4 | 111.3 | 109.9 | 108.5 | 110.5 | 106.2 | 102.5 | 108.7 | 92.0 | 77.8 | 30.2 | 45.3 | 44.3 |
 | DEMO_PACT_R1 | 114.0 | 111.2 | 109.1 | 108.3 | 108.9 | 108.4 | 103.6 | 101.7 | 97.2 | 95.5 | 92.0 | 90.5 | 53.1 | 54.8 | 67.4 | 67.9 | 62.7 | 59.3 | 54.5 | 54.3 |
 | DEMO_PACT_VIDEO | 114.0 | 111.2 | 109.1 | 107.4 | 105.5 | 104.2 | 103.0 | 100.9 | 104.8 | 101.0 | 98.8 | 89.4 | 52.1 | 53.4 | 68.6 | 67.2 | 58.0 | 57.6 | 51.4 | 53.8 |
 | DEMO_PACT_R2 | 111.9 | 109.5 | 108.6 | 106.2 | 103.9 | 105.3 | 101.6 | 96.8 | 99.6 | 95.8 | 88.8 | 75.1 | 57.0 | 54.2 | 49.1 | 49.3 | 53.6 | 53.2 | 50.1 | 49.5 |
@@ -146,8 +146,8 @@ Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK
 
 | Build | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| AFF_WRACK | 115.1 | 113.1 | 111.4 | 111.4 | 110.3 | 110.7 | 101.5 | 106.8 | 113.3 | 116.3 | 112.7 | 110.0 | 110.2 | 111.0 | 108.8 | 107.2 | 106.1 | 107.4 | 100.2 | 100.3 |
-| AFF_DRAINTANK | 129.0 | 127.2 | 125.3 | 123.7 | 125.1 | 123.9 | 131.3 | 130.8 | 133.2 | 132.6 | 132.3 | 131.9 | 130.1 | 128.3 | 132.3 | 131.5 | 132.0 | 109.0 | 96.0 | 100.5 |
+| AFF_WRACK | 106.6 | 105.9 | 106.4 | 107.7 | 104.3 | 106.2 | 97.9 | 101.4 | 112.2 | 113.9 | 111.6 | 109.3 | 108.4 | 108.9 | 106.0 | 106.4 | 105.8 | 108.3 | 100.2 | 100.1 |
+| AFF_DRAINTANK | 129.0 | 127.2 | 125.3 | 123.7 | 125.1 | 123.9 | 131.3 | 130.8 | 133.2 | 132.6 | 132.3 | 131.9 | 130.1 | 128.3 | 132.3 | 131.5 | 132.0 | 108.3 | 95.7 | 102.3 |
 | DEMO_PACT_R1 | 133.1 | 131.9 | 129.7 | 130.2 | 129.5 | 127.3 | 124.9 | 125.5 | 112.8 | 117.3 | 113.5 | 112.9 | 105.6 | 103.5 | 98.9 | 97.6 | 102.4 | 100.2 | 94.0 | 88.9 |
 | DEMO_PACT_VIDEO | 133.1 | 131.9 | 129.7 | 129.2 | 128.6 | 126.3 | 124.6 | 125.6 | 124.0 | 125.8 | 123.7 | 110.2 | 106.6 | 101.5 | 99.1 | 98.1 | 105.6 | 101.9 | 93.9 | 89.4 |
 | DEMO_PACT_R2 | 132.8 | 130.0 | 129.6 | 128.5 | 126.4 | 126.0 | 124.6 | 124.6 | 124.4 | 123.5 | 122.0 | 108.3 | 105.3 | 103.0 | 95.2 | 93.4 | 98.0 | 96.4 | 88.2 | 89.4 |
@@ -172,32 +172,32 @@ DEMO_PACT_R1 (respec at that level) against staying on AFF_WRACK. A respec at le
 | 37 | 100.0 | 76.2 | -24.2 (-26.1..-22.3) | 2.6 / 6.5 |
 | 38 | 94.8 | 59.1 | -35.9 (-38.8..-33.1) | 3.5 / 4.2 |
 | 39 | 97.4 | 61.8 | -35.7 (-38.3..-33.2) | 3.1 / 4.6 |
-| 40 | 94.7 | 123.8 | 28.2 (26.0..30.4) | 7.2 / 4.2 |
-| 41 | 94.5 | 121.0 | 25.7 (23.7..27.6) | 7.4 / 4.4 |
-| 42 | 94.3 | 120.4 | 25.2 (23.2..27.3) | 7.3 / 4.7 |
-| 43 | 96.4 | 119.3 | 22.3 (20.6..24.1) | 7.2 / 4.8 |
-| 44 | 91.5 | 120.1 | 27.7 (25.5..29.9) | 7.5 / 5.2 |
-| 45 | 91.2 | 120.6 | 28.5 (26.4..30.6) | 7.4 / 5.2 |
-| 46 | 82.3 | 114.0 | 31.0 (28.2..33.8) | 6.7 / 5.2 |
-| 47 | 82.4 | 103.4 | 21.0 (18.3..23.8) | 6.5 / 4.7 |
-| 48 | 92.7 | 97.6 | 4.6 (1.7..7.5) | 7.4 / 5.7 |
-| 49 | 94.4 | 100.9 | 5.9 (3.5..8.3) | 7.4 / 6.2 |
-| 50 | 92.2 | 98.3 | 5.9 (3.3..8.6) | 7.1 / 6.4 |
-| 51 | 93.0 | 93.0 | -0.3 (-2.7..2.2) | 7.3 / 6.3 |
-| 52 | 84.9 | 86.5 | 0.9 (-2.0..3.7) | 6.3 / 6.3 |
-| 53 | 86.3 | 79.9 | -6.5 (-9.3..-3.7) | 5.8 / 6.2 |
-| 54 | 87.9 | 79.0 | -9.3 (-12.0..-6.6) | 6.4 / 6.9 |
-| 55 | 86.5 | 80.7 | -6.1 (-8.8..-3.4) | 6.4 / 7.0 |
-| 56 | 78.9 | 78.9 | -0.7 (-3.1..1.8) | 5.8 / 6.6 |
-| 57 | 79.5 | 74.5 | -5.1 (-7.5..-2.6) | 6.1 / 6.1 |
-| 58 | 79.6 | 80.0 | -0.3 (-2.8..2.3) | 5.7 / 7.4 |
-| 59 | 81.9 | 67.4 | -14.4 (-17.2..-11.5) | 5.9 / 6.1 |
+| 40 | 90.8 | 123.8 | 32.3 (30.4..34.2) | 6.4 / 4.2 |
+| 41 | 85.9 | 121.0 | 34.2 (32.2..36.3) | 6.3 / 4.4 |
+| 42 | 84.6 | 120.4 | 35.1 (33.3..36.8) | 6.6 / 4.7 |
+| 43 | 86.1 | 119.3 | 32.5 (30.5..34.4) | 6.8 / 4.8 |
+| 44 | 84.4 | 120.1 | 34.6 (32.3..37.0) | 7.3 / 5.2 |
+| 45 | 83.2 | 120.6 | 36.7 (34.9..38.5) | 7.3 / 5.2 |
+| 46 | 77.7 | 114.0 | 35.9 (33.7..38.2) | 7.1 / 5.2 |
+| 47 | 78.6 | 103.4 | 24.9 (22.1..27.7) | 7.1 / 4.7 |
+| 48 | 90.7 | 97.6 | 6.8 (4.1..9.6) | 7.6 / 5.7 |
+| 49 | 87.7 | 100.9 | 12.5 (10.2..14.9) | 7.2 / 6.2 |
+| 50 | 88.7 | 98.3 | 9.4 (7.1..11.8) | 7.3 / 6.4 |
+| 51 | 84.7 | 93.0 | 7.7 (5.3..10.2) | 7.1 / 6.3 |
+| 52 | 81.3 | 86.5 | 4.7 (2.1..7.4) | 6.7 / 6.3 |
+| 53 | 77.3 | 79.9 | 2.3 (-0.4..5.0) | 6.0 / 6.2 |
+| 54 | 76.3 | 79.0 | 2.2 (-0.8..5.2) | 6.2 / 6.9 |
+| 55 | 72.4 | 80.7 | 7.5 (4.5..10.4) | 6.1 / 7.0 |
+| 56 | 79.7 | 78.9 | -1.6 (-4.1..1.0) | 7.1 / 6.6 |
+| 57 | 74.2 | 74.5 | -0.2 (-3.1..2.7) | 6.9 / 6.1 |
+| 58 | 72.2 | 80.0 | 7.4 (4.9..9.8) | 5.6 / 7.4 |
+| 59 | 75.9 | 67.4 | -8.3 (-11.0..-5.6) | 6.3 / 6.1 |
 
-**Recommendation.** DEMO_PACT_R1 wins (significant) at levels 40-50; AFF_WRACK wins at 30-39, 53-55, 57, 59; no significant difference at 51-52, 56, 58. The respec never pays off at the tested levels in this model. Break-even is not "level": the real decision is the gain in kills per hour times the time you still spend levelling against the respec cost, which this simulator does not price.
+**Recommendation.** DEMO_PACT_R1 wins (significant) at levels 40-52, 55, 58; AFF_WRACK wins at 30-39, 59; no significant difference at 53-54, 56-57. The respec never pays off at the tested levels in this model. Break-even is not "level": the real decision is the gain in kills per hour times the time you still spend levelling against the respec cost, which this simulator does not price.
 
 ### Demonology (R1) against the hybrid AFF_DRAINTANK
 
-DEMO_PACT_R1 wins (significant) at levels 40-45; AFF_DRAINTANK wins at 46-57, 59; no significant difference at 58. The winner changes at level 46.
+DEMO_PACT_R1 wins (significant) at levels 40-45, 58; AFF_DRAINTANK wins at 46-57, 59; no significant difference at none. The winner changes at level 46.
 
 ### How sensitive is AFF_WRACK to Wrack's damage?
 
@@ -205,10 +205,10 @@ Wrack is 60 damage per tick (wiki, timesaver) or 124 (guildorder); the data uses
 
 | Wrack damage x | AFF_WRACK @50 | AFF_WRACK @59 | DEMO_PACT_R1 @50 | AFF_DRAINTANK @50 |
 |---:|---:|---:|---:|---:|
-| 1 | 92.2 | 81.9 | 98.3 | 121.8 |
-| 1.5 | 63.4 | 85.2 | 98.3 | 121.8 |
-| 2 | 90.5 | 88.0 | 98.3 | 121.8 |
-| 3 | 134.7 | 136.1 | 98.3 | 121.8 |
+| 1 | 88.7 | 75.9 | 98.3 | 121.8 |
+| 1.5 | 94.5 | 94.3 | 98.3 | 121.8 |
+| 2 | 65.8 | 61.1 | 98.3 | 121.8 |
+| 3 | 106.7 | 117.8 | 98.3 | 121.8 |
 
 ## 3. Bane 2/5 + Shadow Bolt rank 1 or Bane 5/5 + rank 2?
 
@@ -249,26 +249,26 @@ AFF_WRACK, average gear, curse of the Elements on, kills per hour by threshold (
 
 | Level | mobs | skip < 0s | skip < 8s | skip < 12s | skip < 16s |
 |---:|---:|---:|---:|---:|---:|
-| 40 | 1 | 91.6 | 91.1 | 91.1 | 91.1 |
-| 40 | 3 | 41.9 | 37.1 | 37.1 | 37.1 |
-| 50 | 1 | 92.8 | 65.5 | 65.5 | 65.5 |
-| 50 | 3 | 33.7 | 27.2 | 27.2 | 27.2 |
-| 59 | 1 | 69.4 | 69.4 | 66.0 | 66.0 |
-| 59 | 3 | 26.1 | 26.1 | 22.9 | 22.9 |
+| 40 | 1 | 85.6 | 85.6 | 78.3 | 78.3 |
+| 40 | 3 | 24.9 | 24.9 | 24.6 | 24.6 |
+| 50 | 1 | 89.1 | 89.1 | 52.2 | 52.2 |
+| 50 | 3 | 30.3 | 30.3 | 24.9 | 24.9 |
+| 59 | 1 | 66.3 | 66.3 | 49.6 | 49.6 |
+| 59 | 3 | 25.9 | 25.9 | 12.9 | 12.9 |
 
 Same test on quick kills (mob HP x0.5), 1 mob:
 
 | Level | skip < 0s | skip < 4s | skip < 6s | skip < 8s | skip < 12s |
 |---:|---:|---:|---:|---:|---:|
-| 40 | 155.8 | 155.8 | 155.8 | 155.8 | 155.8 |
-| 50 | 145.0 | 145.0 | 145.0 | 145.0 | 145.0 |
-| 59 | 110.7 | 110.7 | 110.7 | 110.7 | 110.7 |
+| 40 | 117.8 | 117.8 | 117.8 | 117.8 | 117.8 |
+| 50 | 126.3 | 126.3 | 126.3 | 126.3 | 126.3 |
+| 59 | 105.0 | 105.0 | 105.0 | 105.0 | 105.0 |
 
 ### Pull size (1, 2 or 3 mobs), kills per hour at level 50
 
 | Build | 1 mob | 2 mobs | 3 mobs |
 |---|---:|---:|---:|
-| AFF_WRACK | 92.2 | 60.4 | 40.5 |
+| AFF_WRACK | 88.7 | 62.4 | 33.0 |
 | AFF_DRAINTANK | 121.8 | 136.5 | 42.0 |
 | DEMO_PACT_R1 | 98.3 | 35.6 | 0.2 |
 | DEMO_PACT_VIDEO | 105.3 | 59.9 | 0.1 |
@@ -303,7 +303,7 @@ Gear profile: average. Base winners: 40: DEMO_PACT_R1, 45: DEMO_PACT_R1, 50: AFF
 | downrank_penalty_model | partial | AFF_DRAINTANK | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40 |
 | sb_r1_coeff_mult | 0.5 | DEMO_PACT_R2 | DEMO_PACT_R2 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 45 |
 | sb_r1_coeff_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
-| sb_r1_coeff_mult | 1.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
+| sb_r1_coeff_mult | 1.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_PACT_R1 | 59 |
 | sb_r2_coeff_mult | 0.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | sb_r2_coeff_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | sb_r2_coeff_mult | 1.5 | DEMO_PACT_R2 | DEMO_PACT_R2 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_PACT_R2 | 40, 45, 59 |
@@ -322,42 +322,44 @@ Gear profile: average. Base winners: 40: DEMO_PACT_R1, 45: DEMO_PACT_R1, 50: AFF
 | wrack_dmg_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | wrack_dmg_mult | 1.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | wrack_dmg_mult | 2 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
-| wrack_dmg_mult | 3 | AFF_WRACK | AFF_WRACK | AFF_WRACK | AFF_WRACK | AFF_WRACK | 40, 45, 50, 55, 59 |
-| drain_dmg_mult | 0.7 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_WRACK | AFF_DRAINTANK | 55 |
+| wrack_dmg_mult | 3 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_WRACK | AFF_WRACK | 55, 59 |
+| drain_dmg_mult | 0.7 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | drain_dmg_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | drain_dmg_mult | 1.3 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 45 |
-| pet_dmg_mult | 0.7 | DEMO_PACT_R1 | DEMO_PACT_VIDEO | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 45 |
+| pet_dmg_mult | 0.7 | DEMO_PACT_R1 | DEMO_PACT_VIDEO | AFF_DRAINTANK | AFF_DRAINTANK | AFF_WRACK | 45, 59 |
 | pet_dmg_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | pet_dmg_mult | 1.3 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | 59 |
 | use_drain_soul_finisher | true | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
-| use_drain_soul_finisher | false | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
+| use_drain_soul_finisher | false | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_PACT_VIDEO | 59 |
 | break_hp_pct | 0.2 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_PACT_R2 | 40, 45, 59 |
 | break_hp_pct | 0.3 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
-| break_hp_pct | 0.4 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_WRACK | 59 |
+| break_hp_pct | 0.4 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | agony_ramp | classic_thirds | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
-| agony_ramp | flat | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
+| agony_ramp | flat | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_WRACK | 59 |
 | life_tap_mana_per_health | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | life_tap_mana_per_health | 1.2 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | life_tap_spirit_coeff | 0.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_PACT_R2 | 59 |
 | life_tap_spirit_coeff | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
-| life_tap_spirit_coeff | 1.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_WRACK | 59 |
-| searing_pain_threat_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
+| life_tap_spirit_coeff | 1.5 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
+| searing_pain_threat_mult | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_PACT_R2 | 59 |
 | searing_pain_threat_mult | 2 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | searing_pain_threat_mult | 3 | DEMO_PACT_R1 | DEMO_PACT_R2 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 45 |
+| mob_miss_pct | 3 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
+| mob_miss_pct | 4 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | transition_sec | 4 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | transition_sec | 8 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | transition_sec | 15 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | mobs_per_pull | 1 | DEMO_PACT_R1 | DEMO_PACT_R1 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | - |
 | mobs_per_pull | 2 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 45 |
-| mobs_per_pull | 3 | AFF_WRACK | AFF_WRACK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 45 |
+| mobs_per_pull | 3 | AFF_DRAINTANK | AFF_WRACK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 45 |
 
-Assumptions that can change the winner: downrank_penalty_model, sb_r1_coeff_mult, sb_r2_coeff_mult, mob_hp_mult, mob_dmg_mult, brand_mult, wrack_dmg_mult, drain_dmg_mult, pet_dmg_mult, break_hp_pct, life_tap_spirit_coeff, searing_pain_threat_mult, mobs_per_pull.
+Assumptions that can change the winner: downrank_penalty_model, sb_r1_coeff_mult, sb_r2_coeff_mult, mob_hp_mult, mob_dmg_mult, brand_mult, wrack_dmg_mult, drain_dmg_mult, pet_dmg_mult, use_drain_soul_finisher, break_hp_pct, agony_ramp, life_tap_spirit_coeff, searing_pain_threat_mult, mobs_per_pull.
 
 Per axis the table shows the best build at each tested level. "Winner changes at" lists the levels where that value gives another winner than the base run. The base ranking at each level is in section 1.
 
 ## 7. All assumptions flagged `verify: true`
 
-63 entries. Replace them with confirmed values from Wowhead Forever or the game and rerun `npm run forever:report`.
+64 entries. Replace them with confirmed values from Wowhead Forever or the game and rerun `npm run forever:report`.
 
 | File | Name | Source / note |
 |---|---|---|
@@ -369,7 +371,7 @@ Per axis the table shows the best build at each tested level. "Winner changes at
 | params.json | transition_sec | Time to find and reach the next mob, added to every cycle. |
 | params.json | death_penalty_sec | Corpse run and resurrection after the player dies. |
 | params.json | pet_resummon_sec | Re-summon time after the pet died. |
-| params.json | mob_miss_pct | Spell miss chance vs a same-level normal mob (Classic: 4%). |
+| params.json | mob_miss_pct | CONFLICT: Method.gg says 4% hit is needed to never miss a same-level mob (4% miss); Warcraft Tavern says 3% miss; whether a 1% minimum miss exists is unknown. No Blizzard number found. |
 | params.json | mob_swing_sec | Mob melee swing interval. |
 | params.json | pushback_ms | Cast end delay per mob hit while casting. |
 | params.json | life_tap_spirit_coeff | warcraft.wiki.gg Forever: 'Spirit increases the amount converted' (no number). A guide (warcrafttavern summary) gives cost = base + Spirit: coefficient 1.0 assumed. |
@@ -377,7 +379,7 @@ Per axis the table shows the best build at each tested level. "Winner changes at
 | params.json | pet_opens | The pet engages first and holds initial aggro. |
 | params.json | brand_scale | Brand damage (60-26)*1.5 + 14..17 + 0.078*SP at 3/3: whether '60' is the caster level. |
 | params.json | brand_mult | Sensitivity multiplier on Demonic Brand damage. |
-| params.json | wrack_dmg_mult | Sensitivity multiplier on Wrack tick damage (60 at level 40 -> 124 at level 60 is an interpolation between two sources). |
+| params.json | wrack_dmg_mult | Sensitivity multiplier on Wrack tick damage (the formula itself is confirmed, see spells.json). |
 | params.json | mob_hp_mult | Sensitivity multiplier on mob HP. |
 | params.json | mob_dmg_mult | Sensitivity multiplier on mob damage. |
 | params.json | sb_r1_coeff_mult | Sensitivity multiplier on the spell power coefficient of Shadow Bolt rank 1 (castTime/3.5). |
@@ -390,6 +392,7 @@ Per axis the table shows the best build at each tested level. "Winner changes at
 | params.json | pet_dmg_mult | Sensitivity multiplier on all pet damage (pet damage tables are estimates). |
 | params.json | agony_ramp | Wiki: Bane of Agony 'is dealt slowly at first, and builds up'. The 0.5x/1.0x/1.5x thirds pattern (4 ticks each) is the Classic one; the Forever shape is NOT confirmed. |
 | params.json | life_tap_mana_per_health | warcraft.wiki.gg Forever: 'Converts 30 Health into 30 Mana' (1.0). A guide's summary says 1.2 mana per health: unconfirmed. |
+| params.json | hp_regen_pct_per_sec | Out-of-combat health regeneration as a fraction of max HP per second while walking between mobs. The Forever formula was NOT found; 0 is an explicit assumption (see the ledger). Tested at 0.2%/0.5% in the Life Tap strategy report. |
 | talents.json | suppression | Confirmed numbers: +1% hit and -4% threat per rank, 5%/20% at 5/5 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)). Assumed to apply to ALL spells (text says 'your chance to hit'); no source states a school restriction. |
 | talents.json | amplify_curse | Task |
 | talents.json | siphon_life | Spell data: spells.json (Wowhead Forever pages, warcraft.wiki.gg/wiki/Wrack) |
@@ -417,7 +420,7 @@ Per axis the table shows the best build at each tested level. "Winner changes at
 | spells.json | drain_life | https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 689,699,709,7651,11699,11700 (mana, 5 s channel, leech per 1 s tick, SP mod 0.1 per tick). Damage = health leeched. Rank levels are Classic levels (rank 1 L14 confirmed by warcraft.wiki.gg). |
 | spells.json | drain_soul | https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 1120,8288,8289,11675 (mana, 15 s channel, 3 s ticks, SP mod 0.1 per tick); rank 1 tooltip 85 over 15 s (warcraft.wiki.gg). Rank levels: Classic (rank 1 L10 confirmed by the wiki). |
 | spells.json | siphon_life | https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 18265,18879,18880,18881 (mana, instant, 30 s, leech per 3 s tick, SP mod 0.05). Damage = health leeched (assumed). Rank levels 30..58 are Classic levels, NOT confirmed for Forever. |
-| spells.json | wrack | warcraft.wiki.gg/wiki/Wrack and timesaver.gg: 200 mana, 6 s channel, 60 Shadow damage per 1 s tick (after the 10 Nov hotfix: -30% damage, no longer raises periodic damage), while channelling Siphon Life/Corruption/Bane of Agony tick 100% faster (Blizzard hotfix notes 10 Nov). guildorder.com shows 124 per tick (probably a level-60 value): tick damage is interpolated 60 at level 40 -> 124 at level 60 (ASSUMPTION). Spell power coefficient unknown (0 used). |
+| spells.json | wrack | CONFIRMED mechanics: 200 mana, 6 s channel, 1 s ticks (warcraft.wiki.gg/wiki/Wrack, timesaver.gg); while channelling Siphon Life/Corruption/Bane of Agony tick 100% faster, durations unchanged (Blizzard hotfix 10 Nov). CONFIRMED damage rule (Blizzard beta development notes, 3 Nov: https://us.forums.blizzard.com/en/wow/raw/2360696/9): spell damage coefficient doubled to 0.286 per second; base damage per second grows by 2.5 per level, 'at level 60 effectively increased from 36 to 86' (so 36 at level 40, 86 at 60). Hotfix 10 Nov: 'Wrack damage reduced by 30%': x0.7 gives 60 per tick at level 60, which matches the 60 on the wiki and timesaver tooltips (guildorder's 124 is not explained). ASSUMPTION: the -30% applies to the coefficient too. |
 | spells.json | life_tap | Wowhead Forever ids 1454,1455,1456,11687,11688,11689 give only a Dummy value (20,65,130,210,300,420); warcraft.wiki.gg Forever: rank 1 'Converts 30 Health into 30 Mana. Spirit increases the amount converted' (6 ranks, level 6). Base = value + 10 (rank 1: 30; ASSUMED for the others). The Spirit term and the conversion ratio are NOT confirmed (a guide says cost = base + Spirit and 1.2 mana per health). |
 | spells.json | curse_of_elements | warcraft.wiki.gg Curse_of_the_Elements (Forever): 4 ranks, level 20, 50 mana, instant, 5 min; rank 1 reduces Magic resistances by 30 and increases Magic damage taken by 4%. Ranks 2-4 NOT found (Wowhead ids unknown). |
 | levels.json | levels.mobs | Estimated normal same-level mob (HP, melee swing before armor, armor); mob HP/damage multipliers are sensitivity parameters. |
