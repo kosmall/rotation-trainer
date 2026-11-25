@@ -63,6 +63,8 @@ export interface Params {
   pull_min_mana_pct: number;
   pull_min_hp_pct: number;
   session_pulls: number;
+  drain_dmg_mult: number;
+  pet_dmg_mult: number;
 }
 
 export type PetKind = 'imp' | 'voidwalker' | 'succubus' | 'felhunter';

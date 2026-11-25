@@ -245,5 +245,15 @@
   "session_pulls": {
     "value": 30,
     "source": "Pulls per simulated session (mana and HP carry over between pulls)."
+  },
+  "drain_dmg_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on Drain Life and Drain Soul damage (their coefficients and totals are estimates; Drain Life is strong in the model)."
+  },
+  "pet_dmg_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on all pet damage (pet damage tables are estimates)."
   }
 }

@@ -131,7 +131,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
   pet.hp = pet.maxHp;
   const soulLink = rk(ranks, 'soul_link') > 0;
-  const petDmgMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1);
+  const petDmgMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1) * params.pet_dmg_mult;
 
   // ---- player ---------------------------------------------------------------------------
   const maxMana = stats.maxMana;
@@ -293,7 +293,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     let total = (r.dotTotal ?? 0) + spEff() * (spell.coeffDot ?? 0) * downrankFactor(params.downrank_penalty_model, r.level);
     if (spellId === 'corruption') total *= 1 + effectNum('improved_corruption', 'dmgMultPerRank') * rk(ranks, 'improved_corruption');
     if (spellId === 'bane_of_agony') total *= 1 + effectNum('improved_bane_of_agony', 'dmgMultPerRank') * rk(ranks, 'improved_bane_of_agony');
-    if (spellId === 'drain_life' || spellId === 'drain_soul') total *= 1 + effectNum('improved_drains', 'drainDmgMultAtMax') * (rk(ranks, 'improved_drains') / 3);
+    if (spellId === 'drain_life' || spellId === 'drain_soul') total *= (1 + effectNum('improved_drains', 'drainDmgMultAtMax') * (rk(ranks, 'improved_drains') / 3)) * params.drain_dmg_mult;
     if (spellId === 'immolate') total *= aftermathMult('immolate');
     return { tickDmg: total / ticks, tickMs, durationMs };
   };

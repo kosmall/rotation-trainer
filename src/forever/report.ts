@@ -135,6 +135,23 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
   p(`**Recommendation.** ${winnerText(respecA, 'DEMO_PACT_R1', 'AFF_WRACK')} ${from !== null ? `The respec is worth it from level **${from}** on and stays worth it through ${lv[lv.length - 1]} in this model (the model does not include the respec cost in gold).` : 'The respec never pays off at the tested levels in this model.'} Break-even is not "level": the real decision is the gain in kills per hour times the time you still spend levelling against the respec cost, which this simulator does not price.`);
   p();
 
+  p('### Demonology (R1) against the hybrid AFF_DRAINTANK');
+  p();
+  const dt = duelBuilds('DEMO_PACT_R1', 'AFF_DRAINTANK', { levels: o.levels, profile: 'average', sessions: o.sessions, seed: o.seed });
+  p(winnerText(dt, 'DEMO_PACT_R1', 'AFF_DRAINTANK') + (dt.crossover ? ` The winner changes at level ${dt.crossover.level}.` : ''));
+  p();
+  p('### How strong must Wrack be? (placeholder data)');
+  p();
+  p('Wowhead data for Wrack is missing, so AFF_WRACK (which uses it as the filler from level 40) is the least certain build. Kills per hour at level 50 and 59 as Wrack damage is multiplied; DEMO_PACT_R1 and AFF_DRAINTANK (which uses Drain Life until level 57) for reference:');
+  p();
+  p('| Wrack damage x | AFF_WRACK @50 | AFF_WRACK @59 | DEMO_PACT_R1 @50 | AFF_DRAINTANK @50 |');
+  p('|---:|---:|---:|---:|---:|');
+  for (const m of quick ? [1] : [1, 1.5, 2, 3]) {
+    const g = (id: string, level: number): number => (compareBuilds({ levels: [level], profiles: ['average'], sessions: o.sessions, seed: o.seed, builds: [id], params: { wrack_dmg_mult: m } })[0] as CellMetrics).killsPerHour;
+    p(`| ${m} | ${f(g('AFF_WRACK', 50))} | ${f(g('AFF_WRACK', 59))} | ${f(g('DEMO_PACT_R1', 50))} | ${f(g('AFF_DRAINTANK', 50))} |`);
+  }
+  p();
+
   // ---- 3. Bane question ----------------------------------------------------------------------
   p('## 3. Bane 2/5 + Shadow Bolt rank 1 or Bane 5/5 + rank 2?');
   p();
@@ -171,6 +188,15 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
       const cells = thresholds.map((t) => compareBuilds({ levels: [level], profiles: ['average'], sessions: o.sessions, seed: o.seed, mobs, builds: ['AFF_WRACK'], params: { use_curse_of_elements: true, skip_agony_if_ttk_below: t } })[0] as CellMetrics);
       p(`| ${level} | ${mobs} | ${cells.map((c) => f(c.killsPerHour)).join(' | ')} |`);
     }
+  }
+  p();
+  p('Same test on quick kills (mob HP x0.5), 1 mob:');
+  p();
+  p(`| Level | ${[0, 4, 6, 8, 12].map((t) => `skip < ${t}s`).join(' | ')} |`);
+  p('|---:|---:|---:|---:|---:|---:|');
+  for (const level of quick ? [50] : [40, 50, 59]) {
+    const cells = [0, 4, 6, 8, 12].map((t) => compareBuilds({ levels: [level], profiles: ['average'], sessions: o.sessions, seed: o.seed, mobs: 1, builds: ['AFF_WRACK'], params: { use_curse_of_elements: true, skip_agony_if_ttk_below: t, mob_hp_mult: 0.5 } })[0] as CellMetrics);
+    p(`| ${level} | ${cells.map((c) => f(c.killsPerHour)).join(' | ')} |`);
   }
   p();
   p('### Pull size (1, 2 or 3 mobs), kills per hour at level 50');
