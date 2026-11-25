@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { describeBuild, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
+import { TalentTrees } from './TalentTrees';
 
 const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
 
@@ -46,7 +47,9 @@ export function BuildsView({ level }: { level: number }) {
           {snap.lastPick ?? '-'} / {snap.nextPick ?? '-'}
         </dd>
       </dl>
-      <h2>Rozdane talenty na levelu {level}</h2>
+      <h2>Drzewa talentów na levelu {level}</h2>
+      <TalentTrees ranks={snap.ranks} perTree={snap.perTree} />
+      <h2>Rozdane talenty (lista)</h2>
       <table className="fv-table" aria-label="Talenty">
         <thead>
           <tr>

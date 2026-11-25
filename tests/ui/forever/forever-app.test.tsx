@@ -52,9 +52,13 @@ describe('ForeverApp', () => {
   it('lists builds, rotations and assumptions', () => {
     const { unmount } = render(<ForeverApp view="builds" runner={runner} />);
     expect(screen.getByRole('table', { name: 'Talenty' })).toBeTruthy();
+    for (const t of ['Affliction', 'Demonology', 'Destruction']) expect(screen.getByRole('region', { name: `Drzewo ${t}` })).toBeTruthy();
+    expect(screen.getAllByRole('img', { name: /^Improved Shadow Bolt: \d\/5$/ })).toHaveLength(1);
     unmount();
     render(<ForeverApp view="rotations" runner={runner} />);
     expect(screen.getByText(/Affliction \(DoT-y/)).toBeTruthy();
+    expect(document.querySelectorAll('.fv-steps .fv-icon').length).toBeGreaterThan(10);
+    expect(document.querySelector('.fv-steps img[src*="spell_shadow_shadowbolt"]')).toBeTruthy();
     cleanup();
     render(<ForeverApp view="assumptions" runner={runner} />);
     expect(screen.getByRole('table', { name: 'Założenia do weryfikacji' })).toBeTruthy();
