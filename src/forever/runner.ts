@@ -48,12 +48,22 @@ const REST_CAP_SEC = 600;
  */
 export function planRest(i: RestInput): RestPlan {
   const p = i.params;
-  const targetMana = i.maxMana * p.rest_to_mana_pct;
+  const targetMana = i.maxMana * (p.drink_to_mana_pct > 0 ? p.drink_to_mana_pct : p.rest_to_mana_pct);
   const targetHp = i.maxHp * p.rest_to_hp_pct;
   const eatSec = i.hp >= targetHp ? 0 : i.foodPerSec > 0 ? Math.min(REST_CAP_SEC, (targetHp - i.hp) / i.foodPerSec) : REST_CAP_SEC;
   const needDrink = i.mana >= targetMana ? 0 : i.drinkPerSec > 0 ? Math.min(REST_CAP_SEC, (targetMana - i.mana) / i.drinkPerSec) : REST_CAP_SEC;
-  const drinkSec = p.eat_and_drink_together ? Math.min(needDrink, eatSec) : needDrink;
-  const restSec = p.eat_and_drink_together ? eatSec : eatSec + drinkSec;
+  let drinkSec: number;
+  let restSec: number;
+  if (!p.eat_and_drink_together) {
+    drinkSec = needDrink;
+    restSec = eatSec + drinkSec;
+  } else if (p.drink_to_mana_pct > 0) {
+    drinkSec = needDrink;
+    restSec = Math.max(eatSec, drinkSec);
+  } else {
+    drinkSec = Math.min(needDrink, eatSec);
+    restSec = eatSec;
+  }
   return { eatSec, drinkSec, restSec, mana: Math.min(i.maxMana, i.mana + i.drinkPerSec * drinkSec), hp: Math.max(i.hp, targetHp) };
 }
 
@@ -110,7 +120,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   const ltGain = ltRank ? lifeTapGain(ltRank.base ?? 0, stats.spirit, ranks, params) : 0;
   for (let i = 0; i < params.session_pulls; i++) {
     // Between mobs: food and water only when HP is low, then Life Tap by the rules.
-    if (needsBreak(hp, stats.maxHp, params)) {
+    if (needsBreak(hp, stats.maxHp, params, mana, stats.maxMana)) {
       const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + stats.spirit * params.spirit_regen_per_spirit, foodPerSec: stats.foodHpPerSec, params });
       mana = plan.mana;
       hp = plan.hp;
@@ -172,6 +182,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     const boosted = Math.min(r.soulHarvestLeftMs / 1000, params.transition_sec);
     shCarryMs = Math.max(0, r.soulHarvestLeftMs - params.transition_sec * 1000);
     mana = Math.min(stats.maxMana, mana + stats.spirit * params.spirit_regen_per_spirit * (params.transition_sec + shBonus * boosted));
+    hp = Math.min(stats.maxHp, hp + stats.maxHp * params.hp_regen_pct_per_sec * params.transition_sec);
   }
   return out;
 }

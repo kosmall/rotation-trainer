@@ -28,6 +28,10 @@ export interface Params {
   lt_low_mana_pct: number;
   lt_low_hp_pct: number;
   lt_between_mana_pct: number;
+  lt_between_hp_pct: number;
+  break_mana_pct: number;
+  hp_regen_pct_per_sec: number;
+  drink_to_mana_pct: number;
   break_hp_pct: number;
   lt_safety_hp_pct: number;
   rest_to_mana_pct: number;

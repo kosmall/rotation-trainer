@@ -269,5 +269,22 @@
   "lt_safety_hp_pct": {
     "value": 0.1,
     "source": "Safety: a Life Tap is never cast if it would leave less than this HP fraction."
+  },
+  "lt_between_hp_pct": {
+    "value": 0.995,
+    "source": "User's rule: between mobs Life Tap needs HP at 100% (default 0.995); lower values let the warlock tap between mobs at lower HP. Life Tap policy parameter."
+  },
+  "break_mana_pct": {
+    "value": 0,
+    "source": "Optional break trigger: stop for food and water also when mana falls below this fraction (0 = never; the user's rule has none)."
+  },
+  "drink_to_mana_pct": {
+    "value": 0,
+    "source": "0 = drink only while eating (user's rule); above 0 = keep drinking after the meal until this mana fraction."
+  },
+  "hp_regen_pct_per_sec": {
+    "value": 0,
+    "verify": true,
+    "source": "Out-of-combat health regeneration as a fraction of max HP per second while walking between mobs. The Forever formula was NOT found; 0 is an explicit assumption (see the ledger). Tested at 0.2%/0.5% in the Life Tap strategy report."
   }
 }
