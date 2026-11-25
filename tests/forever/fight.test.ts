@@ -90,7 +90,7 @@ describe('affliction mechanics', () => {
       return crit.reduce((a, x) => a + x.d, 0) / crit.length / (norm.reduce((a, x) => a + x.d, 0) / norm.length);
     };
     expect(ratio(0)).toBeCloseTo(1.5, 1);
-    expect(ratio(3)).toBeCloseTo(1.8, 1);
+    expect(ratio(3)).toBeCloseTo(2.0, 1);
   });
   it('Bane of Agony and Curse of the Elements coexist on one target', () => {
     const r = simulatePull(cfg('AFF_WRACK', 50, {}, { use_curse_of_elements: true, mob_hp_mult: 2 }), 1);
@@ -132,17 +132,17 @@ describe('affliction mechanics', () => {
     const rs = many(cfg('AFF_WRACK', 50, { ranks: { ...ranksAt(loadVariant('AFF_WRACK'), 50), nightfall: 2 } }, { mob_hp_mult: 3 }), 40);
     const proc = rs.find((r) => r.nightfallProcs > 0);
     expect(proc).toBeDefined();
-    expect(proc!.trace.some((l) => l.includes('shadow_bolt') && l.includes('0 ms, free'))).toBe(true);
+    expect(proc!.trace.some((l) => l.includes('cast shadow_bolt') && l.includes('(0 ms, free'))).toBe(true);
   });
 });
 
 describe('demonology mechanics', () => {
-  it('Brand hits only happen with the talent, and never exceed 3 per Searing Pain', () => {
+  it('Brand hits only happen with the talent, and never exceed 6 per Searing Pain at 3/3', () => {
     const demo = many(cfg('DEMO_PACT_R1', 50), 40);
     expect(demo.some((r) => r.brandHits > 0)).toBe(true);
     for (const r of demo) {
       const sp = r.trace.filter((l) => l.includes('searing_pain') && l.includes('lands')).length;
-      expect(r.brandHits).toBeLessThanOrEqual(3 * sp);
+      expect(r.brandHits).toBeLessThanOrEqual(6 * sp);
     }
     expect(many(cfg('AFF_WRACK', 50), 10).every((r) => r.brandHits === 0)).toBe(true);
   });

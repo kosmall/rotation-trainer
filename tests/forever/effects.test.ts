@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
-import { brandDamage, demonicKnowledgeSp, sacrificeDemon, schoolMults, soulHarvest, summonDemon } from '../../src/forever/effects';
+import { brandAttacks, brandDamage, demonicKnowledgeSp, sacrificeDemon, schoolMults, soulHarvest, summonDemon } from '../../src/forever/effects';
 
 describe('Demonic Brand damage', () => {
   it('fixed_60 at 3/3 and 0 SP is (60-26)*1.5 + 15.5 = 66.5; +0.078 per spell power', () => {
@@ -8,11 +8,16 @@ describe('Demonic Brand damage', () => {
     expect(brandDamage(40, 0, 3, p)).toBeCloseTo(66.5, 6);
     expect(brandDamage(40, 100, 3, p)).toBeCloseTo(74.3, 6);
   });
-  it('level_scaled uses the caster level; lower ranks scale by rank/3; rank 0 is nothing', () => {
+  it('level_scaled uses the caster level; rank 1 reproduces the 90-93 tooltip at level 60; rank 0 is nothing', () => {
     const p = loadParams({ brand_scale: 'level_scaled' });
     expect(brandDamage(40, 0, 3, p)).toBeCloseTo(14 * 1.5 + 15.5, 6);
-    expect(brandDamage(40, 0, 1, p)).toBeCloseTo((14 * 1.5 + 15.5) / 3, 6);
+    expect(brandDamage(60, 0, 1, p)).toBeGreaterThanOrEqual(90);
+    expect(brandDamage(60, 0, 1, p)).toBeLessThanOrEqual(93);
     expect(brandDamage(40, 0, 0, p)).toBe(0);
+  });
+  it('2 attacks per rank: 6 at 3/3', () => {
+    expect(brandAttacks(1)).toBe(2);
+    expect(brandAttacks(3)).toBe(6);
   });
   it('brand_mult scales the damage', () => {
     expect(brandDamage(60, 0, 3, loadParams({ brand_mult: 2 }))).toBeCloseTo(2 * brandDamage(60, 0, 3, loadParams()), 6);

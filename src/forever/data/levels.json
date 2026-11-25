@@ -151,21 +151,58 @@
     10,
     300
    ],
-   "fireboltAvg": [
-    2.2,
-    -22
-   ],
    "fireboltCastMs": 2000,
-   "fireboltMana": [
-    0.7,
-    10
-   ],
    "armor": [
     15,
     0
    ],
    "unlock": 1,
-   "threatMult": 1.0
+   "threatMult": 1.0,
+   "fireboltRanks": [
+    {
+     "level": 1,
+     "mana": 10,
+     "dmg": 6,
+     "coeff": 0.164
+    },
+    {
+     "level": 8,
+     "mana": 20,
+     "dmg": 11,
+     "coeff": 0.314
+    },
+    {
+     "level": 18,
+     "mana": 35,
+     "dmg": 15,
+     "coeff": 0.529
+    },
+    {
+     "level": 28,
+     "mana": 50,
+     "dmg": 18,
+     "coeff": 0.571
+    },
+    {
+     "level": 38,
+     "mana": 70,
+     "dmg": 25,
+     "coeff": 0.571
+    },
+    {
+     "level": 48,
+     "mana": 95,
+     "dmg": 35,
+     "coeff": 0.571
+    },
+    {
+     "level": 58,
+     "mana": 115,
+     "dmg": 44,
+     "coeff": 0.571
+    }
+   ],
+   "fireboltSource": "Wowhead Forever spell pages (https://www.wowhead.com/forever/spell=<id>), fetched 2026-11-25 ids 3110,7799,7800,7801,7802,11762,11763; rank levels from allthings.how/?p=353577. The 10 Nov hotfix raised the base damage of ranks 1-4 (wiki tooltip rank 1 '4 to 5' is older than Wowhead value 6). Pet spell power assumed = Demonic Knowledge bonus only."
   },
   "succubus": {
    "hp": [
@@ -181,21 +218,52 @@
     0.8,
     0
    ],
-   "lashAvg": [
-    2.2,
-    -8
-   ],
    "lashCdMs": 12000,
-   "lashMana": [
-    0.8,
-    0
-   ],
    "armor": [
     25,
     0
    ],
    "unlock": 20,
-   "threatMult": 1.0
+   "threatMult": 1.0,
+   "lashRanks": [
+    {
+     "level": 20,
+     "mana": 65,
+     "dmg": 16,
+     "coeff": 0.429
+    },
+    {
+     "level": 28,
+     "mana": 80,
+     "dmg": 22,
+     "coeff": 0.429
+    },
+    {
+     "level": 36,
+     "mana": 105,
+     "dmg": 30,
+     "coeff": 0.429
+    },
+    {
+     "level": 44,
+     "mana": 125,
+     "dmg": 36,
+     "coeff": 0.429
+    },
+    {
+     "level": 52,
+     "mana": 145,
+     "dmg": 43,
+     "coeff": 0.429
+    },
+    {
+     "level": 60,
+     "mana": 160,
+     "dmg": 50,
+     "coeff": 0.429
+    }
+   ],
+   "lashSource": "Wowhead Forever spell pages (https://www.wowhead.com/forever/spell=<id>), fetched 2026-11-25 ids 7814,7815,7816,11778,11779,11780; 12 s cooldown (wiki)."
   },
   "voidwalker": {
    "hp": [
@@ -220,7 +288,8 @@
     0
    ],
    "unlock": 10,
-   "threatMult": 1.0
+   "threatMult": 1.0,
+   "tormentNote": "Torment: 5 s cooldown, 20 mana, taunt (allthings.how/?p=353577). The threat amount and the Torment mana use are NOT known (estimate)."
   },
   "felhunter": {
    "hp": [
@@ -242,6 +311,7 @@
    ],
    "unlock": 30,
    "threatMult": 1.0
-  }
+  },
+  "source_unconfirmed": "Pet health, mana, melee damage and attack speed per level are NOT published anywhere found (hotfix 10 Nov: Imp/Voidwalker/Succubus/Incubus base health +~15%); the numbers in hp/mana/meleeDps are ESTIMATES. See docs/forever-data-ledger.md."
  }
 }

@@ -44,8 +44,10 @@ Tap oraz **zabicia na godzinę**. Losowość jest z ziarnem (`--seed`), więc wy
 
 **Dane są w JSON** w `src/forever/data/` (`params`, `talents`, `spells`, `levels`, `builds`). Każda
 wartość, której nie da się potwierdzić, ma `verify: true` i notatkę ze źródłem. Lista wszystkich:
-`npm run forever:verify`. Wartości z Wowheada dla Forever nie były dostępne podczas pisania,
-więc współczynniki, rangi 3+, Wrack, Malevolence, HP mobów i dane peta to **przybliżenia**.
+`npm run forever:verify`. Rangi czarów i efekty talentów pochodzą ze stron spelli Wowheada Forever,
+wiki i poradników (25.11.2026), a **co potwierdzone, skąd i czego nie znaleziono** jest w
+`docs/forever-data-ledger.md`. Wciąż przybliżone: HP i obrażenia mobów, damage i HP petów, regeneracja
+Spirit, picie i jedzenie, statystyki sprzętu, skalowanie Wracka z levelem.
 
 ```bash
 # pojedynek dwóch buildów na levelach 40-59 (główne użycie)

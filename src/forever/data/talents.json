@@ -12,8 +12,7 @@
    "effect": {
     "gainMultPerRank": 0.1
    },
-   "verify": true,
-   "source": "Classic: +10%/rank mana from Life Tap; Forever scaling unconfirmed"
+   "source": "Confirmed: +10% mana per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "suppression",
@@ -24,11 +23,11 @@
    "maxRank": 5,
    "status": "modelled",
    "effect": {
-    "hitPctPerRank": 2,
-    "schools": "affliction"
+    "hitPctPerRank": 1,
+    "threatReducePerRank": 0.04
    },
    "verify": true,
-   "source": "Classic: -2% miss per rank on Affliction spells; task asks to check whether it applies to Shadow Bolt/Searing Pain (assumed no)"
+   "source": "Confirmed numbers: +1% hit and -4% threat per rank, 5%/20% at 5/5 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)). Assumed to apply to ALL spells (text says 'your chance to hit'); no source states a school restriction."
   },
   {
    "id": "improved_corruption",
@@ -42,8 +41,7 @@
     "castMsReducePerRank": 400,
     "dmgMultPerRank": 0.02
    },
-   "verify": true,
-   "source": "Task: Corruption instant at 5/5, +10% damage; Classic -0.4 s per rank"
+   "source": "Confirmed: -0.4 s cast and +2% damage per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)); Corruption cast is 2 s (wiki)"
   },
   {
    "id": "grim_reach",
@@ -69,8 +67,7 @@
     "durationMs": 10000,
     "regenContinuesWhileCasting": true
    },
-   "verify": true,
-   "source": "Task: kill under Drain Soul: +100% mana regen for 10 s, regen 100% while casting (rank 1 assumed half)"
+   "source": "Confirmed: 50%/100% regen for 10 s after a kill under Drain Soul, same share continues while casting (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
   },
   {
    "id": "improved_drains",
@@ -83,8 +80,7 @@
    "effect": {
     "drainDmgMultAtMax": 0.2
    },
-   "verify": true,
-   "source": "Task: +20% drains at 3/3"
+   "source": "Confirmed: +20% at 3/3 (7% shown at rank 1 = linear) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)); applies to Drain Life, Drain Soul, Drain Mana (not Wrack)"
   },
   {
    "id": "improved_bane_of_agony",
@@ -97,8 +93,7 @@
    "effect": {
     "dmgMultPerRank": 0.05
    },
-   "verify": true,
-   "source": "Classic Improved Curse of Agony analogue; Forever value unknown"
+   "source": "Confirmed: +5% per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "fel_concentration",
@@ -109,10 +104,9 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "channelPushbackResistPerRank": 0.14
+    "noPushbackChanceAtMax": 0.7
    },
-   "verify": true,
-   "source": "Classic-like chance to avoid pushback while channeling; value unconfirmed"
+   "source": "Confirmed: 23% per rank, 70% at 3/3, chance not to lose cast time when damaged while channelling Drain Life/Mana/Soul and Wrack (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
   },
   {
    "id": "amplify_curse",
@@ -135,10 +129,9 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "dotCritMultDeltaPerRank": 0.1
+    "critBonusAtMax": 1.0
    },
-   "verify": true,
-   "source": "Task: bigger crit damage of DoTs and drains; +0.1 crit multiplier per rank assumed"
+   "source": "Confirmed: +33% per rank, +100% at 3/3 of the crit damage BONUS of Corruption, Agony, Doom, Drain Soul, Drain Life, Siphon Life, Wrack (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)) -> crit multiplier 1 + 0.5 x (1 + r/3)"
   },
   {
    "id": "malevolence",
@@ -149,10 +142,9 @@
    "maxRank": 5,
    "status": "modelled",
    "effect": {
-    "affCritPctPerRank": "param:malevolence_crit_pct_per_rank"
+    "critPctPerRank": 1
    },
-   "verify": true,
-   "source": "Effect not given in the task; assumed +1% crit on Affliction spells per rank (param)"
+   "source": "Confirmed: +1% crit chance per rank on ALL Shadow spells, 5% at 5/5 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
   },
   {
    "id": "nightfall",
@@ -165,8 +157,7 @@
    "effect": {
     "procPerTickPerRank": 0.02
    },
-   "verify": true,
-   "source": "Task: chance for a free instant Shadow Bolt; Classic 2%/rank per Corruption or Drain Life tick"
+   "source": "Confirmed: 2% per rank per hit of Corruption, Drain Soul, Drain Life and Wrack; Shadow Trance makes the next Shadow Bolt instant (mana is still paid) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
   },
   {
    "id": "curse_of_exhaustion",
@@ -194,7 +185,7 @@
    "effect": {},
    "teachesSpell": "siphon_life",
    "verify": true,
-   "source": "Task: DoT spell taught by the talent; ranks and values in spells.json"
+   "source": "Spell data: spells.json (Wowhead Forever pages, warcraft.wiki.gg/wiki/Wrack)"
   },
   {
    "id": "soul_siphon",
@@ -205,11 +196,10 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "drainBonusPerEffectAtMax": 0.04,
+    "perEffectPerRank": 0.04,
     "maxEffects": 3
    },
-   "verify": true,
-   "source": "Task: drains stronger per own effect on the target; per-effect value and cap assumed"
+   "source": "Confirmed (hotfix 10 Nov): +4% per rank per effect of Corruption, Siphon Life, Bane of Agony on the target, max 3 effects (36% at 3/3), applies to Drain Life, Drain Soul, Wrack (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026); Blizzard hotfix notes https://worldofwarcraft.blizzard.com/news/24315281)"
   },
   {
    "id": "shadow_mastery",
@@ -222,8 +212,7 @@
    "effect": {
     "shadowDmgMultPerRank": 0.02
    },
-   "verify": true,
-   "source": "Classic: +2% shadow damage per rank"
+   "source": "Confirmed: +2% Shadow damage per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "wrack",
@@ -240,7 +229,7 @@
    "effect": {},
    "teachesSpell": "wrack",
    "verify": true,
-   "source": "Task: new Affliction filler replacing Shadow Bolt; spell data is a placeholder (spells.json)"
+   "source": "Spell data: spells.json (Wowhead Forever pages, warcraft.wiki.gg/wiki/Wrack)"
   },
   {
    "id": "improved_health_funnel",
@@ -263,10 +252,9 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "firebolt_dmg_per_rank": 0.1
+    "fireboltDmgPerRank": 0.1
    },
-   "verify": true,
-   "source": "Classic: +10% Imp spell damage per rank"
+   "source": "Confirmed: +10% Firebolt damage per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_embrace",
@@ -280,7 +268,7 @@
     "maxHpMultPerRank": 0.015
    },
    "verify": true,
-   "source": "Task: +15% Stamina at 5/5; assumed Stamina is half of max HP"
+   "source": "Confirmed: +3% Stamina per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip)). The HP effect is an assumption: Stamina taken as half of max HP."
   },
   {
    "id": "unholy_power",
@@ -293,8 +281,7 @@
    "effect": {
     "petDmgMultPerRank": 0.02
    },
-   "verify": true,
-   "source": "Task: +10% pet damage at 5/5"
+   "source": "Confirmed: +2% pet damage per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_aegis",
@@ -307,8 +294,7 @@
    "effect": {
     "demonArmorMultPerRank": 0.15
    },
-   "verify": true,
-   "source": "Task: +30% Demon Armor at 2/2"
+   "source": "Confirmed: +15% Demon Skin/Armor per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip))"
   },
   {
    "id": "improved_voidwalker",
@@ -319,10 +305,10 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "voidwalkerHpMultPerRank": 0.1
+    "tormentEffectPerRank": 0.1
    },
    "verify": true,
-   "source": "Classic: +10% Voidwalker HP per rank"
+   "source": "Confirmed: +10% per rank to Torment, Consume Shadows, Sacrifice, Suffering (not health) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026)). Modelled only as Torment threat; Torment's own threat value is unknown."
   },
   {
    "id": "fel_vitality",
@@ -336,8 +322,7 @@
     "petHpManaPerRank": 0.05,
     "playerManaPerRank": 0.05
    },
-   "verify": true,
-   "source": "Task: +15% pet HP and mana, +15% your mana at 3/3"
+   "source": "Confirmed: +5% pet HP/mana and +5% your mana per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_energies",
@@ -348,11 +333,10 @@
    "maxRank": 2,
    "status": "modelled",
    "effect": {
-    "petHealFracPerRank": 0.075,
-    "lifeTapGivesPetMana": true
+    "petHealFracAtMax": 0.15,
+    "lifeTapManaToPetPerRank": 0.5
    },
-   "verify": true,
-   "source": "Task: heal pet for 15% of your spell damage at 2/2, Life Tap also gives the pet mana"
+   "source": "Confirmed: heal pet for 8%/15% of your spell damage; Life Tap gives the demon 50%/100% of the mana (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "improved_sayaad",
@@ -365,8 +349,7 @@
    "effect": {
     "lashMultPerRank": 0.1
    },
-   "verify": true,
-   "source": "Task: +30% Lash of Pain at 3/3"
+   "source": "Confirmed: +10% Lash of Pain per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_sacrifice",
@@ -380,10 +363,9 @@
     "impShadowMult": 0.15,
     "succubusFireMult": 0.15,
     "voidwalkerManaPctPer4s": 0.02,
-    "felhunterHealPctPer4s": 0.02
+    "felhunterHealPctPer4s": 0.03
    },
-   "verify": true,
-   "source": "Task: 2 h effect: Imp +15% shadow, Voidwalker 2% mana per 4 s, Succubus +15% fire, Felhunter heal"
+   "source": "Confirmed: 2 h buff: Imp +15% Shadow, Succubus +15% Fire, Voidwalker 2% mana/4 s, Felhunter 3% health/4 s (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "master_summoner",
@@ -435,16 +417,17 @@
    "status": "modelled",
    "effect": {
     "spThreatMult": 0.5,
-    "charges": 3,
+    "attacksPerRank": 2,
     "durationMs": 10000,
     "levelBase": 26,
     "perLevel": 1.5,
+    "rank1Mult": 1.5,
     "min": 14,
     "max": 17,
     "spCoeff": 0.078
    },
    "verify": true,
-   "source": "Task: Searing Pain 50% less aggro, marks target 10 s, next 3 pet attacks deal (60-26)*1.5 + 14..17 + 0.078*SP at 3/3; lower ranks scaled by rank/3 (assumed)"
+   "source": "Confirmed: threat -17%/-33%/-50%, brands 10 s, pet's next 2/4/6 attacks (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)). Damage per attack: rank 3 = ((60-26)*1.5 + 14..17 + 0.078*SP) (timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026)); rank 1 tooltip 90-93 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip)) is reproduced by a x1.5 on the level term (ASSUMPTION); rank 2 interpolated (ASSUMPTION). Whether '60' is the caster level is unknown (param brand_scale)."
   },
   {
    "id": "improved_felhunter",
@@ -474,8 +457,7 @@
     "petShare": 0.3,
     "dmgMult": 0.03
    },
-   "verify": true,
-   "source": "Task: pet takes 30% of your damage taken, you and the pet deal 3% more"
+   "source": "Confirmed: 30% of your damage taken goes to the demon, both deal 3% more (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_knowledge",
@@ -488,8 +470,7 @@
    "effect": {
     "spBonusLevelFracAtMax": 1.0
    },
-   "verify": true,
-   "source": "Task: extra spell damage for you and the pet up to 100% of your level at 3/3 while a pet is out"
+   "source": "Confirmed: up to +33%/67%/100% of your level as spell damage for you and the demon (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "master_demonologist",
@@ -505,8 +486,7 @@
     "voidwalkerPhysReduce": 0.1,
     "felhunterMagicReduce": 0.1
    },
-   "verify": true,
-   "source": "Task: bonuses while the demon is out, at 5/5; rank scaling linear (assumed)"
+   "source": "Confirmed: 2% per rank (10% at 5/5) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_pact",
@@ -523,8 +503,7 @@
    "effect": {
     "keepSacrificeOnOtherSummon": true
    },
-   "verify": true,
-   "source": "Task: summoning a different demon no longer removes Demonic Sacrifice; the same demon still does"
+   "source": "Confirmed: Sacrifice survives summoning a different demon; resummoning the sacrificed one still cancels (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
   },
   {
    "id": "improved_shadow_bolt",
@@ -536,11 +515,9 @@
    "status": "modelled",
    "effect": {
     "shadowTakenPerRank": 0.04,
-    "charges": 4,
     "durationMs": 12000
    },
-   "verify": true,
-   "source": "Classic: Shadow Bolt crit -> +20% shadow damage taken (4 hits, 12 s) at 5/5; Forever effect unconfirmed"
+   "source": "Confirmed: Shadow Bolt crit -> target takes +4% per rank (20% at 5/5) Shadow damage from your attacks for 12 s (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)). Applied to all your Shadow damage (direct and periodic); pet damage excluded (assumption)."
   },
   {
    "id": "bane",
@@ -553,8 +530,7 @@
    "effect": {
     "castReducePerRankParam": "bane_per_rank"
    },
-   "verify": true,
-   "source": "Task: shortens Shadow Bolt/Immolate/Incinerate; per rank = param bane_per_rank (default 0.1 s, also test 0.2 s)"
+   "source": "Confirmed by two sources: -0.1 s cast per rank on Shadow Bolt, Immolate, Incinerate (0.5 s at 5/5) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026)). This matches the players' report of 1.2 s Shadow Bolt rank 1 at 5/5. The Wowhead '1 s' reading was wrong."
   },
   {
    "id": "destructive_reach",
@@ -588,10 +564,9 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "destroManaCostReducePerRank": 0.01
+    "destroManaCostReduceAtMax": 0.1
    },
-   "verify": true,
-   "source": "Classic: -1% mana cost on Destruction spells per rank"
+   "source": "Confirmed: -3.3% (shown 3%) per rank, 10% at 3/3 Destruction spell mana cost (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "aftermath",
@@ -602,10 +577,9 @@
    "maxRank": 5,
    "status": "modelled",
    "effect": {
-    "immolateDmgPerRank": 0.02
+    "immolateInitialDmgPerRank": 0.1
    },
-   "verify": true,
-   "source": "Task: strengthens Immolate; +2% per rank assumed"
+   "source": "Confirmed: Immolate INITIAL damage +10% per rank (50% at 5/5) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026)); the Daze part is not modelled"
   },
   {
    "id": "ruin",
@@ -616,10 +590,9 @@
    "maxRank": 5,
    "status": "modelled",
    "effect": {
-    "destroCritMultDeltaPerRank": 0.1
+    "critBonusPerRank": 0.2
    },
-   "verify": true,
-   "source": "Classic Ruin: crit damage +100% bonus; assumed 0.1 crit multiplier per rank here"
+   "source": "Confirmed: Destruction spell crit damage bonus +20% per rank (100% at 5/5) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "shadowburn",
@@ -654,10 +627,10 @@
    "maxRank": 3,
    "status": "modelled",
    "effect": {
-    "fireDmgPerRank": 0.02
+    "destroDmgAtMax": 0.1,
+    "critDmgPctAtMax": 0.1
    },
-   "verify": true,
-   "source": "Effect not confirmed (task: verify); assumed +2% damage on Immolate and Searing Pain per rank"
+   "source": "Confirmed: Searing Pain crit +3.3% per rank and all Destruction spell damage +3.3% per rank, 10% at 3/3 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "conflagrate",

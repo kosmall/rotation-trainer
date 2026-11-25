@@ -4,10 +4,10 @@
 import { createRng, type Rng } from '../engine/rng';
 import type { BuildVariant } from './builds';
 import { ranksAt } from './builds';
-import { brandDamage, demonicKnowledgeSp, effectNum, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
+import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
-import { armorReduction, combatRegenPerSec, demonArmorOf, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, petData, playerStatsFor } from './stats';
+import { armorReduction, combatRegenPerSec, demonArmorOf, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
 import type { Params, PetKind, SpellRank } from './types';
 
@@ -62,10 +62,14 @@ interface Dot {
   school: 'shadow' | 'fire';
   aff: boolean;
   nextTickAt: number;
-  endsAt: number;
   tickMs: number;
   tickDmg: number;
   healFrac: number;
+  ticksLeft: number;
+  tickIndex: number;
+  /** 2 while Wrack makes the periodic effect tick twice as fast. */
+  speed: number;
+  factors?: number[];
 }
 
 interface Mob {
@@ -75,7 +79,6 @@ interface Mob {
   dots: Dot[];
   curseUntil: number;
   curseVal: number;
-  vulnCharges: number;
   vulnUntil: number;
   brandCharges: number;
   brandUntil: number;
@@ -88,6 +91,9 @@ interface Mob {
 interface CastState { spellId: string; rank: SpellRank; mob: Mob; endsAt: number; free: boolean }
 interface ChannelState { spellId: string; mob: Mob; nextTickAt: number; endsAt: number; tickMs: number; tickDmg: number; healFrac: number; isDrainSoul: boolean }
 
+const SOUL_SIPHON_EFFECTS = new Set(['corruption', 'siphon_life', 'bane_of_agony']);
+const DRAINS = new Set(['drain_life', 'drain_soul', 'wrack']);
+const NIGHTFALL_SPELLS = new Set(['corruption', 'drain_soul', 'drain_life', 'wrack']);
 const AFF_SPELLS = new Set(['corruption', 'bane_of_agony', 'siphon_life', 'drain_life', 'drain_soul', 'curse_of_elements', 'wrack']);
 const DESTRO_SPELLS = new Set(['shadow_bolt', 'immolate', 'searing_pain']);
 const pv = (pair: unknown, level: number): number => {
@@ -119,7 +125,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const petUnlocked = !pd || level >= (pd.unlock as number);
   let petAlive = petKind !== null && petUnlocked;
 
-  const petHpMult = (1 + effectNum('fel_vitality', 'petHpManaPerRank') * rk(ranks, 'fel_vitality')) * (petKind === 'voidwalker' ? 1 + effectNum('improved_voidwalker', 'voidwalkerHpMultPerRank') * rk(ranks, 'improved_voidwalker') : 1);
+  const petHpMult = (1 + effectNum('fel_vitality', 'petHpManaPerRank') * rk(ranks, 'fel_vitality'));
   const pet = {
     maxHp: pd ? pv(pd.hp, level) * petHpMult : 0,
     hp: 0,
@@ -148,7 +154,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   for (let i = 0; i < nMobs; i++) {
     const hpv = mobBase.hp * params.mob_hp_mult;
     mobs.push({
-      hp: hpv, maxHp: hpv, alive: true, dots: [], curseUntil: 0, curseVal: 0, vulnCharges: 0, vulnUntil: 0, brandCharges: 0, brandUntil: 0,
+      hp: hpv, maxHp: hpv, alive: true, dots: [], curseUntil: 0, curseVal: 0, vulnUntil: 0, brandCharges: 0, brandUntil: 0,
       swingAt: Math.round(params.mob_swing_sec * 1000 * (0.5 + 0.1 * i)), threatPlayer: 0,
       threatPet: petAlive && params.pet_opens ? params.pet_initial_threat_per_level * level : 0,
       target: petAlive && params.pet_opens ? 'pet' : 'player',
@@ -179,7 +185,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const spEff = (): number => stats.spellPower + demonicKnowledgeSp(level, ranks, petAlive);
   const mults = () => schoolMults(ranks, demons, petAlive);
 
-  const targetMult = (m: Mob, school: 'shadow' | 'fire'): number => (t < m.curseUntil ? 1 + m.curseVal : 1) * (school === 'shadow' || school === 'fire' ? 1 : 1);
+  const targetMult = (m: Mob, school: 'shadow' | 'fire'): number => {
+    let x = t < m.curseUntil ? 1 + m.curseVal : 1;
+    if (school === 'shadow' && t < m.vulnUntil) x *= 1 + effectNum('improved_shadow_bolt', 'shadowTakenPerRank') * rk(ranks, 'improved_shadow_bolt');
+    return x;
+  };
 
   const coeffMult = (spellId: string, r: SpellRank): number => {
     if (spellId !== 'shadow_bolt') return 1;
@@ -190,18 +200,18 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
 
   const critPct = (spellId: string): number => {
     let c = stats.critPct;
-    if (AFF_SPELLS.has(spellId)) c += params.malevolence_crit_pct_per_rank * rk(ranks, 'malevolence');
+    if (getSpell(spellId).school === 'shadow') c += effectNum('malevolence', 'critPctPerRank') * rk(ranks, 'malevolence');
+    if (spellId === 'searing_pain') c += 100 * effectNum('agonizing_flames', 'critDmgPctAtMax') * (rk(ranks, 'agonizing_flames') / 3);
     return c;
   };
   const critMult = (spellId: string, periodic: boolean): number => {
-    let c = params.base_crit_mult;
-    if (periodic) c += effectNum('pandemic', 'dotCritMultDeltaPerRank') * rk(ranks, 'pandemic');
-    if (DESTRO_SPELLS.has(spellId) && !periodic) c += effectNum('ruin', 'destroCritMultDeltaPerRank') * rk(ranks, 'ruin');
-    return c;
+    let bonus = params.base_crit_mult - 1;
+    if (periodic) bonus *= 1 + effectNum('pandemic', 'critBonusAtMax') * (rk(ranks, 'pandemic') / 3);
+    if (DESTRO_SPELLS.has(spellId) && !periodic) bonus *= 1 + effectNum('ruin', 'critBonusPerRank') * rk(ranks, 'ruin');
+    return 1 + bonus;
   };
   const missPct = (spellId: string): number => {
-    let m = params.mob_miss_pct - stats.hitPct;
-    if (AFF_SPELLS.has(spellId)) m -= effectNum('suppression', 'hitPctPerRank') * rk(ranks, 'suppression');
+    const m = params.mob_miss_pct - stats.hitPct - effectNum('suppression', 'hitPctPerRank') * rk(ranks, 'suppression');
     return Math.max(1, m);
   };
 
@@ -258,7 +268,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (fromPlayer) {
       res.playerDamage += amount;
       m.threatPlayer += amount * threatMult;
-      const heal = effectNum('demonic_energies', 'petHealFracPerRank') * rk(ranks, 'demonic_energies');
+      const heal = effectNum('demonic_energies', 'petHealFracAtMax') * (rk(ranks, 'demonic_energies') / 2);
       if (heal > 0 && petAlive) pet.hp = Math.min(pet.maxHp, pet.hp + amount * heal);
     } else {
       res.petDamage += amount;
@@ -271,8 +281,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   // ---- spell numbers ------------------------------------------------------------------------
   const aftermathMult = (spellId: string): number => {
     let m = 1;
-    if (spellId === 'immolate') m *= 1 + effectNum('aftermath', 'immolateDmgPerRank') * rk(ranks, 'aftermath');
-    if (spellId === 'immolate' || spellId === 'searing_pain') m *= 1 + effectNum('agonizing_flames', 'fireDmgPerRank') * rk(ranks, 'agonizing_flames');
+    if (DESTRO_SPELLS.has(spellId)) m *= 1 + effectNum('agonizing_flames', 'destroDmgAtMax') * (rk(ranks, 'agonizing_flames') / 3);
     return m;
   };
 
@@ -281,33 +290,40 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const coeff = (r.coeff ?? spell.coeffDirect ?? 0) * coeffMult(spellId, r);
     let base = averageDirect(r) + spEff() * coeff * downrankFactor(params.downrank_penalty_model, r.level);
     base *= aftermathMult(spellId);
-    if (spellId === 'wrack') base *= params.wrack_dmg_mult;
+    if (spellId === 'immolate') base *= 1 + effectNum('aftermath', 'immolateInitialDmgPerRank') * rk(ranks, 'aftermath');
     return base;
   };
 
-  const dotTickBase = (spellId: string, r: SpellRank): { tickDmg: number; tickMs: number; durationMs: number } => {
+  /** Base damage of one tick (talents of the spell applied, school and target multipliers not), the tick spacing and the tick count. */
+  const dotTickBase = (spellId: string, r: SpellRank): { tickDmg: number; tickMs: number; ticks: number } => {
     const spell = getSpell(spellId);
     const tickMs = spell.tickMs ?? 3000;
-    const durationMs = spell.channelMs ?? spell.durationMs ?? 0;
+    const durationMs = r.durationMs ?? spell.channelMs ?? spell.durationMs ?? 0;
     const ticks = Math.max(1, Math.round(durationMs / tickMs));
-    let total = (r.dotTotal ?? 0) + spEff() * (spell.coeffDot ?? 0) * downrankFactor(params.downrank_penalty_model, r.level);
-    if (spellId === 'corruption') total *= 1 + effectNum('improved_corruption', 'dmgMultPerRank') * rk(ranks, 'improved_corruption');
-    if (spellId === 'bane_of_agony') total *= 1 + effectNum('improved_bane_of_agony', 'dmgMultPerRank') * rk(ranks, 'improved_bane_of_agony');
-    if (spellId === 'drain_life' || spellId === 'drain_soul') total *= (1 + effectNum('improved_drains', 'drainDmgMultAtMax') * (rk(ranks, 'improved_drains') / 3)) * params.drain_dmg_mult;
-    if (spellId === 'immolate') total *= aftermathMult('immolate');
-    return { tickDmg: total / ticks, tickMs, durationMs };
+    let tick: number;
+    if (spellId === 'wrack') {
+      const f = Math.min(1, Math.max(0, (level - 40) / 20));
+      tick = ((r.tickDmgAt40 ?? 0) + f * ((r.tickDmgAt60 ?? 0) - (r.tickDmgAt40 ?? 0))) * params.wrack_dmg_mult;
+    } else {
+      tick = (r.tickDmg ?? 0) + spEff() * (spell.coeffTick ?? 0) * downrankFactor(params.downrank_penalty_model, r.level);
+    }
+    if (spellId === 'corruption') tick *= 1 + effectNum('improved_corruption', 'dmgMultPerRank') * rk(ranks, 'improved_corruption');
+    if (spellId === 'bane_of_agony') tick *= (1 + effectNum('improved_bane_of_agony', 'dmgMultPerRank') * rk(ranks, 'improved_bane_of_agony'));
+    if (spellId === 'drain_life' || spellId === 'drain_soul') tick *= (1 + effectNum('improved_drains', 'drainDmgMultAtMax') * (rk(ranks, 'improved_drains') / 3)) * params.drain_dmg_mult;
+    if (spellId === 'immolate') tick *= aftermathMult('immolate');
+    return { tickDmg: tick, tickMs, ticks };
   };
 
-  const effectsOn = (m: Mob): number => m.dots.filter((d) => d.aff || d.id === 'immolate').length;
+  const effectsOn = (m: Mob): number => m.dots.filter((d) => SOUL_SIPHON_EFFECTS.has(d.id) && d.ticksLeft > 0).length;
   const soulSiphon = (m: Mob): number => {
     const r = rk(ranks, 'soul_siphon');
     if (r === 0) return 1;
-    return 1 + effectNum('soul_siphon', 'drainBonusPerEffectAtMax') * (r / 3) * Math.min(effectNum('soul_siphon', 'maxEffects'), effectsOn(m));
+    return 1 + effectNum('soul_siphon', 'perEffectPerRank') * r * Math.min(effectNum('soul_siphon', 'maxEffects'), effectsOn(m));
   };
 
   const tickDamage = (m: Mob, spellId: string, school: 'shadow' | 'fire', base: number, drain: boolean): number => {
     let d = base * (school === 'shadow' ? mults().shadow : mults().fire) * targetMult(m, school);
-    if (drain) d *= soulSiphon(m);
+    if (drain && DRAINS.has(spellId)) d *= soulSiphon(m);
     const crit = rng.next() * 100 < critPct(spellId);
     if (crit) d *= critMult(spellId, true);
     log(t, `tick ${spellId} ${Math.round(d)}${crit ? ' CRIT' : ''}`);
@@ -316,7 +332,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
 
   const maybeNightfall = (spellId: string): void => {
     const r = rk(ranks, 'nightfall');
-    if (r > 0 && (spellId === 'corruption' || spellId === 'drain_life') && rng.next() < effectNum('nightfall', 'procPerTickPerRank') * r) {
+    if (r > 0 && NIGHTFALL_SPELLS.has(spellId) && rng.next() < effectNum('nightfall', 'procPerTickPerRank') * r) {
       trance = true;
       res.nightfallProcs++;
       log(t, 'Nightfall proc');
@@ -332,15 +348,26 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   // ---- cast resolution ----------------------------------------------------------------------
   const manaCost = (spellId: string, r: SpellRank): number => {
     let c = r.mana;
-    if (DESTRO_SPELLS.has(spellId)) c *= 1 - effectNum('cataclysm', 'destroManaCostReducePerRank') * rk(ranks, 'cataclysm');
+    if (DESTRO_SPELLS.has(spellId)) c *= 1 - effectNum('cataclysm', 'destroManaCostReduceAtMax') * (rk(ranks, 'cataclysm') / 3);
     return Math.round(c);
   };
 
   const applyDot = (m: Mob, spellId: string, r: SpellRank): void => {
     const spell = getSpell(spellId);
     const b = dotTickBase(spellId, r);
+    const factors = spellId === 'bane_of_agony' && params.agony_ramp === 'classic_thirds' ? spell.rampFactors : undefined;
+    const speed = channel && channel.spellId === 'wrack' && channel.mob === m && (getSpell('wrack').accelerates ?? []).includes(spellId) ? 2 : 1;
     m.dots = m.dots.filter((d) => d.id !== spellId);
-    m.dots.push({ id: spellId, spellId, school: spell.school, aff: AFF_SPELLS.has(spellId), nextTickAt: t + b.tickMs, endsAt: t + b.durationMs, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0 });
+    m.dots.push({ id: spellId, spellId, school: spell.school, aff: AFF_SPELLS.has(spellId), nextTickAt: t + b.tickMs / speed, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0, ticksLeft: b.ticks, tickIndex: 0, speed, factors });
+  };
+
+  /** Wrack: the target's Siphon Life, Corruption and Bane of Agony tick `to` times as fast (remaining time to the next tick scales). */
+  const setDotSpeed = (m: Mob, to: number): void => {
+    for (const d of m.dots) {
+      if (!(getSpell('wrack').accelerates ?? []).includes(d.id) || d.speed === to) continue;
+      d.nextTickAt = t + ((d.nextTickAt - t) * d.speed) / to;
+      d.speed = to;
+    }
   };
 
   const brandHit = (m: Mob): void => {
@@ -359,18 +386,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (missed) return;
     if (spell.kind === 'direct' || spell.kind === 'direct+dot') {
       let d = directBase(spellId, r) * (spell.school === 'shadow' ? mults().shadow : mults().fire) * targetMult(m, spell.school);
-      if (spell.school === 'shadow' && m.vulnCharges > 0 && t < m.vulnUntil) {
-        d *= 1 + effectNum('improved_shadow_bolt', 'shadowTakenPerRank') * rk(ranks, 'improved_shadow_bolt');
-        m.vulnCharges--;
-      }
       const crit = rng.next() * 100 < critPct(spellId);
       if (crit) d *= critMult(spellId, false);
       if (spellId === 'shadow_bolt' && crit && rk(ranks, 'improved_shadow_bolt') > 0) {
-        m.vulnCharges = effectNum('improved_shadow_bolt', 'charges');
         m.vulnUntil = t + effectNum('improved_shadow_bolt', 'durationMs');
       }
       if (spellId === 'searing_pain' && rk(ranks, 'demonic_brand') > 0) {
-        m.brandCharges = effectNum('demonic_brand', 'charges');
+        m.brandCharges = brandAttacks(rk(ranks, 'demonic_brand'));
         m.brandUntil = t + effectNum('demonic_brand', 'durationMs');
       }
       dealToMob(m, d, true, spellThreat(spellId));
@@ -382,17 +404,19 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       m.curseVal = r.damageTaken ?? 0;
     } else if (spell.kind === 'channel') {
       const b = dotTickBase(spellId, r);
-      channel = { spellId, mob: m, nextTickAt: t + b.tickMs, endsAt: t + b.durationMs, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0, isDrainSoul: spellId === 'drain_soul' };
-      res.gcdBusyMs += Math.max(0, b.durationMs - gcd);
-      busyEnd = t + Math.max(b.durationMs, gcd);
+      const durationMs = b.ticks * b.tickMs;
+      channel = { spellId, mob: m, nextTickAt: t + b.tickMs, endsAt: t + durationMs, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0, isDrainSoul: spellId === 'drain_soul' };
+      res.gcdBusyMs += Math.max(0, durationMs - gcd);
+      busyEnd = t + Math.max(durationMs, gcd);
+      if (spellId === 'wrack') setDotSpeed(m, 2);
     }
   };
 
   const lifeTap = (): boolean => {
     const r = rankAt('life_tap', 'max', level);
     if (!r) return false;
+    const cost = lifeTapHealthCost(r.base ?? 0, stats.spirit, params);
     const gain = lifeTapGain(r.base ?? 0, stats.spirit, ranks, params);
-    const cost = gain * params.life_tap_hp_cost_frac;
     if (hp - cost < maxHp * 0.15 || mana >= maxMana) return false;
     const got = Math.min(gain, maxMana - mana);
     mana += got;
@@ -400,7 +424,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.manaFromLifeTap += got;
     res.lifeTapCount++;
     res.lifeTapHpSpent += cost;
-    if (rk(ranks, 'demonic_energies') > 0) pet.mana += got;
+    if (rk(ranks, 'demonic_energies') > 0) pet.mana += got * effectNum('demonic_energies', 'lifeTapManaToPetPerRank') * rk(ranks, 'demonic_energies');
     gcdUntil = t + gcd;
     res.gcdBusyMs += gcd;
     busyEnd = t + gcd;
@@ -414,6 +438,12 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return rankAt(spellId, 'max', level) !== undefined;
   };
 
+  const petRank = (ranksList: unknown): { level: number; mana: number; dmg: number; coeff: number } | undefined => {
+    const list = ranksList as { level: number; mana: number; dmg: number; coeff: number }[];
+    let best: (typeof list)[number] | undefined;
+    for (const r of list) if (r.level <= level) best = r;
+    return best;
+  };
   // ---- estimates for rotation rules ---------------------------------------------------------
   const fillerRank = (): { id: string; r: SpellRank } => {
     const want = variant.rank;
@@ -426,14 +456,17 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const spell = getSpell(id);
     if (spell.kind === 'channel') {
       const b = dotTickBase(id, r);
-      return b.tickDmg * Math.round(b.durationMs / b.tickMs) * mults().shadow;
+      return b.tickDmg * b.ticks * mults().shadow;
     }
     const c = critPct(id) / 100;
     return directBase(id, r) * (spell.school === 'shadow' ? mults().shadow : mults().fire) * (1 + c * (critMult(id, false) - 1));
   };
   const estPetDps = (): number => {
     if (!pd || !petAlive) return 0;
-    if (petKind === 'imp') return ((pv(pd.fireboltAvg, level) + demonicKnowledgeSp(level, ranks, true) * 0.57) * petDmgMult) / ((pd.fireboltCastMs as number) / 1000);
+    if (petKind === 'imp') {
+      const fr = petRank(pd.fireboltRanks);
+      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult) / ((pd.fireboltCastMs as number) / 1000) : 0;
+    }
     return pv(pd.meleeDps, level) * petDmgMult * params.pet_hit_chance;
   };
   const estDps = (): number => {
@@ -447,8 +480,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const makeCtx = (m: Mob): RotationCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance,
     known, talentRank: (id) => rk(ranks, id),
-    targetHasDot: (id) => m.dots.some((d) => d.id === id && d.endsAt > t),
-    targetDotRemainingMs: (id) => Math.max(0, (m.dots.find((d) => d.id === id)?.endsAt ?? 0) - t),
+    targetHasDot: (id) => m.dots.some((d) => d.id === id && d.ticksLeft > 0),
+    targetDotRemainingMs: (id) => { const d = m.dots.find((x) => x.id === id); return d ? Math.max(0, d.nextTickAt - t + ((d.ticksLeft - 1) * d.tickMs) / d.speed) : 0; },
     targetHasCurse: () => t < m.curseUntil,
     targetBrandRemainingMs: () => Math.max(0, m.brandUntil - t),
     targetBrandCharges: () => m.brandCharges,
@@ -469,7 +502,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const r = rankAt(c.spellId, c.rankWant, level);
     if (!r) return false;
     const free = trance && c.spellId === 'shadow_bolt';
-    const cost = free ? 0 : manaCost(c.spellId, r);
+    const cost = manaCost(c.spellId, r);
     if (mana < cost) return false;
     if (free) trance = false;
     mana -= cost;
@@ -513,11 +546,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const mobArmorRed = armorReduction(mobBase.armor, level);
     const dk = demonicKnowledgeSp(level, ranks, true);
     if (petKind === 'imp') {
-      const cost = pv(pd.fireboltMana, level);
-      if (pet.mana >= cost) {
-        pet.mana -= cost;
+      const fr = petRank(pd.fireboltRanks);
+      if (fr && pet.mana >= fr.mana) {
+        pet.mana -= fr.mana;
         if (rng.next() < params.pet_hit_chance) {
-          const d = (pv(pd.fireboltAvg, level) + dk * 0.57) * petDmgMult * (1 + effectNum('improved_imp', 'firebolt_dmg_per_rank') * rk(ranks, 'improved_imp'));
+          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp'));
           dealToMob(m, d, false, 1);
           if (m.alive) brandHit(m);
         }
@@ -538,10 +571,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       pet.nextLash = Infinity;
       return;
     }
-    const cost = pv(pd.lashMana, level);
-    if (pet.mana >= cost) {
-      pet.mana -= cost;
-      const d = (pv(pd.lashAvg, level) + demonicKnowledgeSp(level, ranks, true) * 0.57) * petDmgMult * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad'));
+    const lr = petRank(pd.lashRanks);
+    if (lr && pet.mana >= lr.mana) {
+      pet.mana -= lr.mana;
+      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad'));
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);
     }
@@ -578,7 +611,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       res.gcdBusyMs += params.pushback_ms;
       busyEnd += params.pushback_ms;
     }
-    else if (channel && rng.next() >= effectNum('fel_concentration', 'channelPushbackResistPerRank') * rk(ranks, 'fel_concentration')) {
+    else if (channel && rng.next() >= effectNum('fel_concentration', 'noPushbackChanceAtMax') * (rk(ranks, 'fel_concentration') / 3)) {
       channel.endsAt -= channel.tickMs;
       res.gcdBusyMs -= channel.tickMs;
       busyEnd -= channel.tickMs;
@@ -648,7 +681,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       maybeNightfall(ch.spellId);
       const finished = ch.nextTickAt > ch.endsAt;
       dealToMob(ch.mob, d, true, 1);
-      if (finished && channel === ch) channel = null;
+      if (finished && channel === ch) {
+        channel = null;
+        if (ch.spellId === 'wrack') setDotSpeed(ch.mob, 1);
+      }
     }
     // 3. DoT ticks
     for (const m of mobs) {
@@ -656,12 +692,14 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       for (const d of [...m.dots]) {
         if (!m.alive) break;
         if (d.nextTickAt > t) continue;
-        const dmg = tickDamage(m, d.spellId, d.school, d.tickDmg, false);
-        d.nextTickAt += d.tickMs;
+        const factor = d.factors ? (d.factors[d.tickIndex] ?? 1) : 1;
+        const dmg = tickDamage(m, d.spellId, d.school, d.tickDmg * factor, false);
+        d.nextTickAt += d.tickMs / d.speed;
+        d.tickIndex++;
+        d.ticksLeft--;
         if (d.healFrac > 0) healPlayer(dmg * d.healFrac);
         maybeNightfall(d.spellId);
-        const over = d.nextTickAt > d.endsAt;
-        if (over) m.dots = m.dots.filter((x) => x !== d);
+        if (d.ticksLeft <= 0) m.dots = m.dots.filter((x) => x !== d);
         dealToMob(m, dmg, true, 1);
       }
     }
@@ -673,7 +711,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
         const m = firstAlive();
         const tor = pd.torment as { intervalMs: number; threatPerLevel: number };
         if (m) {
-          m.threatPet += tor.threatPerLevel * level;
+          m.threatPet += tor.threatPerLevel * level * (1 + effectNum('improved_voidwalker', 'tormentEffectPerRank') * rk(ranks, 'improved_voidwalker'));
           reevaluate(m);
         }
         pet.nextTorment = t + tor.intervalMs;

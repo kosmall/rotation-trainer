@@ -41,8 +41,8 @@ function skipLongDots(ctx: RotationCtx): boolean {
 
 function drainSoulFinisher(ctx: RotationCtx): Candidate[] {
   if (!ctx.known('drain_soul') || ctx.talentRank('soul_harvest') === 0) return [];
-  const hp = ctx.targetHp();
-  if (hp <= ctx.drainSoulExpected() * 0.9 && hp > ctx.fillerExpected()) return [{ spellId: 'drain_soul', rankWant: 'max' }];
+  // The kill should land inside the channel: close to dying, but not already within one filler cast.
+  if (ctx.estTtkSec() <= ctx.params.drain_soul_window_sec && ctx.targetHp() > ctx.fillerExpected() * 0.3) return [{ spellId: 'drain_soul', rankWant: 'max' }];
   return [];
 }
 

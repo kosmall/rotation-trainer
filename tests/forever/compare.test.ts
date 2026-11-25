@@ -21,8 +21,9 @@ describe('compare and verify registry', () => {
   it('the verify registry lists params, talents and spells with sources', () => {
     const items = collectVerify();
     expect(items.length).toBeGreaterThan(40);
-    expect(items.some((i) => i.name === 'bane_per_rank')).toBe(true);
-    expect(items.some((i) => i.file === 'talents.json' && i.name === 'malevolence')).toBe(true);
+    expect(items.some((i) => i.name === 'life_tap_spirit_coeff')).toBe(true);
+    expect(items.some((i) => i.file === 'talents.json' && i.name === 'demonic_brand')).toBe(true);
+    expect(items.some((i) => i.name === 'bane_per_rank')).toBe(false);
     for (const i of items) expect(i.source.length, `${i.file}:${i.name}`).toBeGreaterThan(3);
   });
 });

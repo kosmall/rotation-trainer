@@ -39,7 +39,9 @@ export interface Params {
   pushback_ms: number;
   base_crit_mult: number;
   life_tap_spirit_coeff: number;
-  life_tap_hp_cost_frac: number;
+  drain_soul_window_sec: number;
+  agony_ramp: 'classic_thirds' | 'flat';
+  life_tap_mana_per_health: number;
   searing_pain_threat_mult: number;
   threat_overtake_ranged: number;
   threat_overtake_melee: number;
@@ -51,7 +53,6 @@ export interface Params {
   mob_dmg_mult: number;
   sb_r1_coeff_mult: number;
   sb_r2_coeff_mult: number;
-  malevolence_crit_pct_per_rank: number;
   spirit_regen_per_spirit: number;
   fsr_regen_fraction: number;
   sb_filler_lifetap_when_oom: boolean;
@@ -81,6 +82,10 @@ export interface SpellRank {
   coeff?: number;
   base?: number;
   damageTaken?: number;
+  tickDmg?: number;
+  durationMs?: number;
+  tickDmgAt40?: number;
+  tickDmgAt60?: number;
 }
 
 export interface SpellData {
@@ -95,7 +100,9 @@ export interface SpellData {
   durationMs?: number;
   tickMs?: number;
   coeffDirect?: number;
-  coeffDot?: number;
+  coeffTick?: number;
+  rampFactors?: number[];
+  accelerates?: string[];
   healFrac?: number;
   teachesTalent?: string;
   verify?: boolean;

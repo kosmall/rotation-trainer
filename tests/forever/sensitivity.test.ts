@@ -7,7 +7,7 @@ const small = { levels: [45, 55], profile: 'average', sessions: 4, seed: 1, base
 
 describe('sensitivity', () => {
   it('the base value of an axis never changes the winner; the ranking lists all builds', () => {
-    const rep = sensitivity({ ...small, axes: [{ param: 'bane_per_rank', values: [0.1], note: 'base' }] });
+    const rep = sensitivity({ ...small, axes: [{ param: 'transition_sec', values: [8], note: 'base' }] });
     expect(rep.rows[0]!.winnerChangedAt).toEqual([]);
     expect(rep.rows[0]!.ranking[45]).toHaveLength(VARIANT_IDS.length);
     expect(rep.winnerFlippers).toEqual([]);
@@ -20,7 +20,7 @@ describe('sensitivity', () => {
   });
   it('the default axes cover the verify list of the task', () => {
     const params = new Set(DEFAULT_AXES.map((a) => a.param));
-    for (const p of ['downrank_penalty_model', 'bane_per_rank', 'sb_r1_coeff_mult', 'sb_r2_coeff_mult', 'mob_hp_mult', 'brand_scale', 'brand_mult']) expect(params.has(p as never)).toBe(true);
+    for (const p of ['downrank_penalty_model', 'sb_r1_coeff_mult', 'sb_r2_coeff_mult', 'mob_hp_mult', 'brand_scale', 'brand_mult', 'agony_ramp', 'life_tap_spirit_coeff']) expect(params.has(p as never)).toBe(true);
   });
   it('every default axis parameter is a registered verify assumption or a documented rule', () => {
     const names = new Set(collectVerify().map((a) => a.name));

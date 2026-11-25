@@ -13,7 +13,6 @@ export interface SensitivityAxis {
 
 export const DEFAULT_AXES: SensitivityAxis[] = [
   { param: 'downrank_penalty_model', values: ['none', 'classic', 'partial'], note: 'penalty on the spell power coefficient of low spell levels (Shadow Bolt rank 1 and 2)' },
-  { param: 'bane_per_rank', values: [0.1, 0.2], note: 'seconds shaved per Bane rank (Wowhead 0.1; players report ~0.5 s at 5/5 on rank 1 = 0.1)' },
   { param: 'sb_r1_coeff_mult', values: [0.5, 1, 1.5], note: 'spell power coefficient of Shadow Bolt rank 1' },
   { param: 'sb_r2_coeff_mult', values: [0.5, 1, 1.5], note: 'spell power coefficient of Shadow Bolt rank 2' },
   { param: 'mob_hp_mult', values: [0.8, 1, 1.25], note: 'normal mob HP' },
@@ -23,8 +22,9 @@ export const DEFAULT_AXES: SensitivityAxis[] = [
   { param: 'wrack_dmg_mult', values: [0.7, 1, 1.5, 2, 3], note: 'placeholder Wrack damage (Wowhead data missing)' },
   { param: 'drain_dmg_mult', values: [0.7, 1, 1.3], note: 'Drain Life / Drain Soul damage' },
   { param: 'pet_dmg_mult', values: [0.7, 1, 1.3], note: 'pet damage tables' },
-  { param: 'malevolence_crit_pct_per_rank', values: [0, 1, 2], note: 'Malevolence effect (not given in the task)' },
-  { param: 'life_tap_spirit_coeff', values: [0.25, 0.5, 1], note: 'Spirit scaling of Life Tap' },
+  { param: 'agony_ramp', values: ['classic_thirds', 'flat'], note: 'shape of Bane of Agony damage over its 24 s (Forever ramp unconfirmed)' },
+  { param: 'life_tap_mana_per_health', values: [1, 1.2], note: 'Life Tap conversion ratio (wiki 1.0, one guide 1.2)' },
+  { param: 'life_tap_spirit_coeff', values: [0.5, 1, 1.5], note: 'Spirit scaling of Life Tap (formula not published)' },
   { param: 'searing_pain_threat_mult', values: [1, 2, 3], note: 'Searing Pain threat (Brand halves it)' },
   { param: 'transition_sec', values: [4, 8, 15], note: 'time between pulls' },
   { param: 'mobs_per_pull', values: [1, 2, 3], note: 'mobs per pull' },

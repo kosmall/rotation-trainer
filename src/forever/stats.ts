@@ -100,9 +100,14 @@ export function armorReduction(armor: number, level: number): number {
   return Math.min(0.75, armor / (armor + 400 + 85 * level));
 }
 
-/** Mana gained by Life Tap: rank base x (1 + Improved Life Tap) + spirit coefficient x Spirit. */
+/** Health Life Tap costs: rank base + Spirit term (assumed, see params life_tap_spirit_coeff). */
+export function lifeTapHealthCost(rankBase: number, spirit: number, params: Params): number {
+  return rankBase + params.life_tap_spirit_coeff * spirit;
+}
+
+/** Mana gained by Life Tap: health cost x conversion x (1 + Improved Life Tap). */
 export function lifeTapGain(rankBase: number, spirit: number, ranks: Ranks, params: Params): number {
-  return rankBase * (1 + 0.1 * (ranks['improved_life_tap'] ?? 0)) + params.life_tap_spirit_coeff * spirit;
+  return lifeTapHealthCost(rankBase, spirit, params) * params.life_tap_mana_per_health * (1 + 0.1 * (ranks['improved_life_tap'] ?? 0));
 }
 
 /** Mana regeneration per second while fighting (outside combat drinking is handled by the runner). */

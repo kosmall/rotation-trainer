@@ -12,8 +12,7 @@
   },
   "bane_per_rank": {
     "value": 0.1,
-    "verify": true,
-    "source": "Wowhead Forever: Bane 5/5 shortens Shadow Bolt/Immolate/Incinerate by max 1 s (rank 1 = 0.1 s). Players report 0.5 s total at 5/5 on Shadow Bolt r1 (1.7 -> 1.2 s). Test 0.2 too (seconds per rank)."
+    "source": "CONFIRMED by guildorder.com, allthings.how and timesaver.gg tooltips: Bane takes 0.1 s per rank off Shadow Bolt/Immolate/Incinerate (0.5 s at 5/5); consistent with the players' 1.2 s Shadow Bolt rank 1 at 5/5."
   },
   "haste_shortens_gcd": {
     "value": false,
@@ -123,14 +122,9 @@
     "source": "Classic spell crit multiplier."
   },
   "life_tap_spirit_coeff": {
-    "value": 0.5,
-    "verify": true,
-    "source": "Forever Life Tap scales with Spirit (task statement); the coefficient is unknown. Mana gained = rank base x (1 + Improved Life Tap) + coeff x Spirit."
-  },
-  "life_tap_hp_cost_frac": {
     "value": 1.0,
     "verify": true,
-    "source": "Life Tap costs health equal to the mana gained (Classic)."
+    "source": "warcraft.wiki.gg Forever: 'Spirit increases the amount converted' (no number). A guide (warcrafttavern summary) gives cost = base + Spirit: coefficient 1.0 assumed."
   },
   "searing_pain_threat_mult": {
     "value": 2.0,
@@ -167,7 +161,7 @@
   "wrack_dmg_mult": {
     "value": 1.0,
     "verify": true,
-    "source": "Sensitivity multiplier on the placeholder Wrack damage."
+    "source": "Sensitivity multiplier on Wrack tick damage (60 at level 40 -> 124 at level 60 is an interpolation between two sources)."
   },
   "mob_hp_mult": {
     "value": 1.0,
@@ -188,11 +182,6 @@
     "value": 1.0,
     "verify": true,
     "source": "Sensitivity multiplier on the spell power coefficient of Shadow Bolt rank 2."
-  },
-  "malevolence_crit_pct_per_rank": {
-    "value": 1,
-    "verify": true,
-    "source": "Malevolence effect is not given in the task; assumed +1% spell crit per rank on Affliction spells."
   },
   "spirit_regen_per_spirit": {
     "value": 0.074,
@@ -255,5 +244,23 @@
     "value": 1.0,
     "verify": true,
     "source": "Sensitivity multiplier on all pet damage (pet damage tables are estimates)."
+  },
+  "agony_ramp": {
+    "value": "classic_thirds",
+    "options": [
+      "classic_thirds",
+      "flat"
+    ],
+    "verify": true,
+    "source": "Wiki: Bane of Agony 'is dealt slowly at first, and builds up'. The 0.5x/1.0x/1.5x thirds pattern (4 ticks each) is the Classic one; the Forever shape is NOT confirmed."
+  },
+  "life_tap_mana_per_health": {
+    "value": 1.0,
+    "verify": true,
+    "source": "warcraft.wiki.gg Forever: 'Converts 30 Health into 30 Mana' (1.0). A guide's summary says 1.2 mana per health: unconfirmed."
+  },
+  "drain_soul_window_sec": {
+    "value": 5,
+    "source": "Rotation rule (task: 'Drain Soul na dobicie'): use Drain Soul when the estimated time to kill is at most this many seconds, so the kill lands inside the channel (Soul Harvest)."
   }
 }

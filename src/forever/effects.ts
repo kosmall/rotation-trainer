@@ -13,16 +13,23 @@ export function effectNum(id: string, key: string): number {
   return v;
 }
 
+/** Pet attacks branded by one Searing Pain: 2 per rank (6 at 3/3). */
+export function brandAttacks(brandRank: number): number {
+  return effectNum('demonic_brand', 'attacksPerRank') * brandRank;
+}
+
 /**
- * Demonic Brand damage per marked pet attack: ((levelRef - 26) x 1.5 + avg(14, 17) + 0.078 x SP)
- * at 3/3, scaled by rank/3 for lower ranks. levelRef is 60 (`fixed_60`) or the caster level.
+ * Demonic Brand damage per marked pet attack. Rank 3: (levelRef - 26) x 1.5 + avg(14, 17) + 0.078 x SP
+ * (Wowhead, via timesaver.gg). Rank 1 reproduces the 90-93 tooltip when the level term is x1.5
+ * (assumption); rank 2 is halfway (assumption). levelRef is 60 (`fixed_60`) or the caster level.
  */
 export function brandDamage(level: number, spellPower: number, brandRank: number, params: Params): number {
   if (brandRank <= 0) return 0;
   const e = (k: string) => effectNum('demonic_brand', k);
   const levelRef = params.brand_scale === 'fixed_60' ? 60 : level;
-  const base = Math.max(0, levelRef - e('levelBase')) * e('perLevel') + (e('min') + e('max')) / 2 + e('spCoeff') * spellPower;
-  return base * (brandRank / 3) * params.brand_mult;
+  const levelTerm = Math.max(0, levelRef - e('levelBase')) * e('perLevel');
+  const mult = 1 + (e('rank1Mult') - 1) * ((3 - Math.min(3, brandRank)) / 2);
+  return (levelTerm * mult + (e('min') + e('max')) / 2 + e('spCoeff') * spellPower) * params.brand_mult;
 }
 
 export interface DemonState {

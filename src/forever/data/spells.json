@@ -1,5 +1,5 @@
 {
- "_comment": "Spell ranks. Mana, damage and DoT totals are base values before talents. verify=true on every entry: see source.",
+ "_comment": "Forever spell ranks. Sources per spell in 'source'. verify=true means some part is unconfirmed (see the ledger docs/forever-data-ledger.md).",
  "spells": [
   {
    "id": "shadow_bolt",
@@ -8,89 +8,98 @@
    "kind": "direct",
    "onGcd": true,
    "banable": true,
+   "source": "Mana, cast time and SP mod per rank: https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 686,695,705,1088,1106,7641,11659,11660,11661,25307. Rank 1/2 damage ranges: warcraft.wiki.gg Shadow_Bolt + task statement. Average damage per rank: rankedboost.com/world-of-warcraft/forever/downranking/warlock (summary extraction; ranks 1-2 and the Wowhead values agree). Rank levels: rankedboost. Damage spread of ranks 3+ unknown (min=max=average).",
    "verify": true,
-   "source": "Rank 1 and 2 from the task (r1 1.7 s/25 mana/12-16; r2 2.2 s/40 mana/22-27); higher ranks approximate Classic. Coefficient = cast/3.5, capped 0.857.",
    "ranks": [
     {
      "rank": 1,
      "level": 1,
      "mana": 25,
-     "min": 12,
-     "max": 16,
      "castMs": 1700,
-     "coeff": 0.4857142857142857
+     "coeff": 0.486,
+     "min": 12,
+     "max": 16
     },
     {
      "rank": 2,
      "level": 6,
      "mana": 40,
-     "min": 22,
-     "max": 27,
      "castMs": 2200,
-     "coeff": 0.6285714285714287
+     "coeff": 0.629,
+     "min": 22,
+     "max": 27
     },
     {
      "rank": 3,
-     "level": 10,
+     "level": 12,
      "mana": 70,
-     "min": 41,
-     "max": 49,
      "castMs": 2800,
-     "coeff": 0.7999999999999999
+     "coeff": 0.8,
+     "min": 43,
+     "max": 43
     },
     {
      "rank": 4,
      "level": 20,
      "mana": 110,
-     "min": 82,
-     "max": 96,
      "castMs": 3000,
-     "coeff": 0.857
+     "coeff": 0.857,
+     "min": 62,
+     "max": 62
     },
     {
      "rank": 5,
      "level": 28,
      "mana": 160,
-     "min": 150,
-     "max": 172,
      "castMs": 3000,
-     "coeff": 0.857
+     "coeff": 0.857,
+     "min": 84,
+     "max": 84
     },
     {
      "rank": 6,
      "level": 36,
      "mana": 210,
-     "min": 213,
-     "max": 247,
      "castMs": 3000,
-     "coeff": 0.857
+     "coeff": 0.857,
+     "min": 107,
+     "max": 107
     },
     {
      "rank": 7,
      "level": 44,
      "mana": 265,
-     "min": 292,
-     "max": 327,
      "castMs": 3000,
-     "coeff": 0.857
+     "coeff": 0.857,
+     "min": 148,
+     "max": 148
     },
     {
      "rank": 8,
      "level": 52,
      "mana": 315,
-     "min": 357,
-     "max": 400,
      "castMs": 3000,
-     "coeff": 0.857
+     "coeff": 0.857,
+     "min": 199,
+     "max": 199
     },
     {
      "rank": 9,
      "level": 60,
      "mana": 370,
-     "min": 455,
-     "max": 507,
      "castMs": 3000,
-     "coeff": 0.857
+     "coeff": 0.857,
+     "min": 251,
+     "max": 251
+    },
+    {
+     "rank": 10,
+     "level": 60,
+     "mana": 380,
+     "castMs": 3000,
+     "coeff": 0.857,
+     "min": 268,
+     "max": 268
     }
    ]
   },
@@ -101,47 +110,58 @@
    "kind": "dot",
    "onGcd": true,
    "baseCastMs": 2000,
-   "durationMs": 18000,
    "tickMs": 3000,
-   "coeffDot": 0.936,
-   "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "coeffTick": 0.2,
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 172,6222,6223,7648,11671,11672,25311 (mana, 2 s cast, tick every 3 s, duration, SP mod 0.2 per tick). Rank levels: rankedboost. Totals match rankedboost's table.",
    "ranks": [
     {
      "rank": 1,
      "level": 4,
      "mana": 35,
-     "dotTotal": 40
+     "tickDmg": 10,
+     "durationMs": 12000
     },
     {
      "rank": 2,
      "level": 14,
      "mana": 55,
-     "dotTotal": 100
+     "tickDmg": 13,
+     "durationMs": 15000
     },
     {
      "rank": 3,
      "level": 24,
      "mana": 100,
-     "dotTotal": 220
+     "tickDmg": 22,
+     "durationMs": 18000
     },
     {
      "rank": 4,
      "level": 34,
      "mana": 160,
-     "dotTotal": 340
+     "tickDmg": 28,
+     "durationMs": 18000
     },
     {
      "rank": 5,
      "level": 44,
      "mana": 225,
-     "dotTotal": 500
+     "tickDmg": 40,
+     "durationMs": 18000
     },
     {
      "rank": 6,
      "level": 54,
      "mana": 290,
-     "dotTotal": 666
+     "tickDmg": 57,
+     "durationMs": 18000
+    },
+    {
+     "rank": 7,
+     "level": 60,
+     "mana": 340,
+     "tickDmg": 73,
+     "durationMs": 18000
     }
    ]
   },
@@ -152,47 +172,61 @@
    "kind": "dot",
    "onGcd": true,
    "baseCastMs": 0,
-   "durationMs": 24000,
    "tickMs": 2000,
-   "coeffDot": 1.2,
+   "durationMs": 24000,
+   "coeffTick": 0.133,
+   "rampFactors": [
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.5,
+    1.5,
+    1.5,
+    1.5
+   ],
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 980,1014,6217,11711,11712,11713 (mana, instant, 24 s, tick every 2 s, SP mod 0.133 per tick); rank 1 total 72 over 24 s: warcraft.wiki.gg Bane_of_Agony. Rank levels 8..58 are Classic levels (not confirmed for Forever). RAMP: wiki says damage 'is dealt slowly at first and builds up'; the 0.5/1.0/1.5 thirds pattern is the Classic one and is NOT confirmed for Forever.",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
    "ranks": [
     {
      "rank": 1,
      "level": 8,
      "mana": 25,
-     "dotTotal": 84
+     "tickDmg": 6
     },
     {
      "rank": 2,
      "level": 18,
      "mana": 50,
-     "dotTotal": 180
+     "tickDmg": 10
     },
     {
      "rank": 3,
      "level": 28,
      "mana": 90,
-     "dotTotal": 324
+     "tickDmg": 14
     },
     {
      "rank": 4,
      "level": 38,
      "mana": 130,
-     "dotTotal": 504
+     "tickDmg": 21
     },
     {
      "rank": 5,
      "level": 48,
      "mana": 170,
-     "dotTotal": 780
+     "tickDmg": 33
     },
     {
      "rank": 6,
      "level": 58,
      "mana": 215,
-     "dotTotal": 1044
+     "tickDmg": 46
     }
    ]
   },
@@ -204,68 +238,75 @@
    "onGcd": true,
    "banable": true,
    "baseCastMs": 2000,
-   "durationMs": 15000,
    "tickMs": 3000,
+   "durationMs": 15000,
    "coeffDirect": 0.2,
-   "coeffDot": 0.65,
-   "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "coeffTick": 0.13,
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 348,707,1094,2941,11665,11667,11668,25309 (mana, 2 s cast, DoT tick per 3 s over 15 s, SP mods 0.2 direct / 0.13 per tick). Direct damage per rank = rankedboost 'damage at 60' total (verbatim table) minus 5 DoT ticks; rank 1 = 10.8 (wiki tooltip). Rank levels: rankedboost.",
    "ranks": [
     {
      "rank": 1,
      "level": 1,
      "mana": 25,
-     "min": 11,
-     "max": 11,
-     "dotTotal": 20
+     "min": 10.8,
+     "max": 10.8,
+     "tickDmg": 3
     },
     {
      "rank": 2,
      "level": 10,
      "mana": 45,
-     "min": 24,
-     "max": 24,
-     "dotTotal": 40
+     "min": 21,
+     "max": 21,
+     "tickDmg": 6
     },
     {
      "rank": 3,
      "level": 20,
      "mana": 90,
-     "min": 50,
-     "max": 50,
-     "dotTotal": 90
+     "min": 38,
+     "max": 38,
+     "tickDmg": 12
     },
     {
      "rank": 4,
      "level": 30,
-     "mana": 160,
-     "min": 89,
-     "max": 89,
-     "dotTotal": 165
+     "mana": 155,
+     "min": 64,
+     "max": 64,
+     "tickDmg": 19
     },
     {
      "rank": 5,
      "level": 40,
      "mana": 220,
-     "min": 134,
-     "max": 134,
-     "dotTotal": 255
+     "min": 80,
+     "max": 80,
+     "tickDmg": 25
     },
     {
      "rank": 6,
      "level": 50,
-     "mana": 280,
-     "min": 192,
-     "max": 192,
-     "dotTotal": 360
+     "mana": 295,
+     "min": 116,
+     "max": 116,
+     "tickDmg": 38
     },
     {
      "rank": 7,
      "level": 60,
      "mana": 370,
-     "min": 258,
-     "max": 258,
-     "dotTotal": 485
+     "min": 146,
+     "max": 146,
+     "tickDmg": 52
+    },
+    {
+     "rank": 8,
+     "level": 60,
+     "mana": 380,
+     "min": 158,
+     "max": 158,
+     "tickDmg": 55
     }
    ]
   },
@@ -277,50 +318,50 @@
    "onGcd": true,
    "baseCastMs": 1500,
    "coeffDirect": 0.429,
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 5676,17919,17920,17921,17922,17923 (mana, 1.5 s cast, SP mod 0.429); average damage rankedboost summary table (rank 1 = wiki 24-29). Rank levels: rankedboost. Threat: 'a high amount' (wiki), factor unknown.",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
    "ranks": [
     {
      "rank": 1,
      "level": 18,
      "mana": 45,
-     "min": 38,
-     "max": 47
+     "min": 27,
+     "max": 27
     },
     {
      "rank": 2,
      "level": 26,
      "mana": 68,
-     "min": 56,
-     "max": 69
+     "min": 37,
+     "max": 37
     },
     {
      "rank": 3,
      "level": 34,
      "mana": 91,
-     "min": 93,
-     "max": 111
+     "min": 49,
+     "max": 49
     },
     {
      "rank": 4,
      "level": 42,
-     "mana": 168,
-     "min": 137,
-     "max": 163
+     "mana": 118,
+     "min": 67,
+     "max": 67
     },
     {
      "rank": 5,
      "level": 50,
-     "mana": 195,
-     "min": 175,
-     "max": 209
+     "mana": 141,
+     "min": 91,
+     "max": 91
     },
     {
      "rank": 6,
      "level": 58,
-     "mana": 225,
-     "min": 215,
-     "max": 255
+     "mana": 168,
+     "min": 116,
+     "max": 116
     }
    ]
   },
@@ -332,46 +373,46 @@
    "onGcd": true,
    "channelMs": 5000,
    "tickMs": 1000,
-   "coeffDot": 0.7,
+   "coeffTick": 0.1,
    "healFrac": 1.0,
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 689,699,709,7651,11699,11700 (mana, 5 s channel, leech per 1 s tick, SP mod 0.1 per tick). Damage = health leeched. Rank levels are Classic levels (rank 1 L14 confirmed by warcraft.wiki.gg).",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; heals the caster for damage dealt (Classic)",
    "ranks": [
     {
      "rank": 1,
      "level": 14,
      "mana": 55,
-     "dotTotal": 50
+     "tickDmg": 10
     },
     {
      "rank": 2,
      "level": 22,
-     "mana": 100,
-     "dotTotal": 110
+     "mana": 85,
+     "tickDmg": 14
     },
     {
      "rank": 3,
      "level": 30,
-     "mana": 150,
-     "dotTotal": 190
+     "mana": 135,
+     "tickDmg": 22
     },
     {
      "rank": 4,
      "level": 38,
-     "mana": 200,
-     "dotTotal": 285
+     "mana": 185,
+     "tickDmg": 28
     },
     {
      "rank": 5,
      "level": 46,
-     "mana": 265,
-     "dotTotal": 420
+     "mana": 240,
+     "tickDmg": 39
     },
     {
      "rank": 6,
      "level": 54,
-     "mana": 325,
-     "dotTotal": 570
+     "mana": 300,
+     "tickDmg": 51
     }
    ]
   },
@@ -383,33 +424,33 @@
    "onGcd": true,
    "channelMs": 15000,
    "tickMs": 3000,
-   "coeffDot": 0.8,
+   "coeffTick": 0.1,
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 1120,8288,8289,11675 (mana, 15 s channel, 3 s ticks, SP mod 0.1 per tick); rank 1 tooltip 85 over 15 s (warcraft.wiki.gg). Rank levels: Classic (rank 1 L10 confirmed by the wiki).",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
    "ranks": [
     {
      "rank": 1,
      "level": 10,
      "mana": 55,
-     "dotTotal": 55
+     "tickDmg": 17
     },
     {
      "rank": 2,
      "level": 24,
-     "mana": 110,
-     "dotTotal": 155
+     "mana": 125,
+     "tickDmg": 34
     },
     {
      "rank": 3,
      "level": 38,
-     "mana": 175,
-     "dotTotal": 295
+     "mana": 210,
+     "tickDmg": 54
     },
     {
      "rank": 4,
      "level": 52,
-     "mana": 240,
-     "dotTotal": 455
+     "mana": 290,
+     "tickDmg": 84
     }
    ]
   },
@@ -420,37 +461,37 @@
    "kind": "dot",
    "onGcd": true,
    "baseCastMs": 0,
-   "durationMs": 30000,
    "tickMs": 3000,
-   "coeffDot": 1.0,
+   "durationMs": 30000,
+   "coeffTick": 0.05,
    "healFrac": 1.0,
    "teachesTalent": "siphon_life",
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 18265,18879,18880,18881 (mana, instant, 30 s, leech per 3 s tick, SP mod 0.05). Damage = health leeched (assumed). Rank levels 30..58 are Classic levels, NOT confirmed for Forever.",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; taught by the talent; heals for damage dealt",
    "ranks": [
     {
      "rank": 1,
      "level": 30,
      "mana": 150,
-     "dotTotal": 150
+     "tickDmg": 11
     },
     {
      "rank": 2,
      "level": 38,
-     "mana": 175,
-     "dotTotal": 220
+     "mana": 205,
+     "tickDmg": 19
     },
     {
      "rank": 3,
      "level": 48,
-     "mana": 215,
-     "dotTotal": 304
+     "mana": 285,
+     "tickDmg": 29
     },
     {
      "rank": 4,
      "level": 58,
-     "mana": 250,
-     "dotTotal": 348
+     "mana": 365,
+     "tickDmg": 41
     }
    ]
   },
@@ -458,48 +499,27 @@
    "id": "wrack",
    "name": "Wrack",
    "school": "shadow",
-   "kind": "direct",
+   "kind": "channel",
    "onGcd": true,
+   "channelMs": 6000,
+   "tickMs": 1000,
+   "coeffTick": 0,
    "banable": false,
    "teachesTalent": "wrack",
+   "accelerates": [
+    "corruption",
+    "bane_of_agony",
+    "siphon_life"
+   ],
+   "source": "warcraft.wiki.gg/wiki/Wrack and timesaver.gg: 200 mana, 6 s channel, 60 Shadow damage per 1 s tick (after the 10 Nov hotfix: -30% damage, no longer raises periodic damage), while channelling Siphon Life/Corruption/Bane of Agony tick 100% faster (Blizzard hotfix notes 10 Nov). guildorder.com shows 124 per tick (probably a level-60 value): tick damage is interpolated 60 at level 40 -> 124 at level 60 (ASSUMPTION). Spell power coefficient unknown (0 used).",
    "verify": true,
-   "source": "PLACEHOLDER: Wowhead data for Wrack is not available here (task: fill in and verify). Assumed 2.0 s cast, 80% of Shadow Bolt damage at the same level, 70% of its mana, coefficient 2.0/3.5.",
    "ranks": [
     {
      "rank": 1,
      "level": 40,
-     "mana": 147,
-     "min": 170,
-     "max": 198,
-     "castMs": 2000,
-     "coeff": 0.5714285714285714
-    },
-    {
-     "rank": 2,
-     "level": 44,
-     "mana": 186,
-     "min": 234,
-     "max": 262,
-     "castMs": 2000,
-     "coeff": 0.5714285714285714
-    },
-    {
-     "rank": 3,
-     "level": 52,
-     "mana": 220,
-     "min": 286,
-     "max": 320,
-     "castMs": 2000,
-     "coeff": 0.5714285714285714
-    },
-    {
-     "rank": 4,
-     "level": 60,
-     "mana": 259,
-     "min": 364,
-     "max": 406,
-     "castMs": 2000,
-     "coeff": 0.5714285714285714
+     "mana": 200,
+     "tickDmgAt40": 60,
+     "tickDmgAt60": 124
     }
    ]
   },
@@ -510,8 +530,8 @@
    "kind": "utility",
    "onGcd": true,
    "baseCastMs": 0,
+   "source": "Wowhead Forever ids 1454,1455,1456,11687,11688,11689 give only a Dummy value (20,65,130,210,300,420); warcraft.wiki.gg Forever: rank 1 'Converts 30 Health into 30 Mana. Spirit increases the amount converted' (6 ranks, level 6). Base = value + 10 (rank 1: 30; ASSUMED for the others). The Spirit term and the conversion ratio are NOT confirmed (a guide says cost = base + Spirit and 1.2 mana per health).",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; mana gain = rank base x (1+Improved Life Tap) + spirit coeff x Spirit (param), costs HP equal to the gain",
    "ranks": [
     {
      "rank": 1,
@@ -547,7 +567,7 @@
      "rank": 6,
      "level": 56,
      "mana": 0,
-     "base": 424
+     "base": 430
     }
    ]
   },
@@ -559,20 +579,14 @@
    "onGcd": true,
    "baseCastMs": 0,
    "durationMs": 300000,
+   "source": "warcraft.wiki.gg Curse_of_the_Elements (Forever): 4 ranks, level 20, 50 mana, instant, 5 min; rank 1 reduces Magic resistances by 30 and increases Magic damage taken by 4%. Ranks 2-4 NOT found (Wowhead ids unknown).",
    "verify": true,
-   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; assumed +% fire and shadow damage taken; separate from banes",
    "ranks": [
     {
      "rank": 1,
-     "level": 32,
-     "mana": 100,
-     "damageTaken": 0.1
-    },
-    {
-     "rank": 2,
-     "level": 46,
-     "mana": 150,
-     "damageTaken": 0.15
+     "level": 20,
+     "mana": 50,
+     "damageTaken": 0.04
     }
    ]
   }

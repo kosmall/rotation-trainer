@@ -4,7 +4,7 @@
 import { ranksAt, type BuildVariant, type PicksOptions } from './builds';
 import { simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
-import { gcdMs, lifeTapGain, playerStatsFor } from './stats';
+import { gcdMs, lifeTapGain, lifeTapHealthCost, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
 import type { Params } from './types';
 
@@ -60,7 +60,7 @@ export function planRest(i: RestInput): RestPlan {
   let lt = 0;
   if (p.rest_use_life_tap && i.lifeTapBase !== null) {
     const gain = lifeTapGain(i.lifeTapBase, i.spirit, i.ranks, p);
-    const cost = gain * p.life_tap_hp_cost_frac;
+    const cost = lifeTapHealthCost(i.lifeTapBase, i.spirit, p);
     for (let guard = 0; guard < 60; guard++) {
       if (mana >= targetMana || hp - cost < i.maxHp * p.rest_life_tap_hp_floor) break;
       const nm = Math.min(i.maxMana, mana + gain);
