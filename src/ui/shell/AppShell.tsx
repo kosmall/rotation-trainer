@@ -12,10 +12,13 @@ import './shell.css';
 
 // Setup and Report load on first visit; the Fight (the first screen) is in the main bundle.
 const SetupView = lazy(() => import('../setup/SetupView').then((m) => ({ default: m.SetupView })));
+const ForeverApp = lazy(() => import('../forever/ForeverApp').then((m) => ({ default: m.ForeverApp })));
 const ReportView = lazy(() => import('../report/ReportView').then((m) => ({ default: m.ReportView })));
 
 function View({ route }: { route: Route }) {
   switch (route.mode) {
+    case 'forever':
+      return <ForeverApp view={route.view} />;
     case 'setup':
       return <SetupView section={route.section} />;
     case 'report':

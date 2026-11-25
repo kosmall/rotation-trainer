@@ -1,0 +1,62 @@
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { runJob } from '../../../src/forever/web/api';
+import type { JobRunner } from '../../../src/forever/web/client';
+import { ForeverApp } from '../../../src/ui/forever/ForeverApp';
+import { parseRoute, routeHref } from '../../../src/ui/shell/router';
+
+const runner: JobRunner = async (req, o) => {
+  const r = runJob({ ...req, settings: { ...req.settings, sessions: 5 } } as typeof req, o?.onProgress);
+  return r;
+};
+
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});
+
+describe('forever routes', () => {
+  it('opens the simulator by default and parses forever views', () => {
+    expect(parseRoute('')).toEqual({ mode: 'forever', view: 'sim' });
+    expect(parseRoute('#/forever/compare')).toEqual({ mode: 'forever', view: 'compare' });
+    expect(parseRoute('#/forever/nope')).toEqual({ mode: 'forever', view: 'sim' });
+    expect(routeHref({ mode: 'forever', view: 'builds' })).toBe('#/forever/builds');
+  });
+});
+
+describe('ForeverApp', () => {
+  it('runs the ranking for the chosen level and shows the results', async () => {
+    render(<ForeverApp view="sim" runner={runner} />);
+    fireEvent.change(screen.getByLabelText('Level postaci (liczba)'), { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
+    const table = await screen.findByRole('table', { name: 'Ranking buildów' });
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(7);
+    expect(screen.getByText(/Level 45/)).toBeTruthy();
+    expect(screen.getByText('najlepszy')).toBeTruthy();
+  });
+
+  it('shows an error when the run fails', async () => {
+    const failing: JobRunner = () => Promise.reject(new Error('boom'));
+    render(<ForeverApp view="sim" runner={failing} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('boom');
+  });
+
+  it('compares two builds and draws the level curve', async () => {
+    render(<ForeverApp view="compare" runner={runner} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Porównaj' }));
+    await waitFor(() => expect(screen.getByRole('table', { name: 'Porównanie buildów' })).toBeTruthy());
+    expect(screen.getByRole('img', { name: /zabicia na godzinę/i })).toBeTruthy();
+  });
+
+  it('lists builds, rotations and assumptions', () => {
+    const { unmount } = render(<ForeverApp view="builds" runner={runner} />);
+    expect(screen.getByRole('table', { name: 'Talenty' })).toBeTruthy();
+    unmount();
+    render(<ForeverApp view="rotations" runner={runner} />);
+    expect(screen.getByText(/Affliction \(DoT-y/)).toBeTruthy();
+    cleanup();
+    render(<ForeverApp view="assumptions" runner={runner} />);
+    expect(screen.getByRole('table', { name: 'Założenia do weryfikacji' })).toBeTruthy();
+  });
+});

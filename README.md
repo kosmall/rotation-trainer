@@ -686,3 +686,21 @@ sekcja „What the DPS excludes” w `docs/data-sources.md`.
 | `src/sim-runner` | symulator wielu walk (bez Reacta): przebiegi, statystyki, odpalenia reguł, porównanie sparowane, Web Worker i jego klient |
 | `src/ui` | interfejs React: `shell/` (nagłówek, router, skróty), `state/` (TrainerProvider, historia walk), `fight/` (arena, dock), `setup/` (sekcje, podsumowanie, ScriptEditor, ScenariosPanel), `report/` i `charts/` (raport, Moment by moment, Fights, Setup Used, ComparePanel, wykresy), `theme/` (tokeny, fonty, motyw) oraz edytory Setup (SetupPanel, GearPanel, TalentsPanel, ItemUseEditor, CombatTextSettings, SimulatorPanel) |
 | `tests` | testy Vitest: `engine`, `data`, `bot`, `setup`, `script`, `scenarios`, `sim-runner`, `ui` oraz `smoke.test.ts` (`fixtures`: dane referencyjne, m.in. logi bota sprzed zmian) |
+
+
+## WoW Forever: aplikacja web
+
+Przeglądarkowy interfejs symulatora (domyślna trasa aplikacji, `#/forever/...`):
+
+```bash
+npm run dev      # tryb deweloperski
+npm run build    # produkcyjny build (tsc + vite)
+```
+
+- **Symulacja**: ustaw level postaci (40-59) i uruchom; ranking 7 buildów (zabić/h, TTK, mana/HP na zabicie, picie, jedzenie, Life Tap, przerwy, zgony, GCD) z różnicą wobec najlepszego (sparowany przedział 95%) oraz krzywa kills/h po levelach 40-59.
+- **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów.
+- **Rotacje**: listy priorytetów rotacji używanych przez symulator.
+- **Porównanie**: dwa buildy head-to-head na wspólnych seedach, wykres 40-59.
+- **Założenia**: lista parametrów oznaczonych `verify: true`.
+
+Opcje zaawansowane: profil sprzętu, 1 lub 2 moby na pull, strategia Life Tapa i przerw, liczba sesji, seed. Obliczenia idą w Web Workerze (`src/forever/web/`), z fallbackiem na głównym wątku; widoki są w `src/ui/forever/`.

@@ -11,7 +11,11 @@ export type SetupSection = (typeof SETUP_SECTIONS)[number];
 export const REPORT_TABS = ['damage', 'timeline', 'log', 'rotation', 'simulator', 'compare'] as const;
 export type ReportTab = (typeof REPORT_TABS)[number];
 
+export const FOREVER_VIEWS = ['sim', 'builds', 'rotations', 'compare', 'assumptions'] as const;
+export type ForeverView = (typeof FOREVER_VIEWS)[number];
+
 export type Route =
+  | { mode: 'forever'; view: ForeverView }
   | { mode: 'setup'; section: SetupSection }
   | { mode: 'fight'; overlay?: 'ready' }
   | { mode: 'report'; tab: ReportTab };
@@ -19,6 +23,8 @@ export type Route =
 export type Mode = Route['mode'];
 
 const FIGHT: Route = { mode: 'fight' };
+const FOREVER: Route = { mode: 'forever', view: 'sim' };
+const isForeverView = (s: string): s is ForeverView => (FOREVER_VIEWS as readonly string[]).includes(s);
 
 const isSetupSection = (s: string): s is SetupSection => (SETUP_SECTIONS as readonly string[]).includes(s);
 const isReportTab = (s: string): s is ReportTab => (REPORT_TABS as readonly string[]).includes(s);
@@ -30,12 +36,16 @@ const isReportTab = (s: string): s is ReportTab => (REPORT_TABS as readonly stri
  */
 export function parseRoute(hash: string): Route {
   const path = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (path === '' || path === '/') return FOREVER;
   if (!path.startsWith('/')) return FIGHT;
   const parts = path.slice(1).split('/');
   if (parts[parts.length - 1] === '') parts.pop(); // a trailing slash
   const [mode, part, extra, ...rest] = parts;
   if (rest.length > 0) return FIGHT;
   switch (mode) {
+    case 'forever':
+      if (part === undefined) return FOREVER;
+      return extra === undefined && isForeverView(part) ? { mode: 'forever', view: part } : FOREVER;
     case 'fight':
       if (extra !== undefined) return FIGHT;
       return part === 'ready' ? { mode: 'fight', overlay: 'ready' } : FIGHT;
@@ -55,6 +65,8 @@ export function parseRoute(hash: string): Route {
 /** The link of a route ("#/setup/gear", "#/fight", "#/report/damage"). */
 export function routeHref(route: Route): string {
   switch (route.mode) {
+    case 'forever':
+      return `#/forever/${route.view}`;
     case 'setup':
       return `#/setup/${route.section}`;
     case 'report':
@@ -66,6 +78,7 @@ export function routeHref(route: Route): string {
 
 /** The default link of each mode (the header's mode links and the mobile tab bar). */
 export const MODE_HREFS: Readonly<Record<Mode, string>> = {
+  forever: routeHref({ mode: 'forever', view: 'sim' }),
   setup: routeHref({ mode: 'setup', section: 'gear' }),
   fight: routeHref({ mode: 'fight' }),
   report: routeHref({ mode: 'report', tab: 'damage' }),
@@ -96,9 +109,20 @@ const SETUP_SECTION_WORDS: Readonly<Record<SetupSection, string>> = {
   'combat-text': 'combat text',
 };
 
+/** The Forever views' names in the UI. */
+export const FOREVER_VIEW_TITLES: Readonly<Record<ForeverView, string>> = {
+  sim: 'Symulacja',
+  builds: 'Buildy',
+  rotations: 'Rotacje',
+  compare: 'Porównanie',
+  assumptions: 'Założenia',
+};
+
 /** `document.title` of a route ("Rotation Trainer: Setup, gear"). */
 export function routeTitle(route: Route): string {
   switch (route.mode) {
+    case 'forever':
+      return `WoW Forever Simulator: ${FOREVER_VIEW_TITLES[route.view]}`;
     case 'setup':
       return `Rotation Trainer: Setup, ${SETUP_SECTION_WORDS[route.section]}`;
     case 'report':

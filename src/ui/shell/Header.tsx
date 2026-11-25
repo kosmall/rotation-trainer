@@ -10,6 +10,7 @@ import { StatusChips } from './StatusChips';
 
 /** The three modes, in order (the header's links and the mobile tab bar). */
 export const MODES: readonly { mode: Mode; label: string }[] = [
+  { mode: 'forever', label: 'Forever' },
   { mode: 'setup', label: 'Setup' },
   { mode: 'fight', label: 'Fight' },
   { mode: 'report', label: 'Report' },

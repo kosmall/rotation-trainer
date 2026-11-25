@@ -81,11 +81,11 @@ describe('App shell: header and modes', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Talents' })).toBeTruthy();
   });
 
-  it('a mobile tab bar carries the same three mode links', () => {
+  it('a mobile tab bar carries the same mode links', () => {
     renderApp({ route: '#/report/log' });
     const bar = screen.getByRole('navigation', { name: 'Mode tabs' });
     const links = within(bar).getAllByRole('link');
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['#/setup/gear', '#/fight', '#/report/damage']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['#/forever/sim', '#/setup/gear', '#/fight', '#/report/damage']);
     expect(within(bar).getByRole('link', { name: 'Report' }).getAttribute('aria-current')).toBe('page');
   });
 

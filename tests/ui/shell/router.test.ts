@@ -23,8 +23,9 @@ describe('hash router', () => {
     expect(routeHref({ mode: 'report', tab: 'simulator' })).toBe('#/report/simulator');
   });
 
-  it('empty and unknown hashes lead to the fight', () => {
-    for (const hash of ['', '#', '#/', '/', '#/nowhere', '#/setup/nowhere', '#/report/nowhere', '#/fight/nowhere', '#fight', '#/setup/gear/extra', '#/SETUP/gear']) {
+  it('empty hashes open the Forever simulator, unknown ones the fight', () => {
+    for (const hash of ['', '#', '#/', '/']) expect(parseRoute(hash)).toEqual({ mode: 'forever', view: 'sim' });
+    for (const hash of ['#/nowhere', '#/setup/nowhere', '#/report/nowhere', '#/fight/nowhere', '#fight', '#/setup/gear/extra', '#/SETUP/gear']) {
       expect(parseRoute(hash)).toEqual({ mode: 'fight' });
     }
   });
