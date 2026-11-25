@@ -25,7 +25,7 @@ describe('kills per hour and rest planning', () => {
   it('Life Tap stops at the HP floor', () => {
     const plan = planRest(rest({ hp: 800, maxHp: 1400 }));
     expect(plan.hp).toBeGreaterThanOrEqual(1400 * 0.9 - 1e-6);
-    const lowHp = planRest(rest({ hp: 750 }));
+    const lowHp = planRest(rest({ hp: 400 }));
     expect(lowHp.lifeTaps).toBe(0);
   });
   it('eating and drinking one after the other takes longer than together', () => {

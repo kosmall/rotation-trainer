@@ -16,7 +16,14 @@
     "scenario:run": "tsx scripts/scenario-run.ts",
     "scenario:compare": "tsx scripts/scenario-compare.ts",
     "scenario:ids": "tsx scripts/scenario-ids.ts",
-    "screens": "node scripts/screens.mjs"
+    "screens": "node scripts/screens.mjs",
+    "forever:run": "tsx scripts/forever-run.ts",
+    "forever:duel": "tsx scripts/forever-duel.ts",
+    "forever:build": "tsx scripts/forever-build.ts",
+    "forever:verify": "tsx scripts/forever-verify.ts",
+    "forever:sensitivity": "tsx scripts/forever-sensitivity.ts",
+    "forever:optimize": "tsx scripts/forever-optimize.ts",
+    "forever:report": "tsx scripts/forever-report.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "5.3.0",

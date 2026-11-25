@@ -67,8 +67,9 @@
     "source": "Before drinking, Life Tap down to rest_life_tap_hp_floor while mana is below the target."
   },
   "rest_life_tap_hp_floor": {
-    "value": 0.5,
-    "source": "HP fraction floor for resting Life Taps."
+    "value": 0.25,
+    "verify": true,
+    "source": "HP fraction floor for out-of-combat Life Taps (safe to go low: food restores HP while drinking). Task: Life Tap rule is configurable."
   },
   "rest_to_mana_pct": {
     "value": 0.9,

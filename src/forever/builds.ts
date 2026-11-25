@@ -1,5 +1,5 @@
 import buildsJson from './data/builds.json';
-import { pointsAtLevel, TALENT_BY_ID, validatePicks, type Ranks } from './talents';
+import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks, type Ranks } from './talents';
 import type { PetKind, Tree } from './types';
 
 export interface BuildVariant {
@@ -30,8 +30,15 @@ export function expandOrder(runs: readonly [string, number][]): string[] {
   return out;
 }
 
+const CUSTOM_ORDERS = new Map<string, [string, number][]>();
+
+/** Registers an inline order (a custom build from a file) under a unique id. */
+export function registerOrder(id: string, runs: [string, number][]): void {
+  CUSTOM_ORDERS.set(id, runs);
+}
+
 export function loadOrder(id: string): string[] {
-  const runs = RAW.orders[id];
+  const runs = CUSTOM_ORDERS.get(id) ?? RAW.orders[id];
   if (!runs) throw new Error(`unknown talent order ${id}`);
   return expandOrder(runs);
 }
@@ -91,5 +98,35 @@ export function describeBuild(variant: BuildVariant, level: number, opts: PicksO
     ranks: r.ranks,
     lastPick: nameOf(picks[picks.length - 1]),
     nextPick: nameOf(full[picks.length]),
+  };
+}
+
+/**
+ * Builds a variant from a JSON object (custom builds for the duel): `order` is either the id of a
+ * known order or a list of `[talent, points]` runs; the rest defaults to a Shadow Bolt rank 1 spam
+ * with a Succubus. The order is validated for all 51 points.
+ */
+export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
+  const id = String(obj.id ?? 'CUSTOM');
+  let orderId: string;
+  if (typeof obj.order === 'string') orderId = obj.order;
+  else if (Array.isArray(obj.order)) {
+    orderId = `custom:${id}`;
+    registerOrder(orderId, obj.order as [string, number][]);
+  } else throw new Error('build needs an "order" (order id or [[talent, points], ...])');
+  const picks = loadOrder(orderId);
+  if (picks.length !== MAX_TALENT_POINTS) throw new Error(`a build needs exactly ${MAX_TALENT_POINTS} points (level 10 to 60), got ${picks.length}`);
+  const check = validatePicks(picks);
+  if (!check.ok) throw new Error(`invalid talent order: ${check.errors.join('; ')}`);
+  return {
+    id,
+    order: orderId,
+    pet: (obj.pet ?? 'succubus') as BuildVariant['pet'],
+    sacrificed: (obj.sacrificed ?? null) as BuildVariant['sacrificed'],
+    rotation: (obj.rotation ?? 'demonology') as BuildVariant['rotation'],
+    filler: String(obj.filler ?? 'shadow_bolt'),
+    rank: (obj.rank ?? 1) as BuildVariant['rank'],
+    pre_respec_build: (obj.pre_respec_build ?? null) as string | null,
+    respec_level: Number(obj.respec_level ?? 40),
   };
 }
