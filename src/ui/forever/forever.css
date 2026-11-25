@@ -48,3 +48,22 @@
 .fv-steps { list-style: none; padding: 0; margin: 0; counter-reset: s; }
 .fv-steps li { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent); }
 .fv-step-icons { display: flex; gap: 4px; min-width: 100px; }
+
+.fv-flow { list-style: none; margin: 8px 0; padding: 0 28px 0 0; position: relative; }
+.fv-flow::after { content: ''; position: absolute; right: 0; top: 18px; bottom: 28px; border-right: 2px solid var(--class, currentColor); }
+.fv-start { display: flex; align-items: center; margin-bottom: 18px; position: relative; }
+.fv-start::after { content: '◀'; position: absolute; right: -9px; top: 4px; color: var(--class, currentColor); font-size: 0.8rem; }
+.fv-start::before { content: ''; position: absolute; left: 140px; right: 0; top: 18px; border-top: 2px solid var(--class, currentColor); margin-right: -28px; }
+.fv-node { border: 1.5px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; background: var(--surface, transparent); }
+.fv-node-start { background: var(--class, #888); color: var(--on-class, #fff); font-weight: 700; border-color: transparent; }
+.fv-node-cond { flex: 0 0 340px; max-width: 340px; border-style: dashed; }
+.fv-node-cast { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; border-color: var(--class, currentColor); }
+.fv-node-cast .fv-step-icons { min-width: 0; }
+.fv-flow-row { display: flex; align-items: center; gap: 10px; margin: 0 -28px 22px 0; position: relative; }
+.fv-flow-row .fv-no { position: absolute; left: 12px; bottom: -19px; font-size: 0.7rem; opacity: 0.65; }
+.fv-flow-end .fv-no { display: none; }
+.fv-flow-row:last-child { margin-bottom: 0; }
+.fv-arrow { font-size: 0.75rem; font-weight: 700; color: var(--fel, #4a4); white-space: nowrap; }
+.fv-loopstub { flex: 1; min-width: 12px; border-top: 2px solid var(--class, currentColor); }
+@media (max-width: 760px) { .fv-flow-row { flex-wrap: wrap; } .fv-node-cond { flex-basis: 100%; max-width: none; } }
+.fv-facts-icons dd { display: flex; align-items: center; gap: 8px; min-height: 32px; }

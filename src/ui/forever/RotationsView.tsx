@@ -4,43 +4,60 @@ import { getSpell } from '../../forever/spells';
 import { IconTile } from './IconTile';
 
 type Kind = 'affliction' | 'demonology' | 'fire';
+/** One decision of the loop: when `when` holds (and the spell is affordable), `cast` is cast and the loop starts over. */
 export interface Step {
-  /** Spell ids shown as icons (the spell(s) this step casts). */
+  when: string;
+  /** Spell ids shown as icons. */
   spells: readonly string[];
-  text: string;
+  cast: string;
 }
 
-export const ROTATION_STEPS: Readonly<Record<Kind, readonly Step[]>> = {
-  affliction: [
-    { spells: ['shadow_bolt'], text: 'Shadow Bolt, gdy jest Shadow Trance (Nightfall), najwyższa ranga' },
-    { spells: ['curse_of_elements'], text: 'Curse of the Elements (jeśli włączona, brak klątwy na celu)' },
-    { spells: ['bane_of_agony'], text: 'Bane of Agony (jeśli cel żyje wystarczająco długo)' },
-    { spells: ['corruption'], text: 'Corruption' },
-    { spells: ['siphon_life'], text: 'Siphon Life' },
-    { spells: ['immolate'], text: 'Immolate (tylko gdy parametr aff_use_immolate włączony)' },
-    { spells: ['drain_soul'], text: 'Drain Soul na dobicie (Soul Harvest; gdy DoT-y i pet zabiją cel w oknie kanału)' },
-    { spells: ['wrack', 'drain_life'], text: 'Filler zależny od buildu: Wrack, albo Drain Life (Wrack tylko przy 1 mobie)' },
-    { spells: ['drain_life', 'shadow_bolt'], text: 'Drain Life, potem Shadow Bolt najwyższej rangi' },
-    { spells: ['shadow_bolt'], text: 'Gdy mało many: Shadow Bolt ranga 2, potem 1' },
-  ],
-  demonology: [
-    { spells: ['shadow_bolt'], text: 'Shadow Bolt, gdy jest Shadow Trance (ranga z buildu)' },
-    { spells: ['searing_pain'], text: 'Searing Pain, aby odświeżyć Demonic Brand (jeśli talent i pet żyje)' },
-    { spells: ['curse_of_elements', 'bane_of_agony', 'corruption'], text: 'Curse of the Elements, Bane of Agony (jeśli demo_use_agony), Corruption: tylko gdy cel żyje wystarczająco długo' },
-    { spells: ['drain_soul'], text: 'Drain Soul na dobicie (jeśli Soul Harvest)' },
-    { spells: ['shadow_bolt'], text: 'Shadow Bolt w randze z buildu (1, 2 albo najwyższa)' },
-    { spells: ['shadow_bolt'], text: 'Gdy mało many: Shadow Bolt ranga 2, potem 1' },
-  ],
-  fire: [
-    { spells: ['shadow_bolt'], text: 'Shadow Bolt ranga 1, gdy jest Shadow Trance' },
-    { spells: ['searing_pain'], text: 'Searing Pain, aby odświeżyć Demonic Brand (imp)' },
-    { spells: ['immolate'], text: 'Immolate, jeśli brak na celu i cel żyje wystarczająco długo' },
-    { spells: ['searing_pain', 'shadow_bolt'], text: 'Filler: Searing Pain najwyższej rangi (albo Shadow Bolt r1, wg parametru fire_filler)' },
-    { spells: ['shadow_bolt'], text: 'Shadow Bolt ranga 1' },
-  ],
-};
+const TRANCE = (rank: string): Step => ({ when: 'Jest Shadow Trance (Nightfall)?', spells: ['shadow_bolt'], cast: `Shadow Bolt (${rank}), natychmiast` });
+const BRAND: Step = { when: 'Pet żyje, a Demonic Brand bez ładunków lub kończy się (< 1,5 s)?', spells: ['searing_pain'], cast: 'Searing Pain (odświeża Brand)' };
+const COE: Step = { when: 'Brak klątwy na celu, a cel pożyje dość długo?', spells: ['curse_of_elements'], cast: 'Curse of the Elements' };
+const AGONY: Step = { when: 'Brak Bane of Agony, a cel pożyje dość długo?', spells: ['bane_of_agony'], cast: 'Bane of Agony' };
+const CORRUPTION: Step = { when: 'Brak Corruption, a cel pożyje dość długo?', spells: ['corruption'], cast: 'Corruption' };
+const SOUL: Step = { when: 'Masz Soul Harvest, a cel zginie w oknie kanału (DoT-y i pet)?', spells: ['drain_soul'], cast: 'Drain Soul (dobicie)' };
 
 const TITLES: Record<Kind, string> = { affliction: 'Affliction (DoT-y + filler)', demonology: 'Demonology (Shadow Bolt + pet)', fire: 'Demonology/Fire (Immolate + Searing Pain)' };
+
+/** The steps of a build's rotation, top to bottom: the first whose condition holds is cast, then the loop restarts. */
+export function stepsFor(v: BuildVariant): readonly Step[] {
+  const rank = v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`;
+  const cheap: Step = { when: 'Nie stać na powyższy Shadow Bolt?', spells: ['shadow_bolt'], cast: 'Tańszy Shadow Bolt: ranga 2, potem 1' };
+  switch (v.rotation) {
+    case 'affliction':
+      return [
+        TRANCE('najwyższa ranga'),
+        COE,
+        AGONY,
+        CORRUPTION,
+        { when: 'Brak Siphon Life, a cel pożyje dość długo?', spells: ['siphon_life'], cast: 'Siphon Life' },
+        { when: 'Immolate włączony w ustawieniach i brak go na celu?', spells: ['immolate'], cast: 'Immolate' },
+        SOUL,
+        v.filler === 'wrack'
+          ? { when: 'Filler: masz Wrack?', spells: ['wrack'], cast: 'Wrack (kanał, przyspiesza DoT-y)' }
+          : { when: 'Filler: 1 mob w pullu i masz Wrack?', spells: ['wrack'], cast: 'Wrack (kanał, przyspiesza DoT-y)' },
+        { when: 'Znasz Drain Life?', spells: ['drain_life'], cast: 'Drain Life' },
+        { when: 'Nie znasz Drain Life albo nie stać na niego?', spells: ['shadow_bolt'], cast: 'Shadow Bolt (najwyższa ranga)' },
+        cheap,
+      ];
+    case 'demonology':
+      return [TRANCE(rank), BRAND, COE, ...(v.rotation === 'demonology' ? [{ ...AGONY, when: 'Agony włączone w ustawieniach, brak jej na celu, cel pożyje dość długo?' }] : []), CORRUPTION, SOUL, { when: 'Zawsze (gdy nic wyżej nie pasuje)', spells: ['shadow_bolt'], cast: `Shadow Bolt (${rank})` }, cheap];
+    default:
+      return [
+        TRANCE('ranga 1'),
+        BRAND,
+        { when: 'Brak Immolate na celu, a cel pożyje dość długo?', spells: ['immolate'], cast: 'Immolate' },
+        { when: 'Zawsze (gdy nic wyżej nie pasuje)', spells: ['searing_pain', 'shadow_bolt'], cast: 'Filler: Searing Pain (albo Shadow Bolt r1, wg parametru fire_filler)' },
+        { when: 'Nie stać na filler?', spells: ['shadow_bolt'], cast: 'Shadow Bolt ranga 1' },
+      ];
+  }
+}
+
+const PET_NAMES: Record<string, string> = { imp: 'Imp', voidwalker: 'Voidwalker', succubus: 'Succubus', felhunter: 'Felhunter' };
+const FILLER_SPELLS: Record<string, string[]> = { wrack: ['wrack'], drain_life: ['drain_life'], shadow_bolt: ['shadow_bolt'], searing_pain: ['searing_pain'] };
+const FILLER_NAMES: Record<string, string> = { wrack: 'Wrack', drain_life: 'Drain Life (tank)', shadow_bolt: 'Shadow Bolt', searing_pain: 'Searing Pain' };
 
 function spellName(id: string): string {
   try {
@@ -50,24 +67,11 @@ function spellName(id: string): string {
   }
 }
 
-/** The steps of a build's rotation: the generic priority list with the build's own filler and Shadow Bolt rank filled in. */
-export function stepsFor(v: BuildVariant): readonly Step[] {
-  const rank = v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`;
-  return ROTATION_STEPS[v.rotation].map((st) => {
-    if (v.rotation === 'affliction' && st.text.startsWith('Filler'))
-      return v.filler === 'wrack'
-        ? { spells: ['wrack'], text: 'Filler: Wrack' }
-        : { spells: ['wrack', 'drain_life'], text: 'Filler: Wrack tylko przy 1 mobie, w pozostałych przypadkach Drain Life (tank)' };
-    if (v.rotation === 'demonology' && st.text.startsWith('Shadow Bolt w randze')) return { spells: st.spells, text: `Shadow Bolt, ${rank}` };
-    if (v.rotation === 'demonology' && st.text.startsWith('Shadow Bolt, gdy jest')) return { spells: st.spells, text: `Shadow Bolt, gdy jest Shadow Trance (${rank})` };
-    return st;
-  });
-}
-
-/** One build's rotation (chosen from a dropdown): priority list with spell icons. */
+/** One build's rotation (chosen from a dropdown) as a flow diagram: top-down checks, "yes" casts and loops back to the top. */
 export function RotationsView() {
   const [id, setId] = useState(VARIANT_IDS[0] as string);
   const v = loadVariant(id);
+  const steps = stepsFor(v);
   return (
     <>
       <div className="fv-row">
@@ -82,23 +86,75 @@ export function RotationsView() {
       </div>
       <section className="fv-panel">
         <h2>{TITLES[v.rotation]}</h2>
-        <p className="fv-note">
-          Pet: {v.pet ?? 'brak'}; ranga Shadow Bolta: {String(v.rank)}; filler: {v.filler}. Pierwszy dostępny i na który stać nas czar z listy jest rzucany; poza walką i przy niskim HP decyduje strategia Life Tapa (ustawienia zaawansowane).
-        </p>
-        <ol className="fv-steps">
-          {stepsFor(v).map((s) => (
-            <li key={s.text}>
-              <span className="fv-step-icons">
-                {s.spells.map((sp) => (
-                  <span key={sp} title={spellName(sp)}>
-                    <IconTile kind="spell" id={sp} name={spellName(sp)} size={32} />
-                  </span>
-                ))}
+        <dl className="fv-facts fv-facts-icons">
+          <dt>Pet</dt>
+          <dd>
+            {v.pet ? <IconTile kind="pet" id={v.pet} name={PET_NAMES[v.pet] ?? v.pet} size={28} /> : null}
+            <span>
+              {v.pet ? (PET_NAMES[v.pet] ?? v.pet) : 'brak'}
+              {v.sacrificed ? `, poświęcony: ${PET_NAMES[v.sacrificed] ?? v.sacrificed}` : ''}
+            </span>
+          </dd>
+          <dt>Shadow Bolt</dt>
+          <dd>
+            <IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />
+            <span>{v.rotation === 'fire' ? 'ranga 1' : v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`}</span>
+          </dd>
+          <dt>Filler</dt>
+          <dd>
+            {FILLER_SPELLS[v.filler]?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}
+            <span>{FILLER_NAMES[v.filler] ?? v.filler}</span>
+          </dd>
+          <dt>Talenty</dt>
+          <dd>
+            <span>
+              {v.order}
+              {v.pre_respec_build ? ` (do respeca na levelu ${v.respec_level}: ${v.pre_respec_build})` : ''}
+            </span>
+          </dd>
+        </dl>
+        <p className="fv-note">Po każdym rzucie (GCD) sprawdzasz warunki od góry.</p>
+        <p className="fv-note">Pierwszy spełniony, na którego czar Cię stać, jest rzucany, po czym wracasz na początek.</p>
+        <p className="fv-note">Poza walką i przy niskim HP decyduje strategia Life Tapa (opcje zaawansowane).</p>
+        <ol className="fv-flow" aria-label={`Diagram rotacji ${id}`}>
+          <li className="fv-start">
+            <span className="fv-node fv-node-start">Nowy GCD</span>
+          </li>
+          {steps.map((st) => (
+            <li key={st.when + st.cast} className="fv-flow-row">
+              <span className="fv-node fv-node-cond">{st.when}</span>
+              <span className="fv-arrow">TAK →</span>
+              <span className="fv-node fv-node-cast">
+                <span className="fv-step-icons">
+                  {st.spells.map((sp) => (
+                    <span key={sp} title={spellName(sp)}>
+                      <IconTile kind="spell" id={sp} name={spellName(sp)} size={32} />
+                    </span>
+                  ))}
+                </span>
+                <b>{st.cast}</b>
               </span>
-              <span>{s.text}</span>
+              <span className="fv-loopstub" aria-hidden="true" />
+              <span className="fv-no" aria-hidden="true">
+                NIE ↓
+              </span>
             </li>
           ))}
+          <li className="fv-flow-row fv-flow-end">
+            <span className="fv-node fv-node-cond">Nic nie pasuje albo brak many</span>
+            <span className="fv-arrow">→</span>
+            <span className="fv-node fv-node-cast">
+              <span className="fv-step-icons">
+                <span title="Life Tap">
+                  <IconTile kind="spell" id="life_tap" name="Life Tap" size={32} />
+                </span>
+              </span>
+              <b>Life Tap (wg strategii) albo chwila czekania</b>
+            </span>
+            <span className="fv-loopstub" aria-hidden="true" />
+          </li>
         </ol>
+        <p className="fv-note">↻ Każda gałąź „TAK” wraca do „Nowy GCD”. DoT-y, kanały i pet działają w tle między rzutami.</p>
       </section>
     </>
   );
