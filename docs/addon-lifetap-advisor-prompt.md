@@ -2,7 +2,7 @@
 
 Wklej całość poniżej jako zadanie dla modelu piszącego addon. Plik zawiera strategię z symulatora,
 jej progi, wymagania techniczne i przypadki testowe. Źródło liczb: `reports/forever_lifetap_strategies.md`
-(1 mob na pull) i `reports/forever_lifetap_strategies_2mobs.md` (2 moby), wersja z 25.11.2026, po korekcie modelu many na podstawie pomiarów z gry (level 1).
+(1 mob na pull) i `reports/forever_lifetap_strategies_2mobs.md` (2 moby), wersja z 25.11.2026, po korekcie modelu many na podstawie pomiarów z gry (level 1 i 31).
 
 ---
 
@@ -19,10 +19,10 @@ za gracza (Blizzard zabrania automatyzacji; używaj tylko niezabezpieczonych fun
 ## Strategia (z symulacji)
 
 Symulator porównał 7 strategii Life Tapa na 7 buildach i levelach 40–59 i przeszukał progi. Wynik
-(średnia liczba zabić na godzinę, 1 mob na pull): strategia użytkownika 113,6, znaleziona najlepsza
-117,3, stary próg „pij poniżej 40% many" 108,8, bez Life Tapa 101,8. Najlepsza strategia jest lepsza od
-użytkownika w 35 z 35 sprawdzanych komórek (build × level) i prawie nie powoduje zgonów (0,03 na
-godzinę wobec 0,9). **Progi są parametrami: ustawienia domyślne to profil `BEST_1MOB`.**
+(średnia liczba zabić na godzinę, 1 mob na pull): strategia użytkownika 114,0, znaleziona najlepsza
+117,0, stary próg „pij poniżej 40% many" 108,6, bez Life Tapa 101,7. Najlepsza strategia jest lepsza od
+użytkownika w 29 z 35 sprawdzanych komórek (build × level), gorsza w 1, i prawie nie powoduje zgonów
+(0,08 na godzinę wobec 0,84). Przy 1 mobie to różnica około 3%: reguła użytkownika jest już blisko optimum. **Progi są parametrami: ustawienia domyślne to profil `BEST_1MOB`.**
 
 ### Stan wejściowy
 
@@ -30,6 +30,10 @@ godzinę wobec 0,9). **Progi są parametrami: ustawienia domyślne to profil `BE
 `inCombat`, `lifeTapKnown`, `lifeTapHealthCost` (czytaj z tooltipa czaru; patrz niżej), `drinking`, `eating`.
 
 ### Reguły (każda wartość to parametr profilu)
+
+**Kolejność poza walką:** najpierw sprawdź Life Tap (reguły 1 i 2 oraz bezpiecznik); jeśli Life Tap nie
+jest wskazany, a `hpPct < breakHp`, podpowiedz jedzenie. Tak działa symulator: Life Tap zamienia HP w manę,
+potem ewentualnie jedzenie uzupełnia HP.
 
 1. **Life Tap w walce i poza walką**, gdy spełnione jest którekolwiek:
    - `manaPct < combatMana` **i** `hpPct > combatHp`
@@ -47,10 +51,9 @@ godzinę wobec 0,9). **Progi są parametrami: ustawienia domyślne to profil `BE
 
 | Profil | combatMana | combatHp | lowMana | lowHp | betweenMana | betweenHp | breakHp | Kiedy |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| `BEST_1MOB` (domyślny) | 0,40 | 0,80 | 0,20 | 0,40 | 0,90 | 0,80 | 0,40 | pull z 1 mobem, wszystkie buildy |
+| `BEST_1MOB` (domyślny) | 0,60 | 0,80 | 0,20 | 0,30 | 0,90 | 0,65 | 0,40 | pull z 1 mobem, wszystkie buildy (najlepszy też dla Affliction) |
 | `BEST_2MOB` | 0,50 | 0,50 | 0 (wyłączona) | 0,30 | 0 (wyłączona) | 0,65 | 0,50 | pulle z 2 mobami; około +18% względem reguły użytkownika |
-| `AFFLICTION_1MOB` | 0,60 | 0,80 | 0,20 | 0,30 | 0,90 | 0,65 | 0,40 | opcjonalnie dla Affliction |
-| `DEMO_1MOB` | 0,40 | 0,80 | 0,10 | 0,30 | 0,90 | 0,995 | 0,50 | opcjonalnie dla Demonology/Fire |
+| `DEMO_1MOB` | 0,40 | 0,80 | 0,10 | 0,40 | 0,90 | 0,80 | 0,40 | opcjonalnie dla Demonology/Fire (1 mob) |
 | `USER` | 0,60 | 0,80 | 0,20 | 0,30 | 0,90 | 0,995 | 0,30 | pierwotna reguła użytkownika |
 
 Wartość 0 w `lowMana`/`combatMana` wyłącza daną regułę. Addon nie wie, ilu mobów dotyczy pull, więc dodaj
@@ -97,16 +100,17 @@ Tabela przypadków dla profilu `BEST_1MOB` (mana%, HP%, w walce → wynik):
 
 | mana | HP | w walce | oczekiwany wynik |
 |---:|---:|:---:|---|
-| 35 | 90 | tak | LIFE_TAP (mana < 40, HP > 80) |
-| 35 | 70 | tak | NONE (HP nie > 80, mana nie < 20) |
-| 15 | 45 | tak | LIFE_TAP (mana < 20, HP > 40) |
-| 15 | 35 | tak | NONE (w walce nie ma przerwy) |
-| 15 | 35 | nie | EAT_DRINK (HP < 40) |
-| 80 | 85 | nie | LIFE_TAP (między mobami: HP ≥ 80, mana < 90) |
-| 80 | 70 | nie | NONE |
+| 55 | 90 | tak | LIFE_TAP (mana < 60, HP > 80) |
+| 55 | 70 | tak | NONE (HP nie > 80, mana nie < 20) |
+| 15 | 35 | tak | LIFE_TAP (mana < 20, HP > 30) |
+| 15 | 25 | tak | NONE (w walce nie ma przerwy) |
+| 15 | 25 | nie | EAT_DRINK (HP < 40, Life Tap niewskazany) |
+| 15 | 35 | nie | LIFE_TAP (najpierw Life Tap, jeśli koszt nie zejdzie poniżej `safetyHp`) |
+| 80 | 70 | nie | LIFE_TAP (między mobami: HP ≥ 65, mana < 90) |
+| 80 | 60 | nie | NONE |
 | 95 | 100 | nie | NONE |
 | 10 | 100 | nie | LIFE_TAP, o ile koszt nie zejdzie poniżej `safetyHp` |
-| 10 | 25 | nie | EAT_DRINK |
+| 50 | 30 | nie | EAT_DRINK |
 | dowolne | dowolne | dowolne, ale pije/je | NONE |
 
 Dla profilu `USER` i `BEST_2MOB` przygotuj analogiczne tabele z progami z tabeli powyżej. Dodaj testy
