@@ -704,3 +704,7 @@ npm run build    # produkcyjny build (tsc + vite)
 - **Założenia**: lista parametrów oznaczonych `verify: true`.
 
 Opcje zaawansowane: profil sprzętu, 1 lub 2 moby na pull, strategia Life Tapa i przerw, liczba sesji, seed. Obliczenia idą w Web Workerze (`src/forever/web/`), z fallbackiem na głównym wątku; widoki są w `src/ui/forever/`.
+
+### Publikacja na GitHub Pages
+
+Workflow `.github/workflows/pages.yml` buduje aplikację (`npm test`, `npm run build`) i wdraża `dist/` na GitHub Pages przy pushu na `main` albo `claude/amazing-galileo-x0w50c` oraz ręcznie (Actions, Run workflow). Jednorazowo w repo: Settings, Pages, Source: GitHub Actions. Router jest oparty na hashu, więc strona działa pod podścieżką `https://<użytkownik>.github.io/rotation-trainer/`.
