@@ -14,9 +14,9 @@ describe('data loader', () => {
   it('every verify node carries a non-empty source', () => {
     for (const i of walkVerify(RAW_PARAMS, 'params', [])) expect(i.source.length, i.path).toBeGreaterThan(5);
   });
-  it('GCD is 1500 ms and haste does not shorten it by default', () => {
+  it('GCD is 1500 ms and haste shortens it (confirmed)', () => {
     const p = loadParams();
     expect(p.gcd_ms).toBe(1500);
-    expect(p.haste_shortens_gcd).toBe(false);
+    expect(p.haste_shortens_gcd).toBe(true);
   });
 });

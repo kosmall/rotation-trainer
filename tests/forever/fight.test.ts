@@ -62,9 +62,15 @@ describe('GCD and Bane in the fight', () => {
     for (let i = 1; i < starts.length; i++) expect((starts[i] as number) - (starts[i - 1] as number)).toBeGreaterThanOrEqual(1.5 - 1e-9);
   });
   it('with haste on and haste_shortens_gcd off, GCD stays 1.5 s', () => {
-    const r = simulatePull(cfg('DEMO_PACT_VIDEO', 50, {}, { haste_pct: 30 }), 4);
+    const r = simulatePull(cfg('DEMO_PACT_VIDEO', 50, {}, { haste_pct: 30, haste_shortens_gcd: false }), 4);
     const starts = r.trace.filter((l) => l.includes(' cast ')).map((l) => parseFloat(l));
     for (let i = 1; i < starts.length; i++) expect((starts[i] as number) - (starts[i - 1] as number)).toBeGreaterThanOrEqual(1.5 - 1e-9);
+  });
+  it('haste shortens the GCD by default (1.5 s / 1.2 = 1.25 s at 20%)', () => {
+    const r = simulatePull(cfg('DEMO_PACT_VIDEO', 50, {}, { haste_pct: 20 }), 4);
+    const starts = r.trace.filter((l) => l.includes(' cast ')).map((l) => parseFloat(l));
+    for (let i = 1; i < starts.length; i++) expect((starts[i] as number) - (starts[i - 1] as number)).toBeGreaterThanOrEqual(1.25 - 1e-9);
+    expect(starts.some((x, i) => i > 0 && x - (starts[i - 1] as number) < 1.5 - 1e-9)).toBe(true);
   });
   it('bane_per_rank 0.2 changes Shadow Bolt r1 cast to 0.7 s', () => {
     const r = simulatePull(cfg('DEMO_PACT_VIDEO', 50, {}, { bane_per_rank: 0.2 }), 4);
