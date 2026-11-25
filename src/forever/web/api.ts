@@ -9,7 +9,7 @@ import { runCell, type CellMetrics } from '../runner';
 import { PROFILE_IDS } from '../stats';
 import type { Params } from '../types';
 
-export const MIN_LEVEL = 40;
+export const MIN_LEVEL = 10;
 export const MAX_LEVEL = 59;
 
 /** Life Tap / rest policies selectable in the UI (values from the strategy search, see reports/forever_lifetap_*.md). */

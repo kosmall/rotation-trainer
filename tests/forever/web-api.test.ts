@@ -24,15 +24,15 @@ describe('forever web api', () => {
     const direct = runCell({ variant: loadVariant(row.metrics.variant), level: 45, profile: 'average', params: loadParams(POLICIES.BEST_1MOB!.params), mobs: 1 }, 8, 1);
     expect(row.metrics.killsPerHour).toBe(direct.metrics.killsPerHour);
   });
-  it('duel returns a level result, and a sweep covers 40-59', () => {
+  it('duel returns a level result, and a sweep covers 10-59', () => {
     const d = runJob({ kind: 'duel', settings: { ...S, sessions: 5 }, a: 'AFF_WRACK', b: 'DEMO_PACT_R1', sweep: false });
     if (d.kind !== 'duel') throw new Error('kind');
     expect(d.at.level).toBe(45);
     expect(d.sweep).toBeNull();
     const s = runJob({ kind: 'sweep', settings: { ...S, sessions: 5 }, builds: ['AFF_WRACK'] });
     if (s.kind !== 'sweep') throw new Error('kind');
-    expect(s.levels).toHaveLength(20);
-    expect(s.series[0]?.kph).toHaveLength(20);
+    expect(s.levels).toHaveLength(50);
+    expect(s.series[0]?.kph).toHaveLength(50);
   });
   it('rejects an unknown build', () => {
     expect(() => runJob({ kind: 'duel', settings: S, a: 'NOPE', b: 'AFF_WRACK', sweep: false })).toThrow(/unknown build/);

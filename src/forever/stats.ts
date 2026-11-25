@@ -25,7 +25,7 @@ const LV = levelsJson as unknown as {
 
 export const PROFILE_IDS: readonly string[] = ['quest', 'average', 'good'];
 
-const clampLevel = (level: number): string => (Math.round(level) === 1 ? '1' : String(Math.min(60, Math.max(20, Math.round(level)))));
+const clampLevel = (level: number): string => (Math.round(level) === 1 ? '1' : String(Math.min(60, Math.max(10, Math.round(level)))));
 
 /** GCD in ms: fixed 1.5 s unless haste shortens it (`haste_shortens_gcd`), never below `min_gcd_ms`. */
 export function gcdMs(hastePct: number, params: Params): number {
@@ -45,7 +45,7 @@ export function gcdWasteMs(castMs: number, gcd: number): number {
 
 export interface MobStats { hp: number; swing: number; armor: number }
 
-/** Normal same-level mob (WoW Classic data, classic_base.json); levels clamp to 20-60. */
+/** Normal same-level mob (WoW Classic data, classic_base.json); levels clamp to 10-60. */
 export function mobAt(level: number): MobStats {
   const m = BASE.mob[clampLevel(level)] as MobRow;
   return { hp: m.hp, swing: m.swing, armor: m.armor };

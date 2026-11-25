@@ -17,7 +17,7 @@ a = ap.parse_args()
 
 M = open(a.mangos + '/sql/base/mangos.sql', errors='ignore').read()
 C = open(a.classic, errors='ignore').read()
-LV = list(range(20, 61))
+LV = list(range(10, 61))
 
 # --- player tables (mangos.sql)
 def table_rows(text, name, ncols):
@@ -81,10 +81,10 @@ for r in rows:
         norm.append(dict(level=lo, hp=hp, dmg=(dmin + dmax) / 2, armor=int(g(r, 'Armor')), atk=int(g(r, 'MeleeBaseAttackTime'))))
 by = collections.defaultdict(list)
 for m in norm: by[m['level']].append(m)
-med = {L: dict(n=len(v), hp=statistics.median(m['hp'] for m in v), dmg=statistics.median(m['dmg'] for m in v), armor=statistics.median(m['armor'] for m in v)) for L, v in by.items() if 38 <= L <= 60}
+med = {L: dict(n=len(v), hp=statistics.median(m['hp'] for m in v), dmg=statistics.median(m['dmg'] for m in v), armor=statistics.median(m['armor'] for m in v)) for L, v in by.items() if 10 <= L <= 60}
 
 # damage per swing: weighted least squares line over the levels with at least 8 mobs
-pts = [(L, d['dmg'], d['n']) for L, d in med.items() if d['n'] >= 8]
+pts = [(L, d['dmg'], d['n']) for L, d in med.items() if d['n'] >= 8 and L >= 38]  # the line is fitted on levels 38-60 only
 sw = sum(w for _, _, w in pts); mx = sum(L * w for L, _, w in pts) / sw; my = sum(y * w for _, y, w in pts) / sw
 slope = sum(w * (L - mx) * (y - my) for L, y, w in pts) / sum(w * (L - mx) ** 2 for L, _, w in pts)
 icpt = my - slope * mx
@@ -93,7 +93,8 @@ mob = {}
 for L in LV:
     base = cl[(L, 1)]
     mult = 1.15 + 0.01 * (L - 40)   # typical HealthMultiplier of normal mobs: 1.15 at 40, +0.01 per level (fits the medians at 38, 40, 45, 50, 55)
-    mob[str(L)] = dict(hp=round(base['hp'] * mult), armor=base['armor'], swing=round(icpt + slope * L, 1), medianHp=med.get(L, {}).get('hp'), medianSwing=med.get(L, {}).get('dmg'), samples=med.get(L, {}).get('n', 0))
+    # below level 38 the line (fitted on 38-60) is far off (negative at 10), so the swing is the median of the real mobs when there are 8+ samples
+    mob[str(L)] = dict(hp=round(base['hp'] * mult), armor=base['armor'], swing=round(med[L]['dmg'] if L < 38 and med.get(L, {}).get('n', 0) >= 8 else icpt + slope * L, 1), medianHp=med.get(L, {}).get('hp'), medianSwing=med.get(L, {}).get('dmg'), samples=med.get(L, {}).get('n', 0))
 
 # --- pets
 i = C.index("INSERT INTO `pet_levelstats` VALUES"); j = C.index(";\n", i)

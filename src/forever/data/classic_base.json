@@ -11,6 +11,46 @@
    "hp": 23,
    "mana": 59
   },
+  "10": {
+   "hp": 108,
+   "mana": 198
+  },
+  "11": {
+   "hp": 123,
+   "mana": 200
+  },
+  "12": {
+   "hp": 128,
+   "mana": 218
+  },
+  "13": {
+   "hp": 143,
+   "mana": 237
+  },
+  "14": {
+   "hp": 148,
+   "mana": 257
+  },
+  "15": {
+   "hp": 153,
+   "mana": 278
+  },
+  "16": {
+   "hp": 168,
+   "mana": 300
+  },
+  "17": {
+   "hp": 173,
+   "mana": 308
+  },
+  "18": {
+   "hp": 189,
+   "mana": 332
+  },
+  "19": {
+   "hp": 196,
+   "mana": 357
+  },
   "20": {
    "hp": 204,
    "mana": 383
@@ -183,6 +223,76 @@
    "sta": 20,
    "int": 25,
    "spi": 22
+  },
+  "10": {
+   "str": 18,
+   "agi": 26,
+   "sta": 25,
+   "int": 36,
+   "spi": 32
+  },
+  "11": {
+   "str": 18,
+   "agi": 27,
+   "sta": 25,
+   "int": 38,
+   "spi": 33
+  },
+  "12": {
+   "str": 18,
+   "agi": 27,
+   "sta": 26,
+   "int": 39,
+   "spi": 34
+  },
+  "13": {
+   "str": 19,
+   "agi": 27,
+   "sta": 26,
+   "int": 40,
+   "spi": 36
+  },
+  "14": {
+   "str": 19,
+   "agi": 28,
+   "sta": 27,
+   "int": 41,
+   "spi": 37
+  },
+  "15": {
+   "str": 19,
+   "agi": 28,
+   "sta": 28,
+   "int": 42,
+   "spi": 38
+  },
+  "16": {
+   "str": 20,
+   "agi": 29,
+   "sta": 28,
+   "int": 43,
+   "spi": 39
+  },
+  "17": {
+   "str": 20,
+   "agi": 29,
+   "sta": 29,
+   "int": 45,
+   "spi": 41
+  },
+  "18": {
+   "str": 20,
+   "agi": 29,
+   "sta": 29,
+   "int": 46,
+   "spi": 42
+  },
+  "19": {
+   "str": 21,
+   "agi": 30,
+   "sta": 30,
+   "int": 47,
+   "spi": 43
   },
   "20": {
    "str": 21,
@@ -473,156 +583,236 @@
   }
  },
  "mob": {
+  "10": {
+   "hp": 168,
+   "armor": 512,
+   "swing": 15,
+   "medianHp": 198,
+   "medianSwing": 15,
+   "samples": 122
+  },
+  "11": {
+   "hp": 191,
+   "armor": 538,
+   "swing": 16.5,
+   "medianHp": 222,
+   "medianSwing": 16.5,
+   "samples": 16
+  },
+  "12": {
+   "hp": 215,
+   "armor": 573,
+   "swing": 19,
+   "medianHp": 247,
+   "medianSwing": 19,
+   "samples": 26
+  },
+  "13": {
+   "hp": 240,
+   "armor": 608,
+   "swing": -10.9,
+   "medianHp": 273,
+   "medianSwing": 21,
+   "samples": 7
+  },
+  "14": {
+   "hp": 267,
+   "armor": 642,
+   "swing": 20.8,
+   "medianHp": 300,
+   "medianSwing": 20.75,
+   "samples": 10
+  },
+  "15": {
+   "hp": 295,
+   "armor": 677,
+   "swing": 25.5,
+   "medianHp": 328,
+   "medianSwing": 25.5,
+   "samples": 33
+  },
+  "16": {
+   "hp": 324,
+   "armor": 713,
+   "swing": 28,
+   "medianHp": 356,
+   "medianSwing": 28,
+   "samples": 11
+  },
+  "17": {
+   "hp": 355,
+   "armor": 748,
+   "swing": 29,
+   "medianHp": 386,
+   "medianSwing": 29,
+   "samples": 9
+  },
+  "18": {
+   "hp": 388,
+   "armor": 782,
+   "swing": 30.5,
+   "medianHp": 417,
+   "medianSwing": 30.5,
+   "samples": 10
+  },
+  "19": {
+   "hp": 422,
+   "armor": 817,
+   "swing": 32,
+   "medianHp": 449,
+   "medianSwing": 32,
+   "samples": 11
+  },
   "20": {
    "hp": 460,
    "armor": 852,
-   "swing": 9.8,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 33.2,
+   "medianHp": 484,
+   "medianSwing": 33.25,
+   "samples": 98
   },
   "21": {
    "hp": 500,
    "armor": 888,
-   "swing": 12.8,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 35.5,
+   "medianHp": 531,
+   "medianSwing": 35.5,
+   "samples": 12
   },
   "22": {
    "hp": 545,
    "armor": 922,
-   "swing": 15.7,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 37,
+   "medianHp": 573,
+   "medianSwing": 37,
+   "samples": 16
   },
   "23": {
    "hp": 593,
    "armor": 957,
-   "swing": 18.7,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 38.5,
+   "medianHp": 617,
+   "medianSwing": 38.5,
+   "samples": 14
   },
   "24": {
    "hp": 644,
    "armor": 992,
-   "swing": 21.7,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 40,
+   "medianHp": 664,
+   "medianSwing": 40,
+   "samples": 22
   },
   "25": {
    "hp": 699,
    "armor": 1026,
-   "swing": 24.6,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 41.5,
+   "medianHp": 712,
+   "medianSwing": 41.5,
+   "samples": 38
   },
   "26": {
    "hp": 757,
    "armor": 1061,
-   "swing": 27.6,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 43,
+   "medianHp": 787,
+   "medianSwing": 43,
+   "samples": 14
   },
   "27": {
    "hp": 816,
    "armor": 1097,
    "swing": 30.6,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "medianHp": 840,
+   "medianSwing": 44,
+   "samples": 6
   },
   "28": {
    "hp": 879,
    "armor": 1130,
-   "swing": 33.5,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 45.5,
+   "medianHp": 896,
+   "medianSwing": 45.5,
+   "samples": 9
   },
   "29": {
    "hp": 941,
    "armor": 1165,
-   "swing": 36.5,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 45.5,
+   "medianHp": 950,
+   "medianSwing": 45.5,
+   "samples": 12
   },
   "30": {
    "hp": 1003,
    "armor": 1200,
-   "swing": 39.5,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 48,
+   "medianHp": 1003,
+   "medianSwing": 48,
+   "samples": 82
   },
   "31": {
    "hp": 1066,
    "armor": 1234,
-   "swing": 42.4,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 51,
+   "medianHp": 1066,
+   "medianSwing": 51,
+   "samples": 12
   },
   "32": {
    "hp": 1131,
    "armor": 1270,
-   "swing": 45.4,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 50.5,
+   "medianHp": 1162,
+   "medianSwing": 50.5,
+   "samples": 24
   },
   "33": {
    "hp": 1199,
    "armor": 1304,
    "swing": 48.4,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "medianHp": 1221,
+   "medianSwing": 52,
+   "samples": 7
   },
   "34": {
    "hp": 1268,
    "armor": 1340,
-   "swing": 51.3,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 52.5,
+   "medianHp": 1171.5,
+   "medianSwing": 52.5,
+   "samples": 10
   },
   "35": {
    "hp": 1342,
    "armor": 1373,
-   "swing": 54.3,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 56.5,
+   "medianHp": 1342,
+   "medianSwing": 56.5,
+   "samples": 83
   },
   "36": {
    "hp": 1417,
    "armor": 1480,
-   "swing": 57.3,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 58.2,
+   "medianHp": 1341,
+   "medianSwing": 58.25,
+   "samples": 12
   },
   "37": {
    "hp": 1496,
    "armor": 1593,
-   "swing": 60.2,
-   "medianHp": null,
-   "medianSwing": null,
-   "samples": 0
+   "swing": 59.5,
+   "medianHp": 1536,
+   "medianSwing": 59.5,
+   "samples": 23
   },
   "38": {
    "hp": 1576,
    "armor": 1709,
    "swing": 63.2,
    "medianHp": 1604,
-   "medianSwing": 63.0,
+   "medianSwing": 63,
    "samples": 17
   },
   "39": {
@@ -630,15 +820,15 @@
    "armor": 1834,
    "swing": 66.2,
    "medianHp": 1536,
-   "medianSwing": 63.0,
+   "medianSwing": 63,
    "samples": 9
   },
   "40": {
    "hp": 1753,
    "armor": 1964,
    "swing": 69.1,
-   "medianHp": 1753.0,
-   "medianSwing": 65.0,
+   "medianHp": 1753,
+   "medianSwing": 65,
    "samples": 98
   },
   "41": {
@@ -660,7 +850,7 @@
   "43": {
    "hp": 2025,
    "armor": 2397,
-   "swing": 78.0,
+   "swing": 78,
    "medianHp": 2059,
    "medianSwing": 110.5,
    "samples": 9
@@ -668,17 +858,17 @@
   "44": {
    "hp": 2121,
    "armor": 2557,
-   "swing": 81.0,
+   "swing": 81,
    "medianHp": 1782,
-   "medianSwing": 78.0,
+   "medianSwing": 78,
    "samples": 9
   },
   "45": {
    "hp": 2218,
    "armor": 2725,
-   "swing": 84.0,
-   "medianHp": 2218.0,
-   "medianSwing": 88.0,
+   "swing": 84,
+   "medianHp": 2218,
+   "medianSwing": 88,
    "samples": 46
   },
   "46": {
@@ -693,7 +883,7 @@
    "hp": 2428,
    "armor": 2835,
    "swing": 89.9,
-   "medianHp": 1990.0,
+   "medianHp": 1990,
    "medianSwing": 86.5,
    "samples": 8
   },
@@ -702,7 +892,7 @@
    "armor": 2888,
    "swing": 92.9,
    "medianHp": 2577,
-   "medianSwing": 128.0,
+   "medianSwing": 128,
    "samples": 3
   },
   "49": {
@@ -741,7 +931,7 @@
    "hp": 3140,
    "armor": 3163,
    "swing": 107.7,
-   "medianHp": 3188.0,
+   "medianHp": 3188,
    "medianSwing": 105.5,
    "samples": 10
   },
@@ -749,7 +939,7 @@
    "hp": 3268,
    "armor": 3216,
    "swing": 110.7,
-   "medianHp": 3293.0,
+   "medianHp": 3293,
    "medianSwing": 107.075,
    "samples": 10
   },
@@ -757,7 +947,7 @@
    "hp": 3398,
    "armor": 3271,
    "swing": 113.6,
-   "medianHp": 3398.0,
+   "medianHp": 3398,
    "medianSwing": 118.25,
    "samples": 80
   },
@@ -766,7 +956,7 @@
    "armor": 3327,
    "swing": 116.6,
    "medianHp": 3643,
-   "medianSwing": 113.0,
+   "medianSwing": 113,
    "samples": 21
   },
   "57": {
@@ -782,7 +972,7 @@
    "armor": 3435,
    "swing": 122.5,
    "medianHp": 2986,
-   "medianSwing": 177.0,
+   "medianSwing": 177,
    "samples": 25
   },
   "59": {
@@ -797,8 +987,8 @@
    "hp": 4120,
    "armor": 3791,
    "swing": 128.5,
-   "medianHp": 3052.0,
-   "medianSwing": 121.0,
+   "medianHp": 3052,
+   "medianSwing": 121,
    "samples": 208
   }
  },
@@ -810,6 +1000,66 @@
     "mana": 48,
     "armor": 20,
     "sta": 20
+   },
+   "10": {
+    "hp": 223,
+    "mana": 147,
+    "armor": 180,
+    "sta": 29
+   },
+   "11": {
+    "hp": 232,
+    "mana": 158,
+    "armor": 190,
+    "sta": 32
+   },
+   "12": {
+    "hp": 250,
+    "mana": 180,
+    "armor": 203,
+    "sta": 36
+   },
+   "13": {
+    "hp": 289,
+    "mana": 203,
+    "armor": 215,
+    "sta": 43
+   },
+   "14": {
+    "hp": 299,
+    "mana": 227,
+    "armor": 228,
+    "sta": 44
+   },
+   "15": {
+    "hp": 309,
+    "mana": 251,
+    "armor": 240,
+    "sta": 48
+   },
+   "16": {
+    "hp": 329,
+    "mana": 275,
+    "armor": 253,
+    "sta": 52
+   },
+   "17": {
+    "hp": 350,
+    "mana": 300,
+    "armor": 265,
+    "sta": 55
+   },
+   "18": {
+    "hp": 362,
+    "mana": 314,
+    "armor": 278,
+    "sta": 59
+   },
+   "19": {
+    "hp": 393,
+    "mana": 351,
+    "armor": 291,
+    "sta": 63
    },
    "20": {
     "hp": 403,
@@ -1065,6 +1315,66 @@
     "armor": 20,
     "sta": 1
    },
+   "10": {
+    "hp": 260,
+    "mana": 147,
+    "armor": 694,
+    "sta": 29
+   },
+   "11": {
+    "hp": 291,
+    "mana": 158,
+    "armor": 734,
+    "sta": 32
+   },
+   "12": {
+    "hp": 322,
+    "mana": 180,
+    "armor": 782,
+    "sta": 36
+   },
+   "13": {
+    "hp": 354,
+    "mana": 203,
+    "armor": 827,
+    "sta": 43
+   },
+   "14": {
+    "hp": 368,
+    "mana": 227,
+    "armor": 878,
+    "sta": 44
+   },
+   "15": {
+    "hp": 421,
+    "mana": 251,
+    "armor": 925,
+    "sta": 48
+   },
+   "16": {
+    "hp": 455,
+    "mana": 275,
+    "armor": 975,
+    "sta": 52
+   },
+   "17": {
+    "hp": 490,
+    "mana": 300,
+    "armor": 1022,
+    "sta": 55
+   },
+   "18": {
+    "hp": 528,
+    "mana": 314,
+    "armor": 1068,
+    "sta": 59
+   },
+   "19": {
+    "hp": 566,
+    "mana": 351,
+    "armor": 1120,
+    "sta": 63
+   },
    "20": {
     "hp": 606,
     "mana": 377,
@@ -1318,6 +1628,66 @@
     "mana": 48,
     "armor": 20,
     "sta": 1
+   },
+   "10": {
+    "hp": 123,
+    "mana": 147,
+    "armor": 200,
+    "sta": 33
+   },
+   "11": {
+    "hp": 132,
+    "mana": 158,
+    "armor": 220,
+    "sta": 38
+   },
+   "12": {
+    "hp": 150,
+    "mana": 180,
+    "armor": 240,
+    "sta": 42
+   },
+   "13": {
+    "hp": 169,
+    "mana": 203,
+    "armor": 280,
+    "sta": 46
+   },
+   "14": {
+    "hp": 189,
+    "mana": 227,
+    "armor": 320,
+    "sta": 50
+   },
+   "15": {
+    "hp": 209,
+    "mana": 251,
+    "armor": 360,
+    "sta": 55
+   },
+   "16": {
+    "hp": 229,
+    "mana": 275,
+    "armor": 400,
+    "sta": 59
+   },
+   "17": {
+    "hp": 250,
+    "mana": 300,
+    "armor": 460,
+    "sta": 63
+   },
+   "18": {
+    "hp": 262,
+    "mana": 314,
+    "armor": 510,
+    "sta": 67
+   },
+   "19": {
+    "hp": 293,
+    "mana": 351,
+    "armor": 550,
+    "sta": 72
    },
    "20": {
     "hp": 303,
@@ -1573,6 +1943,66 @@
     "armor": 144,
     "sta": 12
    },
+   "10": {
+    "hp": 184,
+    "mana": 147,
+    "armor": 358,
+    "sta": 34
+   },
+   "11": {
+    "hp": 198,
+    "mana": 158,
+    "armor": 382,
+    "sta": 37
+   },
+   "12": {
+    "hp": 225,
+    "mana": 180,
+    "armor": 406,
+    "sta": 41
+   },
+   "13": {
+    "hp": 254,
+    "mana": 203,
+    "armor": 429,
+    "sta": 45
+   },
+   "14": {
+    "hp": 284,
+    "mana": 227,
+    "armor": 453,
+    "sta": 50
+   },
+   "15": {
+    "hp": 313,
+    "mana": 251,
+    "armor": 477,
+    "sta": 54
+   },
+   "16": {
+    "hp": 343,
+    "mana": 275,
+    "armor": 501,
+    "sta": 58
+   },
+   "17": {
+    "hp": 375,
+    "mana": 300,
+    "armor": 525,
+    "sta": 62
+   },
+   "18": {
+    "hp": 392,
+    "mana": 314,
+    "armor": 548,
+    "sta": 67
+   },
+   "19": {
+    "hp": 438,
+    "mana": 351,
+    "armor": 572,
+    "sta": 71
+   },
    "20": {
     "hp": 471,
     "mana": 377,
@@ -1825,36 +2255,46 @@
   "imp": {
    "unitClass": 8,
    "damageMultiplier": 1.3,
-   "damageVariance": 1.0,
+   "damageVariance": 1,
    "attackMs": 2000
   },
   "felhunter": {
    "unitClass": 2,
    "damageMultiplier": 0.8,
-   "damageVariance": 1.0,
+   "damageVariance": 1,
    "attackMs": 2000
   },
   "voidwalker": {
    "unitClass": 2,
-   "damageMultiplier": 1.0,
-   "damageVariance": 1.0,
+   "damageMultiplier": 1,
+   "damageVariance": 1,
    "attackMs": 2000
   },
   "succubus": {
    "unitClass": 2,
    "damageMultiplier": 1.06,
-   "damageVariance": 1.0,
+   "damageVariance": 1,
    "attackMs": 2000
   }
  },
  "petMeleeAvgPerSwing": {
   "imp": {
+   "10": 9.5,
+   "11": 10.6,
+   "12": 12,
+   "13": 13,
+   "14": 14.2,
+   "15": 15.4,
+   "16": 16.3,
+   "17": 17.5,
+   "18": 18.3,
+   "19": 19.4,
    "20": 20.5,
    "21": 21.3,
    "22": 22.4,
    "23": 23.1,
    "24": 24.1,
-   "25": 25.0,
+   "25": 25,
    "26": 25.8,
    "27": 26.8,
    "28": 27.7,
@@ -1864,18 +2304,18 @@
    "32": 31.3,
    "33": 32.2,
    "34": 33.1,
-   "35": 34.0,
+   "35": 34,
    "36": 34.8,
    "37": 35.9,
    "38": 36.8,
-   "39": 38.0,
+   "39": 38,
    "40": 39.2,
    "41": 41.1,
    "42": 43.7,
    "43": 46.6,
    "44": 50.5,
    "45": 52.9,
-   "46": 54.0,
+   "46": 54,
    "47": 55.4,
    "48": 56.5,
    "49": 57.8,
@@ -1892,19 +2332,29 @@
    "60": 72.8
   },
   "felhunter": {
+   "10": 8.2,
+   "11": 9.3,
+   "12": 10.6,
+   "13": 11.6,
+   "14": 12.7,
+   "15": 13.7,
+   "16": 14.6,
+   "17": 15.6,
+   "18": 16.3,
+   "19": 17.2,
    "20": 18.2,
-   "21": 19.0,
+   "21": 19,
    "22": 19.9,
    "23": 20.6,
    "24": 21.6,
    "25": 22.2,
    "26": 23.2,
-   "27": 24.0,
+   "27": 24,
    "28": 24.8,
    "29": 25.8,
    "30": 26.4,
    "31": 27.2,
-   "32": 28.0,
+   "32": 28,
    "33": 28.8,
    "34": 29.6,
    "35": 30.5,
@@ -1927,7 +2377,7 @@
    "52": 55.5,
    "53": 56.6,
    "54": 57.9,
-   "55": 59.0,
+   "55": 59,
    "56": 60.3,
    "57": 61.6,
    "58": 62.7,
@@ -1935,29 +2385,39 @@
    "60": 65.4
   },
   "voidwalker": {
+   "10": 10.3,
+   "11": 11.6,
+   "12": 13.2,
+   "13": 14.5,
+   "14": 15.9,
+   "15": 17.1,
+   "16": 18.2,
+   "17": 19.5,
+   "18": 20.4,
+   "19": 21.5,
    "20": 22.8,
    "21": 23.8,
    "22": 24.9,
    "23": 25.8,
-   "24": 27.0,
+   "24": 27,
    "25": 27.8,
-   "26": 29.0,
-   "27": 30.0,
-   "28": 31.0,
+   "26": 29,
+   "27": 30,
+   "28": 31,
    "29": 32.2,
-   "30": 33.0,
-   "31": 34.0,
-   "32": 35.0,
-   "33": 36.0,
+   "30": 33,
+   "31": 34,
+   "32": 35,
+   "33": 36,
    "34": 36.9,
    "35": 38.1,
    "36": 38.9,
    "37": 40.2,
    "38": 41.3,
    "39": 42.7,
-   "40": 44.0,
+   "40": 44,
    "41": 45.9,
-   "42": 49.0,
+   "42": 49,
    "43": 52.3,
    "44": 56.8,
    "45": 59.3,
@@ -1972,12 +2432,22 @@
    "54": 72.3,
    "55": 73.8,
    "56": 75.4,
-   "57": 77.0,
+   "57": 77,
    "58": 78.4,
    "59": 80.1,
    "60": 81.7
   },
   "succubus": {
+   "10": 10.9,
+   "11": 12.3,
+   "12": 14,
+   "13": 15.3,
+   "14": 16.9,
+   "15": 18.1,
+   "16": 19.3,
+   "17": 20.7,
+   "18": 21.6,
+   "19": 22.8,
    "20": 24.1,
    "21": 25.2,
    "22": 26.4,
@@ -1988,7 +2458,7 @@
    "27": 31.8,
    "28": 32.9,
    "29": 34.2,
-   "30": 35.0,
+   "30": 35,
    "31": 36.1,
    "32": 37.1,
    "33": 38.2,
@@ -2011,13 +2481,13 @@
    "50": 70.5,
    "51": 71.9,
    "52": 73.6,
-   "53": 75.0,
+   "53": 75,
    "54": 76.7,
    "55": 78.2,
-   "56": 80.0,
+   "56": 80,
    "57": 81.6,
    "58": 83.1,
-   "59": 85.0,
+   "59": 85,
    "60": 86.6
   }
  },

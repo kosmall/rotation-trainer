@@ -6,11 +6,11 @@
   "quest": {
    "stamina": [
     20,
-    1.0
+    1
    ],
    "intellect": [
     20,
-    1.0
+    1
    ],
    "spirit": [
     10,
@@ -44,7 +44,7 @@
    ],
    "spirit": [
     25,
-    1.0
+    1
    ],
    "spellPower": [
     45,
@@ -66,7 +66,7 @@
   "good": {
    "stamina": [
     65,
-    2.0
+    2
    ],
    "intellect": [
     70,
@@ -100,7 +100,7 @@
   "imp": {
    "fireboltCastMs": 2000,
    "unlock": 1,
-   "threatMult": 1.0,
+   "threatMult": 1,
    "fireboltRanks": [
     {
      "level": 1,
@@ -150,7 +150,7 @@
   "succubus": {
    "lashCdMs": 12000,
    "unlock": 20,
-   "threatMult": 1.0,
+   "threatMult": 1,
    "lashRanks": [
     {
      "level": 20,
@@ -198,20 +198,32 @@
     "threatPerLevel": 6
    },
    "unlock": 10,
-   "threatMult": 1.0,
+   "threatMult": 1,
    "tormentNote": "Torment: 5 s cooldown, 20 mana, taunt (allthings.how/?p=353577). The threat amount and the Torment mana use are NOT known (estimate).",
    "swingMs": 2000
   },
   "felhunter": {
    "unlock": 30,
-   "threatMult": 1.0,
+   "threatMult": 1,
    "swingMs": 2000
   },
   "source_unconfirmed": "Pet health, mana, armor and melee damage come from classic_base.json (WoW Classic pet_levelstats and the cmangos pet damage formula) with Forever's rules applied: +2 health per point of the master's Stamina, +15% base health (hotfix 10 Nov), Voidwalker +40 (6 Nov). These are NOT Forever tooltips. Pet abilities (Firebolt, Lash of Pain): Wowhead Forever."
  },
  "consumables": {
-  "source": "Wowhead Forever item pages (tooltips, fetched 25 Nov 2026): vendor drinks Sweet Nectar 1708 (req 25): 1345 mana over 27 s; Moonberry Juice 1645 / Bottled Winterspring Water 19300 (req 35): 1915 over 30 s; Morning Glory Dew 8766 (req 45): 2821 over 30 s. Vendor food: req 25 (e.g. Stormwind Brie 1707): 841 health over 27 s; req 35 (Cured Ham Steak 4599): 1338 over 30 s; req 45 (Roasted Quail 8952, Homemade Cherry Pie 8950): 2065 over 30 s. Best vendor item for the level; Alterac Manna Biscuit (req 51) is not general vendor stock. Whether drinking adds Spirit regeneration on top of the tooltip is unknown (assumed not).",
+  "source": "Wowhead Forever item pages (tooltips, fetched 25 Nov 2026): vendor drinks Sweet Nectar 1708 (req 25): 1345 mana over 27 s; Moonberry Juice 1645 / Bottled Winterspring Water 19300 (req 35): 1915 over 30 s; Morning Glory Dew 8766 (req 45): 2821 over 30 s. Vendor food: req 25 (e.g. Stormwind Brie 1707): 841 health over 27 s; req 35 (Cured Ham Steak 4599): 1338 over 30 s; req 45 (Roasted Quail 8952, Homemade Cherry Pie 8950): 2065 over 30 s. Levels 1-24 (Wowhead Forever item tooltips, 25 Nov 2026; food durations 18/21/24 s are the Classic ones, the tooltip text could not be parsed for them): Refreshing Spring Water 159: 151 mana over 18 s; Ice Cold Milk 1179 (req 5): 437 over 21 s; Melon Juice 1205 (req 15): 835 over 24 s; Tough Hunk of Bread 4540: 61 health over 18 s; Freshly Baked Bread 4541 (req 5): 243 over 21 s; Moist Cornbread 4542 (req 15): 552 over 24 s. Levels 1-24 (Wowhead Forever item tooltips, 25 Nov 2026; the food durations 18/21/24 s are the Classic ones, the tooltip text could not be parsed for them): Refreshing Spring Water 159: 151 mana over 18 s; Ice Cold Milk 1179 (req 5): 437 over 21 s; Melon Juice 1205 (req 15): 835 over 24 s; Tough Hunk of Bread 4540: 61 health over 18 s; Freshly Baked Bread 4541 (req 5): 243 over 21 s; Moist Cornbread 4542 (req 15): 552 over 24 s. Best vendor item for the level; Alterac Manna Biscuit (req 51) is not general vendor stock. Whether drinking adds Spirit regeneration on top of the tooltip is unknown (assumed not).",
   "drink": [
+   {
+    "fromLevel": 1,
+    "manaPerSec": 8.4
+   },
+   {
+    "fromLevel": 5,
+    "manaPerSec": 20.8
+   },
+   {
+    "fromLevel": 15,
+    "manaPerSec": 34.8
+   },
    {
     "fromLevel": 25,
     "manaPerSec": 49.8
@@ -222,10 +234,22 @@
    },
    {
     "fromLevel": 45,
-    "manaPerSec": 94.0
+    "manaPerSec": 94
    }
   ],
   "food": [
+   {
+    "fromLevel": 1,
+    "hpPerSec": 3.4
+   },
+   {
+    "fromLevel": 5,
+    "hpPerSec": 11.6
+   },
+   {
+    "fromLevel": 15,
+    "hpPerSec": 23
+   },
    {
     "fromLevel": 25,
     "hpPerSec": 31.1
