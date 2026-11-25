@@ -1,4 +1,5 @@
-import { loadVariant, VARIANT_IDS } from '../../forever/builds';
+import { useState } from 'react';
+import { loadVariant, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { getSpell } from '../../forever/spells';
 import { IconTile } from './IconTile';
 
@@ -49,31 +50,56 @@ function spellName(id: string): string {
   }
 }
 
-/** The rotations the simulator plays (priority lists mirroring src/forever/rotations.ts) and which build uses which. */
+/** The steps of a build's rotation: the generic priority list with the build's own filler and Shadow Bolt rank filled in. */
+export function stepsFor(v: BuildVariant): readonly Step[] {
+  const rank = v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`;
+  return ROTATION_STEPS[v.rotation].map((st) => {
+    if (v.rotation === 'affliction' && st.text.startsWith('Filler'))
+      return v.filler === 'wrack'
+        ? { spells: ['wrack'], text: 'Filler: Wrack' }
+        : { spells: ['wrack', 'drain_life'], text: 'Filler: Wrack tylko przy 1 mobie, w pozostałych przypadkach Drain Life (tank)' };
+    if (v.rotation === 'demonology' && st.text.startsWith('Shadow Bolt w randze')) return { spells: st.spells, text: `Shadow Bolt, ${rank}` };
+    if (v.rotation === 'demonology' && st.text.startsWith('Shadow Bolt, gdy jest')) return { spells: st.spells, text: `Shadow Bolt, gdy jest Shadow Trance (${rank})` };
+    return st;
+  });
+}
+
+/** One build's rotation (chosen from a dropdown): priority list with spell icons. */
 export function RotationsView() {
+  const [id, setId] = useState(VARIANT_IDS[0] as string);
+  const v = loadVariant(id);
   return (
     <>
-      <p className="fv-note">Pierwszy dostępny i stać nas na niego czar z listy jest rzucany; poza walką i przy niskim HP decyduje strategia Life Tapa (ustawienia zaawansowane).</p>
-      {(Object.keys(ROTATION_STEPS) as Kind[]).map((k) => (
-        <section key={k} className="fv-panel">
-          <h2>{TITLES[k]}</h2>
-          <p className="fv-note">Używają jej: {VARIANT_IDS.filter((id) => loadVariant(id).rotation === k).join(', ') || '-'}</p>
-          <ol className="fv-steps">
-            {ROTATION_STEPS[k].map((s) => (
-              <li key={s.text}>
-                <span className="fv-step-icons">
-                  {s.spells.map((id) => (
-                    <span key={id} title={spellName(id)}>
-                      <IconTile kind="spell" id={id} name={spellName(id)} size={32} />
-                    </span>
-                  ))}
-                </span>
-                <span>{s.text}</span>
-              </li>
+      <div className="fv-row">
+        <label>
+          Build{' '}
+          <select value={id} onChange={(e) => setId(e.target.value)}>
+            {VARIANT_IDS.map((b) => (
+              <option key={b}>{b}</option>
             ))}
-          </ol>
-        </section>
-      ))}
+          </select>
+        </label>
+      </div>
+      <section className="fv-panel">
+        <h2>{TITLES[v.rotation]}</h2>
+        <p className="fv-note">
+          Pet: {v.pet ?? 'brak'}; ranga Shadow Bolta: {String(v.rank)}; filler: {v.filler}. Pierwszy dostępny i na który stać nas czar z listy jest rzucany; poza walką i przy niskim HP decyduje strategia Life Tapa (ustawienia zaawansowane).
+        </p>
+        <ol className="fv-steps">
+          {stepsFor(v).map((s) => (
+            <li key={s.text}>
+              <span className="fv-step-icons">
+                {s.spells.map((sp) => (
+                  <span key={sp} title={spellName(sp)}>
+                    <IconTile kind="spell" id={sp} name={spellName(sp)} size={32} />
+                  </span>
+                ))}
+              </span>
+              <span>{s.text}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
     </>
   );
 }

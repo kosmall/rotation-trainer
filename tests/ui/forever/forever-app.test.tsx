@@ -57,6 +57,11 @@ describe('ForeverApp', () => {
     unmount();
     render(<ForeverApp view="rotations" runner={runner} />);
     expect(screen.getByText(/Affliction \(DoT-y/)).toBeTruthy();
+    expect(screen.queryByText(/Demonology \(Shadow Bolt/)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Build/), { target: { value: 'DEMO_PACT_R1' } });
+    expect(screen.getByText(/Demonology \(Shadow Bolt/)).toBeTruthy();
+    expect(screen.getByText(/Shadow Bolt, ranga 1$/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Build/), { target: { value: 'AFF_WRACK' } });
     expect(document.querySelectorAll('.fv-steps .fv-icon').length).toBeGreaterThan(10);
     expect(document.querySelector('.fv-steps img[src*="spell_shadow_shadowbolt"]')).toBeTruthy();
     cleanup();
