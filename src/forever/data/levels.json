@@ -5,6 +5,18 @@
   "source": "Estimated normal same-level mob (HP, melee swing before armor, armor); mob HP/damage multipliers are sensitivity parameters.",
   "anchors": [
    {
+    "level": 20,
+    "hp": 420,
+    "swing": 25,
+    "armor": 700
+   },
+   {
+    "level": 30,
+    "hp": 900,
+    "swing": 42,
+    "armor": 1100
+   },
+   {
     "level": 38,
     "hp": 1500,
     "swing": 55,

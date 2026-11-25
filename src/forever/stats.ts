@@ -65,7 +65,7 @@ const prof = (profile: string, key: string, level: number): number => {
   const p = (LV.profiles as Record<string, Record<string, Pair>>)[profile];
   if (!p || !p[key]) throw new Error(`unknown gear profile ${profile}`);
   const [at40, per] = p[key] as Pair;
-  return at40 + per * (level - 40);
+  return Math.max(0, at40 + per * (level - 40));
 };
 
 /** Player stats at a level for a gear profile and talent ranks (Fel Vitality, Demonic Embrace). */

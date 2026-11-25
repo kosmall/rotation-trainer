@@ -82,7 +82,7 @@ describe('stats and Life Tap', () => {
   it('mobs get tougher with level and clamp outside the table', () => {
     expect(mobAt(50).hp).toBeGreaterThan(mobAt(40).hp);
     expect(mobAt(41).hp).toBeGreaterThan(mobAt(40).hp);
-    expect(mobAt(10).hp).toBe(mobAt(38).hp);
+    expect(mobAt(10).hp).toBe(mobAt(20).hp);
   });
   it('Soul Harvest lifts regen to 100% of base while casting', () => {
     const p = loadParams();
