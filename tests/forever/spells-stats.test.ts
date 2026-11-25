@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
 import { castMsOf, downrankFactor, getSpell, rankAt } from '../../src/forever/spells';
-import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf } from '../../src/forever/stats';
+import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf, maxHealthOf, maxManaOf } from '../../src/forever/stats';
 
 const sb = getSpell('shadow_bolt');
 const r1 = rankAt('shadow_bolt', 1, 40)!;
@@ -111,11 +111,17 @@ describe('Classic base data and formulas (cmangos)', () => {
     expect(spiritManaRegenPerSec(75)).toBeCloseTo(15, 6);
     expect(healthRegenPerSec(75)).toBeCloseTo(5.25, 6);
   });
+  it('level 1 measured in game: gnome (Sta 20, Int 25) 43 health and 194 mana; human (Sta 21, Int 22) 53 health and 140 mana', () => {
+    expect(maxHealthOf(1, 20)).toBe(43);
+    expect(maxHealthOf(1, 21)).toBe(53);
+    expect(maxManaOf(1, 25, 1.05)).toBe(194);
+    expect(maxManaOf(1, 22)).toBe(140);
+  });
   it('gnome warlock at level 40: base stats from player_levelstats and warlock base health and mana', () => {
     const s = playerStatsFor(40, 'quest', {});
-    // base HP 634 + stamina (45 + 20 gear) conversion, base mana 923 + intellect ((79 + 20) x 1.05)
+    // base HP 634 + stamina (45 + 20 gear); mana (923 + 31 + Intellect (79 + 20)) x 1.05
     expect(s.maxHp).toBe(Math.round(634 + 20 + 10 * (65 - 20)));
-    expect(s.maxMana).toBe(Math.round(923 + 20 + 15 * (99 * 1.05 - 20)));
+    expect(s.maxMana).toBe(Math.round((923 + 31 + 20 + 15 * (99 - 20)) * 1.05));
     expect(s.spirit).toBe(75 + 10);
   });
   it('Demonic Embrace raises health through Stamina, Fel Vitality raises mana', () => {

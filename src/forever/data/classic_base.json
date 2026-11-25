@@ -2026,5 +2026,13 @@
   "manaFromIntellect": "basemana + min(int,20) + 15 x max(int-20,0)",
   "manaRegenPerTick2s_warlock": "spirit/5 + 15 (outside the five-second rule)",
   "healthRegenPerTick2s_warlock": "spirit x 0.12 + 1.5 (out of combat)"
+ },
+ "foreverObserved": {
+  "source": "Measured in game by the user (25 Nov 2026), level 1 warlocks without gear: gnome Stamina 20, Intellect 25 -> 43 health, 194 mana; human Stamina 21, Intellect 22 -> 53 health, 140 mana. Wowhead Forever spell 20591: gnome 'Expansive Mind': Maximum Mana increased by 5%.",
+  "health": "base 23 + 1 per Stamina for the first 20 + 10 per Stamina after: 43 and 53 match Classic exactly.",
+  "mana": "(base + 20 + 15 x (Intellect - 20)) x racial: human 140 = 90 + 20 + 15 x 2 (base 90 instead of Classic 59); gnome (90 + 20 + 15 x 5) x 1.05 = 194.25. Slope solved from the two points: 14.9 per Intellect.",
+  "manaBaseOffset": 31,
+  "manaBaseOffsetNote": "Forever base mana at level 1 is 31 higher than Classic (90 vs 59). Only level 1 is measured; the same +31 is assumed at every level (the real scaling is unknown: it could be proportional, +52%). Needs a measurement at a higher level.",
+  "gnomeMaxManaMult": 1.05
  }
 }

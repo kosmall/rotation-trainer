@@ -158,8 +158,8 @@ use Classic for items 1-4 below and to treat them as valid for Forever.
 |---|---|
 | Mob health | Wowhead Forever NPC pages show Health for 46 of the 292 mobs sampled in levels 38-60 (only "discovered" NPCs have stats). **44 of 46 equal the Classic value exactly**, so the pages carry Classic health, not Blizzard's pre-launch increase ("increased the health of higher level creatures", no number). Model: Classic health = class-1 base health x (1.15 + 0.01 x (level-40)) (fits the Classic medians at levels 38, 40, 45, 50, 55); `mob_hp_mult` (default 1.0) is the unknown Forever factor, tested at 1.25 and 1.5. |
 | Mob damage and armor | Classic only: median melee damage per swing of normal mobs by level (line through the medians: -49.5 + 2.97 x level; 65 at 40, 99 at 50, about 126 at 59), attack speed 2.0 s, armor from `creature_template_classlevelstats` (class 1: 1964 at 40, 2999 at 50, 3489 at 59). |
-| Warlock base health and mana | `player_classlevelstats` (class 9): e.g. level 40: 634 health, 923 mana; level 50: 979, 1163; level 59: 1366, 1352. Stamina gives 1 health per point for the first 20 and 10 after; Intellect 1 mana for the first 20 and 15 after (cmangos StatSystem.cpp). Third-party Forever guides say the same (10 per Stamina, 15 per Intellect). **To confirm: the user can check a level-1 gnome warlock: expected 43 health (23 + 20) and 154 mana (59 + 20 + 5x15) with Stamina 20, Intellect 25.** |
-| Gnome warlock base stats | `player_levelstats` (race 7, class 9): level 40: Str 29, Agi 40, Sta 45, Int 79, Spi 75; level 50: 34/46/54/98/93; level 59: 39/52/63/117/111. Gnome Expansion +5% Intellect applied on the total. |
+| Warlock base health and mana | `player_classlevelstats` (class 9): e.g. level 40: 634 health, 923 mana; level 50: 979, 1163; level 59: 1366, 1352. Stamina gives 1 health per point for the first 20 and 10 after; Intellect 1 mana for the first 20 and 15 after (cmangos StatSystem.cpp). Third-party Forever guides say the same (10 per Stamina, 15 per Intellect). (Checked in game, see section 9: health matches, mana does not.) |
+| Gnome warlock base stats | `player_levelstats` (race 7, class 9): level 40: Str 29, Agi 40, Sta 45, Int 79, Spi 75; level 50: 34/46/54/98/93; level 59: 39/52/63/117/111. (Gnome Expansion was first applied as +5% Intellect: wrong in Forever, see section 9.) |
 | Spirit mana regeneration | Classic warlock: (Spirit/5 + 15) per 2 s tick outside the five-second rule (cmangos `OCTRegenMPPerSpirit`). That is 15 mana/s at Spirit 75: much more than the 5.8/s the first versions assumed. After a cast the regeneration waits 5 s (`fsr_sec`). Forever has not published a formula (rankedboost: untested). |
 | Out-of-combat health regeneration | Classic warlock: (Spirit x 0.12 + 1.5) per 2 s tick (cmangos `OCTRegenHPPerSpirit`), about 5 health/s at Spirit 75. Replaces the earlier zero assumption. |
 | Drink and food | **Forever tooltips (Wowhead Forever item pages):** Sweet Nectar (req 25) 1345 mana/27 s; Moonberry Juice and Bottled Winterspring Water (req 35) 1915/30 s; Morning Glory Dew (req 45) 2821/30 s. Food: req 25 841 health/27 s; req 35 1338/30 s; req 45 2065/30 s. Best vendor item per level. Whether Spirit regeneration adds to a drink is unknown (assumed not, `drink_adds_spirit_regen`). |
@@ -170,3 +170,22 @@ use Classic for items 1-4 below and to treat them as valid for Forever.
 ### Still open after this round
 Pre-launch creature health factor; real gear totals; Bane of Agony ramp; Spirit-regeneration and
 drink behaviour in Forever as opposed to Classic; pet base health in Forever; spell crit by level.
+
+## 9. Measured in game (user, 25 Nov 2026): level 1 warlocks without gear
+
+| Character | Stamina | Intellect | Health | Mana |
+|---|---:|---:|---:|---:|
+| Gnome warlock | 20 | 25 | 43 | 194 |
+| Human warlock | 21 | 22 | 53 | 140 |
+
+- **Health matches Classic**: 23 base + 1 per Stamina for the first 20 + 10 per Stamina after (43 and 53).
+- **Mana does not match Classic** (prediction for the gnome was 154, human 109). Wowhead Forever spell 20591:
+  gnome racial "Expansive Mind: Maximum Mana increased by 5%" (not +5% Intellect). With that, the two
+  points fit `(base + 20 + 15 x (Intellect - 20)) x racial` with a slope of 14.9 (15) per Intellect and a
+  **base of 90 at level 1, i.e. 31 more than Classic's 59**: human 90 + 20 + 30 = 140, gnome
+  (90 + 20 + 75) x 1.05 = 194.25.
+- Model: Classic base mana of the level + 31 (the same offset at every level is an assumption; the
+  true scaling may be proportional) + Intellect conversion, x 1.05 for the gnome, x Fel Vitality.
+- **Still needed:** a second measurement at a higher level (a gnome warlock of any level above 20:
+  level, total Stamina, total Intellect, maximum health, maximum mana, and the same without one gear
+  piece) to fix the base mana scaling with level.

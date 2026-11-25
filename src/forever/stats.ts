@@ -14,6 +14,7 @@ const BASE = baseJson as unknown as {
   mob: Record<string, MobRow>;
   pet: Record<string, Record<string, PetRow>>;
   petMeleeAvgPerSwing: Record<string, Record<string, number>>;
+  foreverObserved: { manaBaseOffset: number; gnomeMaxManaMult: number };
 };
 const LV = levelsJson as unknown as {
   profiles: Record<string, Record<string, Pair> | string | boolean>;
@@ -24,7 +25,7 @@ const LV = levelsJson as unknown as {
 
 export const PROFILE_IDS: readonly string[] = ['quest', 'average', 'good'];
 
-const clampLevel = (level: number): string => String(Math.min(60, Math.max(20, Math.round(level))));
+const clampLevel = (level: number): string => (Math.round(level) === 1 ? '1' : String(Math.min(60, Math.max(20, Math.round(level)))));
 
 /** GCD in ms: fixed 1.5 s unless haste shortens it (`haste_shortens_gcd`), never below `min_gcd_ms`. */
 export function gcdMs(hastePct: number, params: Params): number {
@@ -88,19 +89,33 @@ function consumableRate(list: { fromLevel: number; manaPerSec?: number; hpPerSec
   return rate;
 }
 
+/** Maximum health: Classic base health of the level + Stamina conversion (verified at level 1: 43 and 53). */
+export function maxHealthOf(level: number, stamina: number): number {
+  return Math.round((BASE.warlock[clampLevel(level)] as BaseRow).hp + healthFromStamina(stamina));
+}
+
+/**
+ * Maximum mana: (Classic base mana + the measured Forever offset + Intellect conversion) x racial
+ * multiplier (gnome Expansive Mind +5% maximum mana). Verified at level 1: human Intellect 22 -> 140,
+ * gnome Intellect 25 -> 194.
+ */
+export function maxManaOf(level: number, intellect: number, racialMult = 1): number {
+  const base = (BASE.warlock[clampLevel(level)] as BaseRow).mana + BASE.foreverObserved.manaBaseOffset;
+  return Math.round((base + manaFromIntellect(intellect)) * racialMult);
+}
+
 /**
  * Player stats at a level: the gnome warlock's base stats and the warlock's base health and mana
- * (WoW Classic tables), plus the gear profile, Stamina and Intellect conversion, Gnome Expansion
- * (+5% Intellect), Demonic Embrace (+3% Stamina per rank) and Fel Vitality (+5% mana per rank).
+ * (WoW Classic tables), plus the gear profile, Stamina and Intellect conversion, Gnome Expansive Mind
+ * (+5% maximum mana), Demonic Embrace (+3% Stamina per rank) and Fel Vitality (+5% mana per rank).
  */
 export function playerStatsFor(level: number, profile: string, ranks: Ranks): PlayerStats {
   const L = clampLevel(level);
   const base = BASE.gnomeWarlockBase[L] as StatRow;
-  const wl = BASE.warlock[L] as BaseRow;
   const sta = (base.sta + prof(profile, 'stamina', level)) * (1 + 0.03 * (ranks['demonic_embrace'] ?? 0));
-  const int = (base.int + prof(profile, 'intellect', level)) * 1.05;
-  const maxHp = Math.round(wl.hp + healthFromStamina(sta));
-  const maxMana = Math.round((wl.mana + manaFromIntellect(int)) * (1 + 0.05 * (ranks['fel_vitality'] ?? 0)));
+  const int = base.int + prof(profile, 'intellect', level);
+  const maxHp = maxHealthOf(level, sta);
+  const maxMana = Math.round(maxManaOf(level, int, BASE.foreverObserved.gnomeMaxManaMult) * (1 + 0.05 * (ranks['fel_vitality'] ?? 0)));
   return {
     level,
     maxHp,
