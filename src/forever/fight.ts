@@ -307,8 +307,9 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const ticks = Math.max(1, Math.round(durationMs / tickMs));
     let tick: number;
     if (spellId === 'wrack') {
-      const f = Math.min(1, Math.max(0, (level - 40) / 20));
-      tick = ((r.tickDmgAt40 ?? 0) + f * ((r.tickDmgAt60 ?? 0) - (r.tickDmgAt40 ?? 0))) * params.wrack_dmg_mult;
+      // Blizzard dev notes (3 Nov): base damage per second 36 at level 40, +2.5 per level; coefficient 0.286 per tick; hotfix 10 Nov: -30%.
+      const base = (r.baseAt40 ?? 0) + (r.perLevel ?? 0) * (level - 40);
+      tick = (base + spEff() * (spell.coeffTick ?? 0)) * (r.hotfixMult ?? 1) * params.wrack_dmg_mult;
     } else {
       tick = (r.tickDmg ?? 0) + spEff() * (spell.coeffTick ?? 0) * downrankFactor(params.downrank_penalty_model, r.level);
     }

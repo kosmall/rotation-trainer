@@ -28,6 +28,7 @@ export const DEFAULT_AXES: SensitivityAxis[] = [
   { param: 'life_tap_mana_per_health', values: [1, 1.2], note: 'Life Tap conversion ratio (wiki 1.0, one guide 1.2)' },
   { param: 'life_tap_spirit_coeff', values: [0.5, 1, 1.5], note: 'Spirit scaling of Life Tap (formula not published)' },
   { param: 'searing_pain_threat_mult', values: [1, 2, 3], note: 'Searing Pain threat (Brand halves it)' },
+  { param: 'mob_miss_pct', values: [3, 4], note: 'spell miss chance vs a same-level mob (Method.gg 4%, Warcraft Tavern 3%)' },
   { param: 'transition_sec', values: [4, 8, 15], note: 'time between pulls' },
   { param: 'mobs_per_pull', values: [1, 2, 3], note: 'mobs per pull' },
 ];

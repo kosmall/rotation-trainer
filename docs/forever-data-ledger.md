@@ -121,3 +121,26 @@ lasts until HP is full and the warlock drinks only during the meal. A Life Tap c
 next mob costs no extra time while the walk lasts (`transition_sec`). Assumptions to check:
 **out-of-combat HP regeneration is taken as zero** (formula not found), HP is not healed by pets
 or healing spells, and the HP safety floor of a Life Tap is 10% (`lt_safety_hp_pct`).
+
+## 7. Second research round (25 Nov 2026): the eight open items
+
+Rule followed: Classic Era numbers are not used for Forever. Where a source only gives Classic
+numbers, the item stays open. Blizzard's own text (beta development notes, 3 Nov; hotfix notes,
+5-23 Nov; class deep dive, 7 Oct) is used wherever it exists.
+
+| # | Item | Result |
+|---|---|---|
+| 1 | Mob HP, damage, armor by level | **NOT FOUND.** Blizzard (3 Nov): "increased the health of higher level creatures to compensate", no multiplier, no levels. Raw posts 1, 4-10 of the beta notes thread read in full: no table. Wowhead Forever NPC pages are JavaScript-rendered: the page reader returns no stats and a direct request is answered with an empty body (bot protection, not bypassed). PC Gamer and MassivelyOP bodies not retrievable; Icy Veins 403. **Needs:** Health of a few normal mobs per level bracket copied from Wowhead Forever (npc pages, "Health"/level) or measured in game. The data file `levels.json` keeps the estimates, flagged. |
+| 2 | Pets | **Partly.** Confirmed: health from the master's Stamina is **2 per point (was 7.5)** (Blizzard, 3 Nov); Voidwalker base health +40 at all levels (6 Nov); Imp, Voidwalker, Succubus, Incubus base health +~15% (10 Nov); Orc Command +5% pet damage; Fel Vitality +5%/rank; Firebolt and Lash of Pain ranks (Wowhead). **Not found:** base health, mana, armor, melee damage and attack speed per level for any pet, whether armor/attack power/spell power are inherited. The pet numbers in `levels.json` (HP, mana, melee) remain estimates and are probably too high in health (the 7.5 -> 2 cut). |
+| 3 | Spirit regeneration | **NOT FOUND.** Blizzard says Life Tap and Dark Sacrifice "scale with Spirit", Meditation-type talents keep 50% of regen while casting (30 Sep: "Mana benefit from spirit increased substantially"), Soul Harvest +50/100%. No coefficient anywhere (rankedboost: "not yet tested in play"). Stand-in `spirit_regen_per_spirit`. |
+| 4 | Drink and food | **NOT FOUND.** Blizzard only notes "fixed drink tooltips" (16 Oct). Wowhead Forever item pages return titles only. **Needs:** the "Restores N mana over S sec" lines of the drinks and foods you use (item pages or in game). Stand-ins `drinkManaPerSecPerLevel`, `foodHpPerSecPerLevel`. |
+| 5 | Base HP, mana, stats | **Partly, third party only.** Stamina -> 10 health per point (rankedboost, Warcraft Tavern; Blizzard has not confirmed); Intellect -> 15 mana (Tavern) while rankedboost says "not announced"; warlock spell crit about 1% per 60 Intellect at level 60, "far less at low levels" (rankedboost, Tavern). Base health and mana per level: not found. |
+| 6 | Wrack scaling | **RESOLVED.** Blizzard (3 Nov): coefficient doubled to 0.286 per second, base damage per second +2.5 per level, 36 at level 40 and 86 at level 60 (hotfix 10 Nov: -30%, so 60 at level 60 = the wiki/timesaver tooltip). In the model: (36 + 2.5 x (level - 40) + 0.286 x SP) x 0.7 per tick (the -30% on the coefficient is an assumption). guildorder's 124 stays unexplained. |
+| 7 | Bane of Agony ramp | **NOT FOUND.** Blizzard (3 Nov): Bane of Agony "now updates dynamically" and Amplify Curse (+50%, 30 s) now affects it. The 0.5/1.0/1.5 thirds pattern stays an assumption (in the sensitivity analysis). |
+| 8a | Downranking | **Partly.** Blizzard (1 Oct, character sheet): spells at ranks "vastly below" your level "receive less benefit from your Spell Damage and Spell Healing". No formula or threshold published. Blizzard (3 Nov): "various talents no longer have a penalty to their chance to trigger" with low ranks; the penalty stays only for Arcane Concentration, Frostbite and Fingers of Frost (ranks learned more than 12 levels lower), so the warlock procs (Nightfall, Improved Shadow Bolt) are modelled without a penalty. |
+| 8b | Curse of the Elements ranks 2-4 | **NOT FOUND** (rank 1: +4% magic damage taken, level 20). |
+| 8c | Threat | **Partly.** Searing Pain "causes a high amount of threat" (wiki), Demonic Brand: Searing Pain -50% threat at 3/3, the Brand bonus damage "only does high threat when it deals Shadow damage" (Blizzard, 8 Oct); Torment 5 s cooldown, 20 mana. Factors not published. |
+| - | Spell miss vs same level | Conflict: 4% (Method.gg) vs 3% (Warcraft Tavern); in the sensitivity analysis. |
+
+Two non-Blizzard facts used with care: pet health numbers above come from Blizzard's notes; the
+Stamina and Intellect conversions come from rankedboost/Tavern.

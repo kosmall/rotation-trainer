@@ -90,8 +90,9 @@ export interface SpellRank {
   damageTaken?: number;
   tickDmg?: number;
   durationMs?: number;
-  tickDmgAt40?: number;
-  tickDmgAt60?: number;
+  baseAt40?: number;
+  perLevel?: number;
+  hotfixMult?: number;
 }
 
 export interface SpellData {

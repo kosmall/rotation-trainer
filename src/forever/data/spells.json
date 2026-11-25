@@ -503,7 +503,7 @@
    "onGcd": true,
    "channelMs": 6000,
    "tickMs": 1000,
-   "coeffTick": 0,
+   "coeffTick": 0.286,
    "banable": false,
    "teachesTalent": "wrack",
    "accelerates": [
@@ -511,15 +511,16 @@
     "bane_of_agony",
     "siphon_life"
    ],
-   "source": "warcraft.wiki.gg/wiki/Wrack and timesaver.gg: 200 mana, 6 s channel, 60 Shadow damage per 1 s tick (after the 10 Nov hotfix: -30% damage, no longer raises periodic damage), while channelling Siphon Life/Corruption/Bane of Agony tick 100% faster (Blizzard hotfix notes 10 Nov). guildorder.com shows 124 per tick (probably a level-60 value): tick damage is interpolated 60 at level 40 -> 124 at level 60 (ASSUMPTION). Spell power coefficient unknown (0 used).",
+   "source": "CONFIRMED mechanics: 200 mana, 6 s channel, 1 s ticks (warcraft.wiki.gg/wiki/Wrack, timesaver.gg); while channelling Siphon Life/Corruption/Bane of Agony tick 100% faster, durations unchanged (Blizzard hotfix 10 Nov). CONFIRMED damage rule (Blizzard beta development notes, 3 Nov: https://us.forums.blizzard.com/en/wow/raw/2360696/9): spell damage coefficient doubled to 0.286 per second; base damage per second grows by 2.5 per level, 'at level 60 effectively increased from 36 to 86' (so 36 at level 40, 86 at 60). Hotfix 10 Nov: 'Wrack damage reduced by 30%': x0.7 gives 60 per tick at level 60, which matches the 60 on the wiki and timesaver tooltips (guildorder's 124 is not explained). ASSUMPTION: the -30% applies to the coefficient too.",
    "verify": true,
    "ranks": [
     {
      "rank": 1,
      "level": 40,
      "mana": 200,
-     "tickDmgAt40": 60,
-     "tickDmgAt60": 124
+     "baseAt40": 36,
+     "perLevel": 2.5,
+     "hotfixMult": 0.7
     }
    ]
   },

@@ -88,7 +88,7 @@
   "mob_miss_pct": {
     "value": 4,
     "verify": true,
-    "source": "Spell miss chance vs a same-level normal mob (Classic: 4%)."
+    "source": "CONFLICT: Method.gg says 4% hit is needed to never miss a same-level mob (4% miss); Warcraft Tavern says 3% miss; whether a 1% minimum miss exists is unknown. No Blizzard number found."
   },
   "mob_swing_sec": {
     "value": 2.0,
@@ -144,7 +144,7 @@
   "wrack_dmg_mult": {
     "value": 1.0,
     "verify": true,
-    "source": "Sensitivity multiplier on Wrack tick damage (60 at level 40 -> 124 at level 60 is an interpolation between two sources)."
+    "source": "Sensitivity multiplier on Wrack tick damage (the formula itself is confirmed, see spells.json)."
   },
   "mob_hp_mult": {
     "value": 1.0,
