@@ -161,6 +161,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   let cast = null as CastState | null;
   let channel = null as ChannelState | null;
   let trance = false;
+  let busyEnd = 0;
+  /** Gives back the busy time that a cancelled cast or channel will not use. */
+  const cutBusy = (): void => {
+    const over = Math.max(0, busyEnd - t);
+    res.gcdBusyMs -= over;
+    busyEnd = t;
+  };
   let shUntil = 0;
   let res: PullResult = {
     pullSec: 0, mobsKilled: 0, mobsInPull: nMobs, killTimesSec: [], manaSpent: 0, manaFromLifeTap: 0, lifeTapCount: 0, lifeTapHpSpent: 0, damageTaken: 0, healed: 0,
@@ -237,8 +244,12 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
         log(t, 'Soul Harvest');
       }
       channel = null;
+      cutBusy();
     }
-    if (cast && cast.mob === m) cast = null;
+    if (cast && cast.mob === m) {
+      cast = null;
+      cutBusy();
+    }
   };
 
   const dealToMob = (m: Mob, amount: number, fromPlayer: boolean, threatMult: number): void => {
@@ -372,7 +383,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     } else if (spell.kind === 'channel') {
       const b = dotTickBase(spellId, r);
       channel = { spellId, mob: m, nextTickAt: t + b.tickMs, endsAt: t + b.durationMs, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0, isDrainSoul: spellId === 'drain_soul' };
-      res.gcdBusyMs += b.durationMs - gcd > 0 ? b.durationMs - gcd : 0;
+      res.gcdBusyMs += Math.max(0, b.durationMs - gcd);
+      busyEnd = t + Math.max(b.durationMs, gcd);
     }
   };
 
@@ -391,6 +403,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (rk(ranks, 'demonic_energies') > 0) pet.mana += got;
     gcdUntil = t + gcd;
     res.gcdBusyMs += gcd;
+    busyEnd = t + gcd;
     log(t, `Life Tap +${Math.round(got)} mana`);
     return true;
   };
@@ -470,6 +483,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     gcdUntil = t + gcd;
     res.castWasteMs += gcdWasteMs(castMs, gcd);
     res.gcdBusyMs += Math.max(castMs, gcd);
+    busyEnd = t + Math.max(castMs, gcd);
     log(t, `cast ${c.spellId} r${r.rank} (${castMs} ms${free ? ', free' : ''})`);
     if (castMs === 0) resolveCast(c.spellId, r, m);
     else cast = { spellId: c.spellId, rank: r, mob: m, endsAt: t + castMs, free };
@@ -559,9 +573,15 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     }
     hp -= dmg;
     res.damageTaken += dmg;
-    if (cast) cast.endsAt += params.pushback_ms;
+    if (cast) {
+      cast.endsAt += params.pushback_ms;
+      res.gcdBusyMs += params.pushback_ms;
+      busyEnd += params.pushback_ms;
+    }
     else if (channel && rng.next() >= effectNum('fel_concentration', 'channelPushbackResistPerRank') * rk(ranks, 'fel_concentration')) {
       channel.endsAt -= channel.tickMs;
+      res.gcdBusyMs -= channel.tickMs;
+      busyEnd -= channel.tickMs;
       if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
     }
   };
@@ -663,6 +683,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     for (const m of mobs) if (m.alive && m.swingAt <= t) mobSwing(m);
   }
 
+  cutBusy();
   res.pullSec = t / 1000;
   res.endMana = mana;
   res.endHp = Math.max(0, hp);
