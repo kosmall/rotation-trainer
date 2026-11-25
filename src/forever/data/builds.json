@@ -378,6 +378,76 @@
     "aftermath",
     2
    ]
+  ],
+  "DT_SS": [
+   [
+    "improved_corruption",
+    5
+   ],
+   [
+    "suppression",
+    5
+   ],
+   [
+    "improved_drains",
+    3
+   ],
+   [
+    "improved_bane_of_agony",
+    2
+   ],
+   [
+    "pandemic",
+    3
+   ],
+   [
+    "improved_life_tap",
+    2
+   ],
+   [
+    "siphon_life",
+    1
+   ],
+   [
+    "soul_siphon",
+    3
+   ],
+   [
+    "unholy_power",
+    5
+   ],
+   [
+    "demonic_energies",
+    2
+   ],
+   [
+    "amplify_curse",
+    1
+   ],
+   [
+    "malevolence",
+    5
+   ],
+   [
+    "shadow_mastery",
+    5
+   ],
+   [
+    "fel_concentration",
+    3
+   ],
+   [
+    "nightfall",
+    2
+   ],
+   [
+    "wrack",
+    1
+   ],
+   [
+    "demonic_embrace",
+    3
+   ]
   ]
  },
  "variants": [
@@ -395,6 +465,17 @@
   {
    "id": "AFF_DRAINTANK",
    "order": "AFF_DRAINTANK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "drain_life",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40
+  },
+  {
+   "id": "DT_SS",
+   "order": "DT_SS",
    "pet": "voidwalker",
    "sacrificed": null,
    "rotation": "affliction",
