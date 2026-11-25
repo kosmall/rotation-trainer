@@ -27,6 +27,8 @@ export interface RotationCtx {
   targetBrandCharges(): number;
   targetHp(): number;
   estTtkSec(): number;
+  /** Seconds to kill the target if Drain Soul is channelled now, from the DoTs already ticking, the pet and the drain itself. */
+  drainSoulKillSec(): number;
   /** Expected total of a full Drain Soul channel on the target, and of one filler cast. */
   drainSoulExpected(): number;
   fillerExpected(): number;
@@ -41,8 +43,9 @@ function skipLongDots(ctx: RotationCtx): boolean {
 
 function drainSoulFinisher(ctx: RotationCtx): Candidate[] {
   if (!ctx.known('drain_soul') || ctx.talentRank('soul_harvest') === 0) return [];
-  // The kill should land inside the channel: close to dying, but not already within one filler cast.
-  if (ctx.estTtkSec() <= ctx.params.drain_soul_window_sec && ctx.targetHp() > ctx.fillerExpected() * 0.3) return [{ spellId: 'drain_soul', rankWant: 'max' }];
+  // The kill should land inside the channel: DoTs and pet are already killing the target within the window.
+  const kill = ctx.drainSoulKillSec();
+  if (kill <= ctx.params.drain_soul_window_sec && kill >= 1.0) return [{ spellId: 'drain_soul', rankWant: 'max' }];
   return [];
 }
 

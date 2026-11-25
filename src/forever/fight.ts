@@ -487,6 +487,15 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     targetBrandCharges: () => m.brandCharges,
     targetHp: () => m.hp,
     estTtkSec: () => m.hp / Math.max(1, dpsEstimate),
+    drainSoulKillSec: () => {
+      const r = rankAt('drain_soul', 'max', level);
+      if (!r) return Infinity;
+      const bgDots = m.dots.reduce((a, d) => (d.ticksLeft > 0 ? a + (d.tickDmg * (d.factors ? 1 : 1) * (d.school === 'shadow' ? mults().shadow : mults().fire)) / (d.tickMs / d.speed / 1000) : a), 0);
+      const b = dotTickBase('drain_soul', r);
+      const dsDps = (b.tickDmg * mults().shadow * soulSiphon(m)) / (b.tickMs / 1000);
+      const total = bgDots + estPetDps() + dsDps;
+      return total > 0 ? m.hp / total : Infinity;
+    },
     drainSoulExpected: () => {
       const r = rankAt('drain_soul', 'max', level);
       return r ? expectedDirect('drain_soul', r) * soulSiphon(m) : 0;
