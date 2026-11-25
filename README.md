@@ -36,6 +36,43 @@ aplikacja ma trzy tryby: **Setup**, **Fight** i **Report** (opis niżej, „Ukł
 Report”), jasny i ciemny motyw oraz pełną obsługę klawiatury i czytników ekranu. Silnik, bot,
 symulator i wyniki się nie zmieniły.
 
+## WoW Forever: symulator levelowania warlocka (40-59)
+
+Osobny, bezgłowy moduł `src/forever/` (bez Reacta; TBC i trener zostają bez zmian). Porównuje buildy
+talentów do levelowania: czas zabicia moba, mana i HP na zabicie, przerwy na picie, jedzenie i Life
+Tap oraz **zabicia na godzinę**. Losowość jest z ziarnem (`--seed`), więc wyniki się powtarzają.
+
+**Dane są w JSON** w `src/forever/data/` (`params`, `talents`, `spells`, `levels`, `builds`). Każda
+wartość, której nie da się potwierdzić, ma `verify: true` i notatkę ze źródłem. Lista wszystkich:
+`npm run forever:verify`. Wartości z Wowheada dla Forever nie były dostępne podczas pisania,
+więc współczynniki, rangi 3+, Wrack, Malevolence, HP mobów i dane peta to **przybliżenia**.
+
+```bash
+# pojedynek dwóch buildów na levelach 40-59 (główne użycie)
+npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 200 --seed 1 --detail 50
+# własny build z pliku JSON (51 punktów: [[talent, punkty], ...]) zamiast --a/--b
+npm run forever:duel -- --a-file moj-build.json --b AFF_WRACK --levels 45-55
+# parametry z flagą verify można nadpisać (np. Bane 0,2 s na rangę, kara downranku)
+npm run forever:duel -- --a DEMO_PACT_VIDEO --b AFF_WRACK --param bane_per_rank=0.2 --param downrank_penalty_model=classic
+# wszystkie buildy w tabeli, podgląd buildu na levelu, rejestr założeń, analiza wrażliwości, optymalizator, raport
+npm run forever:run -- --levels 40,50,59 --profile quest,average,good --sessions 100
+npm run forever:build -- --build AFF_WRACK --level 47
+npm run forever:verify
+npm run forever:sensitivity
+npm run forever:optimize -- --level 55
+npm run forever:report
+```
+
+Jak to liczy: build to **kolejność 51 punktów** (level 10 = punkt 1); na levelu L ma pierwsze `L - 9`
+punktów (opcjonalny perk `talented_legacy_perk` dodaje punkty, `respec_level` przełącza buildy DEMO z
+`pre_respec_build`). **Level jest parametrem symulacji.** Sesja to kilka pulli pod rząd (mana i HP
+przechodzą z pulla na pull); gdy mana lub HP spadną poniżej progu, następuje przerwa: Life Tap, picie i
+jedzenie (domyślnie równolegle). Pojedynek daje obu buildom te same ziarna i liczy różnice parami z
+przedziałem ufności 95%, a także **level przecięcia**, na którym zwycięzca się zmienia.
+
+Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w
+`talents.json` (`status`, `reason`); raport: `reports/forever_leveling_40plus.md`.
+
 ## Układ: Setup, Fight, Report
 
 Nagłówek jest zawsze widoczny: przełącznik trybów, kolor i nazwa speca, pięć „chipów” następnej
