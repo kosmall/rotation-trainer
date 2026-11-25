@@ -54,14 +54,15 @@ Spirit, picie i jedzenie, statystyki sprzętu, skalowanie Wracka z levelem.
 npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 200 --seed 1 --detail 50
 # własny build z pliku JSON (51 punktów: [[talent, punkty], ...]) zamiast --a/--b
 npm run forever:duel -- --a-file moj-build.json --b AFF_WRACK --levels 45-55
-# parametry z flagą verify można nadpisać (np. Bane 0,2 s na rangę, kara downranku)
-npm run forever:duel -- --a DEMO_PACT_VIDEO --b AFF_WRACK --param bane_per_rank=0.2 --param downrank_penalty_model=classic
+# parametry z flagą verify można nadpisać (np. HP mobów ×1,25 względem Classica, kara downranku, progi Life Tapa)
+npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_DRAINTANK --param mob_hp_mult=1.25 --param downrank_penalty_model=classic --param lt_combat_mana_pct=0.4
 # wszystkie buildy w tabeli, podgląd buildu na levelu, rejestr założeń, analiza wrażliwości, optymalizator, raport
 npm run forever:run -- --levels 40,50,59 --profile quest,average,good --sessions 100
 npm run forever:build -- --build AFF_WRACK --level 47
 npm run forever:verify
 npm run forever:sensitivity
-npm run forever:optimize -- --level 55
+npm run forever:optimize -- --build DEMO_PACT_R1 --core 31 --to 59 --sessions 20
+npm run forever:lifetap -- --mobs 1   # strategie Life Tapa (albo --mobs 2)
 npm run forever:report
 ```
 
@@ -74,7 +75,7 @@ gdy HP = 100% i mana < 90%. Jedyna przerwa to jedzenie i woda poniżej 30% HP (d
 podczas jedzenia). Pojedynek daje obu buildom te same ziarna i liczy różnice parami z
 przedziałem ufności 95%, a także **level przecięcia**, na którym zwycięzca się zmienia.
 
-Strategie Life Tapa: `npm run forever:lifetap` (raporty `reports/forever_lifetap_strategies*.md`); prompt do addonu: `docs/addon-lifetap-advisor-prompt.md`.
+Domyślna polityka Life Tapa w symulatorze to Twoja reguła (parametry `lt_*` w `params.json`); najlepsze progi z wyszukiwania są w raportach `reports/forever_lifetap_strategies*.md` i w promptach do addonu (`docs/addon-lifetap-advisor-prompt.md`, `docs/addon-lifetap-advisor-update-prompt.md`).
 
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w
 `talents.json` (`status`, `reason`); raport: `reports/forever_leveling_40plus.md`.
