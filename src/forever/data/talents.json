@@ -1,0 +1,739 @@
+{
+ "_comment": "Three Forever trees (Wowhead per task statement). status modelled -> effect read by the engine; unmodelled -> reason. Row r needs 5*r points in the same tree before the pick.",
+ "talents": [
+  {
+   "id": "improved_life_tap",
+   "name": "Improved Life Tap",
+   "tree": "aff",
+   "row": 0,
+   "col": 0,
+   "maxRank": 2,
+   "status": "modelled",
+   "effect": {
+    "gainMultPerRank": 0.1
+   },
+   "verify": true,
+   "source": "Classic: +10%/rank mana from Life Tap; Forever scaling unconfirmed"
+  },
+  {
+   "id": "suppression",
+   "name": "Suppression",
+   "tree": "aff",
+   "row": 0,
+   "col": 1,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "hitPctPerRank": 2,
+    "schools": "affliction"
+   },
+   "verify": true,
+   "source": "Classic: -2% miss per rank on Affliction spells; task asks to check whether it applies to Shadow Bolt/Searing Pain (assumed no)"
+  },
+  {
+   "id": "improved_corruption",
+   "name": "Improved Corruption",
+   "tree": "aff",
+   "row": 0,
+   "col": 2,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "castMsReducePerRank": 400,
+    "dmgMultPerRank": 0.02
+   },
+   "verify": true,
+   "source": "Task: Corruption instant at 5/5, +10% damage; Classic -0.4 s per rank"
+  },
+  {
+   "id": "grim_reach",
+   "name": "Grim Reach",
+   "tree": "aff",
+   "row": 1,
+   "col": 0,
+   "maxRank": 2,
+   "status": "unmodelled",
+   "reason": "range only",
+   "source": "Range talent"
+  },
+  {
+   "id": "soul_harvest",
+   "name": "Soul Harvest",
+   "tree": "aff",
+   "row": 1,
+   "col": 1,
+   "maxRank": 2,
+   "status": "modelled",
+   "effect": {
+    "regenBonusAtMax": 1.0,
+    "durationMs": 10000,
+    "regenContinuesWhileCasting": true
+   },
+   "verify": true,
+   "source": "Task: kill under Drain Soul: +100% mana regen for 10 s, regen 100% while casting (rank 1 assumed half)"
+  },
+  {
+   "id": "improved_drains",
+   "name": "Improved Drains",
+   "tree": "aff",
+   "row": 1,
+   "col": 2,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "drainDmgMultAtMax": 0.2
+   },
+   "verify": true,
+   "source": "Task: +20% drains at 3/3"
+  },
+  {
+   "id": "improved_bane_of_agony",
+   "name": "Improved Bane of Agony",
+   "tree": "aff",
+   "row": 2,
+   "col": 0,
+   "maxRank": 2,
+   "status": "modelled",
+   "effect": {
+    "dmgMultPerRank": 0.05
+   },
+   "verify": true,
+   "source": "Classic Improved Curse of Agony analogue; Forever value unknown"
+  },
+  {
+   "id": "fel_concentration",
+   "name": "Fel Concentration",
+   "tree": "aff",
+   "row": 2,
+   "col": 1,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "channelPushbackResistPerRank": 0.14
+   },
+   "verify": true,
+   "source": "Classic-like chance to avoid pushback while channeling; value unconfirmed"
+  },
+  {
+   "id": "amplify_curse",
+   "name": "Amplify Curse",
+   "tree": "aff",
+   "row": 2,
+   "col": 2,
+   "maxRank": 1,
+   "status": "unmodelled",
+   "reason": "3 minute cooldown, empowers one curse/bane per 3 minutes; ignored in short pulls",
+   "verify": true,
+   "source": "Task"
+  },
+  {
+   "id": "pandemic",
+   "name": "Pandemic",
+   "tree": "aff",
+   "row": 2,
+   "col": 3,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "dotCritMultDeltaPerRank": 0.1
+   },
+   "verify": true,
+   "source": "Task: bigger crit damage of DoTs and drains; +0.1 crit multiplier per rank assumed"
+  },
+  {
+   "id": "malevolence",
+   "name": "Malevolence",
+   "tree": "aff",
+   "row": 3,
+   "col": 0,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "affCritPctPerRank": "param:malevolence_crit_pct_per_rank"
+   },
+   "verify": true,
+   "source": "Effect not given in the task; assumed +1% crit on Affliction spells per rank (param)"
+  },
+  {
+   "id": "nightfall",
+   "name": "Nightfall",
+   "tree": "aff",
+   "row": 3,
+   "col": 1,
+   "maxRank": 2,
+   "status": "modelled",
+   "effect": {
+    "procPerTickPerRank": 0.02
+   },
+   "verify": true,
+   "source": "Task: chance for a free instant Shadow Bolt; Classic 2%/rank per Corruption or Drain Life tick"
+  },
+  {
+   "id": "curse_of_exhaustion",
+   "name": "Curse of Exhaustion",
+   "tree": "aff",
+   "row": 3,
+   "col": 2,
+   "maxRank": 1,
+   "requires": {
+    "talent": "amplify_curse",
+    "rank": 1
+   },
+   "status": "unmodelled",
+   "reason": "movement slow; no effect on the model",
+   "source": "Task"
+  },
+  {
+   "id": "siphon_life",
+   "name": "Siphon Life",
+   "tree": "aff",
+   "row": 4,
+   "col": 0,
+   "maxRank": 1,
+   "status": "modelled",
+   "effect": {},
+   "teachesSpell": "siphon_life",
+   "verify": true,
+   "source": "Task: DoT spell taught by the talent; ranks and values in spells.json"
+  },
+  {
+   "id": "soul_siphon",
+   "name": "Soul Siphon",
+   "tree": "aff",
+   "row": 4,
+   "col": 1,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "drainBonusPerEffectAtMax": 0.04,
+    "maxEffects": 3
+   },
+   "verify": true,
+   "source": "Task: drains stronger per own effect on the target; per-effect value and cap assumed"
+  },
+  {
+   "id": "shadow_mastery",
+   "name": "Shadow Mastery",
+   "tree": "aff",
+   "row": 5,
+   "col": 0,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "shadowDmgMultPerRank": 0.02
+   },
+   "verify": true,
+   "source": "Classic: +2% shadow damage per rank"
+  },
+  {
+   "id": "wrack",
+   "name": "Wrack",
+   "tree": "aff",
+   "row": 6,
+   "col": 0,
+   "maxRank": 1,
+   "requires": {
+    "talent": "siphon_life",
+    "rank": 1
+   },
+   "status": "modelled",
+   "effect": {},
+   "teachesSpell": "wrack",
+   "verify": true,
+   "source": "Task: new Affliction filler replacing Shadow Bolt; spell data is a placeholder (spells.json)"
+  },
+  {
+   "id": "improved_health_funnel",
+   "name": "Improved Health Funnel",
+   "tree": "demo",
+   "row": 0,
+   "col": 0,
+   "maxRank": 2,
+   "status": "unmodelled",
+   "reason": "Health Funnel is not used",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "improved_imp",
+   "name": "Improved Imp",
+   "tree": "demo",
+   "row": 0,
+   "col": 1,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "firebolt_dmg_per_rank": 0.1
+   },
+   "verify": true,
+   "source": "Classic: +10% Imp spell damage per rank"
+  },
+  {
+   "id": "demonic_embrace",
+   "name": "Demonic Embrace",
+   "tree": "demo",
+   "row": 0,
+   "col": 2,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "maxHpMultPerRank": 0.015
+   },
+   "verify": true,
+   "source": "Task: +15% Stamina at 5/5; assumed Stamina is half of max HP"
+  },
+  {
+   "id": "unholy_power",
+   "name": "Unholy Power",
+   "tree": "demo",
+   "row": 0,
+   "col": 3,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "petDmgMultPerRank": 0.02
+   },
+   "verify": true,
+   "source": "Task: +10% pet damage at 5/5"
+  },
+  {
+   "id": "demonic_aegis",
+   "name": "Demonic Aegis",
+   "tree": "demo",
+   "row": 1,
+   "col": 0,
+   "maxRank": 2,
+   "status": "modelled",
+   "effect": {
+    "demonArmorMultPerRank": 0.15
+   },
+   "verify": true,
+   "source": "Task: +30% Demon Armor at 2/2"
+  },
+  {
+   "id": "improved_voidwalker",
+   "name": "Improved Voidwalker",
+   "tree": "demo",
+   "row": 1,
+   "col": 1,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "voidwalkerHpMultPerRank": 0.1
+   },
+   "verify": true,
+   "source": "Classic: +10% Voidwalker HP per rank"
+  },
+  {
+   "id": "fel_vitality",
+   "name": "Fel Vitality",
+   "tree": "demo",
+   "row": 1,
+   "col": 2,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "petHpManaPerRank": 0.05,
+    "playerManaPerRank": 0.05
+   },
+   "verify": true,
+   "source": "Task: +15% pet HP and mana, +15% your mana at 3/3"
+  },
+  {
+   "id": "demonic_energies",
+   "name": "Demonic Energies",
+   "tree": "demo",
+   "row": 1,
+   "col": 3,
+   "maxRank": 2,
+   "status": "modelled",
+   "effect": {
+    "petHealFracPerRank": 0.075,
+    "lifeTapGivesPetMana": true
+   },
+   "verify": true,
+   "source": "Task: heal pet for 15% of your spell damage at 2/2, Life Tap also gives the pet mana"
+  },
+  {
+   "id": "improved_sayaad",
+   "name": "Improved Sayaad",
+   "tree": "demo",
+   "row": 2,
+   "col": 0,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "lashMultPerRank": 0.1
+   },
+   "verify": true,
+   "source": "Task: +30% Lash of Pain at 3/3"
+  },
+  {
+   "id": "demonic_sacrifice",
+   "name": "Demonic Sacrifice",
+   "tree": "demo",
+   "row": 2,
+   "col": 1,
+   "maxRank": 1,
+   "status": "modelled",
+   "effect": {
+    "impShadowMult": 0.15,
+    "succubusFireMult": 0.15,
+    "voidwalkerManaPctPer4s": 0.02,
+    "felhunterHealPctPer4s": 0.02
+   },
+   "verify": true,
+   "source": "Task: 2 h effect: Imp +15% shadow, Voidwalker 2% mana per 4 s, Succubus +15% fire, Felhunter heal"
+  },
+  {
+   "id": "master_summoner",
+   "name": "Master Summoner",
+   "tree": "demo",
+   "row": 2,
+   "col": 2,
+   "maxRank": 2,
+   "status": "unmodelled",
+   "reason": "summon speed only matters after a pet death; prerequisite for Fel Domination",
+   "verify": true,
+   "source": "Task"
+  },
+  {
+   "id": "decimation",
+   "name": "Decimation",
+   "tree": "demo",
+   "row": 3,
+   "col": 0,
+   "maxRank": 2,
+   "status": "unmodelled",
+   "reason": "no build takes it",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "fel_domination",
+   "name": "Fel Domination",
+   "tree": "demo",
+   "row": 3,
+   "col": 1,
+   "maxRank": 1,
+   "requires": {
+    "talent": "master_summoner",
+    "rank": 2
+   },
+   "status": "unmodelled",
+   "reason": "instant summon only",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "demonic_brand",
+   "name": "Demonic Brand",
+   "tree": "demo",
+   "row": 3,
+   "col": 2,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "spThreatMult": 0.5,
+    "charges": 3,
+    "durationMs": 10000,
+    "levelBase": 26,
+    "perLevel": 1.5,
+    "min": 14,
+    "max": 17,
+    "spCoeff": 0.078
+   },
+   "verify": true,
+   "source": "Task: Searing Pain 50% less aggro, marks target 10 s, next 3 pet attacks deal (60-26)*1.5 + 14..17 + 0.078*SP at 3/3; lower ranks scaled by rank/3 (assumed)"
+  },
+  {
+   "id": "improved_felhunter",
+   "name": "Improved Felhunter",
+   "tree": "demo",
+   "row": 4,
+   "col": 0,
+   "maxRank": 3,
+   "status": "unmodelled",
+   "reason": "Felhunter is not used",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "soul_link",
+   "name": "Soul Link",
+   "tree": "demo",
+   "row": 4,
+   "col": 1,
+   "maxRank": 1,
+   "requires": {
+    "talent": "demonic_sacrifice",
+    "rank": 1
+   },
+   "status": "modelled",
+   "effect": {
+    "petShare": 0.3,
+    "dmgMult": 0.03
+   },
+   "verify": true,
+   "source": "Task: pet takes 30% of your damage taken, you and the pet deal 3% more"
+  },
+  {
+   "id": "demonic_knowledge",
+   "name": "Demonic Knowledge",
+   "tree": "demo",
+   "row": 4,
+   "col": 2,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "spBonusLevelFracAtMax": 1.0
+   },
+   "verify": true,
+   "source": "Task: extra spell damage for you and the pet up to 100% of your level at 3/3 while a pet is out"
+  },
+  {
+   "id": "master_demonologist",
+   "name": "Master Demonologist",
+   "tree": "demo",
+   "row": 5,
+   "col": 0,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "impFireMult": 0.1,
+    "succubusShadowMult": 0.1,
+    "voidwalkerPhysReduce": 0.1,
+    "felhunterMagicReduce": 0.1
+   },
+   "verify": true,
+   "source": "Task: bonuses while the demon is out, at 5/5; rank scaling linear (assumed)"
+  },
+  {
+   "id": "demonic_pact",
+   "name": "Demonic Pact",
+   "tree": "demo",
+   "row": 6,
+   "col": 0,
+   "maxRank": 1,
+   "requires": {
+    "talent": "soul_link",
+    "rank": 1
+   },
+   "status": "modelled",
+   "effect": {
+    "keepSacrificeOnOtherSummon": true
+   },
+   "verify": true,
+   "source": "Task: summoning a different demon no longer removes Demonic Sacrifice; the same demon still does"
+  },
+  {
+   "id": "improved_shadow_bolt",
+   "name": "Improved Shadow Bolt",
+   "tree": "destro",
+   "row": 0,
+   "col": 0,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "shadowTakenPerRank": 0.04,
+    "charges": 4,
+    "durationMs": 12000
+   },
+   "verify": true,
+   "source": "Classic: Shadow Bolt crit -> +20% shadow damage taken (4 hits, 12 s) at 5/5; Forever effect unconfirmed"
+  },
+  {
+   "id": "bane",
+   "name": "Bane",
+   "tree": "destro",
+   "row": 0,
+   "col": 1,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "castReducePerRankParam": "bane_per_rank"
+   },
+   "verify": true,
+   "source": "Task: shortens Shadow Bolt/Immolate/Incinerate; per rank = param bane_per_rank (default 0.1 s, also test 0.2 s)"
+  },
+  {
+   "id": "destructive_reach",
+   "name": "Destructive Reach",
+   "tree": "destro",
+   "row": 0,
+   "col": 2,
+   "maxRank": 2,
+   "status": "unmodelled",
+   "reason": "range and threat only; threat model is simplified",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "molten_skin",
+   "name": "Molten Skin",
+   "tree": "destro",
+   "row": 1,
+   "col": 0,
+   "maxRank": 5,
+   "status": "unmodelled",
+   "reason": "no build takes it",
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "cataclysm",
+   "name": "Cataclysm",
+   "tree": "destro",
+   "row": 1,
+   "col": 1,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "destroManaCostReducePerRank": 0.01
+   },
+   "verify": true,
+   "source": "Classic: -1% mana cost on Destruction spells per rank"
+  },
+  {
+   "id": "aftermath",
+   "name": "Aftermath",
+   "tree": "destro",
+   "row": 1,
+   "col": 2,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "immolateDmgPerRank": 0.02
+   },
+   "verify": true,
+   "source": "Task: strengthens Immolate; +2% per rank assumed"
+  },
+  {
+   "id": "ruin",
+   "name": "Ruin",
+   "tree": "destro",
+   "row": 2,
+   "col": 0,
+   "maxRank": 5,
+   "status": "modelled",
+   "effect": {
+    "destroCritMultDeltaPerRank": 0.1
+   },
+   "verify": true,
+   "source": "Classic Ruin: crit damage +100% bonus; assumed 0.1 crit multiplier per rank here"
+  },
+  {
+   "id": "shadowburn",
+   "name": "Shadowburn",
+   "tree": "destro",
+   "row": 2,
+   "col": 1,
+   "maxRank": 1,
+   "status": "unmodelled",
+   "reason": "spell not used by any rotation",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "intensity",
+   "name": "Intensity",
+   "tree": "destro",
+   "row": 3,
+   "col": 0,
+   "maxRank": 3,
+   "status": "unmodelled",
+   "reason": "pushback resistance; no build takes it",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "agonizing_flames",
+   "name": "Agonizing Flames",
+   "tree": "destro",
+   "row": 3,
+   "col": 1,
+   "maxRank": 3,
+   "status": "modelled",
+   "effect": {
+    "fireDmgPerRank": 0.02
+   },
+   "verify": true,
+   "source": "Effect not confirmed (task: verify); assumed +2% damage on Immolate and Searing Pain per rank"
+  },
+  {
+   "id": "conflagrate",
+   "name": "Conflagrate",
+   "tree": "destro",
+   "row": 3,
+   "col": 2,
+   "maxRank": 1,
+   "status": "unmodelled",
+   "reason": "spell not used by any rotation",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "pyroclasm",
+   "name": "Pyroclasm",
+   "tree": "destro",
+   "row": 4,
+   "col": 0,
+   "maxRank": 2,
+   "status": "unmodelled",
+   "reason": "no build takes it",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "bane_of_havoc",
+   "name": "Bane of Havoc",
+   "tree": "destro",
+   "row": 4,
+   "col": 1,
+   "maxRank": 1,
+   "status": "unmodelled",
+   "reason": "spell not used; prerequisite for Incinerate",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "fire_and_brimstone",
+   "name": "Fire and Brimstone",
+   "tree": "destro",
+   "row": 4,
+   "col": 2,
+   "maxRank": 3,
+   "status": "unmodelled",
+   "reason": "no build takes it",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "shadow_and_flame",
+   "name": "Shadow and Flame",
+   "tree": "destro",
+   "row": 5,
+   "col": 0,
+   "maxRank": 5,
+   "status": "unmodelled",
+   "reason": "no build takes it",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  },
+  {
+   "id": "incinerate",
+   "name": "Incinerate",
+   "tree": "destro",
+   "row": 6,
+   "col": 0,
+   "maxRank": 1,
+   "requires": {
+    "talent": "bane_of_havoc",
+    "rank": 1
+   },
+   "status": "unmodelled",
+   "reason": "spell not modelled",
+   "verify": true,
+   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+  }
+ ]
+}
