@@ -74,6 +74,8 @@ gdy HP = 100% i mana < 90%. Jedyna przerwa to jedzenie i woda poniżej 30% HP (d
 podczas jedzenia). Pojedynek daje obu buildom te same ziarna i liczy różnice parami z
 przedziałem ufności 95%, a także **level przecięcia**, na którym zwycięzca się zmienia.
 
+Strategie Life Tapa: `npm run forever:lifetap` (raporty `reports/forever_lifetap_strategies*.md`); prompt do addonu: `docs/addon-lifetap-advisor-prompt.md`.
+
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w
 `talents.json` (`status`, `reason`); raport: `reports/forever_leveling_40plus.md`.
 
