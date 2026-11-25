@@ -22,7 +22,7 @@
 - Banes are separate from curses (Agony and Curse of the Elements coexist).
 - Shadow Bolt r1: 1.7 s, 25 mana, 12-16; r2: 2.2 s, 40 mana, 22-27; higher ranks from game data, `verify`.
 - `downrank_penalty_model` in {`none`, `classic`, `partial`}; `bane_per_rank` default 0.1 s (`verify`), also test 0.2 s.
-- Builds are point orders for levels 10-60; **level is a simulation config parameter** (`--level 47` or `--levels 40-59`); every level 40-59 is checked (60 optional), each with exactly `level - 9` points. All three talent trees are defined in full once; a build is only the **order** in which points are spent (level 10 first), and a level just takes the first `level - 9` picks.
+- Builds are point orders for levels 10-60 (`talented_legacy_perk` 0-5, default 0, adds R points: `min(51, level - 9 + R)`); **level is a simulation config parameter** (`--level 47` or `--levels 40-59`); every level 40-59 is checked (60 optional), each with exactly `level - 9` points. All three talent trees are defined in full once; a build is only the **order** in which points are spent (level 10 first), and a level just takes the first `level - 9` picks.
 - Metrics per build x level x gear profile: TTK mean/spread, mana and HP lost per kill, drink/eat/Life Tap time per kill, kills/hour (with downtime and configurable transition time), GCD use and wasted sub-GCD cast time.
 - No network is available for Wowhead; unconfirmable values are flagged, not invented as facts.
 
@@ -67,19 +67,21 @@
 - [ ] **Step 4:** Run; expect PASS.
 - [ ] **Step 5:** Commit `feat(forever): talent trees with row and prerequisite validation`.
 
-### Task 3: Builds as point orders
+### Task 3: Builds as point orders (user's unified lists, 2026-11-25)
 
 **Files:**
-- Create: `src/forever/data/builds.json`, `src/forever/builds.ts`
+- Create: `src/forever/data/builds.json`, `src/forever/builds.ts`, `scripts/forever-build.ts`
 - Test: `tests/forever/builds.test.ts`
 
 **Interfaces:**
 - Consumes: `validateBuild`, `talentRanks`.
-- Produces: `loadBuilds(): Record<BuildId, BuildDef>` for `AFF_WRACK`, `AFF_DRAINTANK`, `DEMO_PACT_R1`, `DEMO_PACT_VIDEO`, `DEMO_PACT_R2`, `DEMO_PACT_MAXRANK`, `DEMO_FIRE`; `BuildDef = { order: TalentPick[]; pet: 'imp'|'voidwalker'|'succubus'|'felhunter'|null; sacrificed: PetKind|null; filler: {spell: string; rank: number|'max'}; rotation: 'affliction'|'demonology'|'fire'; banePerRankOverride?: number }`. Unspecified points of DEMO_* after 49 are filled by the optimizer in Task 13; until then filled by a documented default order marked `verify`.
+- Produces: five **talent orders** (each 51 points, level 10 = point 1): `AFF_WRACK`, `AFF_DRAINTANK`, `DEMO_CORE` (points 1-31), `DEMO_PACT_BANE2`, `DEMO_PACT_BANE5`, `DEMO_FIRE`, and seven simulated **variants** (`BuildVariant = { id; order: string; pet; sacrificed; filler; rank: 1|2|'max'; rotation; pre_respec_build: string; respec_level: number }`): `AFF_WRACK`, `AFF_DRAINTANK`, `DEMO_PACT_R1` (BANE2, Shadow Bolt r1), `DEMO_PACT_VIDEO` (BANE5, r1), `DEMO_PACT_R2` (BANE5, r2), `DEMO_PACT_MAXRANK` (BANE5, max), `DEMO_FIRE`. `picksAt(variant, level, opts: { legacyPerk: number })`: points available `min(51, level - 9 + perk)`; below `respec_level` uses `pre_respec_build` order, from `respec_level` on the variant's own list (respec hands out all points at once). Defaults `pre_respec_build = AFF_WRACK`, `respec_level = 40`. `describeBuild(variant, level)`: points per tree, ranks, last and next pick (CLI `npm run forever:build`).
+- Point totals on 60 (test): AFF_WRACK 46/5/0, AFF_DRAINTANK 41/10/0, BANE2 13/31/7, BANE5 10/31/10, FIRE 0/31/20.
 
-- [ ] **Step 1: Write failing tests:** every build validates at every level 40-59 (and 60 for the full-length ones); `AFF_WRACK has exactly 51 picks`; `DEMO_PACT_R1 at level 40 has 31 picks and ends with Demonic Pact`; `DEMO_PACT_VIDEO has Bane 5/5 at level 60`. The user's build lists are copied exactly (for AFF_WRACK, "40 Wrack" etc.; where a list gives ranges, expand them per point).
-- [ ] **Step 2:** Run; expect FAIL. If a user list violates a gate (e.g. a talent needing points the level hasn't given), record it in `docs/superpowers/forever-build-notes.md` and make the minimal reordering, flagged `verify`.
-- [ ] **Step 3:** Implement loader; **Step 4:** Run; PASS. **Step 5:** Commit `feat(forever): seven build definitions`.
+- [ ] **Step 1: Write failing tests:** every order validates at every level 10-60 (count `level - 9`, row requirement 5 x row points before the pick in the same tree, prerequisites Wrack<-Siphon Life, Curse of Exhaustion<-Amplify Curse, Soul Link<-Demonic Sacrifice, Demonic Pact<-Soul Link, Fel Domination<-Master Summoner 2, Incinerate<-Bane of Havoc, no rank above max); totals per tree on 60 as above; `legacyPerk 3 at level 40 gives 34 points`; `respec_level 40: level 39 uses AFF_WRACK, level 40 uses DEMO list first 31 points`; `BANE2 and BANE5 share the first 31 points`.
+- [ ] **Step 2:** Run; expect FAIL.
+- [ ] **Step 3:** Implement loader (orders stored as `[[talentId, points], ...]`), `picksAt`, `describeBuild`, CLI.
+- [ ] **Step 4:** Run; PASS. **Step 5:** Commit `feat(forever): builds and point orders`.
 
 ### Task 4: Spell data, ranks and downrank model
 
