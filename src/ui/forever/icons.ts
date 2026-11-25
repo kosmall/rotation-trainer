@@ -38,7 +38,21 @@ export const TALENT_ICONS: Readonly<Record<string, string>> = {
   "conflagrate": "spell_fire_fireball",
   "pyroclasm": "spell_fire_volcano",
   "shadow_and_flame": "spell_shadow_shadowandflame",
-  "incinerate": "spell_fire_burnout"
+  "incinerate": "spell_fire_burnout",
+  "soul_harvest": "inv_elemental_primal_shadow",
+  "improved_drains": "spell_shadow_haunting",
+  "improved_bane_of_agony": "spell_shadow_curseofsargeras",
+  "pandemic": "spell_shadow_unstableaffliction_2",
+  "malevolence": "spell_shadow_focusedpower",
+  "wrack": "ability_deathknight_hemorrhagicfever",
+  "fel_vitality": "spell_shadow_demonictactics",
+  "demonic_energies": "spell_shadow_felmending",
+  "decimation": "spell_fire_fireball02",
+  "demonic_brand": "ability_demonhunter_chaoticimprint_fire",
+  "demonic_pact": "inv_ability_soulharvesterwarlock_demonicsoul",
+  "agonizing_flames": "spell_fire_soulburn",
+  "bane_of_havoc": "ability_warlock_baneofhavoc",
+  "fire_and_brimstone": "spell_fire_meteorstorm"
 };
 
 export const SPELL_ICONS: Readonly<Record<string, string>> = {
@@ -50,6 +64,7 @@ export const SPELL_ICONS: Readonly<Record<string, string>> = {
   drain_life: 'spell_shadow_lifedrain02',
   drain_soul: 'spell_shadow_haunting',
   siphon_life: 'spell_shadow_requiem',
+  wrack: 'ability_deathknight_hemorrhagicfever',
   life_tap: 'spell_shadow_burningspirit',
   curse_of_elements: 'spell_shadow_chilltouch',
 };
