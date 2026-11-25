@@ -90,3 +90,13 @@ describe('stats and Life Tap', () => {
     expect(combatRegenPerSec(100, p, 1)).toBeCloseTo(100 * p.spirit_regen_per_spirit * 2, 6);
   });
 });
+
+describe('Improved Corruption', () => {
+  it('5/5 makes Corruption instant; 3/5 leaves 0.8 s', () => {
+    const p = loadParams();
+    const c = getSpell('corruption');
+    const r = rankAt('corruption', 'max', 50)!;
+    expect(castMsOf(c, r, 0, p, 2000)).toBe(0);
+    expect(castMsOf(c, r, 0, p, 1200)).toBe(800);
+  });
+});

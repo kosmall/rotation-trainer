@@ -55,6 +55,14 @@ export interface Params {
   spirit_regen_per_spirit: number;
   fsr_regen_fraction: number;
   sb_filler_lifetap_when_oom: boolean;
+  pet_hit_chance: number;
+  pet_initial_threat_per_level: number;
+  corruption_min_ttk_sec: number;
+  aff_use_immolate: boolean;
+  fire_filler: 'searing_pain' | 'shadow_bolt_r1';
+  pull_min_mana_pct: number;
+  pull_min_hp_pct: number;
+  session_pulls: number;
 }
 
 export type PetKind = 'imp' | 'voidwalker' | 'succubus' | 'felhunter';

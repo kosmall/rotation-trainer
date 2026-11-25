@@ -206,5 +206,43 @@
   "sb_filler_lifetap_when_oom": {
     "value": true,
     "source": "Life Tap when the filler is unaffordable."
+  },
+  "pet_hit_chance": {
+    "value": 0.92,
+    "verify": true,
+    "source": "Pet melee/spell hit chance vs same-level mob (estimate)."
+  },
+  "pet_initial_threat_per_level": {
+    "value": 5,
+    "verify": true,
+    "source": "Threat head start of the pet when it opens the pull."
+  },
+  "corruption_min_ttk_sec": {
+    "value": 6,
+    "source": "Rotation rule: Corruption/Siphon Life/Immolate only when the estimated TTK is at least this."
+  },
+  "aff_use_immolate": {
+    "value": false,
+    "source": "Affliction rotation: Immolate is optional (task)."
+  },
+  "fire_filler": {
+    "value": "searing_pain",
+    "options": [
+      "searing_pain",
+      "shadow_bolt_r1"
+    ],
+    "source": "DEMO_FIRE filler; compare Searing Pain with Shadow Bolt rank 1 (task)."
+  },
+  "pull_min_mana_pct": {
+    "value": 0.4,
+    "source": "Session rule: rest when mana is below this fraction before a pull."
+  },
+  "pull_min_hp_pct": {
+    "value": 0.5,
+    "source": "Session rule: rest when HP is below this fraction before a pull."
+  },
+  "session_pulls": {
+    "value": 30,
+    "source": "Pulls per simulated session (mana and HP carry over between pulls)."
   }
 }

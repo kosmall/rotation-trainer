@@ -39,7 +39,10 @@ export function castMsOf(spell: SpellData, rank: SpellRank, baneRank: number, pa
   const base = rank.castMs ?? spell.baseCastMs ?? 0;
   if (base === 0) return 0;
   const bane = spell.banable ? baneRank * params.bane_per_rank * 1000 : 0;
-  return Math.max(params.cast_floor_ms, Math.round(base - bane - extraReduceMs));
+  const reduced = base - bane - extraReduceMs;
+  // A talent that removes the cast entirely (Improved Corruption 5/5) makes the spell instant.
+  if (extraReduceMs > 0 && reduced <= 0) return 0;
+  return Math.max(params.cast_floor_ms, Math.round(reduced));
 }
 
 export function averageDirect(rank: SpellRank): number {
