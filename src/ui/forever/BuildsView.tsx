@@ -1,4 +1,4 @@
-import { describeBuild, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
+import { describeBuild, loadVariant, picksAt, SCENARIOS, VARIANT_IDS } from '../../forever/builds';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
 import { TalentTrees } from './TalentTrees';
@@ -24,6 +24,7 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
           </select>
         </label>
       </div>
+      <ScenarioNote id={v.id} />
       <dl className="fv-facts">
         <dt>Rotacja</dt>
         <dd>
@@ -78,5 +79,15 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
         ))}
       </ol>
     </>
+  );
+}
+
+export function ScenarioNote({ id }: { id: string }) {
+  const sc = SCENARIOS.find((x) => x.id === id);
+  if (!sc) return null;
+  return (
+    <p className="fv-note">
+      Scenariusz z poradnika: {sc.title}. Źródło: {sc.source}. {sc.note}
+    </p>
   );
 }
