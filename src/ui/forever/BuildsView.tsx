@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { describeBuild, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
@@ -7,8 +6,7 @@ import { TalentTrees } from './TalentTrees';
 const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
 
 /** One build: talent points per tree at the level, the order points were spent, the next pick. */
-export function BuildsView({ level }: { level: number }) {
-  const [id, setId] = useState(VARIANT_IDS[0] as string);
+export function BuildsView({ level, id, onIdChange: setId }: { level: number; id: string; onIdChange(id: string): void }) {
   const v = loadVariant(id);
   const snap = describeBuild(v, level);
   const picks = picksAt(v, level);

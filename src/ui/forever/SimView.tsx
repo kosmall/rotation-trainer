@@ -1,11 +1,12 @@
 import { DEFAULT_SETTINGS, type RankingResult, type SweepResult } from '../../forever/web/api';
 import { VARIANT_IDS } from '../../forever/builds';
+import { routeHref } from '../shell/router';
 import { SweepChart } from './SweepChart';
 import type { ForeverRun } from './useForeverRun';
 
 const f = (x: number, d = 1) => x.toFixed(d);
 
-export function SimView({ run, ranking, sweep, onSweep }: { run: ForeverRun; ranking: RankingResult | undefined; sweep: SweepResult | undefined; onSweep(): void }) {
+export function SimView({ run, ranking, sweep, onSweep, onOpenBuild }: { run: ForeverRun; ranking: RankingResult | undefined; sweep: SweepResult | undefined; onSweep(): void; onOpenBuild(id: string): void }) {
   if (!ranking)
     return (
       <p className="fv-empty">
@@ -45,7 +46,11 @@ export function SimView({ run, ranking, sweep, onSweep }: { run: ForeverRun; ran
               return (
                 <tr key={m.variant} className={i === 0 ? 'fv-best' : undefined}>
                   <td>{i + 1}</td>
-                  <th scope="row">{m.variant}</th>
+                  <th scope="row">
+                    <a href={routeHref({ mode: 'forever', view: 'builds' })} onClick={() => onOpenBuild(m.variant)} title="Pokaż drzewo talentów tego builda">
+                      {m.variant}
+                    </a>
+                  </th>
                   <td>
                     <span className="fv-kphbar" style={{ width: `${(100 * m.killsPerHour) / best}%` }} aria-hidden="true" />
                     <b>{f(m.killsPerHour)}</b>

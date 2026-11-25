@@ -26,6 +26,7 @@ function loadSettings(): Settings {
 /** The WoW Forever simulator: settings (character level), run, and the results/builds/rotations/compare views. */
 export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRunner }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [buildId, setBuildId] = useState(VARIANT_IDS[0] as string);
   const run = useForeverRun(runner);
   useEffect(() => {
     try {
@@ -52,8 +53,8 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
         ))}
       </nav>
       <SettingsBar settings={s} onChange={setSettings} run={run} onRun={view === 'compare' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : 'Uruchom symulację'} />
-      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} onSweep={() => run.run({ kind: 'sweep', settings: s, builds: VARIANT_IDS })} />}
-      {view === 'builds' && <BuildsView level={s.level} />}
+      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} onSweep={() => run.run({ kind: 'sweep', settings: s, builds: VARIANT_IDS })} onOpenBuild={setBuildId} />}
+      {view === 'builds' && <BuildsView level={s.level} id={buildId} onIdChange={setBuildId} />}
       {view === 'rotations' && <RotationsView />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw })} />}
       {view === 'assumptions' && <AssumptionsPanel />}

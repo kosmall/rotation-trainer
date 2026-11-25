@@ -35,6 +35,19 @@ describe('ForeverApp', () => {
     expect(screen.getByText('najlepszy')).toBeTruthy();
   });
 
+  it('clicking a build in the ranking opens its talent trees in the Builds tab', async () => {
+    const { rerender } = render(<ForeverApp view="sim" runner={runner} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
+    const table = await screen.findByRole('table', { name: 'Ranking buildów' });
+    const link = [...table.querySelectorAll('tbody a')].at(-1) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('#/forever/builds');
+    const id = link.textContent as string;
+    fireEvent.click(link);
+    rerender(<ForeverApp view="builds" runner={runner} />);
+    expect((screen.getByLabelText('Build') as HTMLSelectElement).value).toBe(id);
+    expect(screen.getByRole('region', { name: 'Drzewo Affliction' })).toBeTruthy();
+  });
+
   it('shows an error when the run fails', async () => {
     const failing: JobRunner = () => Promise.reject(new Error('boom'));
     render(<ForeverApp view="sim" runner={failing} />);
