@@ -4,6 +4,8 @@
 import { ranksAt, type BuildVariant, type PicksOptions } from './builds';
 import { simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
+import { soulHarvest } from './effects';
+import { lifeTapWanted, needsBreak } from './policy';
 import { gcdMs, lifeTapGain, lifeTapHealthCost, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
 import type { Params } from './types';
@@ -26,16 +28,10 @@ export interface RestInput {
   maxHp: number;
   drinkPerSec: number;
   foodPerSec: number;
-  gcdMs: number;
-  lifeTapBase: number | null;
-  spirit: number;
-  ranks: Ranks;
   params: Params;
 }
 
 export interface RestPlan {
-  lifeTaps: number;
-  lifeTapSec: number;
   drinkSec: number;
   eatSec: number;
   restSec: number;
@@ -46,37 +42,19 @@ export interface RestPlan {
 const REST_CAP_SEC = 600;
 
 /**
- * Plans one rest: Life Tap while it shortens the total (HP from Life Tap is eaten back at the same
- * time as the drink), then drink and eat (together or one after the other).
+ * A food and water break (only taken when HP is below `break_hp_pct`): eat until HP is full. With
+ * `eat_and_drink_together` the warlock drinks only while eating (as little as possible; Life Tap
+ * fills the rest of the mana afterwards); otherwise he also drinks to `rest_to_mana_pct`.
  */
 export function planRest(i: RestInput): RestPlan {
   const p = i.params;
   const targetMana = i.maxMana * p.rest_to_mana_pct;
   const targetHp = i.maxHp * p.rest_to_hp_pct;
-  const drinkT = (m: number): number => (m >= targetMana ? 0 : i.drinkPerSec > 0 ? Math.min(REST_CAP_SEC, (targetMana - m) / i.drinkPerSec) : REST_CAP_SEC);
-  const eatT = (h: number): number => (h >= targetHp ? 0 : i.foodPerSec > 0 ? Math.min(REST_CAP_SEC, (targetHp - h) / i.foodPerSec) : REST_CAP_SEC);
-  const total = (m: number, h: number, lt: number): number => (lt * i.gcdMs) / 1000 + (p.eat_and_drink_together ? Math.max(drinkT(m), eatT(h)) : drinkT(m) + eatT(h));
-  let { mana, hp } = i;
-  let lt = 0;
-  if (p.rest_use_life_tap && i.lifeTapBase !== null) {
-    const gain = lifeTapGain(i.lifeTapBase, i.spirit, i.ranks, p);
-    const cost = lifeTapHealthCost(i.lifeTapBase, i.spirit, p);
-    for (let guard = 0; guard < 60; guard++) {
-      if (mana >= targetMana || hp - cost < i.maxHp * p.rest_life_tap_hp_floor) break;
-      const nm = Math.min(i.maxMana, mana + gain);
-      const nh = hp - cost;
-      if (total(nm, nh, lt + 1) < total(mana, hp, lt) - 1e-6) {
-        mana = nm;
-        hp = nh;
-        lt++;
-      } else break;
-    }
-  }
-  const drinkSec = drinkT(mana);
-  const eatSec = eatT(hp);
-  const lifeTapSec = (lt * i.gcdMs) / 1000;
-  const restSec = lifeTapSec + (p.eat_and_drink_together ? Math.max(drinkSec, eatSec) : drinkSec + eatSec);
-  return { lifeTaps: lt, lifeTapSec, drinkSec, eatSec, restSec, mana: Math.max(mana, targetMana), hp: Math.max(hp, targetHp) };
+  const eatSec = i.hp >= targetHp ? 0 : i.foodPerSec > 0 ? Math.min(REST_CAP_SEC, (targetHp - i.hp) / i.foodPerSec) : REST_CAP_SEC;
+  const needDrink = i.mana >= targetMana ? 0 : i.drinkPerSec > 0 ? Math.min(REST_CAP_SEC, (targetMana - i.mana) / i.drinkPerSec) : REST_CAP_SEC;
+  const drinkSec = p.eat_and_drink_together ? Math.min(needDrink, eatSec) : needDrink;
+  const restSec = p.eat_and_drink_together ? eatSec : eatSec + drinkSec;
+  return { eatSec, drinkSec, restSec, mana: Math.min(i.maxMana, i.mana + i.drinkPerSec * drinkSec), hp: Math.max(i.hp, targetHp) };
 }
 
 export interface SessionResult {
@@ -126,30 +104,46 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   let mana = stats.maxMana * params.rest_to_mana_pct;
   let hp = stats.maxHp * params.rest_to_hp_pct;
   const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks };
-  let manaUsedSum = 0;
-  let hpUsedSum = 0;
+  const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
+  let shCarryMs = 0;
+  const shBonus = soulHarvest(ranks).bonus;
+  const ltGain = ltRank ? lifeTapGain(ltRank.base ?? 0, stats.spirit, ranks, params) : 0;
   for (let i = 0; i < params.session_pulls; i++) {
-    const seen = out.pulls;
-    const manaReserve = seen > 0 ? Math.max(0.15 * stats.maxMana, params.pull_reserve_factor * (manaUsedSum / seen)) : params.pull_min_mana_pct * stats.maxMana;
-    const hpReserve = seen > 0 ? Math.max(0.3 * stats.maxHp, 2 * (hpUsedSum / seen)) : params.pull_min_hp_pct * stats.maxHp;
-    if (mana < manaReserve || hp < hpReserve) {
-      const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + stats.spirit * params.spirit_regen_per_spirit, foodPerSec: stats.foodHpPerSec, gcdMs: gcd, lifeTapBase: ltRank?.base ?? null, spirit: stats.spirit, ranks, params });
+    // Between mobs: food and water only when HP is low, then Life Tap by the rules.
+    if (needsBreak(hp, stats.maxHp, params)) {
+      const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + stats.spirit * params.spirit_regen_per_spirit, foodPerSec: stats.foodHpPerSec, params });
       mana = plan.mana;
       hp = plan.hp;
       out.restSec += plan.restSec;
       out.drinkSec += plan.drinkSec;
       out.eatSec += plan.eatSec;
-      out.lifeTapSec += plan.lifeTapSec;
       out.breaks++;
       out.totalSec += plan.restSec;
     } else out.pullsWithoutBreak++;
-    const r = simulatePull({ ...pull, startMana: mana, startHp: hp }, seed * 100003 + i);
+    let taps = 0;
+    while (ltRank && taps < 40 && mana < stats.maxMana && hp - ltCost >= stats.maxHp * params.lt_safety_hp_pct && lifeTapWanted(mana, stats.maxMana, hp, stats.maxHp, params, true)) {
+      const got = Math.min(ltGain, stats.maxMana - mana);
+      mana += got;
+      hp -= ltCost;
+      out.manaFromLifeTap += got;
+      taps++;
+    }
+    if (taps > 0) {
+      // Life Tap is instant: casting it on the way to the next mob costs no extra time while the walk lasts.
+      const tapSec = (taps * gcd) / 1000;
+      const paid = Math.max(0, tapSec - params.transition_sec);
+      out.lifeTapSec += tapSec;
+      out.restSec += paid;
+      out.totalSec += paid;
+    }
+    const r = simulatePull({ ...pull, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs }, seed * 100003 + i);
     out.pulls++;
     out.kills += r.mobsKilled;
     out.pullSec += r.pullSec;
     out.totalSec += r.pullSec;
     out.manaSpent += r.manaSpent;
     out.manaFromLifeTap += r.manaFromLifeTap;
+    out.lifeTapSec += (r.lifeTapCount * gcd) / 1000;
     out.damageTaken += r.damageTaken;
     out.healed += r.healed;
     out.gcdBusyMs += r.gcdBusyMs;
@@ -158,8 +152,6 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     out.threatSwitches += r.threatSwitches;
     if (r.timedOut) out.timeouts++;
     if (r.mobsKilled > 0) out.ttkPerMob.push(r.pullSec / r.mobsKilled);
-    manaUsedSum += Math.max(0, r.startMana - r.endMana);
-    hpUsedSum += Math.max(0, r.startHp - r.endHp);
     mana = r.endMana;
     hp = r.endHp;
     if (r.playerDied) {
@@ -176,7 +168,10 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     }
     out.transitionSec += params.transition_sec;
     out.totalSec += params.transition_sec;
-    mana = Math.min(stats.maxMana, mana + stats.spirit * params.spirit_regen_per_spirit * params.transition_sec);
+    // Soul Harvest keeps running after the kill: doubled regeneration on the way to the next mob.
+    const boosted = Math.min(r.soulHarvestLeftMs / 1000, params.transition_sec);
+    shCarryMs = Math.max(0, r.soulHarvestLeftMs - params.transition_sec * 1000);
+    mana = Math.min(stats.maxMana, mana + stats.spirit * params.spirit_regen_per_spirit * (params.transition_sec + shBonus * boosted));
   }
   return out;
 }

@@ -23,7 +23,7 @@ export const DEFAULT_AXES: SensitivityAxis[] = [
   { param: 'drain_dmg_mult', values: [0.7, 1, 1.3], note: 'Drain Life / Drain Soul damage' },
   { param: 'pet_dmg_mult', values: [0.7, 1, 1.3], note: 'pet damage tables' },
   { param: 'use_drain_soul_finisher', values: [true, false], note: 'Drain Soul finisher for Soul Harvest on/off' },
-  { param: 'pull_reserve_factor', values: [1, 1.25, 1.6], note: 'how much spare mana the player wants before the next pull' },
+  { param: 'break_hp_pct', values: [0.2, 0.3, 0.4], note: 'HP below which the warlock stops for food and water' },
   { param: 'agony_ramp', values: ['classic_thirds', 'flat'], note: 'shape of Bane of Agony damage over its 24 s (Forever ramp unconfirmed)' },
   { param: 'life_tap_mana_per_health', values: [1, 1.2], note: 'Life Tap conversion ratio (wiki 1.0, one guide 1.2)' },
   { param: 'life_tap_spirit_coeff', values: [0.5, 1, 1.5], note: 'Spirit scaling of Life Tap (formula not published)' },

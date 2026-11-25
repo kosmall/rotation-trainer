@@ -120,19 +120,18 @@ describe('affliction mechanics', () => {
       expect(castsOf(r, 'drain_soul')).toBe(0);
     }
   });
-  it('Soul Harvest raises mana at the end of the pull compared with no buff (regen while casting)', () => {
-    const base = ranksAt(loadVariant('AFF_WRACK'), 50);
-    const regen = (soul_harvest: number): number => {
-      const rs = many(cfg('AFF_WRACK', 50, { ranks: { ...base, soul_harvest }, trace: false }), 80).filter((r) => r.soulHarvestProcs > 0 || soul_harvest === 0);
-      return rs.reduce((a, r) => a + (r.endMana - r.startMana + r.manaSpent), 0) / Math.max(1, rs.length);
-    };
-    expect(regen(2)).toBeGreaterThan(regen(0));
+  it('Soul Harvest keeps running after the kill and can be carried into the next pull', () => {
+    const rs = many(cfg('AFF_WRACK', 50), 80).filter((r) => r.soulHarvestProcs > 0);
+    expect(rs.length).toBeGreaterThan(0);
+    for (const r of rs) expect(r.soulHarvestLeftMs).toBeGreaterThan(0);
+    const carried = simulatePull(cfg('AFF_WRACK', 50, { startSoulHarvestMs: 5000, trace: false }), 1);
+    expect(carried.soulHarvestLeftMs).toBe(0);
   });
-  it('Nightfall procs give a free instant Shadow Bolt', () => {
+  it('Nightfall procs give an instant Shadow Bolt (mana is still paid)', () => {
     const rs = many(cfg('AFF_WRACK', 50, { ranks: { ...ranksAt(loadVariant('AFF_WRACK'), 50), nightfall: 2 } }, { mob_hp_mult: 3 }), 40);
     const proc = rs.find((r) => r.nightfallProcs > 0);
     expect(proc).toBeDefined();
-    expect(proc!.trace.some((l) => l.includes('cast shadow_bolt') && l.includes('(0 ms, free'))).toBe(true);
+    expect(proc!.trace.some((l) => l.includes('cast shadow_bolt') && l.includes('(0 ms, trance'))).toBe(true);
   });
 });
 

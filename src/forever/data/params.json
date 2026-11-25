@@ -53,30 +53,13 @@
     "value": false,
     "source": "Demonology rotation uses Bane of Agony (optional in the task)."
   },
-  "life_tap_mana_below": {
-    "value": 0.35,
-    "source": "In combat: Life Tap when mana fraction is below this ..."
-  },
-  "life_tap_hp_above": {
-    "value": 0.6,
-    "source": "... and HP fraction is above this."
-  },
-  "rest_use_life_tap": {
-    "value": true,
-    "source": "Before drinking, Life Tap down to rest_life_tap_hp_floor while mana is below the target."
-  },
-  "rest_life_tap_hp_floor": {
-    "value": 0.25,
-    "verify": true,
-    "source": "HP fraction floor for out-of-combat Life Taps (safe to go low: food restores HP while drinking). Task: Life Tap rule is configurable."
-  },
   "rest_to_mana_pct": {
-    "value": 0.9,
-    "source": "Drink until this mana fraction before the next pull."
+    "value": 1.0,
+    "source": "Session start and after a death: full mana. A break drinks only while eating (minimal drinking)."
   },
   "rest_to_hp_pct": {
-    "value": 0.9,
-    "source": "Eat until this HP fraction before the next pull."
+    "value": 1.0,
+    "source": "A food and water break lasts until HP is full."
   },
   "eat_and_drink_together": {
     "value": true,
@@ -223,14 +206,6 @@
     ],
     "source": "DEMO_FIRE filler; compare Searing Pain with Shadow Bolt rank 1 (task)."
   },
-  "pull_min_mana_pct": {
-    "value": 0.4,
-    "source": "Rest policy fallback before the session has any pull statistics: rest when mana is below this fraction."
-  },
-  "pull_min_hp_pct": {
-    "value": 0.5,
-    "source": "Session rule: rest when HP is below this fraction before a pull."
-  },
   "session_pulls": {
     "value": 30,
     "source": "Pulls per simulated session (mana and HP carry over between pulls)."
@@ -263,13 +238,36 @@
     "value": 5,
     "source": "Rotation rule (task: 'Drain Soul na dobicie'): use Drain Soul when the estimated time to kill is at most this many seconds, so the kill lands inside the channel (Soul Harvest)."
   },
-  "pull_reserve_factor": {
-    "value": 1.25,
-    "verify": true,
-    "source": "Rest policy assumption: the player pulls only when mana is at least this multiple of the average mana a pull has cost so far in the session (and HP at least twice the average damage taken), instead of a fixed percentage. A fixed threshold made kills per hour jump in steps from level to level."
-  },
   "use_drain_soul_finisher": {
     "value": true,
     "source": "Rotation option (task: 'Drain Soul na dobicie' for Soul Harvest). Tested on/off in the sensitivity analysis because Drain Soul itself deals little damage."
+  },
+  "lt_combat_mana_pct": {
+    "value": 0.6,
+    "source": "User's rule (25 Nov 2026). Life Tap when mana is below this fraction and HP is above lt_combat_hp_pct."
+  },
+  "lt_combat_hp_pct": {
+    "value": 0.8,
+    "source": "User's rule (25 Nov 2026). See lt_combat_mana_pct."
+  },
+  "lt_low_mana_pct": {
+    "value": 0.2,
+    "source": "User's rule (25 Nov 2026). Life Tap when mana is below this fraction and HP is above lt_low_hp_pct."
+  },
+  "lt_low_hp_pct": {
+    "value": 0.3,
+    "source": "User's rule (25 Nov 2026). See lt_low_mana_pct."
+  },
+  "lt_between_mana_pct": {
+    "value": 0.9,
+    "source": "User's rule (25 Nov 2026). Between mobs, with HP at 100%, Life Tap when mana is below this fraction (the warlock should not keep HP full)."
+  },
+  "break_hp_pct": {
+    "value": 0.3,
+    "source": "User's rule (25 Nov 2026). Below this HP fraction the warlock stops for food and water (the only reason to stop)."
+  },
+  "lt_safety_hp_pct": {
+    "value": 0.1,
+    "source": "Safety: a Life Tap is never cast if it would leave less than this HP fraction."
   }
 }

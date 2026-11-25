@@ -5,6 +5,7 @@ import { createRng, type Rng } from '../engine/rng';
 import type { BuildVariant } from './builds';
 import { ranksAt } from './builds';
 import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
+import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petData, playerStatsFor } from './stats';
@@ -21,6 +22,8 @@ export interface PullConfig {
   ranks?: Ranks;
   startMana?: number;
   startHp?: number;
+  /** Soul Harvest time left from the previous kill (ms), carried into this pull. */
+  startSoulHarvestMs?: number;
   trace?: boolean;
 }
 
@@ -48,6 +51,8 @@ export interface PullResult {
   playerDied: boolean;
   timedOut: boolean;
   soulHarvestProcs: number;
+  /** Soul Harvest time still running when the pull ended (ms). */
+  soulHarvestLeftMs: number;
   nightfallProcs: number;
   brandHits: number;
   threatSwitches: number;
@@ -174,11 +179,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.gcdBusyMs -= over;
     busyEnd = t;
   };
-  let shUntil = 0;
+  let shUntil = cfg.startSoulHarvestMs ?? 0;
   let res: PullResult = {
     pullSec: 0, mobsKilled: 0, mobsInPull: nMobs, killTimesSec: [], manaSpent: 0, manaFromLifeTap: 0, lifeTapCount: 0, lifeTapHpSpent: 0, damageTaken: 0, healed: 0,
     startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, playerDied: false, timedOut: false,
-    soulHarvestProcs: 0, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
+    soulHarvestProcs: 0, soulHarvestLeftMs: 0, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
   };
 
   const firstAlive = (): Mob | undefined => mobs.find((m) => m.alive);
@@ -412,12 +417,12 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     }
   };
 
-  const lifeTap = (): boolean => {
+  const lifeTap = (safetyHpPct: number): boolean => {
     const r = rankAt('life_tap', 'max', level);
     if (!r) return false;
     const cost = lifeTapHealthCost(r.base ?? 0, stats.spirit, params);
     const gain = lifeTapGain(r.base ?? 0, stats.spirit, ranks, params);
-    if (hp - cost < maxHp * 0.15 || mana >= maxMana) return false;
+    if (hp - cost < maxHp * safetyHpPct || mana >= maxMana) return false;
     const got = Math.min(gain, maxMana - mana);
     mana += got;
     hp -= cost;
@@ -526,7 +531,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.castWasteMs += gcdWasteMs(castMs, gcd);
     res.gcdBusyMs += Math.max(castMs, gcd);
     busyEnd = t + Math.max(castMs, gcd);
-    log(t, `cast ${c.spellId} r${r.rank} (${castMs} ms${free ? ', free' : ''})`);
+    log(t, `cast ${c.spellId} r${r.rank} (${castMs} ms${free ? ', trance' : ''})`);
     if (castMs === 0) resolveCast(c.spellId, r, m);
     else cast = { spellId: c.spellId, rank: r, mob: m, endsAt: t + castMs, free };
     return true;
@@ -535,11 +540,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const decide = (): void => {
     const m = firstAlive();
     if (!m) return;
-    if (known('life_tap') && mana < maxMana * params.life_tap_mana_below && hp > maxHp * params.life_tap_hp_above && lifeTap()) return;
+    if (known('life_tap') && lifeTapWanted(mana, maxMana, hp, maxHp, params, false) && lifeTap(params.lt_safety_hp_pct)) return;
     for (const c of rotation(makeCtx(m))) {
       if (startCast(c, m)) return;
     }
-    if (params.sb_filler_lifetap_when_oom && known('life_tap') && lifeTap()) return;
+    if (params.sb_filler_lifetap_when_oom && known('life_tap') && hp > maxHp * params.break_hp_pct && lifeTap(params.lt_safety_hp_pct)) return;
     waitUntil = t + 300;
   };
 
@@ -731,6 +736,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   }
 
   cutBusy();
+  res.soulHarvestLeftMs = Math.max(0, shUntil - t);
   res.pullSec = t / 1000;
   res.endMana = mana;
   res.endHp = Math.max(0, hp);

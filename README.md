@@ -68,8 +68,10 @@ npm run forever:report
 Jak to liczy: build to **kolejność 51 punktów** (level 10 = punkt 1); na levelu L ma pierwsze `L - 9`
 punktów (opcjonalny perk `talented_legacy_perk` dodaje punkty, `respec_level` przełącza buildy DEMO z
 `pre_respec_build`). **Level jest parametrem symulacji.** Sesja to kilka pulli pod rząd (mana i HP
-przechodzą z pulla na pull); gdy mana lub HP spadną poniżej progu, następuje przerwa: Life Tap, picie i
-jedzenie (domyślnie równolegle). Pojedynek daje obu buildom te same ziarna i liczy różnice parami z
+przechodzą z pulla na pull). **Polityka Life Tapa** (jedna dla wszystkich buildów, parametry `lt_*` i
+`break_hp_pct`): w walce Life Tap, gdy mana < 60% i HP > 80% albo mana < 20% i HP > 30%; między mobami także
+gdy HP = 100% i mana < 90%. Jedyna przerwa to jedzenie i woda poniżej 30% HP (do pełnego HP, picie tylko
+podczas jedzenia). Pojedynek daje obu buildom te same ziarna i liczy różnice parami z
 przedziałem ufności 95%, a także **level przecięcia**, na którym zwycięzca się zmienia.
 
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w

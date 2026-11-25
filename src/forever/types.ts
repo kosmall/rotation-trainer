@@ -23,10 +23,13 @@ export interface Params {
   skip_agony_if_ttk_below: number;
   use_curse_of_elements: boolean;
   demo_use_agony: boolean;
-  life_tap_mana_below: number;
-  life_tap_hp_above: number;
-  rest_use_life_tap: boolean;
-  rest_life_tap_hp_floor: number;
+  lt_combat_mana_pct: number;
+  lt_combat_hp_pct: number;
+  lt_low_mana_pct: number;
+  lt_low_hp_pct: number;
+  lt_between_mana_pct: number;
+  break_hp_pct: number;
+  lt_safety_hp_pct: number;
   rest_to_mana_pct: number;
   rest_to_hp_pct: number;
   eat_and_drink_together: boolean;
@@ -62,9 +65,6 @@ export interface Params {
   corruption_min_ttk_sec: number;
   aff_use_immolate: boolean;
   fire_filler: 'searing_pain' | 'shadow_bolt_r1';
-  pull_min_mana_pct: number;
-  pull_min_hp_pct: number;
-  pull_reserve_factor: number;
   session_pulls: number;
   drain_dmg_mult: number;
   pet_dmg_mult: number;

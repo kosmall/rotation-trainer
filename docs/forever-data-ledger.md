@@ -112,3 +112,12 @@ Source pages can change with hotfixes (watch https://worldofwarcraft.blizzard.co
   level; it is now adaptive (`pull_reserve_factor`), which is smoother but still an assumption.
 - Pet HP, pet melee, mob damage and the player's regeneration are estimates (section 4), and the
   threat model is two numbers per mob. Absolute kills per hour are therefore not predictions.
+
+## 6. Life Tap and break policy (user's rules, 25 Nov 2026)
+
+In combat and between mobs: Life Tap when mana < 60% and HP > 80%, or mana < 20% and HP > 30%;
+between mobs also when HP = 100% and mana < 90%. The only break is food and water below 30% HP; it
+lasts until HP is full and the warlock drinks only during the meal. A Life Tap cast on the walk to the
+next mob costs no extra time while the walk lasts (`transition_sec`). Assumptions to check:
+**out-of-combat HP regeneration is taken as zero** (formula not found), HP is not healed by pets
+or healing spells, and the HP safety floor of a Life Tap is 10% (`lt_safety_hp_pct`).
