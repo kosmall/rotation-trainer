@@ -51,9 +51,10 @@ describe('downrank penalty model', () => {
 });
 
 describe('GCD, haste and wasted cast time', () => {
-  it('GCD ignores haste by default and follows it when enabled', () => {
-    expect(gcdMs(20, loadParams())).toBe(1500);
-    expect(gcdMs(20, loadParams({ haste_shortens_gcd: true }))).toBe(1250);
+  it('GCD follows haste by default and ignores it when disabled', () => {
+    expect(gcdMs(0, loadParams())).toBe(1500);
+    expect(gcdMs(20, loadParams())).toBe(1250);
+    expect(gcdMs(20, loadParams({ haste_shortens_gcd: false }))).toBe(1500);
     expect(gcdMs(100, loadParams({ haste_shortens_gcd: true }))).toBe(1000);
   });
   it('a 1.2 s cast wastes 0.3 s of the GCD; casts at or above the GCD waste nothing', () => {

@@ -261,7 +261,7 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
     'Pet HP and mana are refilled before every pull; a dead pet costs `pet_resummon_sec`.',
     'Mob HP is fixed per level (no variance), same level as the player, melee only, one swing every 2 s.',
     'Damage multipliers combine multiplicatively (the game may add some of them).',
-    'Haste is off by default (`haste_pct` 0) and does not shorten the GCD unless `haste_shortens_gcd` is on.',
+    'Haste is off by default (`haste_pct` 0); when set it shortens casts and the GCD (confirmed: in Forever haste always shortens the GCD, floor `min_gcd_ms`).',
   ]) p(`- ${line}`);
   p();
   return out.join('\n');

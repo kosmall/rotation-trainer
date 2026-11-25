@@ -189,7 +189,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
 
   const firstAlive = (): Mob | undefined => mobs.find((m) => m.alive);
-  const spEff = (): number => stats.spellPower + demonicKnowledgeSp(level, ranks, petAlive);
+  const spEff = (spellId?: string): number => stats.spellPower + demonicKnowledgeSp(level, ranks, petAlive) + (spellId !== undefined && getSpell(spellId).school === 'shadow' ? params.shadow_spell_power_bonus : 0);
   const mults = () => schoolMults(ranks, demons, petAlive);
 
   const targetMult = (m: Mob, school: 'shadow' | 'fire'): number => {
@@ -295,7 +295,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const directBase = (spellId: string, r: SpellRank): number => {
     const spell = getSpell(spellId);
     const coeff = (r.coeff ?? spell.coeffDirect ?? 0) * coeffMult(spellId, r);
-    let base = averageDirect(r) + spEff() * coeff * downrankFactor(params.downrank_penalty_model, r.level);
+    let base = averageDirect(r) + spEff(spellId) * coeff * downrankFactor(params.downrank_penalty_model, r.level);
     base *= aftermathMult(spellId);
     if (spellId === 'immolate') base *= 1 + effectNum('aftermath', 'immolateInitialDmgPerRank') * rk(ranks, 'aftermath');
     return base;
@@ -311,9 +311,9 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (spellId === 'wrack') {
       // Blizzard dev notes (3 Nov): base damage per second 36 at level 40, +2.5 per level; coefficient 0.286 per tick; hotfix 10 Nov: -30%.
       const base = (r.baseAt40 ?? 0) + (r.perLevel ?? 0) * (level - 40);
-      tick = (base + spEff() * (spell.coeffTick ?? 0)) * (r.hotfixMult ?? 1) * params.wrack_dmg_mult;
+      tick = (base + spEff(spellId) * (spell.coeffTick ?? 0)) * (r.hotfixMult ?? 1) * params.wrack_dmg_mult;
     } else {
-      tick = (r.tickDmg ?? 0) + spEff() * (spell.coeffTick ?? 0) * downrankFactor(params.downrank_penalty_model, r.level);
+      tick = (r.tickDmg ?? 0) + spEff(spellId) * (spell.coeffTick ?? 0) * downrankFactor(params.downrank_penalty_model, r.level);
     }
     if (spellId === 'corruption') tick *= 1 + effectNum('improved_corruption', 'dmgMultPerRank') * rk(ranks, 'improved_corruption');
     if (spellId === 'bane_of_agony') tick *= (1 + effectNum('improved_bane_of_agony', 'dmgMultPerRank') * rk(ranks, 'improved_bane_of_agony'));
@@ -626,13 +626,16 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.damageTaken += dmg;
     if (cast) {
       cast.endsAt += params.pushback_ms;
-      res.gcdBusyMs += params.pushback_ms;
-      busyEnd += params.pushback_ms;
+      // The GCD already covers the first part of a short cast: only the time past the old busy end is new.
+      const newBusyEnd = Math.max(busyEnd, cast.endsAt);
+      res.gcdBusyMs += newBusyEnd - busyEnd;
+      busyEnd = newBusyEnd;
     }
     else if (channel && rng.next() >= effectNum('fel_concentration', 'noPushbackChanceAtMax') * (rk(ranks, 'fel_concentration') / 3)) {
       channel.endsAt -= channel.tickMs;
-      res.gcdBusyMs -= channel.tickMs;
-      busyEnd -= channel.tickMs;
+      const newBusyEnd = Math.max(t, busyEnd - channel.tickMs);
+      res.gcdBusyMs -= busyEnd - newBusyEnd;
+      busyEnd = newBusyEnd;
       if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
     }
   };

@@ -15,9 +15,8 @@
     "source": "CONFIRMED by guildorder.com, allthings.how and timesaver.gg tooltips: Bane takes 0.1 s per rank off Shadow Bolt/Immolate/Incinerate (0.5 s at 5/5); consistent with the players' 1.2 s Shadow Bolt rank 1 at 5/5."
   },
   "haste_shortens_gcd": {
-    "value": false,
-    "verify": true,
-    "source": "Task statement: haste may shorten GCD; configurable, default off."
+    "value": true,
+    "source": "CONFIRMED by the user (26 Nov 2026): in WoW Forever haste always shortens the GCD. No effect while haste_pct is 0 (the default)."
   },
   "gcd_ms": {
     "value": 1500,
@@ -31,6 +30,10 @@
   "haste_pct": {
     "value": 0,
     "source": "Spell haste percent; 0 in all default profiles."
+  },
+  "shadow_spell_power_bonus": {
+    "value": 0,
+    "source": "Extra spell power for Shadow spells; 0 by default, 21 with the Major Spellstone option (the stone text says 'up to 21')."
   },
   "cast_floor_ms": {
     "value": 500,

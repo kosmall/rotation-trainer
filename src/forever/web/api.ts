@@ -38,11 +38,13 @@ export interface Settings {
   profile: string;
   mobs: 1 | 2;
   policy: string;
+  /** Major Spellstone on the weapon: +2% spell haste, +21 Shadow spell power ("up to 21": the value is unverified). */
+  spellstone: boolean;
   sessions: number;
   seed: number;
 }
 
-export const DEFAULT_SETTINGS: Settings = { level: 50, profile: 'average', mobs: 1, policy: 'BEST_1MOB', sessions: 60, seed: 1 };
+export const DEFAULT_SETTINGS: Settings = { level: 50, profile: 'average', mobs: 1, policy: 'BEST_1MOB', spellstone: false, sessions: 60, seed: 1 };
 
 /** Clamps and validates settings from the UI. */
 export function normalizeSettings(s: Partial<Settings>): Settings {
@@ -53,13 +55,21 @@ export function normalizeSettings(s: Partial<Settings>): Settings {
     profile: s.profile !== undefined && PROFILE_IDS.includes(s.profile) ? s.profile : d.profile,
     mobs: s.mobs === 2 ? 2 : 1,
     policy: s.policy !== undefined && s.policy in POLICIES ? s.policy : d.policy,
+    spellstone: s.spellstone === true,
     sessions: Math.min(500, Math.max(5, Math.round(num(s.sessions, d.sessions)))),
     seed: Math.round(num(s.seed, d.seed)),
   };
 }
 
+export const SPELLSTONE_PARAMS: Partial<Params> = { haste_pct: 2, shadow_spell_power_bonus: 21 };
+
+/** Parameter overrides of the settings: the Life Tap policy and the Spellstone. */
+export function overridesOf(s: Settings): Partial<Params> {
+  return { ...(POLICIES[s.policy]?.params ?? {}), ...(s.spellstone ? SPELLSTONE_PARAMS : {}) };
+}
+
 function paramsOf(s: Settings): Params {
-  return loadParams(POLICIES[s.policy]?.params ?? {});
+  return loadParams(overridesOf(s));
 }
 
 export type JobRequest =
@@ -147,7 +157,7 @@ export function planJob(req: JobRequest): Job {
       checkBuild(req.a);
       checkBuild(req.b);
       const levels = req.sweep ? LEVELS : [s.level];
-      const o = { levels, profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: POLICIES[s.policy]?.params };
+      const o = { levels, profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overridesOf(s) };
       return {
         total: levels.length,
         run: (i) => duelLevel(loadVariant(req.a), loadVariant(req.b), levels[i] as number, o),
