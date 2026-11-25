@@ -66,3 +66,4 @@
 .fv-arrow { font-size: 0.75rem; font-weight: 700; color: var(--fel, #4a4); white-space: nowrap; }
 .fv-loopstub { flex: 1; min-width: 12px; border-top: 2px solid var(--class, currentColor); }
 @media (max-width: 760px) { .fv-flow-row { flex-wrap: wrap; } .fv-node-cond { flex-basis: 100%; max-width: none; } }
+.fv-facts-icons dd { display: flex; align-items: center; gap: 8px; min-height: 32px; }

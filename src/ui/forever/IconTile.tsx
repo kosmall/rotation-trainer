@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SPELL_ICONS, TALENT_ICONS } from './icons';
+import { PET_ICONS, SPELL_ICONS, TALENT_ICONS } from './icons';
 import { iconUrl, talentIconUrl } from '../SpellIcon';
 
 const initials = (name: string) =>
@@ -11,9 +11,9 @@ const initials = (name: string) =>
     .toUpperCase();
 
 /** A spell or talent icon over an initials tile (the tile stays when there is no icon file). */
-export function IconTile({ kind, id, name, size = 40 }: { kind: 'spell' | 'talent'; id: string; name: string; size?: number }) {
-  const icon = (kind === 'spell' ? SPELL_ICONS : TALENT_ICONS)[id];
-  const src = icon ? (kind === 'spell' ? iconUrl(icon) : talentIconUrl(icon)) : null;
+export function IconTile({ kind, id, name, size = 40 }: { kind: 'spell' | 'talent' | 'pet'; id: string; name: string; size?: number }) {
+  const icon = (kind === 'spell' ? SPELL_ICONS : kind === 'pet' ? PET_ICONS : TALENT_ICONS)[id];
+  const src = icon ? (kind === 'talent' ? talentIconUrl(icon) : iconUrl(icon)) : null;
   const [failed, setFailed] = useState<string | null>(null);
   return (
     <span className="fv-icon" style={{ width: size, height: size }} aria-hidden="true">

@@ -55,6 +55,10 @@ export function stepsFor(v: BuildVariant): readonly Step[] {
   }
 }
 
+const PET_NAMES: Record<string, string> = { imp: 'Imp', voidwalker: 'Voidwalker', succubus: 'Succubus', felhunter: 'Felhunter' };
+const FILLER_SPELLS: Record<string, string[]> = { wrack: ['wrack'], drain_life: ['drain_life'], shadow_bolt: ['shadow_bolt'], searing_pain: ['searing_pain'] };
+const FILLER_NAMES: Record<string, string> = { wrack: 'Wrack', drain_life: 'Drain Life (tank)', shadow_bolt: 'Shadow Bolt', searing_pain: 'Searing Pain' };
+
 function spellName(id: string): string {
   try {
     return getSpell(id).name;
@@ -82,9 +86,36 @@ export function RotationsView() {
       </div>
       <section className="fv-panel">
         <h2>{TITLES[v.rotation]}</h2>
-        <p className="fv-note">
-          Pet: {v.pet ?? 'brak'}; ranga Shadow Bolta: {String(v.rank)}; filler: {v.filler}. Po każdym rzucie (GCD) sprawdzasz warunki od góry. Pierwszy spełniony, na którego czar Cię stać, jest rzucany, po czym wracasz na początek.
-        </p>
+        <dl className="fv-facts fv-facts-icons">
+          <dt>Pet</dt>
+          <dd>
+            {v.pet ? <IconTile kind="pet" id={v.pet} name={PET_NAMES[v.pet] ?? v.pet} size={28} /> : null}
+            <span>
+              {v.pet ? (PET_NAMES[v.pet] ?? v.pet) : 'brak'}
+              {v.sacrificed ? `, poświęcony: ${PET_NAMES[v.sacrificed] ?? v.sacrificed}` : ''}
+            </span>
+          </dd>
+          <dt>Shadow Bolt</dt>
+          <dd>
+            <IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />
+            <span>{v.rotation === 'fire' ? 'ranga 1' : v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`}</span>
+          </dd>
+          <dt>Filler</dt>
+          <dd>
+            {FILLER_SPELLS[v.filler]?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}
+            <span>{FILLER_NAMES[v.filler] ?? v.filler}</span>
+          </dd>
+          <dt>Talenty</dt>
+          <dd>
+            <span>
+              {v.order}
+              {v.pre_respec_build ? ` (do respeca na levelu ${v.respec_level}: ${v.pre_respec_build})` : ''}
+            </span>
+          </dd>
+        </dl>
+        <p className="fv-note">Po każdym rzucie (GCD) sprawdzasz warunki od góry.</p>
+        <p className="fv-note">Pierwszy spełniony, na którego czar Cię stać, jest rzucany, po czym wracasz na początek.</p>
+        <p className="fv-note">Poza walką i przy niskim HP decyduje strategia Life Tapa (opcje zaawansowane).</p>
         <ol className="fv-flow" aria-label={`Diagram rotacji ${id}`}>
           <li className="fv-start">
             <span className="fv-node fv-node-start">Nowy GCD</span>

@@ -53,3 +53,10 @@ export const SPELL_ICONS: Readonly<Record<string, string>> = {
   life_tap: 'spell_shadow_burningspirit',
   curse_of_elements: 'spell_shadow_chilltouch',
 };
+
+export const PET_ICONS: Readonly<Record<string, string>> = {
+  imp: 'spell_shadow_summonimp',
+  voidwalker: 'spell_shadow_summonvoidwalker',
+  succubus: 'spell_shadow_summonsuccubus',
+  felhunter: 'spell_shadow_summonfelhunter',
+};
