@@ -100,3 +100,15 @@ real value and the report regenerated.
 16. Soul Fire, Incinerate and Conflagrate ranks are not used by any build.
 
 Source pages can change with hotfixes (watch https://worldofwarcraft.blizzard.com/news/24315281).
+
+## 5. Known model artifacts (not data, but they limit the conclusions)
+
+- The rotations use an estimated time to kill (filler damage per second plus pet) to decide whether
+  to cast DoTs (`corruption_min_ttk_sec`) and whether to skip Agony. Near these thresholds the
+  result is not monotonic: Wrack x1.5 gave fewer kills per hour than x1.0 at level 50
+  (88.8 vs 100.8). Treat differences of a few kills per hour near such points with care; a better
+  rotation (cast DoTs when they pay back their mana, measured, not estimated) is an open task.
+- The player's rest policy was a fixed mana threshold at first and produced steps from level to
+  level; it is now adaptive (`pull_reserve_factor`), which is smoother but still an assumption.
+- Pet HP, pet melee, mob damage and the player's regeneration are estimates (section 4), and the
+  threat model is two numbers per mob. Absolute kills per hour are therefore not predictions.
