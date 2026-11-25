@@ -87,7 +87,7 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
   const rowsAvg = compareBuilds({ levels: o.levels, profiles: ['average'], sessions: o.sessions, seed: o.seed });
   p('## 1. Comparison of all builds on every level');
   p();
-  p('Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK, AFF_DRAINTANK, DEMO_PACT_R1 = Bane 2/5 + Shadow Bolt rank 1, DEMO_PACT_VIDEO = Bane 5/5 + rank 1, DEMO_PACT_R2 = Bane 5/5 + rank 2, DEMO_PACT_MAXRANK, DEMO_FIRE). Demonology builds respec at 40 from AFF_WRACK.');
+  p('Build orders are in `src/forever/data/builds.json` (the unified lists: AFF_WRACK, AFF_DRAINTANK, DEMO_PACT_R1 = Bane 2/5 + Shadow Bolt rank 1, DEMO_PACT_VIDEO = Bane 5/5 + rank 1, DEMO_PACT_R2 = Bane 5/5 + rank 2, DEMO_PACT_MAXRANK, DEMO_FIRE). Demonology builds spend every point in Demonology from level 10 (no respec; the Pact comes at 40).');
   p();
   for (const [title, pick, d] of [
     ['Kills per hour (higher is better), gear: average', (m: CellMetrics) => m.killsPerHour, 1],
@@ -121,7 +121,7 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
   p('## 2. Respec to Demonology: from which level does it pay off?');
   p();
   const respecA = duelBuilds('DEMO_PACT_R1', 'AFF_WRACK', { levels: o.respecLevels, profile: 'average', sessions: o.sessions, seed: o.seed });
-  p('DEMO_PACT_R1 (respec at that level) against staying on AFF_WRACK. A respec at level L gives the Demonology list up to L (the Pact comes at 40). Positive difference = the respec is faster.');
+  p('DEMO_PACT_R1 (Demonology from level 10) against AFF_WRACK at each level (the Pact comes at 40). Positive difference = Demonology is faster.');
   p();
   p('| Level | AFF_WRACK kills/h | DEMO_PACT_R1 kills/h | difference (95% CI) | rest s/kill (aff / demo) |');
   p('|---:|---:|---:|---|---|');

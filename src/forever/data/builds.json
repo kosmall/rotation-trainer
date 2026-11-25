@@ -411,7 +411,7 @@
    "rotation": "demonology",
    "filler": "shadow_bolt",
    "rank": 1,
-   "pre_respec_build": "AFF_WRACK",
+   "pre_respec_build": null,
    "respec_level": 40
   },
   {
@@ -422,7 +422,7 @@
    "rotation": "demonology",
    "filler": "shadow_bolt",
    "rank": 1,
-   "pre_respec_build": "AFF_WRACK",
+   "pre_respec_build": null,
    "respec_level": 40
   },
   {
@@ -433,7 +433,7 @@
    "rotation": "demonology",
    "filler": "shadow_bolt",
    "rank": 2,
-   "pre_respec_build": "AFF_WRACK",
+   "pre_respec_build": null,
    "respec_level": 40
   },
   {
@@ -444,7 +444,7 @@
    "rotation": "demonology",
    "filler": "shadow_bolt",
    "rank": "max",
-   "pre_respec_build": "AFF_WRACK",
+   "pre_respec_build": null,
    "respec_level": 40
   },
   {
@@ -455,7 +455,7 @@
    "rotation": "fire",
    "filler": "searing_pain",
    "rank": "max",
-   "pre_respec_build": "AFF_WRACK",
+   "pre_respec_build": null,
    "respec_level": 40
   }
  ]

@@ -33,16 +33,24 @@ describe('builds', () => {
   });
   it('respec: below respec_level the pre-respec build is used, from it the own list', () => {
     const v = loadVariant('DEMO_PACT_R1');
-    expect(picksAt(v, 39)).toEqual(loadOrder('AFF_WRACK').slice(0, 30));
+    const opts = { preRespecBuild: 'AFF_WRACK' };
+    expect(picksAt(v, 39, opts)).toEqual(loadOrder('AFF_WRACK').slice(0, 30));
+    expect(picksAt(v, 40, opts)).toEqual(loadOrder('DEMO_PACT_BANE2').slice(0, 31));
+    expect(picksAt(v, 45, { ...opts, respecLevel: 50 })).toEqual(loadOrder('AFF_WRACK').slice(0, 36));
+  });
+  it('Demonology builds follow their own list from level 10, with no respec', () => {
+    const v = loadVariant('DEMO_PACT_R1');
+    expect(v.pre_respec_build).toBeNull();
+    expect(picksAt(v, 10)).toEqual(loadOrder('DEMO_PACT_BANE2').slice(0, 1));
+    expect(picksAt(v, 39)).toEqual(loadOrder('DEMO_PACT_BANE2').slice(0, 30));
     expect(picksAt(v, 40)).toEqual(loadOrder('DEMO_PACT_BANE2').slice(0, 31));
-    expect(picksAt(v, 45, { respecLevel: 50 })).toEqual(loadOrder('AFF_WRACK').slice(0, 36));
   });
   it('legacy perk adds points', () => {
     expect(picksAt(loadVariant('AFF_WRACK'), 40, { legacyPerk: 3 })).toHaveLength(34);
     expect(picksAt(loadVariant('AFF_WRACK'), 59, { legacyPerk: 5 })).toHaveLength(51);
   });
-  it('every variant has legal ranks on every level 40-59 and 60', () => {
-    for (const id of VARIANT_IDS) for (let l = 40; l <= 60; l++) {
+  it('every variant has legal ranks on every level 10-60', () => {
+    for (const id of VARIANT_IDS) for (let l = 10; l <= 60; l++) {
       const v = loadVariant(id);
       expect(validatePicks(picksAt(v, l)).ok, `${id}@${l}`).toBe(true);
     }
