@@ -22,7 +22,7 @@
 - Banes are separate from curses (Agony and Curse of the Elements coexist).
 - Shadow Bolt r1: 1.7 s, 25 mana, 12-16; r2: 2.2 s, 40 mana, 22-27; higher ranks from game data, `verify`.
 - `downrank_penalty_model` in {`none`, `classic`, `partial`}; `bane_per_rank` default 0.1 s (`verify`), also test 0.2 s.
-- Builds are point orders for levels 10-60; checked levels: 40, 42, 45, 48, 50, 55, 60 with exactly `level - 9` points.
+- Builds are point orders for levels 10-60; **level is a simulation config parameter** (`--level 47` or `--levels 40-59`); every level 40-59 is checked (60 optional), each with exactly `level - 9` points. All three talent trees are defined in full once; a build is only the **order** in which points are spent (level 10 first), and a level just takes the first `level - 9` picks.
 - Metrics per build x level x gear profile: TTK mean/spread, mana and HP lost per kill, drink/eat/Life Tap time per kill, kills/hour (with downtime and configurable transition time), GCD use and wasted sub-GCD cast time.
 - No network is available for Wowhead; unconfirmable values are flagged, not invented as facts.
 
@@ -77,7 +77,7 @@
 - Consumes: `validateBuild`, `talentRanks`.
 - Produces: `loadBuilds(): Record<BuildId, BuildDef>` for `AFF_WRACK`, `AFF_DRAINTANK`, `DEMO_PACT_R1`, `DEMO_PACT_VIDEO`, `DEMO_PACT_R2`, `DEMO_PACT_MAXRANK`, `DEMO_FIRE`; `BuildDef = { order: TalentPick[]; pet: 'imp'|'voidwalker'|'succubus'|'felhunter'|null; sacrificed: PetKind|null; filler: {spell: string; rank: number|'max'}; rotation: 'affliction'|'demonology'|'fire'; banePerRankOverride?: number }`. Unspecified points of DEMO_* after 49 are filled by the optimizer in Task 13; until then filled by a documented default order marked `verify`.
 
-- [ ] **Step 1: Write failing tests:** every build validates at levels 40, 42, 45, 48, 50, 55, 60; `AFF_WRACK has exactly 51 picks`; `DEMO_PACT_R1 at level 40 has 31 picks and ends with Demonic Pact`; `DEMO_PACT_VIDEO has Bane 5/5 at level 60`. The user's build lists are copied exactly (for AFF_WRACK, "40 Wrack" etc.; where a list gives ranges, expand them per point).
+- [ ] **Step 1: Write failing tests:** every build validates at every level 40-59 (and 60 for the full-length ones); `AFF_WRACK has exactly 51 picks`; `DEMO_PACT_R1 at level 40 has 31 picks and ends with Demonic Pact`; `DEMO_PACT_VIDEO has Bane 5/5 at level 60`. The user's build lists are copied exactly (for AFF_WRACK, "40 Wrack" etc.; where a list gives ranges, expand them per point).
 - [ ] **Step 2:** Run; expect FAIL. If a user list violates a gate (e.g. a talent needing points the level hasn't given), record it in `docs/superpowers/forever-build-notes.md` and make the minimal reordering, flagged `verify`.
 - [ ] **Step 3:** Implement loader; **Step 4:** Run; PASS. **Step 5:** Commit `feat(forever): seven build definitions`.
 
@@ -163,13 +163,13 @@
 
 **Interfaces:**
 - Consumes: `runCell`, `loadBuilds`, `BuildDef`.
-- Produces: `duelBuilds(a: BuildRef, b: BuildRef, opts: { level: number; profile: string; mobs: 1|2|3; runs: number; seed: number; params?: Partial<Params> }): DuelResult`, where `BuildRef` is a build id or an inline `BuildDef` (loaded from a JSON file by the CLI, so any custom point order can be compared). Both builds use the same seeds per pull (common random numbers). `DuelResult = { a: CellMetrics; b: CellMetrics; diff: Record<MetricKey, { mean: number; ci95: [number, number]; significant: boolean }>; verdict: { fasterKill: 'a'|'b'|'tie'; moreKillsPerHour: 'a'|'b'|'tie'; fewerBreaks: 'a'|'b'|'tie'; lessDowntimeShare: 'a'|'b'|'tie' } }`. `CellMetrics` gains (Task 9) `breaksPerHour`, `downtimeShare` (downtime / total time), `killsPerManaBar` (average kills before a forced drink or Life Tap break) and `breakFreePullPct`.
-- CLI: `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --level 50 --profile average --mobs 2 --runs 1000 --seed 1 [--param bane_per_rank=0.2] [--a-file build.json]` prints a side-by-side table (TTK, mana/kill, HP/kill, drink s, eat s, Life Tap s per kill, breaks per hour, downtime share, kills per hour), the paired differences with 95% CIs and a plain-language verdict line per question: faster, cheaper, fewer breaks.
+- Produces: `duelBuilds(a: BuildRef, b: BuildRef, opts: { levels: number[] /* e.g. 40..59 */; profile: string; mobs: 1|2|3; runs: number; seed: number; params?: Partial<Params> }): DuelResult`, where `BuildRef` is a build id or an inline `BuildDef` (loaded from a JSON file by the CLI, so any custom point order can be compared). Both builds use the same seeds per pull (common random numbers). `DuelResult` is returned per level (`DuelResult[]`) plus `crossover: { level: number; winner: 'a'|'b' } | null`, the first level where the winner on kills per hour changes. Each `DuelResult = { a: CellMetrics; b: CellMetrics; diff: Record<MetricKey, { mean: number; ci95: [number, number]; significant: boolean }>; verdict: { fasterKill: 'a'|'b'|'tie'; moreKillsPerHour: 'a'|'b'|'tie'; fewerBreaks: 'a'|'b'|'tie'; lessDowntimeShare: 'a'|'b'|'tie' } }`. `CellMetrics` gains (Task 9) `breaksPerHour`, `downtimeShare` (downtime / total time), `killsPerManaBar` (average kills before a forced drink or Life Tap break) and `breakFreePullPct`.
+- CLI: `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --levels 40-59 --profile average --mobs 2 --runs 1000 --seed 1 [--param bane_per_rank=0.2] [--a-file build.json]` prints, per level, a side-by-side table (TTK, mana/kill, HP/kill, drink s, eat s, Life Tap s per kill, breaks per hour, downtime share, kills per hour), the paired differences with 95% CIs and a plain-language verdict line per question: faster, cheaper, fewer breaks.
 
-- [ ] **Step 1: Write failing tests:** `duel of a build with itself gives zero diff and verdict tie`; `paired diff CI is narrower than the unpaired CI for the same runs`; `swapping a and b negates every diff mean and flips verdicts`; `significant is false when the CI contains 0`; `inline BuildDef is accepted and invalid point order throws`; `verdict.fewerBreaks follows breaksPerHour`.
+- [ ] **Step 1: Write failing tests:** `duel of a build with itself gives zero diff and verdict tie`; `levels 40..59 returns 20 results and a crossover when the winner flips`; `paired diff CI is narrower than the unpaired CI for the same runs`; `swapping a and b negates every diff mean and flips verdicts`; `significant is false when the CI contains 0`; `inline BuildDef is accepted and invalid point order throws`; `verdict.fewerBreaks follows breaksPerHour`.
 - [ ] **Step 2:** Run `npx vitest run tests/forever/duel.test.ts`; expect FAIL.
 - [ ] **Step 3:** Implement `duelBuilds` (per-run paired differences, mean and 1.96 x SEM) and the CLI printer.
-- [ ] **Step 4:** Run the test; expect PASS; run `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --level 50 --profile average --runs 200 --seed 1` and see the table.
+- [ ] **Step 4:** Run the test; expect PASS; run `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --levels 40-59 --profile average --runs 200 --seed 1` and see the table.
 - [ ] **Step 5:** Commit `feat(forever): head-to-head build duel`.
 
 ### Task 11: CLI, build comparison table, README
@@ -180,7 +180,7 @@
 - Test: `tests/forever/compare.test.ts`
 
 **Interfaces:**
-- Produces: `compareBuilds(levels: number[], profiles: string[], runs: number, seed: number, overrides?: Partial<Params>): ComparisonRow[]`; `renderMarkdownTable(rows): string`; CLI `npm run forever:run -- --levels 40,50,60 --profile average --runs 500 --seed 1 [--mobs 2] [--param bane_per_rank=0.2]`.
+- Produces: `compareBuilds(levels: number[] /* default 40..59 */, profiles: string[], runs: number, seed: number, overrides?: Partial<Params>): ComparisonRow[]`; `renderMarkdownTable(rows): string`; CLI `npm run forever:run -- --levels 40,50,60 --profile average --runs 500 --seed 1 [--mobs 2] [--param bane_per_rank=0.2]`.
 
 - [ ] **Step 1: Write failing tests:** `compareBuilds returns one row per build x level x profile`; `markdown table has header and 7 builds rows per level`; `override of bane_per_rank changes results of DEMO_PACT_VIDEO`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement + README with commands and how to read `verify` flags. **Step 4:** PASS; also run `npm run typecheck`. **Step 5:** Commit `feat(forever): CLI, comparison table and README`.
@@ -216,7 +216,7 @@
 - Test: `tests/forever/report.test.ts`
 
 **Interfaces:**
-- Produces: `buildReport(): string` with sections: comparison table per level (40, 42, 45, 48, 50, 55, 60 x 3 profiles), respec recommendation (first level where DEMO_PACT_* beats the best affliction build, and where not), Bane 2/5 + r1 vs Bane 5/5 + r2 answer (from DEMO_PACT_R1 vs DEMO_PACT_R2), list of all `verify` assumptions via `collectVerify`, sensitivity results and which assumptions flip the winner, and a "not modelled" list.
+- Produces: `buildReport(): string` with sections: comparison table per level (every level 40-59 x 3 gear profiles), respec recommendation (first level where DEMO_PACT_* beats the best affliction build, and where not), Bane 2/5 + r1 vs Bane 5/5 + r2 answer (from DEMO_PACT_R1 vs DEMO_PACT_R2), list of all `verify` assumptions via `collectVerify`, sensitivity results and which assumptions flip the winner, and a "not modelled" list.
 
 - [ ] **Step 1: Write failing tests:** `report contains all five required headings`; `every collectVerify path appears in the assumptions section`; `report mentions Bane question verdict line`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement; run `npm run forever:report` with 300 runs to generate the file. **Step 4:** PASS; run full `npx vitest run` and `npm run typecheck`. **Step 5:** Commit `docs: forever leveling report`; do not push without the user's go-ahead for new branches (current branch is allowed).
