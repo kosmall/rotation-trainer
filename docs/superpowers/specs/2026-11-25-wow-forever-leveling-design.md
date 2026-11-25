@@ -8,6 +8,7 @@ per kill, downtime (drink/eat/Life Tap) per kill, and the key metric, effective 
 Output: code with tests, README instructions, and `reports/forever_leveling_40plus.md`.
 
 ## Goals
+- **Primary: a simulator for head-to-head comparison of two builds** (faster kills, less mana, fewer drink/Life Tap breaks, more kills per hour), with paired seeds and confidence intervals. The wide table/report is secondary; the TBC trainer UI is a frozen, secondary feature.
 - Headless, seeded, deterministic simulation in a new module `src/forever/` (no React/DOM).
 - All game data in JSON under `src/forever/data/`; every uncertain value has `verify: true` and a
   `source` note. A script lists all `verify` assumptions for the report.
@@ -16,7 +17,7 @@ Output: code with tests, README instructions, and `reports/forever_leveling_40pl
 - Optional greedy/local-search optimizer with a fixed core (e.g. Demonic Pact).
 
 ## Non-goals
-- No UI. No changes to the TBC engine, bot, UI or data (TBC is frozen; history keeps it).
+- No UI (the existing TBC trainer stays untouched; a Forever front end is a later option). No changes to the TBC engine, bot, UI or data (TBC is frozen; history keeps it).
 - No raid/boss modelling, no elites, no PvP, no gear optimisation.
 - Not a replica of the real client; relative ranking of builds is the goal.
 

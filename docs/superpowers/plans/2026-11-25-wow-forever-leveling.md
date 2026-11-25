@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A headless, seeded simulator that compares warlock talent builds for leveling 40-60 in WoW Forever and reports kills per hour, plus the report `reports/forever_leveling_40plus.md`.
+**Goal:** A headless, seeded simulator that compares warlock talent builds for leveling 40-60 in WoW Forever. **Primary use: head-to-head duel of two builds** (which kills faster, spends less mana, has fewer drink/Life Tap breaks, more kills per hour), plus the wide comparison report `reports/forever_leveling_40plus.md`. The TBC rotation trainer UI stays untouched as a secondary feature.
 
 **Architecture:** New standalone module `src/forever/` (no React/DOM); only `src/engine/rng.ts` (`createRng(seed): Rng`) is reused. All game numbers live in JSON under `src/forever/data/`, each uncertain value carrying `verify: true` and `source`. A ms-clock event loop simulates one pull (player + optional pet vs 1-3 mobs); a runner repeats it with seeds and aggregates metrics; analysis scripts sweep parameters and write the report.
 
@@ -12,6 +12,7 @@
 
 ## Global Constraints
 
+- **Priority: the simulator, and within it the two-build duel (Task 10).** Trainer/UI work is out of scope for this plan; the existing TBC trainer is frozen and stays as is.
 - Work on the current branch `claude/amazing-galileo-x0w50c`; do not touch TBC code (`src/engine/sim.ts`, `src/data/**`, `src/ui/**`). Only add files (and a README section, `package.json` scripts).
 - Commit in small steps with descriptive messages; end each commit message with the two attribution lines from the session (`Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_01CqwEqDKRy8NSDtvEKpns8D`).
 - Data in config JSON, not logic. Every unsure value: `"verify": true` + `"source"` comment. Never guess silently.
@@ -74,7 +75,7 @@
 
 **Interfaces:**
 - Consumes: `validateBuild`, `talentRanks`.
-- Produces: `loadBuilds(): Record<BuildId, BuildDef>` for `AFF_WRACK`, `AFF_DRAINTANK`, `DEMO_PACT_R1`, `DEMO_PACT_VIDEO`, `DEMO_PACT_R2`, `DEMO_PACT_MAXRANK`, `DEMO_FIRE`; `BuildDef = { order: TalentPick[]; pet: 'imp'|'voidwalker'|'succubus'|'felhunter'|null; sacrificed: PetKind|null; filler: {spell: string; rank: number|'max'}; rotation: 'affliction'|'demonology'|'fire'; banePerRankOverride?: number }`. Unspecified points of DEMO_* after 49 are filled by the optimizer in Task 12; until then filled by a documented default order marked `verify`.
+- Produces: `loadBuilds(): Record<BuildId, BuildDef>` for `AFF_WRACK`, `AFF_DRAINTANK`, `DEMO_PACT_R1`, `DEMO_PACT_VIDEO`, `DEMO_PACT_R2`, `DEMO_PACT_MAXRANK`, `DEMO_FIRE`; `BuildDef = { order: TalentPick[]; pet: 'imp'|'voidwalker'|'succubus'|'felhunter'|null; sacrificed: PetKind|null; filler: {spell: string; rank: number|'max'}; rotation: 'affliction'|'demonology'|'fire'; banePerRankOverride?: number }`. Unspecified points of DEMO_* after 49 are filled by the optimizer in Task 13; until then filled by a documented default order marked `verify`.
 
 - [ ] **Step 1: Write failing tests:** every build validates at levels 40, 42, 45, 48, 50, 55, 60; `AFF_WRACK has exactly 51 picks`; `DEMO_PACT_R1 at level 40 has 31 picks and ends with Demonic Pact`; `DEMO_PACT_VIDEO has Bane 5/5 at level 60`. The user's build lists are copied exactly (for AFF_WRACK, "40 Wrack" etc.; where a list gives ranges, expand them per point).
 - [ ] **Step 2:** Run; expect FAIL. If a user list violates a gate (e.g. a talent needing points the level hasn't given), record it in `docs/superpowers/forever-build-notes.md` and make the minimal reordering, flagged `verify`.
@@ -148,12 +149,30 @@
 
 **Interfaces:**
 - Consumes: `simulatePull`.
-- Produces: `runCell(cfg: PullConfig, runs: number, seed: number): CellMetrics` with `ttkMean, ttkStd, manaPerKill, hpPerKill, drinkSec, eatSec, lifeTapSec, kph, gcdUtil, gcdWasteSec`; downtime rule: after each pull restore mana to `rest_to_mana_pct` (default 90) by Life Tap (when `life_tap_mana_below` / `life_tap_hp_above` allow) then drink, restore HP by eating; `kph = 3600 / (ttk + downtime + transition_sec)`.
+- Produces: `runCell(cfg: PullConfig, runs: number, seed: number): CellMetrics` with `ttkMean, ttkStd, manaPerKill, hpPerKill, drinkSec, eatSec, lifeTapSec, kph, gcdUtil, gcdWasteSec, breaksPerHour, downtimeShare, killsPerManaBar, breakFreePullPct`; downtime rule: after each pull restore mana to `rest_to_mana_pct` (default 90) by Life Tap (when `life_tap_mana_below` / `life_tap_hp_above` allow) then drink, restore HP by eating; `kph = 3600 / (ttk + downtime + transition_sec)`.
 
 - [ ] **Step 1: Write failing tests:** `kph formula on fixed inputs (ttk 20, downtime 10, transition 6 => 100)`; `Life Tap time counted into downtime and reduces drink time`; `zero-regen profile does not loop forever (timeout guard returns finite downtime)`; `runCell deterministic for same seed`; `mobs=3 raises mana per kill vs mobs=1`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS. **Step 5:** Commit `feat(forever): metrics runner with downtime and kills per hour`.
 
-### Task 10: CLI, build comparison table, README
+### Task 10: Head-to-head build duel (primary deliverable)
+
+**Files:**
+- Create: `src/forever/duel.ts`, `scripts/forever-duel.ts`
+- Modify: `package.json` (script `forever:duel`)
+- Test: `tests/forever/duel.test.ts`
+
+**Interfaces:**
+- Consumes: `runCell`, `loadBuilds`, `BuildDef`.
+- Produces: `duelBuilds(a: BuildRef, b: BuildRef, opts: { level: number; profile: string; mobs: 1|2|3; runs: number; seed: number; params?: Partial<Params> }): DuelResult`, where `BuildRef` is a build id or an inline `BuildDef` (loaded from a JSON file by the CLI, so any custom point order can be compared). Both builds use the same seeds per pull (common random numbers). `DuelResult = { a: CellMetrics; b: CellMetrics; diff: Record<MetricKey, { mean: number; ci95: [number, number]; significant: boolean }>; verdict: { fasterKill: 'a'|'b'|'tie'; moreKillsPerHour: 'a'|'b'|'tie'; fewerBreaks: 'a'|'b'|'tie'; lessDowntimeShare: 'a'|'b'|'tie' } }`. `CellMetrics` gains (Task 9) `breaksPerHour`, `downtimeShare` (downtime / total time), `killsPerManaBar` (average kills before a forced drink or Life Tap break) and `breakFreePullPct`.
+- CLI: `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --level 50 --profile average --mobs 2 --runs 1000 --seed 1 [--param bane_per_rank=0.2] [--a-file build.json]` prints a side-by-side table (TTK, mana/kill, HP/kill, drink s, eat s, Life Tap s per kill, breaks per hour, downtime share, kills per hour), the paired differences with 95% CIs and a plain-language verdict line per question: faster, cheaper, fewer breaks.
+
+- [ ] **Step 1: Write failing tests:** `duel of a build with itself gives zero diff and verdict tie`; `paired diff CI is narrower than the unpaired CI for the same runs`; `swapping a and b negates every diff mean and flips verdicts`; `significant is false when the CI contains 0`; `inline BuildDef is accepted and invalid point order throws`; `verdict.fewerBreaks follows breaksPerHour`.
+- [ ] **Step 2:** Run `npx vitest run tests/forever/duel.test.ts`; expect FAIL.
+- [ ] **Step 3:** Implement `duelBuilds` (per-run paired differences, mean and 1.96 x SEM) and the CLI printer.
+- [ ] **Step 4:** Run the test; expect PASS; run `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --level 50 --profile average --runs 200 --seed 1` and see the table.
+- [ ] **Step 5:** Commit `feat(forever): head-to-head build duel`.
+
+### Task 11: CLI, build comparison table, README
 
 **Files:**
 - Create: `scripts/forever-run.ts`, `src/forever/compare.ts`
@@ -166,7 +185,7 @@
 - [ ] **Step 1: Write failing tests:** `compareBuilds returns one row per build x level x profile`; `markdown table has header and 7 builds rows per level`; `override of bane_per_rank changes results of DEMO_PACT_VIDEO`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement + README with commands and how to read `verify` flags. **Step 4:** PASS; also run `npm run typecheck`. **Step 5:** Commit `feat(forever): CLI, comparison table and README`.
 
-### Task 11: Sensitivity analysis
+### Task 12: Sensitivity analysis
 
 **Files:**
 - Create: `src/forever/sensitivity.ts`, `scripts/forever-sensitivity.ts`
@@ -178,7 +197,7 @@
 - [ ] **Step 1: Write failing tests:** `base axis value yields winnerChanged=false`; `result includes ranking of all 7 builds`; `axes listing is exhaustive for the spec's verify list`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS. **Step 5:** Commit `feat(forever): sensitivity analysis`.
 
-### Task 12: Optimizer (optional core)
+### Task 13: Optimizer (optional core)
 
 **Files:**
 - Create: `src/forever/optimizer.ts`
@@ -190,7 +209,7 @@
 - [ ] **Step 1: Write failing tests:** `optimizeBuild result passes validateBuild at 60`; `result starts with the fixed core unchanged`; `deterministic for fixed seed`; `kph of result >= kph of default fill`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement with a small run count per candidate. **Step 4:** PASS. **Step 5:** Commit `feat(forever): greedy build optimizer`.
 
-### Task 13: Report
+### Task 14: Report
 
 **Files:**
 - Create: `scripts/forever-report.ts`, `reports/forever_leveling_40plus.md` (generated)
@@ -206,6 +225,6 @@
 
 ## Self-review
 
-- Spec coverage: data/verify (T1), talents and gating (T2), seven builds (T3), ranks/downrank/Bane (T4), GCD/mana/Life Tap (T5), mobs and loop (T6), Affliction incl. Soul Harvest and `skip_agony_if_ttk_below` (T7), pets/Brand/Pact/threat (T8), downtime and kph (T9), CLI/README (T10), sensitivity (T11), optimizer (T12), report with recommendations (T13).
+- Spec coverage: primary duel use (T10) built on the T9 metrics; data/verify (T1), talents and gating (T2), seven builds (T3), ranks/downrank/Bane (T4), GCD/mana/Life Tap (T5), mobs and loop (T6), Affliction incl. Soul Harvest and `skip_agony_if_ttk_below` (T7), pets/Brand/Pact/threat (T8), downtime and kph (T9), CLI/README (T10), sensitivity (T11), optimizer (T12), report with recommendations (T13).
 - Tests required by the user: GCD (T5), Bane (T4), Demonic Pact (T8), Soul Harvest (T7), Brand (T8).
 - Known limitation to state in the report: no Wowhead access offline; many coefficients are `verify`.
