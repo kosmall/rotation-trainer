@@ -2,13 +2,14 @@
 // `runCell` or one duel level each) plus a function that assembles their outputs. The worker and the
 // main-thread fallback both run the tasks one by one and report progress after each.
 
-import { loadVariant, VARIANT_IDS } from '../builds';
+import { customId, customVariant, loadVariant, VARIANT_IDS, type CustomBuildData } from '../builds';
 import { loadParams } from '../data/load';
 import { duelLevel, pairedDiff, type DuelResult, type MetricDiff } from '../duel';
 import { runCell, type CellMetrics } from '../runner';
 import { PROFILE_IDS } from '../stats';
 import type { Params } from '../types';
 
+export { customId };
 export const MIN_LEVEL = 40;
 export const MAX_LEVEL = 59;
 
@@ -72,10 +73,11 @@ function paramsOf(s: Settings): Params {
   return loadParams(overridesOf(s));
 }
 
+/** `custom`: the user's builds that the job may use (the worker has no access to the browser storage); ranking and sweep run all of them. */
 export type JobRequest =
-  | { kind: 'ranking'; settings: Settings }
-  | { kind: 'sweep'; settings: Settings; builds: readonly string[] }
-  | { kind: 'duel'; settings: Settings; a: string; b: string; sweep: boolean };
+  | { kind: 'ranking'; settings: Settings; custom?: readonly CustomBuildData[] }
+  | { kind: 'sweep'; settings: Settings; builds: readonly string[]; custom?: readonly CustomBuildData[] }
+  | { kind: 'duel'; settings: Settings; a: string; b: string; sweep: boolean; custom?: readonly CustomBuildData[] };
 
 export interface RankedBuild {
   metrics: CellMetrics;
@@ -115,21 +117,23 @@ export interface Job {
 
 const LEVELS = Array.from({ length: MAX_LEVEL - MIN_LEVEL + 1 }, (_, i) => MIN_LEVEL + i);
 
-function checkBuild(id: string): string {
-  if (!VARIANT_IDS.includes(id)) throw new Error(`unknown build ${id}`);
+function checkBuild(id: string, custom: readonly string[]): string {
+  if (!VARIANT_IDS.includes(id) && !custom.includes(id)) throw new Error(`unknown build ${id}`);
   return id;
 }
 
 export function planJob(req: JobRequest): Job {
   const s = normalizeSettings(req.settings);
   const params = paramsOf(s);
-  const cfg = (build: string, level: number) => ({ variant: loadVariant(checkBuild(build)), level, profile: s.profile, params, mobs: s.mobs });
+  const customIds = (req.custom ?? []).map((c) => customVariant(c).id);
+  const cfg = (build: string, level: number) => ({ variant: loadVariant(checkBuild(build, customIds)), level, profile: s.profile, params, mobs: s.mobs });
   switch (req.kind) {
     case 'ranking':
+      const ids = [...VARIANT_IDS, ...customIds];
       return {
-        total: VARIANT_IDS.length,
+        total: ids.length,
         run: (i) => {
-          const r = runCell(cfg(VARIANT_IDS[i] as string, s.level), s.sessions, s.seed);
+          const r = runCell(cfg(ids[i] as string, s.level), s.sessions, s.seed);
           return { metrics: r.metrics, raw: r.raw };
         },
         assemble: (outs) => {
@@ -141,7 +145,7 @@ export function planJob(req: JobRequest): Job {
         },
       };
     case 'sweep': {
-      const builds = req.builds.map(checkBuild);
+      const builds = req.builds.map((b) => checkBuild(b, customIds));
       return {
         total: builds.length * LEVELS.length,
         run: (i) => runCell(cfg(builds[Math.floor(i / LEVELS.length)] as string, LEVELS[i % LEVELS.length] as number), s.sessions, s.seed).metrics.killsPerHour,
@@ -154,8 +158,8 @@ export function planJob(req: JobRequest): Job {
       };
     }
     case 'duel': {
-      checkBuild(req.a);
-      checkBuild(req.b);
+      checkBuild(req.a, customIds);
+      checkBuild(req.b, customIds);
       const levels = req.sweep ? LEVELS : [s.level];
       const o = { levels, profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overridesOf(s) };
       return {

@@ -11,7 +11,7 @@ export type SetupSection = (typeof SETUP_SECTIONS)[number];
 export const REPORT_TABS = ['damage', 'timeline', 'log', 'rotation', 'simulator', 'compare'] as const;
 export type ReportTab = (typeof REPORT_TABS)[number];
 
-export const FOREVER_VIEWS = ['sim', 'builds', 'rotations', 'compare', 'assumptions'] as const;
+export const FOREVER_VIEWS = ['sim', 'builds', 'rotations', 'compare', 'custom', 'assumptions'] as const;
 export type ForeverView = (typeof FOREVER_VIEWS)[number];
 
 export type Route =
@@ -115,6 +115,7 @@ export const FOREVER_VIEW_TITLES: Readonly<Record<ForeverView, string>> = {
   builds: 'Buildy',
   rotations: 'Rotacje',
   compare: 'Porównanie',
+  custom: 'Własny build',
   assumptions: 'Założenia',
 };
 

@@ -5,20 +5,9 @@ import type { ForeverRun } from './useForeverRun';
 
 const f = (x: number, d = 1) => x.toFixed(d);
 
-export function SimView({ run, ranking, sweep, onSweep }: { run: ForeverRun; ranking: RankingResult | undefined; sweep: SweepResult | undefined; onSweep(): void }) {
-  if (!ranking)
-    return (
-      <p className="fv-empty">
-        Ustaw level postaci i uruchom symulację. Wyniki wszystkich {VARIANT_IDS.length} buildów pojawią się tutaj.
-      </p>
-    );
-  const s = ranking.settings;
+export function RankingTable({ ranking, highlight }: { ranking: RankingResult; highlight?: string }) {
   const best = ranking.rows[0]?.metrics.killsPerHour ?? 1;
   return (
-    <>
-      <p className="fv-note">
-        Level {s.level}, sprzęt: {s.profile}, {s.mobs} mob/pull, {s.sessions} sesji, seed {s.seed}. Wyniki zależą od założeń oznaczonych do weryfikacji (zakładka Założenia).
-      </p>
       <div className="fv-scroll">
         <table className="fv-table" aria-label="Ranking buildów">
           <thead>
@@ -43,7 +32,7 @@ export function SimView({ run, ranking, sweep, onSweep }: { run: ForeverRun; ran
             {ranking.rows.map((r, i) => {
               const m = r.metrics;
               return (
-                <tr key={m.variant} className={i === 0 ? 'fv-best' : undefined}>
+                <tr key={m.variant} className={`${i === 0 ? 'fv-best' : ''}${m.variant === highlight ? ' fv-mine' : ''}`.trim() || undefined}>
                   <td>{i + 1}</td>
                   <th scope="row">{m.variant}</th>
                   <td>
@@ -67,6 +56,23 @@ export function SimView({ run, ranking, sweep, onSweep }: { run: ForeverRun; ran
           </tbody>
         </table>
       </div>
+  );
+}
+
+export function SimView({ run, ranking, sweep, onSweep }: { run: ForeverRun; ranking: RankingResult | undefined; sweep: SweepResult | undefined; onSweep(): void }) {
+  if (!ranking)
+    return (
+      <p className="fv-empty">
+        Ustaw level postaci i uruchom symulację. Wyniki wszystkich {VARIANT_IDS.length} buildów pojawią się tutaj.
+      </p>
+    );
+  const s = ranking.settings;
+  return (
+    <>
+      <p className="fv-note">
+        Level {s.level}, sprzęt: {s.profile}, {s.mobs} mob/pull, {s.sessions} sesji, seed {s.seed}. Wyniki zależą od założeń oznaczonych do weryfikacji (zakładka Założenia).
+      </p>
+      <RankingTable ranking={ranking} />
       <p className="fv-note">„≈” oznacza różnicę nieistotną statystycznie (przedział 95% obejmuje 0).</p>
       <h2>Krzywa kills/h po levelach 40–59</h2>
       <button type="button" className="btn" disabled={run.status === 'running'} onClick={onSweep}>

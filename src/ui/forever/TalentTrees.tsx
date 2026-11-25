@@ -9,7 +9,13 @@ const TREES = [
 ] as const;
 
 /** The three talent trees as the game shows them (rows × columns); taken ranks are lit and carry n/max. */
-export function TalentTrees({ ranks, perTree }: { ranks: Readonly<Ranks>; perTree: Readonly<Record<string, number>> }) {
+export interface TalentEditing {
+  canAdd(id: string): boolean;
+  onAdd(id: string): void;
+  onRemove(id: string): void;
+}
+
+export function TalentTrees({ ranks, perTree, editing }: { ranks: Readonly<Ranks>; perTree: Readonly<Record<string, number>>; editing?: TalentEditing }) {
   return (
     <div className="fv-trees">
       {TREES.map((tree) => {
@@ -26,12 +32,42 @@ export function TalentTrees({ ranks, perTree }: { ranks: Readonly<Ranks>; perTre
                 const n = ranks[t.id] ?? 0;
                 const req = t.requires ? TALENT_BY_ID.get(t.requires.talent)?.name : null;
                 const title = `${t.name}: ${n}/${t.maxRank}${req ? ` (wymaga: ${req} ${t.requires?.rank})` : ''}`;
+                const cls = `fv-talent${n > 0 ? ' taken' : ''}${n === t.maxRank ? ' maxed' : ''}`;
+                const pos = { gridRow: t.row + 1, gridColumn: t.col + 1 };
+                if (!editing)
+                  return (
+                    <div key={t.id} className={cls} style={pos} title={title} role="img" aria-label={title}>
+                      <IconTile kind="talent" id={t.id} name={t.name} />
+                      <span className="fv-rank" aria-hidden="true">
+                        {n}/{t.maxRank}
+                      </span>
+                    </div>
+                  );
+                const can = editing.canAdd(t.id);
                 return (
-                  <div key={t.id} className={`fv-talent${n > 0 ? ' taken' : ''}${n === t.maxRank ? ' maxed' : ''}`} style={{ gridRow: t.row + 1, gridColumn: t.col + 1 }} title={title} role="img" aria-label={title}>
-                    <IconTile kind="talent" id={t.id} name={t.name} />
+                  <div key={t.id} className={`${cls} fv-talent-edit${can ? ' can' : ''}`} style={pos}>
+                    <button
+                      type="button"
+                      className="fv-talent-btn"
+                      title={title}
+                      aria-label={`Dodaj punkt: ${title}`}
+                      disabled={!can}
+                      onClick={() => editing.onAdd(t.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        editing.onRemove(t.id);
+                      }}
+                    >
+                      <IconTile kind="talent" id={t.id} name={t.name} />
+                    </button>
                     <span className="fv-rank" aria-hidden="true">
                       {n}/{t.maxRank}
                     </span>
+                    {n > 0 && (
+                      <button type="button" className="fv-talent-minus" aria-label={`Usuń ostatni punkt: ${t.name}`} onClick={() => editing.onRemove(t.id)}>
+                        −
+                      </button>
+                    )}
                   </div>
                 );
               })}

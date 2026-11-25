@@ -7,7 +7,7 @@ import type { ForeverRun } from './useForeverRun';
 const f = (x: number, d = 1) => x.toFixed(d);
 const side = (s: 'a' | 'b' | 'tie', a: string, b: string) => (s === 'a' ? a : s === 'b' ? b : 'remis (różnica nieistotna)');
 
-export function CompareView({ settings, run, duel, onRun }: { settings: Settings; run: ForeverRun; duel: DuelOutcome | undefined; onRun(a: string, b: string, sweep: boolean): void }) {
+export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: { settings: Settings; run: ForeverRun; duel: DuelOutcome | undefined; onRun(a: string, b: string, sweep: boolean): void; ids?: readonly string[] }) {
   const [a, setA] = useState(VARIANT_IDS[0] as string);
   const [b, setB] = useState(VARIANT_IDS[2] as string);
   const [sweep, setSweep] = useState(true);
@@ -30,7 +30,7 @@ export function CompareView({ settings, run, duel, onRun }: { settings: Settings
         <label>
           Build A{' '}
           <select value={a} onChange={(e) => setA(e.target.value)}>
-            {VARIANT_IDS.map((x) => (
+            {ids.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
@@ -38,7 +38,7 @@ export function CompareView({ settings, run, duel, onRun }: { settings: Settings
         <label>
           Build B{' '}
           <select value={b} onChange={(e) => setB(e.target.value)}>
-            {VARIANT_IDS.map((x) => (
+            {ids.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
