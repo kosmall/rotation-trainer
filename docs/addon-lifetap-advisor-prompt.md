@@ -2,7 +2,7 @@
 
 Wklej całość poniżej jako zadanie dla modelu piszącego addon. Plik zawiera strategię z symulatora,
 jej progi, wymagania techniczne i przypadki testowe. Źródło liczb: `reports/forever_lifetap_strategies.md`
-(1 mob na pull) i `reports/forever_lifetap_strategies_2mobs.md` (2 moby), wersja z 25.11.2026.
+(1 mob na pull) i `reports/forever_lifetap_strategies_2mobs.md` (2 moby), wersja z 25.11.2026, po korekcie modelu many na podstawie pomiarów z gry (level 1).
 
 ---
 
@@ -48,7 +48,7 @@ godzinę wobec 0,9). **Progi są parametrami: ustawienia domyślne to profil `BE
 | Profil | combatMana | combatHp | lowMana | lowHp | betweenMana | betweenHp | breakHp | Kiedy |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | `BEST_1MOB` (domyślny) | 0,40 | 0,80 | 0,20 | 0,40 | 0,90 | 0,80 | 0,40 | pull z 1 mobem, wszystkie buildy |
-| `BEST_2MOB` | 0,50 | 0,50 | 0 (wyłączona) | 0,30 | 0,90 | 0,80 | 0,50 | pulle z 2 mobami; +19% względem reguły użytkownika |
+| `BEST_2MOB` | 0,50 | 0,50 | 0 (wyłączona) | 0,30 | 0 (wyłączona) | 0,65 | 0,50 | pulle z 2 mobami; około +18% względem reguły użytkownika |
 | `AFFLICTION_1MOB` | 0,60 | 0,80 | 0,20 | 0,30 | 0,90 | 0,65 | 0,40 | opcjonalnie dla Affliction |
 | `DEMO_1MOB` | 0,40 | 0,80 | 0,10 | 0,30 | 0,90 | 0,995 | 0,50 | opcjonalnie dla Demonology/Fire |
 | `USER` | 0,60 | 0,80 | 0,20 | 0,30 | 0,90 | 0,995 | 0,30 | pierwotna reguła użytkownika |
@@ -122,7 +122,7 @@ liczba Life Tapów, czas picia i jedzenia, czy gracz zginął. Eksport do CSV po
 
 - Progi pochodzą z **symulacji**, w której część danych to szacunki: HP i obrażenia mobów (dane Classic, a Blizzard
   podniósł HP wyższych leveli przed startem o nieznany współczynnik), statystyki sprzętu, regeneracja Spirit i
-  koszt Life Tapa w Forever. Różnica między strategiami to około 3% kills/h dla 1 moba i około 19% dla 2 mobów.
+  koszt Life Tapa w Forever. Różnica między strategiami to około 3% kills/h dla 1 moba i około 18% dla 2 mobów.
 - Przy większym HP mobów (×1,25 lub ×1,5) wszystkie strategie tracą (około −20% i −38%); najlepsza pozostaje najlepsza, ale stary próg „pij poniżej 40% many" wyprzedza wtedy regułę użytkownika, więc przy długich walkach więcej picia się opłaca.
 - Trzymaj progi konfigurowalne i zbierz własne dane z gry (logowanie powyżej), zanim uznasz je za ostateczne.
 
