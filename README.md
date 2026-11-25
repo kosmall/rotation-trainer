@@ -709,3 +709,7 @@ Opcje zaawansowane: profil sprzętu, 1 lub 2 moby na pull, strategia Life Tapa i
 ### Publikacja na GitHub Pages
 
 Workflow `.github/workflows/pages.yml` buduje aplikację (`npm test`, `npm run build`) i wdraża `dist/` na GitHub Pages przy pushu na `main` albo `claude/amazing-galileo-x0w50c` oraz ręcznie (Actions, Run workflow). Jednorazowo w repo: Settings, Pages, Source: GitHub Actions. Router jest oparty na hashu, więc strona działa pod podścieżką `https://<użytkownik>.github.io/rotation-trainer/`.
+
+### Scenariusze z poradników
+
+`src/forever/data/scenarios.json` zawiera 17 buildów z publicznych poradników (WoW Handbook, Warcraft Tavern, classicwowforever, talentsforever) z różnymi petami, w tym z Felhunterem. W aplikacji włączasz je w zakładce Symulacja („Scenariusze z poradników”), a z konsoli: `npm run forever:scenarios`. Raport: `reports/forever_scenarios.md`.

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { loadVariant, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { getSpell } from '../../forever/spells';
 import { IconTile } from './IconTile';
+import { ScenarioNote } from './BuildsView';
 
 type Kind = 'affliction' | 'demonology' | 'fire';
 /** One decision of the loop: when `when` holds (and the spell is affordable), `cast` is cast and the loop starts over. */
@@ -74,6 +75,7 @@ export function RotationFlow({ v }: { v: BuildVariant }) {
   return (
     <section className="fv-panel">
         <h2>{TITLES[v.rotation]}</h2>
+        <ScenarioNote id={v.id} />
         <dl className="fv-facts fv-facts-icons">
           <dt>Pet</dt>
           <dd>
