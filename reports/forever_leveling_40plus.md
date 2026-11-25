@@ -193,6 +193,21 @@ DEMO_PACT_R1 (respec at that level) against staying on AFF_WRACK. A respec at le
 
 **Recommendation.** DEMO_PACT_R1 wins (significant) at levels 40-59; AFF_WRACK wins at 30-39; no significant difference at none. The respec is worth it from level **40** on and stays worth it through 59 in this model (the model does not include the respec cost in gold). Break-even is not "level": the real decision is the gain in kills per hour times the time you still spend levelling against the respec cost, which this simulator does not price.
 
+### Demonology (R1) against the hybrid AFF_DRAINTANK
+
+DEMO_PACT_R1 wins (significant) at levels 40, 51, 57-59; AFF_DRAINTANK wins at 42-50, 52-56; no significant difference at 41. The winner changes at level 42.
+
+### How strong must Wrack be? (placeholder data)
+
+Wowhead data for Wrack is missing, so AFF_WRACK (which uses it as the filler from level 40) is the least certain build. Kills per hour at level 50 and 59 as Wrack damage is multiplied; DEMO_PACT_R1 and AFF_DRAINTANK (which uses Drain Life until level 57) for reference:
+
+| Wrack damage x | AFF_WRACK @50 | AFF_WRACK @59 | DEMO_PACT_R1 @50 | AFF_DRAINTANK @50 |
+|---:|---:|---:|---:|---:|
+| 1 | 84.7 | 76.4 | 101.4 | 112.1 |
+| 1.5 | 93.8 | 84.0 | 101.4 | 112.1 |
+| 2 | 110.3 | 93.5 | 101.4 | 112.1 |
+| 3 | 147.0 | 108.0 | 101.4 | 112.1 |
+
 ## 3. Bane 2/5 + Shadow Bolt rank 1 or Bane 5/5 + rank 2?
 
 a = DEMO_PACT_R1 (Bane 2/5, rank 1), b = DEMO_PACT_R2 (Bane 5/5, rank 2). Same talent order up to level 40; afterwards R1 spends points on Corruption, Soul Harvest, Improved Shadow Bolt and Improved Life Tap while R2 puts 5 points into Bane first.
@@ -238,6 +253,14 @@ AFF_WRACK, average gear, curse of the Elements on, kills per hour by threshold (
 | 50 | 3 | 26.3 | 26.3 | 26.3 | 25.8 |
 | 59 | 1 | 77.7 | 77.7 | 77.7 | 77.7 |
 | 59 | 3 | 26.7 | 26.7 | 26.7 | 26.7 |
+
+Same test on quick kills (mob HP x0.5), 1 mob:
+
+| Level | skip < 0s | skip < 4s | skip < 6s | skip < 8s | skip < 12s |
+|---:|---:|---:|---:|---:|---:|
+| 40 | 136.3 | 136.3 | 136.3 | 133.8 | 133.8 |
+| 50 | 118.1 | 118.1 | 118.1 | 123.0 | 123.0 |
+| 59 | 107.9 | 107.9 | 107.9 | 107.9 | 111.5 |
 
 ### Pull size (1, 2 or 3 mobs), kills per hour at level 50
 
@@ -297,7 +320,15 @@ Gear profile: average. Base winners: 40: DEMO_FIRE, 45: AFF_DRAINTANK, 50: AFF_D
 | brand_mult | 1.5 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
 | wrack_dmg_mult | 0.7 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
 | wrack_dmg_mult | 1 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
-| wrack_dmg_mult | 1.3 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
+| wrack_dmg_mult | 1.5 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
+| wrack_dmg_mult | 2 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 59 |
+| wrack_dmg_mult | 3 | AFF_WRACK | AFF_WRACK | AFF_WRACK | AFF_WRACK | AFF_WRACK | 40, 45, 50, 55, 59 |
+| drain_dmg_mult | 0.7 | DEMO_FIRE | DEMO_PACT_R2 | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | 45 |
+| drain_dmg_mult | 1 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
+| drain_dmg_mult | 1.3 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
+| pet_dmg_mult | 0.7 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
+| pet_dmg_mult | 1 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
+| pet_dmg_mult | 1.3 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
 | malevolence_crit_pct_per_rank | 0 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
 | malevolence_crit_pct_per_rank | 1 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
 | malevolence_crit_pct_per_rank | 2 | DEMO_FIRE | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | DEMO_FIRE | - |
@@ -314,13 +345,13 @@ Gear profile: average. Base winners: 40: DEMO_FIRE, 45: AFF_DRAINTANK, 50: AFF_D
 | mobs_per_pull | 2 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 59 |
 | mobs_per_pull | 3 | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | AFF_DRAINTANK | 40, 59 |
 
-Assumptions that can change the winner: sb_r1_coeff_mult, mob_hp_mult, life_tap_spirit_coeff, searing_pain_threat_mult, mobs_per_pull.
+Assumptions that can change the winner: sb_r1_coeff_mult, mob_hp_mult, wrack_dmg_mult, drain_dmg_mult, life_tap_spirit_coeff, searing_pain_threat_mult, mobs_per_pull.
 
 Per axis the table shows the best build at each tested level. "Winner changes at" lists the levels where that value gives another winner than the base run. The base ranking at each level is in section 1.
 
 ## 7. All assumptions flagged `verify: true`
 
-93 entries. Replace them with confirmed values from Wowhead Forever or the game and rerun `npm run forever:report`.
+95 entries. Replace them with confirmed values from Wowhead Forever or the game and rerun `npm run forever:report`.
 
 | File | Name | Source / note |
 |---|---|---|
@@ -353,6 +384,8 @@ Per axis the table shows the best build at each tested level. "Winner changes at
 | params.json | fsr_regen_fraction | Share of Spirit regen that continues while casting (Classic: 0). Soul Harvest lifts it to 100%. |
 | params.json | pet_hit_chance | Pet melee/spell hit chance vs same-level mob (estimate). |
 | params.json | pet_initial_threat_per_level | Threat head start of the pet when it opens the pull. |
+| params.json | drain_dmg_mult | Sensitivity multiplier on Drain Life and Drain Soul damage (their coefficients and totals are estimates; Drain Life is strong in the model). |
+| params.json | pet_dmg_mult | Sensitivity multiplier on all pet damage (pet damage tables are estimates). |
 | talents.json | improved_life_tap | Classic: +10%/rank mana from Life Tap; Forever scaling unconfirmed |
 | talents.json | suppression | Classic: -2% miss per rank on Affliction spells; task asks to check whether it applies to Shadow Bolt/Searing Pain (assumed no) |
 | talents.json | improved_corruption | Task: Corruption instant at 5/5, +10% damage; Classic -0.4 s per rank |
