@@ -15,7 +15,7 @@ export const DEFAULT_AXES: SensitivityAxis[] = [
   { param: 'downrank_penalty_model', values: ['none', 'classic', 'partial'], note: 'penalty on the spell power coefficient of low spell levels (Shadow Bolt rank 1 and 2)' },
   { param: 'sb_r1_coeff_mult', values: [0.5, 1, 1.5], note: 'spell power coefficient of Shadow Bolt rank 1' },
   { param: 'sb_r2_coeff_mult', values: [0.5, 1, 1.5], note: 'spell power coefficient of Shadow Bolt rank 2' },
-  { param: 'mob_hp_mult', values: [0.8, 1, 1.25], note: 'normal mob HP' },
+  { param: 'mob_hp_mult', values: [1, 1.25, 1.5], note: 'creature health relative to Classic (Forever raised it by an unknown factor)' },
   { param: 'mob_dmg_mult', values: [0.8, 1, 1.25], note: 'normal mob damage' },
   { param: 'brand_scale', values: ['fixed_60', 'level_scaled'], note: 'Demonic Brand scaling with level' },
   { param: 'brand_mult', values: [0.5, 1, 1.5], note: 'Demonic Brand damage' },

@@ -1,81 +1,24 @@
 {
- "_comment": "Level scaling. All verify: estimates, because Wowhead Forever and game data are not reachable here. Linear interpolation between anchors.",
- "mobs": {
-  "verify": true,
-  "source": "Estimated normal same-level mob (HP, melee swing before armor, armor); mob HP/damage multipliers are sensitivity parameters.",
-  "anchors": [
-   {
-    "level": 20,
-    "hp": 420,
-    "swing": 25,
-    "armor": 700
-   },
-   {
-    "level": 30,
-    "hp": 900,
-    "swing": 42,
-    "armor": 1100
-   },
-   {
-    "level": 38,
-    "hp": 1500,
-    "swing": 55,
-    "armor": 1500
-   },
-   {
-    "level": 40,
-    "hp": 1700,
-    "swing": 65,
-    "armor": 1800
-   },
-   {
-    "level": 50,
-    "hp": 3000,
-    "swing": 95,
-    "armor": 2800
-   },
-   {
-    "level": 60,
-    "hp": 4900,
-    "swing": 135,
-    "armor": 3800
-   }
-  ]
- },
- "base": {
-  "verify": true,
-  "source": "Estimated warlock base values.",
-  "manaPerInt": 15,
-  "intFree": 20,
-  "baseManaAt40": 400,
-  "baseManaPerLevel": 12,
-  "hpPerLevelDemonArmor": 0,
-  "armorBase": 100,
-  "armorPerLevel": 6,
-  "demonArmorBase": 30,
-  "demonArmorPerLevel": 6.5,
-  "foodHpPerSecPerLevel": 1.6,
-  "drinkManaPerSecPerLevel": 0.7
- },
+ "_comment": "Level scaling. Mob, player-base, pet-base and regen data are in classic_base.json (WoW Classic emulator data). This file holds the gear profiles and the pet ability ranks (Wowhead Forever).",
  "profiles": {
   "verify": true,
-  "source": "Gear profiles for a given level: value = at40 + perLevel x (level-40). quest = questing greens, average = mixed dungeon/quest, good = strong dungeon set.",
+  "source": "PLACEHOLDERS: gear bonuses added to the gnome warlock's base stats (classic_base.json): value = at40 + perLevel x (level-40). The real gear of the player is not known; replace with real totals (Stamina, Intellect, Spirit, spell power, crit, hit, armor).",
   "quest": {
-   "spellPower": [
-    25,
-    5
-   ],
-   "spirit": [
-    40,
+   "stamina": [
+    20,
     1.0
    ],
    "intellect": [
-    85,
-    1.5
+    20,
+    1.0
    ],
-   "hp": [
-    1200,
-    30
+   "spirit": [
+    10,
+    0.6
+   ],
+   "spellPower": [
+    20,
+    3.5
    ],
    "critPct": [
     4,
@@ -84,24 +27,28 @@
    "hitPct": [
     0,
     0
+   ],
+   "armor": [
+    150,
+    5
    ]
   },
   "average": {
-   "spellPower": [
-    50,
-    9
-   ],
-   "spirit": [
-    60,
-    1.8
+   "stamina": [
+    40,
+    1.5
    ],
    "intellect": [
-    105,
-    2.0
+    45,
+    1.8
    ],
-   "hp": [
-    1400,
-    35
+   "spirit": [
+    25,
+    1.0
+   ],
+   "spellPower": [
+    45,
+    7
    ],
    "critPct": [
     5,
@@ -110,24 +57,28 @@
    "hitPct": [
     1,
     0
+   ],
+   "armor": [
+    300,
+    8
    ]
   },
   "good": {
-   "spellPower": [
-    80,
-    13
-   ],
-   "spirit": [
-    85,
-    2.5
+   "stamina": [
+    65,
+    2.0
    ],
    "intellect": [
-    130,
+    70,
     2.5
    ],
-   "hp": [
-    1600,
-    40
+   "spirit": [
+    45,
+    1.6
+   ],
+   "spellPower": [
+    75,
+    11
    ],
    "critPct": [
     6,
@@ -136,6 +87,10 @@
    "hitPct": [
     2,
     0
+   ],
+   "armor": [
+    500,
+    12
    ]
   }
  },
@@ -143,19 +98,7 @@
   "verify": true,
   "source": "Estimated pet numbers.",
   "imp": {
-   "hp": [
-    8,
-    100
-   ],
-   "mana": [
-    10,
-    300
-   ],
    "fireboltCastMs": 2000,
-   "armor": [
-    15,
-    0
-   ],
    "unlock": 1,
    "threatMult": 1.0,
    "fireboltRanks": [
@@ -205,24 +148,7 @@
    "fireboltSource": "Wowhead Forever spell pages (https://www.wowhead.com/forever/spell=<id>), fetched 2026-11-25 ids 3110,7799,7800,7801,7802,11762,11763; rank levels from allthings.how/?p=353577. The 10 Nov hotfix raised the base damage of ranks 1-4 (wiki tooltip rank 1 '4 to 5' is older than Wowhead value 6). Pet spell power assumed = Demonic Knowledge bonus only."
   },
   "succubus": {
-   "hp": [
-    15,
-    150
-   ],
-   "mana": [
-    8,
-    200
-   ],
-   "swingMs": 2000,
-   "meleeDps": [
-    0.8,
-    0
-   ],
    "lashCdMs": 12000,
-   "armor": [
-    25,
-    0
-   ],
    "unlock": 20,
    "threatMult": 1.0,
    "lashRanks": [
@@ -263,55 +189,80 @@
      "coeff": 0.429
     }
    ],
-   "lashSource": "Wowhead Forever spell pages (https://www.wowhead.com/forever/spell=<id>), fetched 2026-11-25 ids 7814,7815,7816,11778,11779,11780; 12 s cooldown (wiki)."
+   "lashSource": "Wowhead Forever spell pages (https://www.wowhead.com/forever/spell=<id>), fetched 2026-11-25 ids 7814,7815,7816,11778,11779,11780; 12 s cooldown (wiki).",
+   "swingMs": 2000
   },
   "voidwalker": {
-   "hp": [
-    22,
-    200
-   ],
-   "mana": [
-    8,
-    100
-   ],
-   "swingMs": 2000,
-   "meleeDps": [
-    0.6,
-    0
-   ],
    "torment": {
     "intervalMs": 5000,
     "threatPerLevel": 6
    },
-   "armor": [
-    45,
-    0
-   ],
    "unlock": 10,
    "threatMult": 1.0,
-   "tormentNote": "Torment: 5 s cooldown, 20 mana, taunt (allthings.how/?p=353577). The threat amount and the Torment mana use are NOT known (estimate)."
+   "tormentNote": "Torment: 5 s cooldown, 20 mana, taunt (allthings.how/?p=353577). The threat amount and the Torment mana use are NOT known (estimate).",
+   "swingMs": 2000
   },
   "felhunter": {
-   "hp": [
-    16,
-    150
-   ],
-   "mana": [
-    8,
-    200
-   ],
-   "swingMs": 2000,
-   "meleeDps": [
-    0.7,
-    0
-   ],
-   "armor": [
-    30,
-    0
-   ],
    "unlock": 30,
-   "threatMult": 1.0
+   "threatMult": 1.0,
+   "swingMs": 2000
   },
-  "source_unconfirmed": "Pet health, mana, melee damage and attack speed per level are NOT published anywhere found (hotfix 10 Nov: Imp/Voidwalker/Succubus/Incubus base health +~15%); the numbers in hp/mana/meleeDps are ESTIMATES. See docs/forever-data-ledger.md."
+  "source_unconfirmed": "Pet health, mana, armor and melee damage come from classic_base.json (WoW Classic pet_levelstats and the cmangos pet damage formula) with Forever's rules applied: +2 health per point of the master's Stamina, +15% base health (hotfix 10 Nov), Voidwalker +40 (6 Nov). These are NOT Forever tooltips. Pet abilities (Firebolt, Lash of Pain): Wowhead Forever."
+ },
+ "consumables": {
+  "source": "Wowhead Forever item pages (tooltips, fetched 25 Nov 2026): vendor drinks Sweet Nectar 1708 (req 25): 1345 mana over 27 s; Moonberry Juice 1645 / Bottled Winterspring Water 19300 (req 35): 1915 over 30 s; Morning Glory Dew 8766 (req 45): 2821 over 30 s. Vendor food: req 25 (e.g. Stormwind Brie 1707): 841 health over 27 s; req 35 (Cured Ham Steak 4599): 1338 over 30 s; req 45 (Roasted Quail 8952, Homemade Cherry Pie 8950): 2065 over 30 s. Best vendor item for the level; Alterac Manna Biscuit (req 51) is not general vendor stock. Whether drinking adds Spirit regeneration on top of the tooltip is unknown (assumed not).",
+  "drink": [
+   {
+    "fromLevel": 25,
+    "manaPerSec": 49.8
+   },
+   {
+    "fromLevel": 35,
+    "manaPerSec": 63.8
+   },
+   {
+    "fromLevel": 45,
+    "manaPerSec": 94.0
+   }
+  ],
+  "food": [
+   {
+    "fromLevel": 25,
+    "hpPerSec": 31.1
+   },
+   {
+    "fromLevel": 35,
+    "hpPerSec": 44.6
+   },
+   {
+    "fromLevel": 45,
+    "hpPerSec": 68.8
+   }
+  ]
+ },
+ "demonArmor": {
+  "source": "seemeta.com Forever abilities: Demon Armor ranks at levels 20/30/40/50/60: armor 210/300/390/480/570",
+  "ranks": [
+   [
+    20,
+    210
+   ],
+   [
+    30,
+    300
+   ],
+   [
+    40,
+    390
+   ],
+   [
+    50,
+    480
+   ],
+   [
+    60,
+    570
+   ]
+  ]
  }
 }

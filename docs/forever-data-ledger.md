@@ -144,3 +144,29 @@ numbers, the item stays open. Blizzard's own text (beta development notes, 3 Nov
 
 Two non-Blizzard facts used with care: pet health numbers above come from Blizzard's notes; the
 Stamina and Intellect conversions come from rankedboost/Tavern.
+
+## 8. Third research round (25 Nov 2026): Classic data and Wowhead Forever in a real browser
+
+Method: Wowhead Forever pages are JavaScript-rendered; the page reader sees nothing, but the
+Chromium that ships with this environment (Playwright) loads them like a normal visitor (zone and
+item list data are in the page, NPC and item pages show Health and tooltips). Classic data comes from the
+cmangos emulator databases on GitHub (`cmangos/mangos-classic`, `cmangos/classic-db`), read with
+`scripts/forever-extract-classic.py` into `src/forever/data/classic_base.json`. The user asked to
+use Classic for items 1-4 below and to treat them as valid for Forever.
+
+| Item | Result |
+|---|---|
+| Mob health | Wowhead Forever NPC pages show Health for 46 of the 292 mobs sampled in levels 38-60 (only "discovered" NPCs have stats). **44 of 46 equal the Classic value exactly**, so the pages carry Classic health, not Blizzard's pre-launch increase ("increased the health of higher level creatures", no number). Model: Classic health = class-1 base health x (1.15 + 0.01 x (level-40)) (fits the Classic medians at levels 38, 40, 45, 50, 55); `mob_hp_mult` (default 1.0) is the unknown Forever factor, tested at 1.25 and 1.5. |
+| Mob damage and armor | Classic only: median melee damage per swing of normal mobs by level (line through the medians: -49.5 + 2.97 x level; 65 at 40, 99 at 50, about 126 at 59), attack speed 2.0 s, armor from `creature_template_classlevelstats` (class 1: 1964 at 40, 2999 at 50, 3489 at 59). |
+| Warlock base health and mana | `player_classlevelstats` (class 9): e.g. level 40: 634 health, 923 mana; level 50: 979, 1163; level 59: 1366, 1352. Stamina gives 1 health per point for the first 20 and 10 after; Intellect 1 mana for the first 20 and 15 after (cmangos StatSystem.cpp). Third-party Forever guides say the same (10 per Stamina, 15 per Intellect). **To confirm: the user can check a level-1 gnome warlock: expected 43 health (23 + 20) and 154 mana (59 + 20 + 5x15) with Stamina 20, Intellect 25.** |
+| Gnome warlock base stats | `player_levelstats` (race 7, class 9): level 40: Str 29, Agi 40, Sta 45, Int 79, Spi 75; level 50: 34/46/54/98/93; level 59: 39/52/63/117/111. Gnome Expansion +5% Intellect applied on the total. |
+| Spirit mana regeneration | Classic warlock: (Spirit/5 + 15) per 2 s tick outside the five-second rule (cmangos `OCTRegenMPPerSpirit`). That is 15 mana/s at Spirit 75: much more than the 5.8/s the first versions assumed. After a cast the regeneration waits 5 s (`fsr_sec`). Forever has not published a formula (rankedboost: untested). |
+| Out-of-combat health regeneration | Classic warlock: (Spirit x 0.12 + 1.5) per 2 s tick (cmangos `OCTRegenHPPerSpirit`), about 5 health/s at Spirit 75. Replaces the earlier zero assumption. |
+| Drink and food | **Forever tooltips (Wowhead Forever item pages):** Sweet Nectar (req 25) 1345 mana/27 s; Moonberry Juice and Bottled Winterspring Water (req 35) 1915/30 s; Morning Glory Dew (req 45) 2821/30 s. Food: req 25 841 health/27 s; req 35 1338/30 s; req 45 2065/30 s. Best vendor item per level. Whether Spirit regeneration adds to a drink is unknown (assumed not, `drink_adds_spirit_regen`). |
+| Pets | Classic `pet_levelstats` (health, mana, armor per level, e.g. Voidwalker 2052 health at 40, 2527 at 50), Classic melee from the cmangos pet damage formula (Voidwalker about 44 per 2 s swing at 40, 66 at 50), Forever rules on top: +2 health per point of the master's Stamina, +15% base health (10 Nov), Voidwalker +40 (6 Nov). **Not Forever tooltips**: Forever pet base health is said to be lower than Classic. |
+| Bane of Agony ramp | **Not found.** WarcraftLogs returns 403 (no public data without login). Classic wiki: damage "dealt slowly at first, and builds up". The 0.5/1.0/1.5 thirds pattern comes from the AzerothCore Wrath implementation; kept as an assumption in the sensitivity analysis. A player can measure it in game: tick damage of the first, fifth and ninth tick of a fresh Bane of Agony on a target dummy. |
+| Gear | **Placeholders.** Gear stat bonuses (Stamina, Intellect, Spirit, spell power, crit, hit, armor) per profile are guesses added on top of the base stats. Real totals from the user's character replace them. |
+
+### Still open after this round
+Pre-launch creature health factor; real gear totals; Bane of Agony ramp; Spirit-regeneration and
+drink behaviour in Forever as opposed to Classic; pet base health in Forever; spell crit by level.

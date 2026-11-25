@@ -8,7 +8,7 @@ import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, s
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
-import { armorReduction, combatRegenPerSec, demonArmorOf, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petData, playerStatsFor } from './stats';
+import { armorReduction, combatRegenPerSec, demonArmorOf, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
 import type { Params, PetKind, SpellRank } from './types';
 
@@ -131,14 +131,16 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   let petAlive = petKind !== null && petUnlocked;
 
   const petHpMult = (1 + effectNum('fel_vitality', 'petHpManaPerRank') * rk(ranks, 'fel_vitality'));
+  const petBase = petKind ? petBaseAt(petKind, level) : { hp: 0, mana: 0, armor: 0, meleeAvg: 0 };
   const pet = {
-    maxHp: pd ? pv(pd.hp, level) * petHpMult : 0,
+    // Forever: +2 health per point of the master's Stamina (Blizzard, 3 Nov), on top of the base health.
+    maxHp: pd ? (petBase.hp + 2 * stats.stamina) * petHpMult : 0,
     hp: 0,
-    mana: pd ? pv(pd.mana, level) * (1 + effectNum('fel_vitality', 'petHpManaPerRank') * rk(ranks, 'fel_vitality')) : 0,
+    mana: pd ? petBase.mana * (1 + effectNum('fel_vitality', 'petHpManaPerRank') * rk(ranks, 'fel_vitality')) : 0,
     nextAct: 0,
     nextLash: 0,
     nextTorment: 0,
-    armor: pd ? pv(pd.armor, level) : 0,
+    armor: petBase.armor,
   };
   pet.hp = pet.maxHp;
   const soulLink = rk(ranks, 'soul_link') > 0;
@@ -473,7 +475,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       const fr = petRank(pd.fireboltRanks);
       return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult) / ((pd.fireboltCastMs as number) / 1000) : 0;
     }
-    return pv(pd.meleeDps, level) * petDmgMult * params.pet_hit_chance;
+    return (petBase.meleeAvg / ((pd.swingMs as number) / 1000)) * petDmgMult * params.pet_hit_chance;
   };
   const estDps = (): number => {
     const f = fillerRank();
@@ -545,7 +547,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     for (const c of rotation(makeCtx(m))) {
       if (startCast(c, m)) return;
     }
-    if (params.sb_filler_lifetap_when_oom && known('life_tap') && hp > maxHp * params.break_hp_pct && lifeTap(params.lt_safety_hp_pct)) return;
+    // Emergency: nothing is affordable, so Life Tap down to the safety floor even below the usual HP rule (otherwise the warlock idles).
+    if (params.sb_filler_lifetap_when_oom && known('life_tap') && lifeTap(params.lt_safety_hp_pct)) return;
     waitUntil = t + 300;
   };
 
@@ -574,7 +577,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       return;
     }
     if (rng.next() < params.pet_hit_chance) {
-      const d = pv(pd.meleeDps, level) * ((pd.swingMs as number) / 1000) * (1 - mobArmorRed) * petDmgMult;
+      const d = petBase.meleeAvg * (1 - mobArmorRed) * petDmgMult;
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);
     }

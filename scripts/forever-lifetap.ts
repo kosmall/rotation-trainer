@@ -101,14 +101,14 @@ for (const [label, builds] of groups) {
 }
 
 // 5. HP regeneration and pull size
-p('## 5. Sensitivity to the unknown: HP regeneration and pull size');
+p('## 5. Sensitivity to the unknown: creature health and pull size');
 p();
 const compared: [string, PolicyOverrides][] = [['USER', {}], ['OLD_THRESHOLD', LT_PRESETS.OLD_THRESHOLD!.params], ['NO_LIFE_TAP', LT_PRESETS.NO_LIFE_TAP!.params], ['best for all builds', found['all builds'] as PolicyOverrides]];
-p('Mean kills per hour (all builds, 5 levels) by out-of-combat HP regeneration (share of max HP per second while walking between mobs):');
+p("Mean kills per hour (all builds, 5 levels) by creature health relative to Classic (Blizzard raised the health of higher-level creatures before launch by an unknown factor):");
 p();
-p('| Strategy | 0 | 0.2%/s | 0.5%/s |');
+p('| Strategy | x1.0 (Classic) | x1.25 | x1.5 |');
 p('|---|---:|---:|---:|');
-for (const [name, pol] of compared) p(`| ${name} | ${[0, 0.002, 0.005].map((r) => f(evaluatePolicy({ ...pol, hp_regen_pct_per_sec: r }, eo).meanKph)).join(' | ')} |`);
+for (const [name, pol] of compared) p(`| ${name} | ${[1, 1.25, 1.5].map((m) => f(evaluatePolicy({ ...pol, mob_hp_mult: m }, eo).meanKph)).join(' | ')} |`);
 p();
 p('By the penalty for dying (seconds lost per death; 90 s is an estimate). The strategies differ in how often the warlock dies, so this matters:');
 p();

@@ -36,6 +36,9 @@ export interface RotationCtx {
 
 const BRAND_REFRESH_MARGIN_MS = 1500;
 
+/** When the mana is nearly gone and Life Tap is not allowed, a low Shadow Bolt rank still deals damage (a player downranks to save mana). */
+const CHEAP_FALLBACK: Candidate[] = [{ spellId: 'shadow_bolt', rankWant: 2 }, { spellId: 'shadow_bolt', rankWant: 1 }];
+
 function skipLongDots(ctx: RotationCtx): boolean {
   const skip = ctx.params.skip_agony_if_ttk_below;
   return skip > 0 && ctx.estTtkSec() < skip;
@@ -82,7 +85,7 @@ export function affliction(ctx: RotationCtx): Candidate[] {
     if (ctx.known('drain_life')) out.push({ spellId: 'drain_life', rankWant: 'max' });
   }
   if (ctx.known('drain_life')) out.push({ spellId: 'drain_life', rankWant: 'max' });
-  out.push({ spellId: 'shadow_bolt', rankWant: 'max' });
+  out.push({ spellId: 'shadow_bolt', rankWant: 'max' }, ...CHEAP_FALLBACK);
   return out;
 }
 
@@ -92,7 +95,7 @@ export function demonology(ctx: RotationCtx): Candidate[] {
   out.push(...brandRefresh(ctx));
   out.push(...dotsCommon(ctx, ctx.params.demo_use_agony));
   out.push(...drainSoulFinisher(ctx));
-  out.push({ spellId: 'shadow_bolt', rankWant: ctx.variant.rank });
+  out.push({ spellId: 'shadow_bolt', rankWant: ctx.variant.rank }, ...CHEAP_FALLBACK);
   return out;
 }
 

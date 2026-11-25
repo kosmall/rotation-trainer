@@ -40,10 +40,10 @@ describe('Life Tap policies', () => {
     const run = (extra: object) => runCell({ variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: { ...base, ...extra } }, 6, 1).raw.reduce((a, r) => a + r.breaks, 0);
     expect(run({ break_mana_pct: 0.95, lt_combat_mana_pct: 0, lt_low_mana_pct: 0, lt_between_mana_pct: 0 })).toBeGreaterThan(run({}));
   });
-  it('hp_regen_pct_per_sec lowers the number of food breaks', () => {
-    const base = loadParams({ session_pulls: 20 });
-    const run = (hp: number) => runCell({ variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: { ...base, hp_regen_pct_per_sec: hp } }, 6, 1).raw.reduce((a, r) => a + r.breaks, 0);
-    expect(run(0.02)).toBeLessThanOrEqual(run(0));
+  it('a longer five-second rule leaves less regeneration between mobs', () => {
+    const base = loadParams({ session_pulls: 12 });
+    const run = (fsr: number) => runCell({ variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: { ...base, fsr_sec: fsr } }, 6, 1).metrics.killsPerHour;
+    expect(run(0)).toBeGreaterThanOrEqual(run(8) - 1e-9);
   });
   it('drink_to_mana_pct keeps drinking after the meal', () => {
     const base = { mana: 200, hp: 1200, maxMana: 2000, maxHp: 1400, drinkPerSec: 30, foodPerSec: 60 };

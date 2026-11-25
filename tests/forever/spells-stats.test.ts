@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
 import { castMsOf, downrankFactor, getSpell, rankAt } from '../../src/forever/spells';
-import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec } from '../../src/forever/stats';
+import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf } from '../../src/forever/stats';
 
 const sb = getSpell('shadow_bolt');
 const r1 = rankAt('shadow_bolt', 1, 40)!;
@@ -87,7 +87,7 @@ describe('stats and Life Tap', () => {
   it('Soul Harvest lifts regen to 100% of base while casting', () => {
     const p = loadParams();
     expect(combatRegenPerSec(100, p, 0)).toBe(0);
-    expect(combatRegenPerSec(100, p, 1)).toBeCloseTo(100 * p.spirit_regen_per_spirit * 2, 6);
+    expect(combatRegenPerSec(100, p, 1)).toBeCloseTo(spiritManaRegenPerSec(100) * 2, 6);
   });
 });
 
@@ -98,5 +98,44 @@ describe('Improved Corruption', () => {
     const r = rankAt('corruption', 'max', 50)!;
     expect(castMsOf(c, r, 0, p, 2000)).toBe(0);
     expect(castMsOf(c, r, 0, p, 1200)).toBe(800);
+  });
+});
+
+describe('Classic base data and formulas (cmangos)', () => {
+  it('Classic Stamina and Intellect conversion: first 20 points give 1, then 10 health and 15 mana', () => {
+    expect(healthFromStamina(20)).toBe(20);
+    expect(healthFromStamina(45)).toBe(20 + 250);
+    expect(manaFromIntellect(79)).toBe(20 + 59 * 15);
+  });
+  it('Classic warlock regeneration: mana (Spirit/5 + 15) per 2 s, health (Spirit x 0.12 + 1.5) per 2 s', () => {
+    expect(spiritManaRegenPerSec(75)).toBeCloseTo(15, 6);
+    expect(healthRegenPerSec(75)).toBeCloseTo(5.25, 6);
+  });
+  it('gnome warlock at level 40: base stats from player_levelstats and warlock base health and mana', () => {
+    const s = playerStatsFor(40, 'quest', {});
+    // base HP 634 + stamina (45 + 20 gear) conversion, base mana 923 + intellect ((79 + 20) x 1.05)
+    expect(s.maxHp).toBe(Math.round(634 + 20 + 10 * (65 - 20)));
+    expect(s.maxMana).toBe(Math.round(923 + 20 + 15 * (99 * 1.05 - 20)));
+    expect(s.spirit).toBe(75 + 10);
+  });
+  it('Demonic Embrace raises health through Stamina, Fel Vitality raises mana', () => {
+    const a = playerStatsFor(50, 'average', {});
+    expect(playerStatsFor(50, 'average', { demonic_embrace: 5 }).maxHp).toBeGreaterThan(a.maxHp);
+    expect(playerStatsFor(50, 'average', { fel_vitality: 3 }).maxMana).toBeCloseTo(a.maxMana * 1.15, -1);
+  });
+  it('vendor drink and food rates follow the Forever tooltips by level', () => {
+    expect(playerStatsFor(40, 'average', {}).drinkManaPerSec).toBeCloseTo(1915 / 30, 1);
+    expect(playerStatsFor(50, 'average', {}).drinkManaPerSec).toBeCloseTo(2821 / 30, 1);
+    expect(playerStatsFor(50, 'average', {}).foodHpPerSec).toBeCloseTo(2065 / 30, 1);
+  });
+  it('normal mobs: Classic health at level 40 and 50, armor from class level stats', () => {
+    expect(mobAt(40).hp).toBe(1753);
+    expect(mobAt(50).hp).toBe(2769);
+    expect(mobAt(50).armor).toBe(2999);
+  });
+  it('pets: base health with the 10 Nov +15%, Voidwalker +40; demon armor ranks by level', () => {
+    expect(petBaseAt('voidwalker', 40).hp).toBeCloseTo((2052 + 40) * 1.15, 6);
+    expect(demonArmorOf(45, {})).toBe(390);
+    expect(demonArmorOf(45, { demonic_aegis: 2 })).toBeCloseTo(390 * 1.3, 6);
   });
 });

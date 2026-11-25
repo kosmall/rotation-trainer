@@ -30,7 +30,6 @@ export interface Params {
   lt_between_mana_pct: number;
   lt_between_hp_pct: number;
   break_mana_pct: number;
-  hp_regen_pct_per_sec: number;
   drink_to_mana_pct: number;
   break_hp_pct: number;
   lt_safety_hp_pct: number;
@@ -61,7 +60,8 @@ export interface Params {
   mob_dmg_mult: number;
   sb_r1_coeff_mult: number;
   sb_r2_coeff_mult: number;
-  spirit_regen_per_spirit: number;
+  fsr_sec: number;
+  drink_adds_spirit_regen: boolean;
   fsr_regen_fraction: number;
   sb_filler_lifetap_when_oom: boolean;
   pet_hit_chance: number;

@@ -1,17 +1,30 @@
+import baseJson from './data/classic_base.json';
 import levelsJson from './data/levels.json';
 import type { Params } from './types';
 import type { Ranks } from './talents';
 
 type Pair = [number, number];
-interface Anchor { level: number; hp: number; swing: number; armor: number }
+interface BaseRow { hp: number; mana: number }
+interface StatRow { str: number; agi: number; sta: number; int: number; spi: number }
+interface MobRow { hp: number; armor: number; swing: number }
+interface PetRow { hp: number; mana: number; armor: number; sta: number }
+const BASE = baseJson as unknown as {
+  warlock: Record<string, BaseRow>;
+  gnomeWarlockBase: Record<string, StatRow>;
+  mob: Record<string, MobRow>;
+  pet: Record<string, Record<string, PetRow>>;
+  petMeleeAvgPerSwing: Record<string, Record<string, number>>;
+};
 const LV = levelsJson as unknown as {
-  mobs: { anchors: Anchor[] };
-  base: Record<string, number>;
   profiles: Record<string, Record<string, Pair> | string | boolean>;
+  consumables: { drink: { fromLevel: number; manaPerSec: number }[]; food: { fromLevel: number; hpPerSec: number }[] };
+  demonArmor: { ranks: [number, number][] };
   pets: Record<string, Record<string, unknown>>;
 };
 
 export const PROFILE_IDS: readonly string[] = ['quest', 'average', 'good'];
+
+const clampLevel = (level: number): string => String(Math.min(60, Math.max(20, Math.round(level))));
 
 /** GCD in ms: fixed 1.5 s unless haste shortens it (`haste_shortens_gcd`), never below `min_gcd_ms`. */
 export function gcdMs(hastePct: number, params: Params): number {
@@ -31,27 +44,18 @@ export function gcdWasteMs(castMs: number, gcd: number): number {
 
 export interface MobStats { hp: number; swing: number; armor: number }
 
-/** Normal same-level mob; levels outside the table clamp to its ends (anchors are linearly interpolated). */
+/** Normal same-level mob (WoW Classic data, classic_base.json); levels clamp to 20-60. */
 export function mobAt(level: number): MobStats {
-  const a = LV.mobs.anchors;
-  const first = a[0] as Anchor;
-  const last = a[a.length - 1] as Anchor;
-  const l = Math.min(Math.max(level, first.level), last.level);
-  for (let i = 0; i < a.length - 1; i++) {
-    const lo = a[i] as Anchor;
-    const hi = a[i + 1] as Anchor;
-    if (l >= lo.level && l <= hi.level) {
-      const f = (l - lo.level) / (hi.level - lo.level);
-      return { hp: lo.hp + f * (hi.hp - lo.hp), swing: lo.swing + f * (hi.swing - lo.swing), armor: lo.armor + f * (hi.armor - lo.armor) };
-    }
-  }
-  return { hp: last.hp, swing: last.swing, armor: last.armor };
+  const m = BASE.mob[clampLevel(level)] as MobRow;
+  return { hp: m.hp, swing: m.swing, armor: m.armor };
 }
 
 export interface PlayerStats {
   level: number;
   maxHp: number;
   maxMana: number;
+  stamina: number;
+  intellect: number;
   spellPower: number;
   spirit: number;
   critPct: number;
@@ -68,31 +72,55 @@ const prof = (profile: string, key: string, level: number): number => {
   return Math.max(0, at40 + per * (level - 40));
 };
 
-/** Player stats at a level for a gear profile and talent ranks (Fel Vitality, Demonic Embrace). */
+/** Classic Stamina to health: the first 20 points give 1 each, the rest 10 each. */
+export function healthFromStamina(sta: number): number {
+  return Math.min(sta, 20) + 10 * Math.max(sta - 20, 0);
+}
+
+/** Classic Intellect to mana: the first 20 points give 1 each, the rest 15 each. */
+export function manaFromIntellect(int: number): number {
+  return Math.min(int, 20) + 15 * Math.max(int - 20, 0);
+}
+
+function consumableRate(list: { fromLevel: number; manaPerSec?: number; hpPerSec?: number }[], level: number, key: 'manaPerSec' | 'hpPerSec'): number {
+  let rate = list[0]?.[key] ?? 0;
+  for (const c of list) if (level >= c.fromLevel) rate = c[key] ?? rate;
+  return rate;
+}
+
+/**
+ * Player stats at a level: the gnome warlock's base stats and the warlock's base health and mana
+ * (WoW Classic tables), plus the gear profile, Stamina and Intellect conversion, Gnome Expansion
+ * (+5% Intellect), Demonic Embrace (+3% Stamina per rank) and Fel Vitality (+5% mana per rank).
+ */
 export function playerStatsFor(level: number, profile: string, ranks: Ranks): PlayerStats {
-  const b = LV.base;
-  const intellect = prof(profile, 'intellect', level);
-  const baseMana = (b.baseManaAt40 as number) + (b.baseManaPerLevel as number) * (level - 40);
-  const manaMult = 1 + 0.05 * (ranks['fel_vitality'] ?? 0);
-  const hpMult = 1 + 0.015 * (ranks['demonic_embrace'] ?? 0);
+  const L = clampLevel(level);
+  const base = BASE.gnomeWarlockBase[L] as StatRow;
+  const wl = BASE.warlock[L] as BaseRow;
+  const sta = (base.sta + prof(profile, 'stamina', level)) * (1 + 0.03 * (ranks['demonic_embrace'] ?? 0));
+  const int = (base.int + prof(profile, 'intellect', level)) * 1.05;
+  const maxHp = Math.round(wl.hp + healthFromStamina(sta));
+  const maxMana = Math.round((wl.mana + manaFromIntellect(int)) * (1 + 0.05 * (ranks['fel_vitality'] ?? 0)));
   return {
     level,
-    maxHp: Math.round(prof(profile, 'hp', level) * hpMult),
-    maxMana: Math.round((baseMana + (b.manaPerInt as number) * (intellect - (b.intFree as number))) * manaMult),
+    maxHp,
+    maxMana,
+    stamina: sta,
+    intellect: int,
     spellPower: prof(profile, 'spellPower', level),
-    spirit: prof(profile, 'spirit', level),
+    spirit: base.spi + prof(profile, 'spirit', level),
     critPct: prof(profile, 'critPct', level),
     hitPct: prof(profile, 'hitPct', level),
-    armor: (b.armorBase as number) + (b.armorPerLevel as number) * level,
-    foodHpPerSec: (b.foodHpPerSecPerLevel as number) * level,
-    drinkManaPerSec: (b.drinkManaPerSecPerLevel as number) * level,
+    armor: base.agi * 2 + prof(profile, 'armor', level),
+    foodHpPerSec: consumableRate(LV.consumables.food, level, 'hpPerSec'),
+    drinkManaPerSec: consumableRate(LV.consumables.drink, level, 'manaPerSec'),
   };
 }
 
 export function demonArmorOf(level: number, ranks: Ranks): number {
-  const b = LV.base;
-  const raw = (b.demonArmorBase as number) + (b.demonArmorPerLevel as number) * level;
-  return raw * (1 + 0.15 * (ranks['demonic_aegis'] ?? 0));
+  let armor = 0;
+  for (const [lv, a] of LV.demonArmor.ranks) if (level >= lv) armor = a;
+  return armor * (1 + 0.15 * (ranks['demonic_aegis'] ?? 0));
 }
 
 /** Physical damage reduction from armor (Classic formula, capped at 75%). */
@@ -110,9 +138,19 @@ export function lifeTapGain(rankBase: number, spirit: number, ranks: Ranks, para
   return lifeTapHealthCost(rankBase, spirit, params) * params.life_tap_mana_per_health * (1 + 0.1 * (ranks['improved_life_tap'] ?? 0));
 }
 
-/** Mana regeneration per second while fighting (outside combat drinking is handled by the runner). */
+/** Spirit mana regeneration per second outside the five-second rule: warlock (Spirit/5 + 15) per 2 s tick (Classic, cmangos). */
+export function spiritManaRegenPerSec(spirit: number): number {
+  return (spirit / 5 + 15) / 2;
+}
+
+/** Out-of-combat health regeneration per second: warlock (Spirit x 0.12 + 1.5) per 2 s tick (Classic, cmangos). */
+export function healthRegenPerSec(spirit: number): number {
+  return (spirit * 0.12 + 1.5) / 2;
+}
+
+/** Mana regeneration per second while fighting: none inside the five-second rule, doubled-or-more by Soul Harvest. */
 export function combatRegenPerSec(spirit: number, params: Params, soulHarvestBonus: number): number {
-  const base = spirit * params.spirit_regen_per_spirit;
+  const base = spiritManaRegenPerSec(spirit);
   if (soulHarvestBonus > 0) return base * (1 + soulHarvestBonus);
   return base * params.fsr_regen_fraction;
 }
@@ -121,4 +159,15 @@ export function petData(kind: string): Record<string, unknown> {
   const d = LV.pets[kind];
   if (!d) throw new Error(`unknown pet ${kind}`);
   return d;
+}
+
+export interface PetBase { hp: number; mana: number; armor: number; meleeAvg: number }
+
+/** Pet base health (Classic pet_levelstats, +15% hotfix 10 Nov, Voidwalker +40), mana, armor and average melee swing (Classic). */
+export function petBaseAt(kind: string, level: number): PetBase {
+  const L = clampLevel(level);
+  const row = BASE.pet[kind]?.[L] as PetRow | undefined;
+  if (!row) return { hp: 0, mana: 0, armor: 0, meleeAvg: 0 };
+  const hp = (row.hp + (kind === 'voidwalker' ? 40 : 0)) * (kind === 'felhunter' ? 1 : 1.15);
+  return { hp, mana: row.mana, armor: row.armor, meleeAvg: BASE.petMeleeAvgPerSwing[kind]?.[L] ?? 0 };
 }
