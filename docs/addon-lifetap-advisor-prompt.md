@@ -1,5 +1,7 @@
 # Prompt: addon „LifeTapAdvisor" dla WoW Forever (Warlock)
 
+> Ten plik opisuje addon od zera. Dla addonu, który już istnieje, użyj `docs/addon-lifetap-advisor-update-prompt.md` (finalne progi, migracja ustawień, tabela rozbieżności).
+
 Wklej całość poniżej jako zadanie dla modelu piszącego addon. Plik zawiera strategię z symulatora,
 jej progi, wymagania techniczne i przypadki testowe. Źródło liczb: `reports/forever_lifetap_strategies.md`
 (1 mob na pull) i `reports/forever_lifetap_strategies_2mobs.md` (2 moby), wersja z 25.11.2026, po korekcie modelu many na podstawie pomiarów z gry (level 1 i 31).
