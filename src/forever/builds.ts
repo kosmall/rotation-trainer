@@ -43,9 +43,46 @@ export function loadOrder(id: string): string[] {
   return expandOrder(runs);
 }
 
+const CUSTOM_VARIANTS = new Map<string, BuildVariant>();
+
 export function loadVariant(id: string): BuildVariant {
-  const v = RAW.variants.find((x) => x.id === id);
+  const v = RAW.variants.find((x) => x.id === id) ?? CUSTOM_VARIANTS.get(id);
   if (!v) throw new Error(`unknown build ${id}; known: ${VARIANT_IDS.join(', ')}`);
+  return { ...v };
+}
+
+/** A user-made build: the talent points in the order they are spent (level 10 first) plus a rotation template. */
+export interface CustomBuildData {
+  /** Display name; the build's id is `customId(name)`. */
+  name: string;
+  /** One talent id per point, at most 51; it may be unfinished (unspent points do nothing). */
+  picks: string[];
+  rotation: BuildVariant['rotation'];
+  filler: string;
+  rank: BuildVariant['rank'];
+  pet: PetKind | null;
+  sacrificed: PetKind | null;
+}
+
+/** The id a custom build is simulated under (a star keeps it apart from the built-in ids). */
+export const customId = (name: string): string => `★ ${name}`;
+
+/** Registers a custom build (idempotent) and returns its variant. Throws on an illegal order. */
+export function customVariant(d: CustomBuildData): BuildVariant {
+  if (d.picks.length > MAX_TALENT_POINTS) throw new Error(`at most ${MAX_TALENT_POINTS} points, got ${d.picks.length}`);
+  const check = validatePicks(d.picks);
+  if (!check.ok) throw new Error(`invalid talent order: ${check.errors.join('; ')}`);
+  const id = customId(d.name);
+  const runs: [string, number][] = [];
+  for (const t of d.picks) {
+    const last = runs[runs.length - 1];
+    if (last && last[0] === t) last[1]++;
+    else runs.push([t, 1]);
+  }
+  const orderId = `custom:${id}`;
+  registerOrder(orderId, runs);
+  const v: BuildVariant = { id, order: orderId, pet: d.pet, sacrificed: d.sacrificed, rotation: d.rotation, filler: d.filler, rank: d.rank, pre_respec_build: null, respec_level: 40 };
+  CUSTOM_VARIANTS.set(id, v);
   return { ...v };
 }
 

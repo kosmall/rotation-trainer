@@ -67,3 +67,18 @@
 .fv-loopstub { flex: 1; min-width: 12px; border-top: 2px solid var(--class, currentColor); }
 @media (max-width: 760px) { .fv-flow-row { flex-wrap: wrap; } .fv-node-cond { flex-basis: 100%; max-width: none; } }
 .fv-facts-icons dd { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.fv-mine { outline: 2px solid var(--cast, #e8b13a); outline-offset: -2px; }
+.fv-talent-edit { opacity: 0.55; filter: none; }
+.fv-talent-edit.taken, .fv-talent-edit.can { opacity: 1; }
+.fv-talent-btn { border: 0; background: none; padding: 0; width: 100%; height: 100%; cursor: pointer; border-radius: 6px; }
+.fv-talent-btn:disabled { cursor: not-allowed; }
+.fv-talent-btn .fv-icon { width: 100% !important; height: 100% !important; }
+.fv-talent-minus { position: absolute; left: -6px; top: -6px; width: 18px; height: 18px; padding: 0; line-height: 1; border-radius: 50%; border: 1px solid currentColor; background: var(--page, #fff); color: inherit; cursor: pointer; font-size: 0.9rem; }
+.fv-points { columns: 2 280px; padding-left: 0; list-style: none; font-size: 0.9rem; }
+.fv-points li { display: flex; align-items: center; gap: 6px; padding: 2px 0; break-inside: avoid; }
+.fv-points .lvl { opacity: 0.6; width: 4.5em; font-variant-numeric: tabular-nums; }
+.fv-points button { padding: 0 6px; }
+.fv-warn { color: var(--cast, #b07a00); }
+.fv-io { width: 100%; min-height: 6rem; font-family: var(--font-code, monospace); font-size: 0.8rem; }
+@media (pointer: coarse) { .fv-talent-btn, .fv-talent-minus { min-width: 32px; } .fv-talent-minus { width: 26px; height: 26px; left: -10px; top: -10px; } }
+.fv-inline { display: inline-flex; gap: 6px; margin-right: 16px; }

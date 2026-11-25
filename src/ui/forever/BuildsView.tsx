@@ -6,8 +6,8 @@ import { TalentTrees } from './TalentTrees';
 const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
 
 /** One build: talent points per tree at the level, the order points were spent, the next pick. */
-export function BuildsView({ level, id, onIdChange: setId }: { level: number; id: string; onIdChange(id: string): void }) {
-  const v = loadVariant(id);
+export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: { level: number; ids?: readonly string[]; id: string; onIdChange(id: string): void }) {
+  const v = loadVariant(ids.includes(id) ? id : (ids[0] as string));
   const snap = describeBuild(v, level);
   const picks = picksAt(v, level);
   const counts = new Map<string, number>();
@@ -17,8 +17,8 @@ export function BuildsView({ level, id, onIdChange: setId }: { level: number; id
       <div className="fv-row">
         <label>
           Build{' '}
-          <select value={id} onChange={(e) => setId(e.target.value)}>
-            {VARIANT_IDS.map((b) => (
+          <select value={v.id} onChange={(e) => setId(e.target.value)}>
+            {ids.map((b) => (
               <option key={b}>{b}</option>
             ))}
           </select>

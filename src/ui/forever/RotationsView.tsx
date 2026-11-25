@@ -67,24 +67,12 @@ function spellName(id: string): string {
   }
 }
 
-/** One build's rotation (chosen from a dropdown) as a flow diagram: top-down checks, "yes" casts and loops back to the top. */
-export function RotationsView() {
-  const [id, setId] = useState(VARIANT_IDS[0] as string);
-  const v = loadVariant(id);
+/** The facts of a build (pet, Shadow Bolt rank, filler, talents) and its rotation as a flow diagram. */
+export function RotationFlow({ v }: { v: BuildVariant }) {
+  const id = v.id;
   const steps = stepsFor(v);
   return (
-    <>
-      <div className="fv-row">
-        <label>
-          Build{' '}
-          <select value={id} onChange={(e) => setId(e.target.value)}>
-            {VARIANT_IDS.map((b) => (
-              <option key={b}>{b}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <section className="fv-panel">
+    <section className="fv-panel">
         <h2>{TITLES[v.rotation]}</h2>
         <dl className="fv-facts fv-facts-icons">
           <dt>Pet</dt>
@@ -108,7 +96,7 @@ export function RotationsView() {
           <dt>Talenty</dt>
           <dd>
             <span>
-              {v.order}
+              {v.order.startsWith('custom:') ? 'własna kolejność' : v.order}
               {v.pre_respec_build ? ` (do respeca na levelu ${v.respec_level}: ${v.pre_respec_build})` : ''}
             </span>
           </dd>
@@ -155,7 +143,27 @@ export function RotationsView() {
           </li>
         </ol>
         <p className="fv-note">↻ Każda gałąź „TAK” wraca do „Nowy GCD”. DoT-y, kanały i pet działają w tle między rzutami.</p>
-      </section>
+    </section>
+  );
+}
+
+/** One build's rotation (chosen from a dropdown). */
+export function RotationsView({ ids = VARIANT_IDS }: { ids?: readonly string[] }) {
+  const [id, setId] = useState(ids[0] as string);
+  const v = loadVariant(ids.includes(id) ? id : (ids[0] as string));
+  return (
+    <>
+      <div className="fv-row">
+        <label>
+          Build{' '}
+          <select value={v.id} onChange={(e) => setId(e.target.value)}>
+            {ids.map((b) => (
+              <option key={b}>{b}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <RotationFlow v={v} />
     </>
   );
 }

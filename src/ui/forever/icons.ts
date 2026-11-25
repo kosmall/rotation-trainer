@@ -75,3 +75,6 @@ export const PET_ICONS: Readonly<Record<string, string>> = {
   succubus: 'spell_shadow_summonsuccubus',
   felhunter: 'spell_shadow_summonfelhunter',
 };
+
+/** Talent icons the TBC talent tree does not have: stored in public/icons/forever/ (the talents folder is checked against the TBC tree). */
+export const FOREVER_ONLY_TALENT_ICONS: ReadonlySet<string> = new Set(['spell_fire_firearmor', 'spell_shadow_summonfelhunter', 'spell_fire_burnout']);

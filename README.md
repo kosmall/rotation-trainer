@@ -701,6 +701,7 @@ npm run build    # produkcyjny build (tsc + vite)
 - **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów.
 - **Rotacje**: listy priorytetów rotacji używanych przez symulator.
 - **Porównanie**: dwa buildy head-to-head na wspólnych seedach, wykres 40-59.
+- **Własny build**: układasz talenty po swojemu (klik dodaje punkt, kolejność kliknięć to kolejność rozdawania), wybierasz szablon rotacji, pet i filler. Pierwsze wejście pokazuje puste drzewo, kolejne ostatnio edytowany build (zapis w localStorage). Build można zduplikować, skopiować z wbudowanego, wyeksportować i zaimportować jako JSON, dołączyć do rankingu i porównania.
 - **Założenia**: lista parametrów oznaczonych `verify: true`.
 
 Opcje zaawansowane: profil sprzętu, 1 lub 2 moby na pull, strategia Life Tapa i przerw, liczba sesji, seed. Obliczenia idą w Web Workerze (`src/forever/web/`), z fallbackiem na głównym wątku; widoki są w `src/ui/forever/`.
