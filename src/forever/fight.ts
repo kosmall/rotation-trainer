@@ -626,13 +626,16 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.damageTaken += dmg;
     if (cast) {
       cast.endsAt += params.pushback_ms;
-      res.gcdBusyMs += params.pushback_ms;
-      busyEnd += params.pushback_ms;
+      // The GCD already covers the first part of a short cast: only the time past the old busy end is new.
+      const newBusyEnd = Math.max(busyEnd, cast.endsAt);
+      res.gcdBusyMs += newBusyEnd - busyEnd;
+      busyEnd = newBusyEnd;
     }
     else if (channel && rng.next() >= effectNum('fel_concentration', 'noPushbackChanceAtMax') * (rk(ranks, 'fel_concentration') / 3)) {
       channel.endsAt -= channel.tickMs;
-      res.gcdBusyMs -= channel.tickMs;
-      busyEnd -= channel.tickMs;
+      const newBusyEnd = Math.max(t, busyEnd - channel.tickMs);
+      res.gcdBusyMs -= busyEnd - newBusyEnd;
+      busyEnd = newBusyEnd;
       if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
     }
   };
