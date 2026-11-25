@@ -1,43 +1,210 @@
 {
   "_comment": "Simulation parameters. value + verify + source. Anything verify:true is an assumption listed in the report.",
-  "downrank_penalty_model": { "value": "none", "options": ["none", "classic", "partial"], "verify": true, "source": "Players report Shadow Bolt r1 at level 55 hits for ~250 (little or no penalty). Classic: spells below level 20 get coefficient x (1-(20-spellLevel)*0.0375). 'partial' = midpoint." },
-  "bane_per_rank": { "value": 0.1, "verify": true, "source": "Wowhead Forever: Bane 5/5 shortens Shadow Bolt/Immolate/Incinerate by max 1 s (rank 1 = 0.1 s). Players report 0.5 s total at 5/5 on Shadow Bolt r1 (1.7 -> 1.2 s). Test 0.2 too (seconds per rank)." },
-  "haste_shortens_gcd": { "value": false, "verify": true, "source": "Task statement: haste may shorten GCD; configurable, default off." },
-  "gcd_ms": { "value": 1500, "source": "Task statement: GCD = 1.5 s." },
-  "min_gcd_ms": { "value": 1000, "verify": true, "source": "Assumed floor when haste shortens the GCD." },
-  "haste_pct": { "value": 0, "source": "Spell haste percent; 0 in all default profiles." },
-  "cast_floor_ms": { "value": 500, "verify": true, "source": "Assumed minimum cast time after Bane." },
-  "mobs_per_pull": { "value": 1, "source": "Configurable 1, 2 or 3 mobs per pull." },
-  "skip_agony_if_ttk_below": { "value": 0, "source": "Seconds. Bane of Agony and Curse of the Elements are skipped when the estimated time to kill the target is below it. 0 = never skip." },
-  "use_curse_of_elements": { "value": false, "source": "Affliction rotation option; subject to skip_agony_if_ttk_below." },
-  "demo_use_agony": { "value": false, "source": "Demonology rotation uses Bane of Agony (optional in the task)." },
-  "life_tap_mana_below": { "value": 0.35, "source": "In combat: Life Tap when mana fraction is below this ..." },
-  "life_tap_hp_above": { "value": 0.6, "source": "... and HP fraction is above this." },
-  "rest_use_life_tap": { "value": true, "source": "Before drinking, Life Tap down to rest_life_tap_hp_floor while mana is below the target." },
-  "rest_life_tap_hp_floor": { "value": 0.5, "source": "HP fraction floor for resting Life Taps." },
-  "rest_to_mana_pct": { "value": 0.9, "source": "Drink until this mana fraction before the next pull." },
-  "rest_to_hp_pct": { "value": 0.9, "source": "Eat until this HP fraction before the next pull." },
-  "eat_and_drink_together": { "value": true, "verify": true, "source": "Classic allows eating and drinking at once: downtime = max(eat, drink)." },
-  "transition_sec": { "value": 8, "verify": true, "source": "Time to find and reach the next mob, added to every cycle." },
-  "death_penalty_sec": { "value": 90, "verify": true, "source": "Corpse run and resurrection after the player dies." },
-  "pet_resummon_sec": { "value": 12, "verify": true, "source": "Re-summon time after the pet died." },
-  "pull_time_limit_sec": { "value": 180, "source": "Safety limit for one pull (out of mana and no Life Tap)." },
-  "mob_miss_pct": { "value": 4, "verify": true, "source": "Spell miss chance vs a same-level normal mob (Classic: 4%)." },
-  "mob_swing_sec": { "value": 2.0, "verify": true, "source": "Mob melee swing interval." },
-  "pushback_ms": { "value": 500, "verify": true, "source": "Cast end delay per mob hit while casting." },
-  "base_crit_mult": { "value": 1.5, "source": "Classic spell crit multiplier." },
-  "life_tap_spirit_coeff": { "value": 0.5, "verify": true, "source": "Forever Life Tap scales with Spirit (task statement); the coefficient is unknown. Mana gained = rank base x (1 + Improved Life Tap) + coeff x Spirit." },
-  "life_tap_hp_cost_frac": { "value": 1.0, "verify": true, "source": "Life Tap costs health equal to the mana gained (Classic)." },
-  "searing_pain_threat_mult": { "value": 2.0, "verify": true, "source": "Searing Pain generates extra threat; Demonic Brand halves it (task statement: 50% less aggro)." },
-  "threat_overtake_ranged": { "value": 1.3, "source": "Threat needed to pull aggro from a melee holder when the overtaker is ranged." },
-  "threat_overtake_melee": { "value": 1.1, "source": "Threat needed for a melee overtaker." },
-  "pet_opens": { "value": true, "verify": true, "source": "The pet engages first and holds initial aggro." },
-  "brand_scale": { "value": "level_scaled", "options": ["fixed_60", "level_scaled"], "verify": true, "source": "Brand damage (60-26)*1.5 + 14..17 + 0.078*SP at 3/3: whether '60' is the caster level." },
-  "brand_mult": { "value": 1.0, "verify": true, "source": "Sensitivity multiplier on Demonic Brand damage." },
-  "wrack_dmg_mult": { "value": 1.0, "verify": true, "source": "Sensitivity multiplier on the placeholder Wrack damage." },
-  "mob_hp_mult": { "value": 1.0, "verify": true, "source": "Sensitivity multiplier on mob HP." },
-  "mob_dmg_mult": { "value": 1.0, "verify": true, "source": "Sensitivity multiplier on mob damage." },
-  "sb_r1_coeff_mult": { "value": 1.0, "verify": true, "source": "Sensitivity multiplier on the spell power coefficient of Shadow Bolt rank 1 (castTime/3.5)." },
-  "sb_r2_coeff_mult": { "value": 1.0, "verify": true, "source": "Sensitivity multiplier on the spell power coefficient of Shadow Bolt rank 2." },
-  "malevolence_crit_pct_per_rank": { "value": 1, "verify": true, "source": "Malevolence effect is not given in the task; assumed +1% spell crit per rank on Affliction spells." }
+  "downrank_penalty_model": {
+    "value": "none",
+    "options": [
+      "none",
+      "classic",
+      "partial"
+    ],
+    "verify": true,
+    "source": "Players report Shadow Bolt r1 at level 55 hits for ~250 (little or no penalty). Classic: spells below level 20 get coefficient x (1-(20-spellLevel)*0.0375). 'partial' = midpoint."
+  },
+  "bane_per_rank": {
+    "value": 0.1,
+    "verify": true,
+    "source": "Wowhead Forever: Bane 5/5 shortens Shadow Bolt/Immolate/Incinerate by max 1 s (rank 1 = 0.1 s). Players report 0.5 s total at 5/5 on Shadow Bolt r1 (1.7 -> 1.2 s). Test 0.2 too (seconds per rank)."
+  },
+  "haste_shortens_gcd": {
+    "value": false,
+    "verify": true,
+    "source": "Task statement: haste may shorten GCD; configurable, default off."
+  },
+  "gcd_ms": {
+    "value": 1500,
+    "source": "Task statement: GCD = 1.5 s."
+  },
+  "min_gcd_ms": {
+    "value": 1000,
+    "verify": true,
+    "source": "Assumed floor when haste shortens the GCD."
+  },
+  "haste_pct": {
+    "value": 0,
+    "source": "Spell haste percent; 0 in all default profiles."
+  },
+  "cast_floor_ms": {
+    "value": 500,
+    "verify": true,
+    "source": "Assumed minimum cast time after Bane."
+  },
+  "mobs_per_pull": {
+    "value": 1,
+    "source": "Configurable 1, 2 or 3 mobs per pull."
+  },
+  "skip_agony_if_ttk_below": {
+    "value": 0,
+    "source": "Seconds. Bane of Agony and Curse of the Elements are skipped when the estimated time to kill the target is below it. 0 = never skip."
+  },
+  "use_curse_of_elements": {
+    "value": false,
+    "source": "Affliction rotation option; subject to skip_agony_if_ttk_below."
+  },
+  "demo_use_agony": {
+    "value": false,
+    "source": "Demonology rotation uses Bane of Agony (optional in the task)."
+  },
+  "life_tap_mana_below": {
+    "value": 0.35,
+    "source": "In combat: Life Tap when mana fraction is below this ..."
+  },
+  "life_tap_hp_above": {
+    "value": 0.6,
+    "source": "... and HP fraction is above this."
+  },
+  "rest_use_life_tap": {
+    "value": true,
+    "source": "Before drinking, Life Tap down to rest_life_tap_hp_floor while mana is below the target."
+  },
+  "rest_life_tap_hp_floor": {
+    "value": 0.5,
+    "source": "HP fraction floor for resting Life Taps."
+  },
+  "rest_to_mana_pct": {
+    "value": 0.9,
+    "source": "Drink until this mana fraction before the next pull."
+  },
+  "rest_to_hp_pct": {
+    "value": 0.9,
+    "source": "Eat until this HP fraction before the next pull."
+  },
+  "eat_and_drink_together": {
+    "value": true,
+    "verify": true,
+    "source": "Classic allows eating and drinking at once: downtime = max(eat, drink)."
+  },
+  "transition_sec": {
+    "value": 8,
+    "verify": true,
+    "source": "Time to find and reach the next mob, added to every cycle."
+  },
+  "death_penalty_sec": {
+    "value": 90,
+    "verify": true,
+    "source": "Corpse run and resurrection after the player dies."
+  },
+  "pet_resummon_sec": {
+    "value": 12,
+    "verify": true,
+    "source": "Re-summon time after the pet died."
+  },
+  "pull_time_limit_sec": {
+    "value": 180,
+    "source": "Safety limit for one pull (out of mana and no Life Tap)."
+  },
+  "mob_miss_pct": {
+    "value": 4,
+    "verify": true,
+    "source": "Spell miss chance vs a same-level normal mob (Classic: 4%)."
+  },
+  "mob_swing_sec": {
+    "value": 2.0,
+    "verify": true,
+    "source": "Mob melee swing interval."
+  },
+  "pushback_ms": {
+    "value": 500,
+    "verify": true,
+    "source": "Cast end delay per mob hit while casting."
+  },
+  "base_crit_mult": {
+    "value": 1.5,
+    "source": "Classic spell crit multiplier."
+  },
+  "life_tap_spirit_coeff": {
+    "value": 0.5,
+    "verify": true,
+    "source": "Forever Life Tap scales with Spirit (task statement); the coefficient is unknown. Mana gained = rank base x (1 + Improved Life Tap) + coeff x Spirit."
+  },
+  "life_tap_hp_cost_frac": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Life Tap costs health equal to the mana gained (Classic)."
+  },
+  "searing_pain_threat_mult": {
+    "value": 2.0,
+    "verify": true,
+    "source": "Searing Pain generates extra threat; Demonic Brand halves it (task statement: 50% less aggro)."
+  },
+  "threat_overtake_ranged": {
+    "value": 1.3,
+    "source": "Threat needed to pull aggro from a melee holder when the overtaker is ranged."
+  },
+  "threat_overtake_melee": {
+    "value": 1.1,
+    "source": "Threat needed for a melee overtaker."
+  },
+  "pet_opens": {
+    "value": true,
+    "verify": true,
+    "source": "The pet engages first and holds initial aggro."
+  },
+  "brand_scale": {
+    "value": "level_scaled",
+    "options": [
+      "fixed_60",
+      "level_scaled"
+    ],
+    "verify": true,
+    "source": "Brand damage (60-26)*1.5 + 14..17 + 0.078*SP at 3/3: whether '60' is the caster level."
+  },
+  "brand_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on Demonic Brand damage."
+  },
+  "wrack_dmg_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on the placeholder Wrack damage."
+  },
+  "mob_hp_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on mob HP."
+  },
+  "mob_dmg_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on mob damage."
+  },
+  "sb_r1_coeff_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on the spell power coefficient of Shadow Bolt rank 1 (castTime/3.5)."
+  },
+  "sb_r2_coeff_mult": {
+    "value": 1.0,
+    "verify": true,
+    "source": "Sensitivity multiplier on the spell power coefficient of Shadow Bolt rank 2."
+  },
+  "malevolence_crit_pct_per_rank": {
+    "value": 1,
+    "verify": true,
+    "source": "Malevolence effect is not given in the task; assumed +1% spell crit per rank on Affliction spells."
+  },
+  "spirit_regen_per_spirit": {
+    "value": 0.074,
+    "verify": true,
+    "source": "Mana per second per point of Spirit outside the five-second rule (estimate of Classic behaviour; Forever unified stats unconfirmed)."
+  },
+  "fsr_regen_fraction": {
+    "value": 0.0,
+    "verify": true,
+    "source": "Share of Spirit regen that continues while casting (Classic: 0). Soul Harvest lifts it to 100%."
+  },
+  "sb_filler_lifetap_when_oom": {
+    "value": true,
+    "source": "Life Tap when the filler is unaffordable."
+  }
 }

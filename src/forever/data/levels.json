@@ -1,0 +1,235 @@
+{
+ "_comment": "Level scaling. All verify: estimates, because Wowhead Forever and game data are not reachable here. Linear interpolation between anchors.",
+ "mobs": {
+  "verify": true,
+  "source": "Estimated normal same-level mob (HP, melee swing before armor, armor); mob HP/damage multipliers are sensitivity parameters.",
+  "anchors": [
+   {
+    "level": 38,
+    "hp": 1500,
+    "swing": 55,
+    "armor": 1500
+   },
+   {
+    "level": 40,
+    "hp": 1700,
+    "swing": 65,
+    "armor": 1800
+   },
+   {
+    "level": 50,
+    "hp": 3000,
+    "swing": 95,
+    "armor": 2800
+   },
+   {
+    "level": 60,
+    "hp": 4900,
+    "swing": 135,
+    "armor": 3800
+   }
+  ]
+ },
+ "base": {
+  "verify": true,
+  "source": "Estimated warlock base values.",
+  "manaPerInt": 15,
+  "intFree": 20,
+  "baseManaAt40": 400,
+  "baseManaPerLevel": 12,
+  "hpPerLevelDemonArmor": 0,
+  "armorBase": 100,
+  "armorPerLevel": 6,
+  "demonArmorBase": 30,
+  "demonArmorPerLevel": 6.5,
+  "foodHpPerSecPerLevel": 1.6,
+  "drinkManaPerSecPerLevel": 0.7
+ },
+ "profiles": {
+  "verify": true,
+  "source": "Gear profiles for a given level: value = at40 + perLevel x (level-40). quest = questing greens, average = mixed dungeon/quest, good = strong dungeon set.",
+  "quest": {
+   "spellPower": [
+    25,
+    5
+   ],
+   "spirit": [
+    40,
+    1.0
+   ],
+   "intellect": [
+    85,
+    1.5
+   ],
+   "hp": [
+    1200,
+    30
+   ],
+   "critPct": [
+    4,
+    0
+   ],
+   "hitPct": [
+    0,
+    0
+   ]
+  },
+  "average": {
+   "spellPower": [
+    50,
+    9
+   ],
+   "spirit": [
+    60,
+    1.8
+   ],
+   "intellect": [
+    105,
+    2.0
+   ],
+   "hp": [
+    1400,
+    35
+   ],
+   "critPct": [
+    5,
+    0
+   ],
+   "hitPct": [
+    1,
+    0
+   ]
+  },
+  "good": {
+   "spellPower": [
+    80,
+    13
+   ],
+   "spirit": [
+    85,
+    2.5
+   ],
+   "intellect": [
+    130,
+    2.5
+   ],
+   "hp": [
+    1600,
+    40
+   ],
+   "critPct": [
+    6,
+    0
+   ],
+   "hitPct": [
+    2,
+    0
+   ]
+  }
+ },
+ "pets": {
+  "verify": true,
+  "source": "Estimated pet numbers.",
+  "imp": {
+   "hp": [
+    8,
+    100
+   ],
+   "mana": [
+    10,
+    300
+   ],
+   "fireboltAvg": [
+    2.2,
+    -22
+   ],
+   "fireboltCastMs": 2000,
+   "fireboltMana": [
+    0.7,
+    10
+   ],
+   "armor": [
+    15,
+    0
+   ],
+   "unlock": 1,
+   "threatMult": 1.0
+  },
+  "succubus": {
+   "hp": [
+    15,
+    150
+   ],
+   "mana": [
+    8,
+    200
+   ],
+   "swingMs": 2000,
+   "meleeDps": [
+    0.8,
+    0
+   ],
+   "lashAvg": [
+    2.2,
+    -8
+   ],
+   "lashCdMs": 12000,
+   "lashMana": [
+    0.8,
+    0
+   ],
+   "armor": [
+    25,
+    0
+   ],
+   "unlock": 20,
+   "threatMult": 1.0
+  },
+  "voidwalker": {
+   "hp": [
+    22,
+    200
+   ],
+   "mana": [
+    8,
+    100
+   ],
+   "swingMs": 2000,
+   "meleeDps": [
+    0.6,
+    0
+   ],
+   "torment": {
+    "intervalMs": 5000,
+    "threatPerLevel": 6
+   },
+   "armor": [
+    45,
+    0
+   ],
+   "unlock": 10,
+   "threatMult": 1.0
+  },
+  "felhunter": {
+   "hp": [
+    16,
+    150
+   ],
+   "mana": [
+    8,
+    200
+   ],
+   "swingMs": 2000,
+   "meleeDps": [
+    0.7,
+    0
+   ],
+   "armor": [
+    30,
+    0
+   ],
+   "unlock": 30,
+   "threatMult": 1.0
+  }
+ }
+}

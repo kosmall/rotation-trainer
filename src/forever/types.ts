@@ -52,7 +52,43 @@ export interface Params {
   sb_r1_coeff_mult: number;
   sb_r2_coeff_mult: number;
   malevolence_crit_pct_per_rank: number;
+  spirit_regen_per_spirit: number;
+  fsr_regen_fraction: number;
+  sb_filler_lifetap_when_oom: boolean;
 }
 
 export type PetKind = 'imp' | 'voidwalker' | 'succubus' | 'felhunter';
 export type Tree = 'aff' | 'demo' | 'destro';
+
+export interface SpellRank {
+  rank: number;
+  level: number;
+  mana: number;
+  min?: number;
+  max?: number;
+  dotTotal?: number;
+  castMs?: number;
+  coeff?: number;
+  base?: number;
+  damageTaken?: number;
+}
+
+export interface SpellData {
+  id: string;
+  name: string;
+  school: 'shadow' | 'fire';
+  kind: 'direct' | 'dot' | 'direct+dot' | 'channel' | 'utility' | 'curse';
+  onGcd: boolean;
+  banable?: boolean;
+  baseCastMs?: number;
+  channelMs?: number;
+  durationMs?: number;
+  tickMs?: number;
+  coeffDirect?: number;
+  coeffDot?: number;
+  healFrac?: number;
+  teachesTalent?: string;
+  verify?: boolean;
+  source: string;
+  ranks: SpellRank[];
+}

@@ -1,0 +1,580 @@
+{
+ "_comment": "Spell ranks. Mana, damage and DoT totals are base values before talents. verify=true on every entry: see source.",
+ "spells": [
+  {
+   "id": "shadow_bolt",
+   "name": "Shadow Bolt",
+   "school": "shadow",
+   "kind": "direct",
+   "onGcd": true,
+   "banable": true,
+   "verify": true,
+   "source": "Rank 1 and 2 from the task (r1 1.7 s/25 mana/12-16; r2 2.2 s/40 mana/22-27); higher ranks approximate Classic. Coefficient = cast/3.5, capped 0.857.",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 1,
+     "mana": 25,
+     "min": 12,
+     "max": 16,
+     "castMs": 1700,
+     "coeff": 0.4857142857142857
+    },
+    {
+     "rank": 2,
+     "level": 6,
+     "mana": 40,
+     "min": 22,
+     "max": 27,
+     "castMs": 2200,
+     "coeff": 0.6285714285714287
+    },
+    {
+     "rank": 3,
+     "level": 10,
+     "mana": 70,
+     "min": 41,
+     "max": 49,
+     "castMs": 2800,
+     "coeff": 0.7999999999999999
+    },
+    {
+     "rank": 4,
+     "level": 20,
+     "mana": 110,
+     "min": 82,
+     "max": 96,
+     "castMs": 3000,
+     "coeff": 0.857
+    },
+    {
+     "rank": 5,
+     "level": 28,
+     "mana": 160,
+     "min": 150,
+     "max": 172,
+     "castMs": 3000,
+     "coeff": 0.857
+    },
+    {
+     "rank": 6,
+     "level": 36,
+     "mana": 210,
+     "min": 213,
+     "max": 247,
+     "castMs": 3000,
+     "coeff": 0.857
+    },
+    {
+     "rank": 7,
+     "level": 44,
+     "mana": 265,
+     "min": 292,
+     "max": 327,
+     "castMs": 3000,
+     "coeff": 0.857
+    },
+    {
+     "rank": 8,
+     "level": 52,
+     "mana": 315,
+     "min": 357,
+     "max": 400,
+     "castMs": 3000,
+     "coeff": 0.857
+    },
+    {
+     "rank": 9,
+     "level": 60,
+     "mana": 370,
+     "min": 455,
+     "max": 507,
+     "castMs": 3000,
+     "coeff": 0.857
+    }
+   ]
+  },
+  {
+   "id": "corruption",
+   "name": "Corruption",
+   "school": "shadow",
+   "kind": "dot",
+   "onGcd": true,
+   "baseCastMs": 2000,
+   "durationMs": 18000,
+   "tickMs": 3000,
+   "coeffDot": 0.936,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 4,
+     "mana": 35,
+     "dotTotal": 40
+    },
+    {
+     "rank": 2,
+     "level": 14,
+     "mana": 55,
+     "dotTotal": 100
+    },
+    {
+     "rank": 3,
+     "level": 24,
+     "mana": 100,
+     "dotTotal": 220
+    },
+    {
+     "rank": 4,
+     "level": 34,
+     "mana": 160,
+     "dotTotal": 340
+    },
+    {
+     "rank": 5,
+     "level": 44,
+     "mana": 225,
+     "dotTotal": 500
+    },
+    {
+     "rank": 6,
+     "level": 54,
+     "mana": 290,
+     "dotTotal": 666
+    }
+   ]
+  },
+  {
+   "id": "bane_of_agony",
+   "name": "Bane of Agony",
+   "school": "shadow",
+   "kind": "dot",
+   "onGcd": true,
+   "baseCastMs": 0,
+   "durationMs": 24000,
+   "tickMs": 2000,
+   "coeffDot": 1.2,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 8,
+     "mana": 25,
+     "dotTotal": 84
+    },
+    {
+     "rank": 2,
+     "level": 18,
+     "mana": 50,
+     "dotTotal": 180
+    },
+    {
+     "rank": 3,
+     "level": 28,
+     "mana": 90,
+     "dotTotal": 324
+    },
+    {
+     "rank": 4,
+     "level": 38,
+     "mana": 130,
+     "dotTotal": 504
+    },
+    {
+     "rank": 5,
+     "level": 48,
+     "mana": 170,
+     "dotTotal": 780
+    },
+    {
+     "rank": 6,
+     "level": 58,
+     "mana": 215,
+     "dotTotal": 1044
+    }
+   ]
+  },
+  {
+   "id": "immolate",
+   "name": "Immolate",
+   "school": "fire",
+   "kind": "direct+dot",
+   "onGcd": true,
+   "banable": true,
+   "baseCastMs": 2000,
+   "durationMs": 15000,
+   "tickMs": 3000,
+   "coeffDirect": 0.2,
+   "coeffDot": 0.65,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 1,
+     "mana": 25,
+     "min": 11,
+     "max": 11,
+     "dotTotal": 20
+    },
+    {
+     "rank": 2,
+     "level": 10,
+     "mana": 45,
+     "min": 24,
+     "max": 24,
+     "dotTotal": 40
+    },
+    {
+     "rank": 3,
+     "level": 20,
+     "mana": 90,
+     "min": 50,
+     "max": 50,
+     "dotTotal": 90
+    },
+    {
+     "rank": 4,
+     "level": 30,
+     "mana": 160,
+     "min": 89,
+     "max": 89,
+     "dotTotal": 165
+    },
+    {
+     "rank": 5,
+     "level": 40,
+     "mana": 220,
+     "min": 134,
+     "max": 134,
+     "dotTotal": 255
+    },
+    {
+     "rank": 6,
+     "level": 50,
+     "mana": 280,
+     "min": 192,
+     "max": 192,
+     "dotTotal": 360
+    },
+    {
+     "rank": 7,
+     "level": 60,
+     "mana": 370,
+     "min": 258,
+     "max": 258,
+     "dotTotal": 485
+    }
+   ]
+  },
+  {
+   "id": "searing_pain",
+   "name": "Searing Pain",
+   "school": "fire",
+   "kind": "direct",
+   "onGcd": true,
+   "baseCastMs": 1500,
+   "coeffDirect": 0.429,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 18,
+     "mana": 45,
+     "min": 38,
+     "max": 47
+    },
+    {
+     "rank": 2,
+     "level": 26,
+     "mana": 68,
+     "min": 56,
+     "max": 69
+    },
+    {
+     "rank": 3,
+     "level": 34,
+     "mana": 91,
+     "min": 93,
+     "max": 111
+    },
+    {
+     "rank": 4,
+     "level": 42,
+     "mana": 168,
+     "min": 137,
+     "max": 163
+    },
+    {
+     "rank": 5,
+     "level": 50,
+     "mana": 195,
+     "min": 175,
+     "max": 209
+    },
+    {
+     "rank": 6,
+     "level": 58,
+     "mana": 225,
+     "min": 215,
+     "max": 255
+    }
+   ]
+  },
+  {
+   "id": "drain_life",
+   "name": "Drain Life",
+   "school": "shadow",
+   "kind": "channel",
+   "onGcd": true,
+   "channelMs": 5000,
+   "tickMs": 1000,
+   "coeffDot": 0.7,
+   "healFrac": 1.0,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; heals the caster for damage dealt (Classic)",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 14,
+     "mana": 55,
+     "dotTotal": 50
+    },
+    {
+     "rank": 2,
+     "level": 22,
+     "mana": 100,
+     "dotTotal": 110
+    },
+    {
+     "rank": 3,
+     "level": 30,
+     "mana": 150,
+     "dotTotal": 190
+    },
+    {
+     "rank": 4,
+     "level": 38,
+     "mana": 200,
+     "dotTotal": 285
+    },
+    {
+     "rank": 5,
+     "level": 46,
+     "mana": 265,
+     "dotTotal": 420
+    },
+    {
+     "rank": 6,
+     "level": 54,
+     "mana": 325,
+     "dotTotal": 570
+    }
+   ]
+  },
+  {
+   "id": "drain_soul",
+   "name": "Drain Soul",
+   "school": "shadow",
+   "kind": "channel",
+   "onGcd": true,
+   "channelMs": 15000,
+   "tickMs": 3000,
+   "coeffDot": 0.8,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 10,
+     "mana": 55,
+     "dotTotal": 55
+    },
+    {
+     "rank": 2,
+     "level": 24,
+     "mana": 110,
+     "dotTotal": 155
+    },
+    {
+     "rank": 3,
+     "level": 38,
+     "mana": 175,
+     "dotTotal": 295
+    },
+    {
+     "rank": 4,
+     "level": 52,
+     "mana": 240,
+     "dotTotal": 455
+    }
+   ]
+  },
+  {
+   "id": "siphon_life",
+   "name": "Siphon Life",
+   "school": "shadow",
+   "kind": "dot",
+   "onGcd": true,
+   "baseCastMs": 0,
+   "durationMs": 30000,
+   "tickMs": 3000,
+   "coeffDot": 1.0,
+   "healFrac": 1.0,
+   "teachesTalent": "siphon_life",
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; taught by the talent; heals for damage dealt",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 30,
+     "mana": 150,
+     "dotTotal": 150
+    },
+    {
+     "rank": 2,
+     "level": 38,
+     "mana": 175,
+     "dotTotal": 220
+    },
+    {
+     "rank": 3,
+     "level": 48,
+     "mana": 215,
+     "dotTotal": 304
+    },
+    {
+     "rank": 4,
+     "level": 58,
+     "mana": 250,
+     "dotTotal": 348
+    }
+   ]
+  },
+  {
+   "id": "wrack",
+   "name": "Wrack",
+   "school": "shadow",
+   "kind": "direct",
+   "onGcd": true,
+   "banable": false,
+   "teachesTalent": "wrack",
+   "verify": true,
+   "source": "PLACEHOLDER: Wowhead data for Wrack is not available here (task: fill in and verify). Assumed 2.0 s cast, 80% of Shadow Bolt damage at the same level, 70% of its mana, coefficient 2.0/3.5.",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 40,
+     "mana": 147,
+     "min": 170,
+     "max": 198,
+     "castMs": 2000,
+     "coeff": 0.5714285714285714
+    },
+    {
+     "rank": 2,
+     "level": 44,
+     "mana": 186,
+     "min": 234,
+     "max": 262,
+     "castMs": 2000,
+     "coeff": 0.5714285714285714
+    },
+    {
+     "rank": 3,
+     "level": 52,
+     "mana": 220,
+     "min": 286,
+     "max": 320,
+     "castMs": 2000,
+     "coeff": 0.5714285714285714
+    },
+    {
+     "rank": 4,
+     "level": 60,
+     "mana": 259,
+     "min": 364,
+     "max": 406,
+     "castMs": 2000,
+     "coeff": 0.5714285714285714
+    }
+   ]
+  },
+  {
+   "id": "life_tap",
+   "name": "Life Tap",
+   "school": "shadow",
+   "kind": "utility",
+   "onGcd": true,
+   "baseCastMs": 0,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; mana gain = rank base x (1+Improved Life Tap) + spirit coeff x Spirit (param), costs HP equal to the gain",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 6,
+     "mana": 0,
+     "base": 30
+    },
+    {
+     "rank": 2,
+     "level": 16,
+     "mana": 0,
+     "base": 75
+    },
+    {
+     "rank": 3,
+     "level": 26,
+     "mana": 0,
+     "base": 140
+    },
+    {
+     "rank": 4,
+     "level": 36,
+     "mana": 0,
+     "base": 220
+    },
+    {
+     "rank": 5,
+     "level": 46,
+     "mana": 0,
+     "base": 310
+    },
+    {
+     "rank": 6,
+     "level": 56,
+     "mana": 0,
+     "base": 424
+    }
+   ]
+  },
+  {
+   "id": "curse_of_elements",
+   "name": "Curse of the Elements",
+   "school": "shadow",
+   "kind": "curse",
+   "onGcd": true,
+   "baseCastMs": 0,
+   "durationMs": 300000,
+   "verify": true,
+   "source": "Approximate Classic/Forever values from memory; Wowhead Forever is not reachable from this environment; assumed +% fire and shadow damage taken; separate from banes",
+   "ranks": [
+    {
+     "rank": 1,
+     "level": 32,
+     "mana": 100,
+     "damageTaken": 0.1
+    },
+    {
+     "rank": 2,
+     "level": 46,
+     "mana": 150,
+     "damageTaken": 0.15
+    }
+   ]
+  }
+ ]
+}
