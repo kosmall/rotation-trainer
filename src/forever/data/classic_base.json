@@ -2032,7 +2032,15 @@
   "health": "base 23 + 1 per Stamina for the first 20 + 10 per Stamina after: 43 and 53 match Classic exactly.",
   "mana": "(base + 20 + 15 x (Intellect - 20)) x racial: human 140 = 90 + 20 + 15 x 2 (base 90 instead of Classic 59); gnome (90 + 20 + 15 x 5) x 1.05 = 194.25. Slope solved from the two points: 14.9 per Intellect.",
   "manaBaseOffset": 31,
-  "manaBaseOffsetNote": "Forever base mana at level 1 is 31 higher than Classic (90 vs 59). Only level 1 is measured; the same +31 is assumed at every level (the real scaling is unknown: it could be proportional, +52%). Needs a measurement at a higher level.",
-  "gnomeMaxManaMult": 1.05
+  "manaBaseOffsetNote": "Forever base mana minus Classic base mana: +31 at level 1 (measured: 90 vs 59), 0 at level 31 (measured: 674 = Classic). Linear in between, 0 from level 31 up (assumption beyond the two points; the simulated range 38-60 sits above the second point).",
+  "gnomeMaxManaMult": 1.05,
+  "manaBaseOffsetFullAtLevel": 1,
+  "manaBaseOffsetZeroFromLevel": 31,
+  "level31": {
+   "source": "Measured in game by the user (25 Nov 2026), gnome warlock level 31 with gear: Stamina 72 (38 base + 34 gear) -> 938 health; Intellect 89 (61 base + 28 gear) -> 1815 mana.",
+   "health": "398 (Classic base) + 20 + 10 x (72 - 20) = 938: exact.",
+   "mana": "(674 (Classic base) + 20 + 15 x (89 - 20)) x 1.05 = 1815.45: exact, no offset.",
+   "baseStatsDifference": "Naked base stats at level 31: Stamina 38 and Intellect 61 (Forever) vs Stamina 37 and Intellect 64 (Classic table). Spirit not measured. Differences of a few points; not applied (the scaling over levels is unknown)."
+  }
  }
 }

@@ -184,8 +184,12 @@ drink behaviour in Forever as opposed to Classic; pet base health in Forever; sp
   points fit `(base + 20 + 15 x (Intellect - 20)) x racial` with a slope of 14.9 (15) per Intellect and a
   **base of 90 at level 1, i.e. 31 more than Classic's 59**: human 90 + 20 + 30 = 140, gnome
   (90 + 20 + 75) x 1.05 = 194.25.
-- Model: Classic base mana of the level + 31 (the same offset at every level is an assumption; the
-  true scaling may be proportional) + Intellect conversion, x 1.05 for the gnome, x Fel Vitality.
-- **Still needed:** a second measurement at a higher level (a gnome warlock of any level above 20:
-  level, total Stamina, total Intellect, maximum health, maximum mana, and the same without one gear
-  piece) to fix the base mana scaling with level.
+- **Level 31 measurement (gnome warlock, with gear):** Stamina 72 (38 base + 34 gear) -> 938 health;
+  Intellect 89 (61 base + 28 gear) -> 1815 mana. Classic formulas give exactly 938 and
+  (674 + 20 + 15 x 69) x 1.05 = 1815.45, so the **+31 base mana offset is gone at level 31**: the
+  Forever base mana equals Classic's there. Model: offset 31 at level 1, 0 from level 31 (linear
+  between), so levels 38-60 use the Classic base mana, the 15 mana per Intellect and x 1.05 for the gnome.
+- **Naked base stats differ slightly from the Classic table at level 31:** Stamina 38 and Intellect 61
+  (Forever) against 37 and 64 (Classic). Not applied (Spirit and other levels not measured; a difference
+  of a few points, about 2% of mana).
+- Open: a measurement at level 50-60 would confirm that the Classic base mana and stat tables hold higher up.

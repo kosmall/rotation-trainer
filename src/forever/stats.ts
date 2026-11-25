@@ -94,13 +94,21 @@ export function maxHealthOf(level: number, stamina: number): number {
   return Math.round((BASE.warlock[clampLevel(level)] as BaseRow).hp + healthFromStamina(stamina));
 }
 
+/** Forever base mana minus Classic base mana: +31 at level 1 (measured), 0 at level 31 (measured), linear between, 0 above. */
+export function manaBaseOffset(level: number): number {
+  const o = BASE.foreverObserved as unknown as { manaBaseOffset: number; manaBaseOffsetZeroFromLevel: number };
+  if (level <= 1) return o.manaBaseOffset;
+  if (level >= o.manaBaseOffsetZeroFromLevel) return 0;
+  return (o.manaBaseOffset * (o.manaBaseOffsetZeroFromLevel - level)) / (o.manaBaseOffsetZeroFromLevel - 1);
+}
+
 /**
- * Maximum mana: (Classic base mana + the measured Forever offset + Intellect conversion) x racial
+ * Maximum mana: (Classic base mana + the measured Forever offset (31 at level 1, 0 from level 31) + Intellect conversion) x racial
  * multiplier (gnome Expansive Mind +5% maximum mana). Verified at level 1: human Intellect 22 -> 140,
  * gnome Intellect 25 -> 194.
  */
 export function maxManaOf(level: number, intellect: number, racialMult = 1): number {
-  const base = (BASE.warlock[clampLevel(level)] as BaseRow).mana + BASE.foreverObserved.manaBaseOffset;
+  const base = (BASE.warlock[clampLevel(level)] as BaseRow).mana + manaBaseOffset(level);
   return Math.round((base + manaFromIntellect(intellect)) * racialMult);
 }
 

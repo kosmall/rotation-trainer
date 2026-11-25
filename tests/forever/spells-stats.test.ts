@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
 import { castMsOf, downrankFactor, getSpell, rankAt } from '../../src/forever/spells';
-import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf, maxHealthOf, maxManaOf } from '../../src/forever/stats';
+import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf, maxHealthOf, maxManaOf, manaBaseOffset } from '../../src/forever/stats';
 
 const sb = getSpell('shadow_bolt');
 const r1 = rankAt('shadow_bolt', 1, 40)!;
@@ -117,11 +117,19 @@ describe('Classic base data and formulas (cmangos)', () => {
     expect(maxManaOf(1, 25, 1.05)).toBe(194);
     expect(maxManaOf(1, 22)).toBe(140);
   });
+  it('level 31 measured in game: gnome Stamina 72 gives 938 health, Intellect 89 gives 1815 mana (no base mana offset)', () => {
+    expect(maxHealthOf(31, 72)).toBe(938);
+    expect(maxManaOf(31, 89, 1.05)).toBe(1815);
+    expect(manaBaseOffset(1)).toBe(31);
+    expect(manaBaseOffset(31)).toBe(0);
+    expect(manaBaseOffset(50)).toBe(0);
+    expect(manaBaseOffset(16)).toBeCloseTo(15.5, 6);
+  });
   it('gnome warlock at level 40: base stats from player_levelstats and warlock base health and mana', () => {
     const s = playerStatsFor(40, 'quest', {});
-    // base HP 634 + stamina (45 + 20 gear); mana (923 + 31 + Intellect (79 + 20)) x 1.05
+    // base HP 634 + stamina (45 + 20 gear); mana (923 + Intellect (79 + 20)) x 1.05 (no Forever offset above level 31)
     expect(s.maxHp).toBe(Math.round(634 + 20 + 10 * (65 - 20)));
-    expect(s.maxMana).toBe(Math.round((923 + 31 + 20 + 15 * (99 - 20)) * 1.05));
+    expect(s.maxMana).toBe(Math.round((923 + 20 + 15 * (99 - 20)) * 1.05));
     expect(s.spirit).toBe(75 + 10);
   });
   it('Demonic Embrace raises health through Stamina, Fel Vitality raises mana', () => {
