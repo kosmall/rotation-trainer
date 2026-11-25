@@ -89,7 +89,7 @@
 **Interfaces:**
 - Produces: `spellAt(id: string, rank: number|'max', level: number): SpellRank`; `downrankFactor(model: DownrankModel, spellLevel: number, casterLevel: number): number` (`none` = 1; `classic` = `min(1, 1 - (20 - spellLevel) * 0.0375)` for `spellLevel < 20`, else 1; `partial` = midpoint between `none` and `classic`; all `verify`); `effectiveCastMs(spell, ranks)` applies Bane: `castMs - bane_per_rank * rank` (for Shadow Bolt, Immolate, Incinerate), floored at 0.5 s.
 
-- [ ] **Step 1: Write failing tests:** `Shadow Bolt r1 cast 1.7 s with Bane 0` ; `Bane 5/5 default gives 1.2 s... ` is NOT assumed: with `bane_per_rank=0.1` r1 = 1.2? (1.7 - 0.5) = 1.2 only at 0.1/rank is wrong math check: 5 x 0.1 = 0.5 so 1.2 s; with 0.2/rank the cast hits the 0.5 s floor path, assert `max(0.5, 0.7)`; `r2 5/5 default = 1.7 s`; `downrankFactor('none') === 1`; `classic < 1 at spellLevel 1`; `partial` strictly between.
+- [ ] **Step 1: Write failing tests:** `Shadow Bolt r1 cast is 1.7 s with Bane 0`; `Bane 5/5 at bane_per_rank 0.1 gives r1 = 1.2 s`; `Bane 5/5 at bane_per_rank 0.2 gives r1 = 0.7 s`; `Bane 5/5 r2 = 1.7 s at 0.1/rank`; `cast never drops below the 0.5 s floor`; `downrankFactor('none') === 1`; `classic < 1 at spellLevel 1`; `partial` strictly between the two.
 - [ ] **Step 2:** Run; FAIL. **Step 3:** Implement; add ranks 3+ of Shadow Bolt, Corruption, Agony, Immolate, Drain Soul, Drain Life, Siphon Life, Searing Pain, Wrack, Life Tap, all `verify: true` from memory of game data with source "Classic data, unconfirmed". **Step 4:** PASS. **Step 5:** Commit `feat(forever): spell ranks, downrank penalty model and Bane`.
 
 ### Task 5: Stats, GCD, mana and Life Tap
