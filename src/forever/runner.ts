@@ -94,6 +94,7 @@ export interface SessionResult {
   ttkPerMob: number[];
   threatSwitches: number;
   timeouts: number;
+  eurekaUses: number;
 }
 
 export function killsPerHour(kills: number, totalSec: number): number {
@@ -109,13 +110,17 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   const out: SessionResult = {
     seed, totalSec: 0, kills: 0, pulls: 0, pullSec: 0, restSec: 0, drinkSec: 0, eatSec: 0, lifeTapSec: 0, transitionSec: 0, resummonSec: 0, deathSec: 0, breaks: 0,
     pullsWithoutBreak: 0, deaths: 0, petDeaths: 0, manaSpent: 0, manaFromLifeTap: 0, damageTaken: 0, healed: 0, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, ttkPerMob: [],
-    threatSwitches: 0, timeouts: 0,
+    threatSwitches: 0, timeouts: 0, eurekaUses: 0,
   };
   let mana = stats.maxMana * params.rest_to_mana_pct;
   let hp = stats.maxHp * params.rest_to_hp_pct;
   const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks };
   const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
   let shCarryMs = 0;
+  // Gnome Eureka!: cooldown and buff left, as they were when the last pull ended; the time since then is taken off at the next pull.
+  let eurekaCdMs = 0;
+  let eurekaBuffMs = 0;
+  let lastPullEndSec = 0;
   const shBonus = soulHarvest(ranks).bonus;
   const ltGain = ltRank ? lifeTapGain(ltRank.base ?? 0, stats.spirit, ranks, params) : 0;
   for (let i = 0; i < params.session_pulls; i++) {
@@ -146,11 +151,19 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       out.breaks++;
       out.totalSec += plan.restSec;
     } else out.pullsWithoutBreak++;
-    const r = simulatePull({ ...pull, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs }, seed * 100003 + i);
+    const gapMs = (out.totalSec - lastPullEndSec) * 1000;
+    const r = simulatePull(
+      { ...pull, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
+      seed * 100003 + i,
+    );
+    out.eurekaUses += r.eurekaUses;
+    eurekaCdMs = r.eurekaCdLeftMs;
+    eurekaBuffMs = r.eurekaBuffLeftMs;
     out.pulls++;
     out.kills += r.mobsKilled;
     out.pullSec += r.pullSec;
     out.totalSec += r.pullSec;
+    lastPullEndSec = out.totalSec;
     out.manaSpent += r.manaSpent;
     out.manaFromLifeTap += r.manaFromLifeTap;
     out.lifeTapSec += (r.lifeTapCount * gcd) / 1000;
@@ -217,6 +230,7 @@ export interface CellMetrics {
   petDeathsPerHour: number;
   threatSwitchesPerKill: number;
   timeoutPct: number;
+  eurekaPerHour: number;
 }
 
 const mean = (xs: readonly number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -258,6 +272,7 @@ export function aggregate(cfg: CellConfig, sessions: readonly SessionResult[]): 
     petDeathsPerHour: total > 0 ? (3600 * sum((s) => s.petDeaths)) / total : 0,
     threatSwitchesPerKill: perKill(sum((s) => s.threatSwitches)),
     timeoutPct: pulls > 0 ? (100 * sum((s) => s.timeouts)) / pulls : 0,
+    eurekaPerHour: total > 0 ? (3600 * sum((s) => s.eurekaUses)) / total : 0,
   };
 }
 

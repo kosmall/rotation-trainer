@@ -193,3 +193,23 @@ drink behaviour in Forever as opposed to Classic; pet base health in Forever; sp
   (Forever) against 37 and 64 (Classic). Not applied (Spirit and other levels not measured; a difference
   of a few points, about 2% of mana).
 - Open: a measurement at level 50-60 would confirm that the Classic base mana and stat tables hold higher up.
+
+## 10. Eureka! (gnome racial, 26 Nov 2026)
+
+Source: Wowhead Forever spell 1259821, read in the browser (the plain page request is blocked), with its
+"Modifies" list (89 rows). Instant, off the GCD, 2 min cooldown, 8 s, level 1.
+
+- Effect 1: -10% mana cost. Effect 2: +10% damage of non-periodic abilities. Effect 3: +10% periodic damage,
+  but only for Drain Life, Drain Soul, Wrack and Haunt.
+- Spells it modifies: Immolate (cost and the direct part only), Shadow Bolt, Drain Life, Drain Soul,
+  Hellfire, Searing Pain, Rain of Fire, Soul Fire, Death Coil, Conflagrate, Shadowburn, Wrack, Haunt.
+  **Not** modified: Corruption, Bane of Agony, Siphon Life, Life Tap, curses, the damage over time of Immolate.
+- Model: `eureka_policy` (default `off`, so earlier results do not change), `eureka_dur_sec`, `eureka_cd_sec`,
+  `eureka_mod`. Assumption (verify): a channel tick inside the 8 s gets the bonus (not a snapshot at the start of the channel).
+- Timing comparison (3000 paired pulls per cell, levels 25/35/45/55, BEST_1MOB, 1 mob; seconds off the pull,
+  standard error about 0.01 s): using it with the **first cast of a modified spell** (`first_affected`) is best or
+  tied for best in every rotation: Drain Life 0.35-0.42 s, Wrack 0.42-0.54 s, Demonology (Shadow Bolt)
+  0.02-0.44 s, Fire (Searing Pain) 0.21-0.51 s, plus 8-105 mana. Using it with the first cast of the pull
+  (`pull_start`) gives about half (it opens with Corruption and Bane, which it does not modify); keeping it for
+  the end of the fight (`ttk`) or using it 9+ s in loses a third to nine tenths of the gain. Over a whole session
+  the gain is 0.3-1 kills per hour (under 1%): it is a small bonus, one use per about five pulls.

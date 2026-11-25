@@ -289,5 +289,34 @@
     "value": false,
     "verify": true,
     "source": "Whether the Spirit regeneration adds to a drink's tooltip rate is unknown (Forever drink tooltips were fixed to show total mana regeneration on 16 Oct). False = only the tooltip rate."
+  },
+  "eureka_policy": {
+    "value": "off",
+    "options": [
+      "off",
+      "pull_start",
+      "first_affected",
+      "filler",
+      "delay",
+      "ttk"
+    ],
+    "source": "When the gnome uses Eureka!. off = never (default, so earlier results stay the same); pull_start = with the first cast of the pull; first_affected = with the first affected spell; filler = when the filler starts (after the DoTs); delay = first affected spell at or after eureka_delay_sec; ttk = when the estimated time to kill drops under the buff duration. Wowhead Forever spell 1259821 (Eureka!, gnome racial, level 1): instant, off the global cooldown, 2 min cooldown, 8 s. Effect 1: -10% mana cost; effect 2: +10% damage of non-periodic abilities; effect 3: +10% periodic damage of Drain Life, Drain Soul, Wrack and Haunt only. Affected spells (Wowhead 'Modifies' list, 89 rows): Immolate, Shadow Bolt, Drain Life, Drain Soul, Hellfire, Searing Pain, Rain of Fire, Soul Fire, Death Coil, Conflagrate, Shadowburn, Wrack, Haunt. NOT affected: Corruption, Bane of Agony, Siphon Life, Life Tap, curses, and the damage over time of Immolate."
+  },
+  "eureka_delay_sec": {
+    "value": 8,
+    "source": "Seconds into the pull for the 'delay' policy."
+  },
+  "eureka_cd_sec": {
+    "value": 120,
+    "source": "Wowhead Forever spell 1259821 (Eureka!, gnome racial, level 1): instant, off the global cooldown, 2 min cooldown, 8 s. Effect 1: -10% mana cost; effect 2: +10% damage of non-periodic abilities; effect 3: +10% periodic damage of Drain Life, Drain Soul, Wrack and Haunt only. Affected spells (Wowhead 'Modifies' list, 89 rows): Immolate, Shadow Bolt, Drain Life, Drain Soul, Hellfire, Searing Pain, Rain of Fire, Soul Fire, Death Coil, Conflagrate, Shadowburn, Wrack, Haunt. NOT affected: Corruption, Bane of Agony, Siphon Life, Life Tap, curses, and the damage over time of Immolate."
+  },
+  "eureka_dur_sec": {
+    "value": 8,
+    "source": "Wowhead Forever spell 1259821 (Eureka!, gnome racial, level 1): instant, off the global cooldown, 2 min cooldown, 8 s. Effect 1: -10% mana cost; effect 2: +10% damage of non-periodic abilities; effect 3: +10% periodic damage of Drain Life, Drain Soul, Wrack and Haunt only. Affected spells (Wowhead 'Modifies' list, 89 rows): Immolate, Shadow Bolt, Drain Life, Drain Soul, Hellfire, Searing Pain, Rain of Fire, Soul Fire, Death Coil, Conflagrate, Shadowburn, Wrack, Haunt. NOT affected: Corruption, Bane of Agony, Siphon Life, Life Tap, curses, and the damage over time of Immolate."
+  },
+  "eureka_mod": {
+    "value": 0.1,
+    "verify": true,
+    "source": "Wowhead Forever spell 1259821 (Eureka!, gnome racial, level 1): instant, off the global cooldown, 2 min cooldown, 8 s. Effect 1: -10% mana cost; effect 2: +10% damage of non-periodic abilities; effect 3: +10% periodic damage of Drain Life, Drain Soul, Wrack and Haunt only. Affected spells (Wowhead 'Modifies' list, 89 rows): Immolate, Shadow Bolt, Drain Life, Drain Soul, Hellfire, Searing Pain, Rain of Fire, Soul Fire, Death Coil, Conflagrate, Shadowburn, Wrack, Haunt. NOT affected: Corruption, Bane of Agony, Siphon Life, Life Tap, curses, and the damage over time of Immolate. Assumption: periodic damage is re-evaluated on every tick of a channel (a tick inside the 8 s gets the bonus); the buff is checked when a cast completes (direct damage) or starts (mana cost)."
   }
 }

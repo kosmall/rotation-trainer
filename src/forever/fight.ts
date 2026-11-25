@@ -24,6 +24,9 @@ export interface PullConfig {
   startHp?: number;
   /** Soul Harvest time left from the previous kill (ms), carried into this pull. */
   startSoulHarvestMs?: number;
+  /** Gnome Eureka!: cooldown left (ms) and buff time left (ms) when the pull starts. */
+  startEurekaCdMs?: number;
+  startEurekaBuffMs?: number;
   trace?: boolean;
 }
 
@@ -53,6 +56,10 @@ export interface PullResult {
   soulHarvestProcs: number;
   /** Soul Harvest time still running when the pull ended (ms). */
   soulHarvestLeftMs: number;
+  eurekaUses: number;
+  /** Eureka! cooldown and buff still running when the pull ended (ms). */
+  eurekaCdLeftMs: number;
+  eurekaBuffLeftMs: number;
   nightfallProcs: number;
   brandHits: number;
   threatSwitches: number;
@@ -101,6 +108,10 @@ const DRAINS = new Set(['drain_life', 'drain_soul', 'wrack']);
 const NIGHTFALL_SPELLS = new Set(['corruption', 'drain_soul', 'drain_life', 'wrack']);
 const AFF_SPELLS = new Set(['corruption', 'bane_of_agony', 'siphon_life', 'drain_life', 'drain_soul', 'curse_of_elements', 'wrack']);
 const DESTRO_SPELLS = new Set(['shadow_bolt', 'immolate', 'searing_pain']);
+// Eureka! (Wowhead Forever spell 1259821, 'Modifies' list): the spells of the model it changes.
+const EUREKA_COST = new Set(['shadow_bolt', 'immolate', 'searing_pain', 'drain_life', 'drain_soul', 'wrack']);
+const EUREKA_DIRECT = new Set(['shadow_bolt', 'immolate', 'searing_pain']);
+const EUREKA_PERIODIC = new Set(['drain_life', 'drain_soul', 'wrack']);
 const pv = (pair: unknown, level: number): number => {
   const [slope, add] = pair as [number, number];
   return slope * level + add;
@@ -182,10 +193,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     busyEnd = t;
   };
   let shUntil = cfg.startSoulHarvestMs ?? 0;
+  let eurekaUntil = cfg.startEurekaBuffMs ?? 0;
+  let eurekaReadyAt = cfg.startEurekaCdMs ?? 0;
+  const eurekaOn = (): boolean => t < eurekaUntil;
   let res: PullResult = {
     pullSec: 0, mobsKilled: 0, mobsInPull: nMobs, killTimesSec: [], manaSpent: 0, manaFromLifeTap: 0, lifeTapCount: 0, lifeTapHpSpent: 0, damageTaken: 0, healed: 0,
     startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, playerDied: false, timedOut: false,
-    soulHarvestProcs: 0, soulHarvestLeftMs: 0, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
+    soulHarvestProcs: 0, soulHarvestLeftMs: 0, eurekaUses: 0, eurekaCdLeftMs: 0, eurekaBuffLeftMs: 0, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
   };
 
   const firstAlive = (): Mob | undefined => mobs.find((m) => m.alive);
@@ -332,6 +346,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const tickDamage = (m: Mob, spellId: string, school: 'shadow' | 'fire', base: number, drain: boolean): number => {
     let d = base * (school === 'shadow' ? mults().shadow : mults().fire) * targetMult(m, school);
     if (drain && DRAINS.has(spellId)) d *= soulSiphon(m);
+    if (EUREKA_PERIODIC.has(spellId) && eurekaOn()) d *= 1 + params.eureka_mod;
     const crit = rng.next() * 100 < critPct(spellId);
     if (crit) d *= critMult(spellId, true);
     log(t, `tick ${spellId} ${Math.round(d)}${crit ? ' CRIT' : ''}`);
@@ -357,6 +372,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const manaCost = (spellId: string, r: SpellRank): number => {
     let c = r.mana;
     if (DESTRO_SPELLS.has(spellId)) c *= 1 - effectNum('cataclysm', 'destroManaCostReduceAtMax') * (rk(ranks, 'cataclysm') / 3);
+    if (EUREKA_COST.has(spellId) && eurekaOn()) c *= 1 - params.eureka_mod;
     return Math.round(c);
   };
 
@@ -394,6 +410,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (missed) return;
     if (spell.kind === 'direct' || spell.kind === 'direct+dot') {
       let d = directBase(spellId, r) * (spell.school === 'shadow' ? mults().shadow : mults().fire) * targetMult(m, spell.school);
+      if (EUREKA_DIRECT.has(spellId) && eurekaOn()) d *= 1 + params.eureka_mod;
       const crit = rng.next() * 100 < critPct(spellId);
       if (crit) d *= critMult(spellId, false);
       if (spellId === 'shadow_bolt' && crit && rk(ranks, 'improved_shadow_bolt') > 0) {
@@ -540,11 +557,30 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return true;
   };
 
+  /** Gnome Eureka!: instant, off the GCD; used by the policy when the cast about to start suits it. */
+  const useEureka = (c: Candidate, m: Mob): void => {
+    const pol = params.eureka_policy;
+    if (pol === 'off' || t < eurekaReadyAt || eurekaOn()) return;
+    const affected = EUREKA_COST.has(c.spellId);
+    let ok = false;
+    if (pol === 'pull_start') ok = true;
+    else if (pol === 'first_affected') ok = affected;
+    else if (pol === 'filler') ok = c.spellId === fillerRank().id;
+    else if (pol === 'delay') ok = affected && t >= params.eureka_delay_sec * 1000;
+    else if (pol === 'ttk') ok = affected && m.hp / Math.max(1, dpsEstimate) <= params.eureka_dur_sec;
+    if (!ok) return;
+    eurekaUntil = t + params.eureka_dur_sec * 1000;
+    eurekaReadyAt = t + params.eureka_cd_sec * 1000;
+    res.eurekaUses++;
+    log(t, 'Eureka!');
+  };
+
   const decide = (): void => {
     const m = firstAlive();
     if (!m) return;
     if (known('life_tap') && lifeTapWanted(mana, maxMana, hp, maxHp, params, false) && lifeTap(params.lt_safety_hp_pct)) return;
     for (const c of rotation(makeCtx(m))) {
+      useEureka(c, m);
       if (startCast(c, m)) return;
     }
     // Emergency: nothing is affordable, so Life Tap down to the safety floor even below the usual HP rule (otherwise the warlock idles).
@@ -744,6 +780,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
 
   cutBusy();
   res.soulHarvestLeftMs = Math.max(0, shUntil - t);
+  res.eurekaCdLeftMs = Math.max(0, eurekaReadyAt - t);
+  res.eurekaBuffLeftMs = Math.max(0, eurekaUntil - t);
   res.pullSec = t / 1000;
   res.endMana = mana;
   res.endHp = Math.max(0, hp);

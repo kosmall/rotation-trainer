@@ -7,7 +7,7 @@ import { loadParams } from '../data/load';
 import { duelLevel, pairedDiff, type DuelResult, type MetricDiff } from '../duel';
 import { runCell, type CellMetrics } from '../runner';
 import { PROFILE_IDS } from '../stats';
-import type { Params } from '../types';
+import type { EurekaPolicy, Params } from '../types';
 
 export { customId };
 export const MIN_LEVEL = 10;
@@ -41,11 +41,22 @@ export interface Settings {
   policy: string;
   /** Major Spellstone on the weapon: +2% spell haste, +21 Shadow spell power ("up to 21": the value is unverified). */
   spellstone: boolean;
+  /** Gnome racial Eureka!: when it is used (`off` = never). */
+  eureka: EurekaPolicy;
   sessions: number;
   seed: number;
 }
 
-export const DEFAULT_SETTINGS: Settings = { level: 50, profile: 'average', mobs: 1, policy: 'BEST_1MOB', spellstone: false, sessions: 60, seed: 1 };
+export const DEFAULT_SETTINGS: Settings = { level: 50, profile: 'average', mobs: 1, policy: 'BEST_1MOB', spellstone: false, eureka: 'off', sessions: 60, seed: 1 };
+
+/** Eureka! timings offered in the UI (the others of `EurekaPolicy` are for analysis scripts). */
+export const EUREKA_CHOICES: Readonly<Record<string, string>> = {
+  off: 'Nie używaj',
+  pull_start: 'Na starcie pulla',
+  first_affected: 'Przy pierwszym czarze, który modyfikuje (zalecane)',
+  filler: 'Gdy zaczyna się filler (po DoT-ach)',
+  ttk: 'Na końcu walki (okno kończy się przy zabiciu)',
+};
 
 /** Clamps and validates settings from the UI. */
 export function normalizeSettings(s: Partial<Settings>): Settings {
@@ -57,6 +68,7 @@ export function normalizeSettings(s: Partial<Settings>): Settings {
     mobs: s.mobs === 2 ? 2 : 1,
     policy: s.policy !== undefined && s.policy in POLICIES ? s.policy : d.policy,
     spellstone: s.spellstone === true,
+    eureka: s.eureka !== undefined && s.eureka in EUREKA_CHOICES ? s.eureka : d.eureka,
     sessions: Math.min(500, Math.max(5, Math.round(num(s.sessions, d.sessions)))),
     seed: Math.round(num(s.seed, d.seed)),
   };
@@ -66,7 +78,7 @@ export const SPELLSTONE_PARAMS: Partial<Params> = { haste_pct: 2, shadow_spell_p
 
 /** Parameter overrides of the settings: the Life Tap policy and the Spellstone. */
 export function overridesOf(s: Settings): Partial<Params> {
-  return { ...(POLICIES[s.policy]?.params ?? {}), ...(s.spellstone ? SPELLSTONE_PARAMS : {}) };
+  return { ...(POLICIES[s.policy]?.params ?? {}), ...(s.spellstone ? SPELLSTONE_PARAMS : {}), eureka_policy: s.eureka };
 }
 
 function paramsOf(s: Settings): Params {

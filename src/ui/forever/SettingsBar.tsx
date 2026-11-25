@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, MAX_LEVEL, MIN_LEVEL, POLICIES, POLICY_IDS, type Settings } from '../../forever/web/api';
+import { DEFAULT_SETTINGS, EUREKA_CHOICES, MAX_LEVEL, MIN_LEVEL, POLICIES, POLICY_IDS, type Settings } from '../../forever/web/api';
 import { PROFILE_IDS } from '../../forever/stats';
 import type { ForeverRun } from './useForeverRun';
 
@@ -69,6 +69,16 @@ export function SettingsBar({ settings, onChange, run, onRun, runLabel = 'Urucho
           <label>
             <span>Major Spellstone (+2% haste, +21 obr. Shadow)</span>
             <input type="checkbox" checked={settings.spellstone} onChange={(e) => set({ spellstone: e.target.checked })} />
+          </label>
+          <label>
+            Gnomi racial Eureka! (-10% many, +10% obrażeń)
+            <select value={settings.eureka} onChange={(e) => set({ eureka: e.target.value as Settings['eureka'] })}>
+              {Object.entries(EUREKA_CHOICES).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Sesje

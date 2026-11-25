@@ -74,7 +74,17 @@ export interface Params {
   session_pulls: number;
   drain_dmg_mult: number;
   pet_dmg_mult: number;
+  /** Gnome racial Eureka!: when the warlock uses it (off = never). */
+  eureka_policy: EurekaPolicy;
+  /** `delay` policy: seconds into the pull before Eureka! is used. */
+  eureka_delay_sec: number;
+  eureka_cd_sec: number;
+  eureka_dur_sec: number;
+  /** Mana cost reduction and damage increase of the affected spells while Eureka! is up (0.1 = 10%). */
+  eureka_mod: number;
 }
+
+export type EurekaPolicy = 'off' | 'pull_start' | 'first_affected' | 'filler' | 'delay' | 'ttk';
 
 export type PetKind = 'imp' | 'voidwalker' | 'succubus' | 'felhunter';
 export type Tree = 'aff' | 'demo' | 'destro';
