@@ -67,6 +67,10 @@ export function SettingsBar({ settings, onChange, run, onRun, runLabel = 'Urucho
             </select>
           </label>
           <label>
+            <span>Major Spellstone (+2% haste, +21 obr. Shadow)</span>
+            <input type="checkbox" checked={settings.spellstone} onChange={(e) => set({ spellstone: e.target.checked })} />
+          </label>
+          <label>
             Sesje
             <input type="number" min={5} max={500} value={settings.sessions} onChange={(e) => set({ sessions: Number(e.target.value) })} />
           </label>

@@ -31,6 +31,10 @@
     "value": 0,
     "source": "Spell haste percent; 0 in all default profiles."
   },
+  "shadow_spell_power_bonus": {
+    "value": 0,
+    "source": "Extra spell power for Shadow spells; 0 by default, 21 with the Major Spellstone option (the stone text says 'up to 21')."
+  },
   "cast_floor_ms": {
     "value": 500,
     "verify": true,

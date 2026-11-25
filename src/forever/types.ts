@@ -18,6 +18,8 @@ export interface Params {
   gcd_ms: number;
   min_gcd_ms: number;
   haste_pct: number;
+  /** Extra spell power for Shadow spells only (Major Spellstone: +21). */
+  shadow_spell_power_bonus: number;
   cast_floor_ms: number;
   mobs_per_pull: 1 | 2 | 3;
   skip_agony_if_ttk_below: number;

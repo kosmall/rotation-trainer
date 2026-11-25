@@ -3,7 +3,7 @@ import { VARIANT_IDS } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { loadVariant } from '../../src/forever/builds';
 import { runCell } from '../../src/forever/runner';
-import { DEFAULT_SETTINGS, normalizeSettings, POLICIES, runJob } from '../../src/forever/web/api';
+import { DEFAULT_SETTINGS, normalizeSettings, overridesOf, POLICIES, runJob } from '../../src/forever/web/api';
 import { runOnMainThread } from '../../src/forever/web/client';
 
 const S = { ...DEFAULT_SETTINGS, level: 45, sessions: 8 };
@@ -46,5 +46,25 @@ describe('forever web api', () => {
     const c = new AbortController();
     c.abort();
     await expect(runOnMainThread(req, { signal: c.signal })).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
+describe('Major Spellstone option', () => {
+  it('is off by default and normalizes to a boolean', () => {
+    expect(DEFAULT_SETTINGS.spellstone).toBe(false);
+    expect(normalizeSettings({ spellstone: true }).spellstone).toBe(true);
+    expect(normalizeSettings({ spellstone: 'yes' as unknown as boolean }).spellstone).toBe(false);
+  });
+  it('adds haste and Shadow spell power, and changes the results', () => {
+    expect(overridesOf({ ...DEFAULT_SETTINGS, spellstone: true })).toMatchObject({ haste_pct: 2, shadow_spell_power_bonus: 21 });
+    expect(overridesOf(DEFAULT_SETTINGS)).not.toHaveProperty('haste_pct');
+    const kph = (spellstone: boolean) => {
+      const r = runJob({ kind: 'ranking', settings: { ...DEFAULT_SETTINGS, level: 50, sessions: 40, spellstone } });
+      if (r.kind !== 'ranking') throw new Error('kind');
+      return new Map(r.rows.map((x) => [x.metrics.variant, x.metrics.killsPerHour]));
+    };
+    const off = kph(false);
+    const on = kph(true);
+    for (const [id, v] of off) expect(on.get(id) as number).toBeGreaterThan(v);
   });
 });
