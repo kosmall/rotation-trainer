@@ -126,8 +126,13 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   let mana = stats.maxMana * params.rest_to_mana_pct;
   let hp = stats.maxHp * params.rest_to_hp_pct;
   const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks };
+  let manaUsedSum = 0;
+  let hpUsedSum = 0;
   for (let i = 0; i < params.session_pulls; i++) {
-    if (mana < stats.maxMana * params.pull_min_mana_pct || hp < stats.maxHp * params.pull_min_hp_pct) {
+    const seen = out.pulls;
+    const manaReserve = seen > 0 ? Math.max(0.15 * stats.maxMana, params.pull_reserve_factor * (manaUsedSum / seen)) : params.pull_min_mana_pct * stats.maxMana;
+    const hpReserve = seen > 0 ? Math.max(0.3 * stats.maxHp, 2 * (hpUsedSum / seen)) : params.pull_min_hp_pct * stats.maxHp;
+    if (mana < manaReserve || hp < hpReserve) {
       const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + stats.spirit * params.spirit_regen_per_spirit, foodPerSec: stats.foodHpPerSec, gcdMs: gcd, lifeTapBase: ltRank?.base ?? null, spirit: stats.spirit, ranks, params });
       mana = plan.mana;
       hp = plan.hp;
@@ -153,6 +158,8 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     out.threatSwitches += r.threatSwitches;
     if (r.timedOut) out.timeouts++;
     if (r.mobsKilled > 0) out.ttkPerMob.push(r.pullSec / r.mobsKilled);
+    manaUsedSum += Math.max(0, r.startMana - r.endMana);
+    hpUsedSum += Math.max(0, r.startHp - r.endHp);
     mana = r.endMana;
     hp = r.endHp;
     if (r.playerDied) {

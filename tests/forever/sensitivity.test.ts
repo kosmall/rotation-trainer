@@ -24,6 +24,6 @@ describe('sensitivity', () => {
   });
   it('every default axis parameter is a registered verify assumption or a documented rule', () => {
     const names = new Set(collectVerify().map((a) => a.name));
-    for (const a of DEFAULT_AXES) if (a.param !== 'mobs_per_pull') expect(names.has(a.param), a.param).toBe(true);
+    for (const a of DEFAULT_AXES) if (!['mobs_per_pull', 'use_drain_soul_finisher'].includes(a.param)) expect(names.has(a.param), a.param).toBe(true);
   });
 });

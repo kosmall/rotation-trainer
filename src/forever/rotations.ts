@@ -42,7 +42,7 @@ function skipLongDots(ctx: RotationCtx): boolean {
 }
 
 function drainSoulFinisher(ctx: RotationCtx): Candidate[] {
-  if (!ctx.known('drain_soul') || ctx.talentRank('soul_harvest') === 0) return [];
+  if (!ctx.params.use_drain_soul_finisher || !ctx.known('drain_soul') || ctx.talentRank('soul_harvest') === 0) return [];
   // The kill should land inside the channel: DoTs and pet are already killing the target within the window.
   const kill = ctx.drainSoulKillSec();
   if (kill <= ctx.params.drain_soul_window_sec && kill >= 1.0) return [{ spellId: 'drain_soul', rankWant: 'max' }];

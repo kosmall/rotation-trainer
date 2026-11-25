@@ -40,6 +40,7 @@ export interface Params {
   base_crit_mult: number;
   life_tap_spirit_coeff: number;
   drain_soul_window_sec: number;
+  use_drain_soul_finisher: boolean;
   agony_ramp: 'classic_thirds' | 'flat';
   life_tap_mana_per_health: number;
   searing_pain_threat_mult: number;
@@ -63,6 +64,7 @@ export interface Params {
   fire_filler: 'searing_pain' | 'shadow_bolt_r1';
   pull_min_mana_pct: number;
   pull_min_hp_pct: number;
+  pull_reserve_factor: number;
   session_pulls: number;
   drain_dmg_mult: number;
   pet_dmg_mult: number;
