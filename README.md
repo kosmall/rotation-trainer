@@ -66,6 +66,20 @@ npm run forever:lifetap -- --mobs 1   # strategie Life Tapa (albo --mobs 2)
 npm run forever:report
 ```
 
+**Equivalency Points (EP):** `forever:ep` liczy, ile punktów spell power jest wartych jeden punkt innej staty
+(Intellect, Spirit, Stamina, crit %, hit %) dla wybranego buildu i levelu; miarą są zabicia na godzinę. Metoda: te same
+ziarna z daną statą podniesioną i obniżoną (domyślnie +/-40, dla crit i hit +/-3 punkty %; `--delta stat=wartość`
+zmienia krok), iloraz zysku względem spell power i przedział 95% z bootstrapu po sesjach. Pod listą wag raport pokazuje,
+które staty różnią się istotnie między buildami (przedział różnicy nie obejmuje 0). Profile sprzętu to nadal
+placeholdery, więc wagi są orientacyjne; waga hit dotyczy tylko zakresu poniżej limitu trafienia (przy limicie wynosi 0).
+Gwiazdka przy wadze oznacza, że krok w dół i w górę dają różne nachylenia (zależność nie jest liniowa).
+
+```bash
+npm run forever:ep -- --build AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 100 --seed 1
+npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out reports/forever_ep.md   # porównanie buildów
+npm run forever:ep -- --all --levels 50                                                            # wszystkie buildy
+```
+
 Jak to liczy: build to **kolejność 51 punktów** (level 10 = punkt 1); na levelu L ma pierwsze `L - 9`
 punktów (opcjonalny perk `talented_legacy_perk` dodaje punkty, `respec_level` przełącza buildy DEMO z
 `pre_respec_build`). **Level jest parametrem symulacji.** Sesja to kilka pulli pod rząd (mana i HP

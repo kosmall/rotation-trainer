@@ -21,6 +21,7 @@
     "addon:export": "tsx scripts/addon-export.ts",
     "addon:vectors": "tsx scripts/addon-vectors.ts",
     "forever:duel": "tsx scripts/forever-duel.ts",
+    "forever:ep": "tsx scripts/forever-ep.ts",
     "forever:build": "tsx scripts/forever-build.ts",
     "forever:verify": "tsx scripts/forever-verify.ts",
     "forever:sensitivity": "tsx scripts/forever-sensitivity.ts",
