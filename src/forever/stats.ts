@@ -1,5 +1,6 @@
 import baseJson from './data/classic_base.json';
 import levelsJson from './data/levels.json';
+import type { PetRule } from './builds';
 import type { Params, PetKind } from './types';
 import type { Ranks } from './talents';
 
@@ -191,8 +192,13 @@ export const demonLearned = (kind: PetKind, level: number): boolean => level >= 
  * The demons a build really has at a level: its own, or until that one is learned the Voidwalker (the Imp before
  * level 10), as a player would. A demon the build sacrifices must be learned too, otherwise nothing is sacrificed.
  */
-export function demonsAt(build: { pet: PetKind | null; sacrificed: PetKind | null }, level: number): { pet: PetKind | null; sacrificed: PetKind | null } {
-  let pet = build.pet;
+export function demonsAt(
+  build: { pet: PetKind | null; sacrificed: PetKind | null; pet_rules?: readonly PetRule[] },
+  level: number,
+  mobs = 1,
+): { pet: PetKind | null; sacrificed: PetKind | null } {
+  const rule = build.pet_rules?.find((r) => level >= (r.fromLevel ?? 1) && level <= (r.toLevel ?? 60) && mobs >= (r.minMobs ?? 1) && mobs <= (r.maxMobs ?? 99));
+  let pet = rule ? rule.pet : build.pet;
   if (pet !== null && !demonLearned(pet, level)) pet = demonLearned('voidwalker', level) ? 'voidwalker' : 'imp';
   const sacrificed = build.sacrificed !== null && demonLearned(build.sacrificed, level) ? build.sacrificed : null;
   return { pet, sacrificed };

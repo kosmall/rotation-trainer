@@ -55,7 +55,7 @@ describe('custom build tab', () => {
     fireEvent.click(screen.getByRole('button', { name: /Sprawdź na levelu/ }));
     const table = await screen.findByRole('table', { name: 'Ranking buildów' });
     await waitFor(() => expect(within(table).getByText('★ Własny build')).toBeTruthy());
-    expect(table.querySelectorAll('tbody tr')).toHaveLength(14);
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(17);
     expect(table.querySelector('.fv-mine')).toBeTruthy();
   });
 

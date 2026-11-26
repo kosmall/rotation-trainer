@@ -30,7 +30,7 @@ describe('ForeverApp', () => {
     fireEvent.change(screen.getByLabelText('Level postaci (liczba)'), { target: { value: '45' } });
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
     const table = await screen.findByRole('table', { name: 'Ranking buildów' });
-    expect(table.querySelectorAll('tbody tr')).toHaveLength(13);
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(16);
     expect(screen.getByText(/Level 45/)).toBeTruthy();
     expect(screen.getByText('najlepszy')).toBeTruthy();
   });
@@ -121,6 +121,13 @@ describe('ForeverApp', () => {
     render(<ForeverApp view="builds" runner={runner} />);
     fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'DEMO_PACT_R1' } });
     expect(screen.getByText('Succubus, poświęcony: Imp; na levelu 10 jeszcze niedostępny, walczy Voidwalker')).toBeTruthy();
+  });
+
+  it('names the demon a pet rule picks for the pull size', () => {
+    window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ level: 30, mobs: 2 }));
+    render(<ForeverApp view="builds" runner={runner} />);
+    fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'DEMO_PACT_R1_PET' } });
+    expect(screen.getByText(/zamiast niego: Voidwalker przy 3\+ mobach, Voidwalker do levelu 39 przy 2 mobach; na levelu 30 przy 2 mobach, walczy Voidwalker/)).toBeTruthy();
   });
 
   it('lists builds, rotations and assumptions', () => {

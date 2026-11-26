@@ -27,7 +27,6 @@
     "forever:optimize": "tsx scripts/forever-optimize.ts",
     "forever:report": "tsx scripts/forever-report.ts",
     "forever:lifetap": "tsx scripts/forever-lifetap.ts",
-    "forever:scenarios": "tsx scripts/forever-scenarios.ts",
     "forever:wrack-study": "tsx scripts/forever-wrack-study.ts",
     "forever:wrack-thresholds": "tsx scripts/forever-wrack-thresholds.ts"
   },

@@ -18,7 +18,7 @@ const arg = (name: string, fallback: string): string => {
 const ADDON_TESTS = 'C:/Program Files (x86)/World of Warcraft/_forever_/Interface/AddOns/LifeTapAdvisor/tests';
 const out = arg('out', existsSync(ADDON_TESTS) ? join(ADDON_TESTS, 'vectors.lua') : 'addon-out/vectors.lua');
 
-const BUILDS = ['DT_SS', 'DT_SS_WRACK_70', 'DT_SS_WRACK_50', 'AFF_WRACK', 'DEMO_PACT_R1', 'DEMO_FIRE', 'CWF_DESTRO_IMP', 'TF_DEMO_FEL'];
+const BUILDS = ['DT_SS', 'DT_SS_WRACK_70', 'DT_SS_WRACK_50', 'AFF_WRACK', 'DEMO_PACT_R1', 'DEMO_FIRE', 'AFF_WRACK_SH_PET', 'DEMO_PACT_R1_PET'];
 const LEVELS = [14, 36, 45, 58];
 const POLICY_LIST: EurekaPolicy[] = ['first_affected', 'filler', 'ttk', 'pull_start', 'delay'];
 const SPELLS = ['shadow_bolt', 'corruption', 'bane_of_agony', 'immolate', 'searing_pain', 'drain_life', 'drain_soul', 'siphon_life', 'wrack', 'curse_of_elements', 'eureka'];

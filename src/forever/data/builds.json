@@ -518,6 +518,92 @@
     "demonic_embrace",
     3
    ]
+  ],
+  "AFF_WRACK_SH": [
+   [
+    "improved_corruption",
+    5
+   ],
+   [
+    "soul_harvest",
+    2
+   ],
+   [
+    "improved_drains",
+    3
+   ],
+   [
+    "amplify_curse",
+    1
+   ],
+   [
+    "fel_concentration",
+    3
+   ],
+   [
+    "improved_bane_of_agony",
+    1
+   ],
+   [
+    "curse_of_exhaustion",
+    1
+   ],
+   [
+    "nightfall",
+    2
+   ],
+   [
+    "malevolence",
+    2
+   ],
+   [
+    "siphon_life",
+    1
+   ],
+   [
+    "soul_siphon",
+    3
+   ],
+   [
+    "malevolence",
+    1
+   ],
+   [
+    "shadow_mastery",
+    5
+   ],
+   [
+    "wrack",
+    1
+   ],
+   [
+    "malevolence",
+    2
+   ],
+   [
+    "pandemic",
+    3
+   ],
+   [
+    "improved_bane_of_agony",
+    1
+   ],
+   [
+    "suppression",
+    5
+   ],
+   [
+    "improved_life_tap",
+    2
+   ],
+   [
+    "grim_reach",
+    2
+   ],
+   [
+    "demonic_embrace",
+    5
+   ]
   ]
  },
  "variants": [
@@ -531,6 +617,25 @@
    "rank": "max",
    "pre_respec_build": null,
    "respec_level": 40
+  },
+  {
+   "id": "AFF_WRACK_SH_PET",
+   "order": "AFF_WRACK_SH",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "wrack",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "pet_rules": [
+    {
+     "pet": "succubus",
+     "fromLevel": 20,
+     "toLevel": 29,
+     "maxMobs": 1
+    }
+   ]
   },
   {
    "id": "AFF_WRACK_IMMO",
@@ -615,6 +720,26 @@
    "wrack_min_hp_pct": 0.5
   },
   {
+   "id": "DT_SS_WRACK_50_PET",
+   "order": "DT_SS_WRACK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "wrack",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "wrack_min_hp_pct": 0.5,
+   "pet_rules": [
+    {
+     "pet": "succubus",
+     "fromLevel": 20,
+     "toLevel": 29,
+     "maxMobs": 1
+    }
+   ]
+  },
+  {
    "id": "DEMO_PACT_R1",
    "order": "DEMO_PACT_BANE2",
    "pet": "succubus",
@@ -624,6 +749,29 @@
    "rank": 1,
    "pre_respec_build": null,
    "respec_level": 40
+  },
+  {
+   "id": "DEMO_PACT_R1_PET",
+   "order": "DEMO_PACT_BANE2",
+   "pet": "succubus",
+   "sacrificed": "imp",
+   "rotation": "demonology",
+   "filler": "shadow_bolt",
+   "rank": 1,
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "pet_rules": [
+    {
+     "pet": "voidwalker",
+     "minMobs": 3
+    },
+    {
+     "pet": "voidwalker",
+     "minMobs": 2,
+     "maxMobs": 2,
+     "toLevel": 39
+    }
+   ]
   },
   {
    "id": "DEMO_PACT_VIDEO",

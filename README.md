@@ -714,6 +714,7 @@ Opcje zaawansowane: profil sprzętu, 1 lub 2 moby na pull, strategia Life Tapa i
 
 Workflow `.github/workflows/pages.yml` buduje aplikację (`npm test`, `npm run build`) i wdraża `dist/` na GitHub Pages przy pushu na `main` albo `claude/amazing-galileo-x0w50c` oraz ręcznie (Actions, Run workflow). Jednorazowo w repo: Settings, Pages, Source: GitHub Actions. Router jest oparty na hashu, więc strona działa pod podścieżką `https://<użytkownik>.github.io/rotation-trainer/`.
 
-### Scenariusze z poradników
+### Wybór peta w buildach
 
-`src/forever/data/scenarios.json` zawiera 17 buildów z publicznych poradników (WoW Handbook, Warcraft Tavern, classicwowforever, talentsforever) z różnymi petami, w tym z Felhunterem. W aplikacji włączasz je w zakładce Symulacja („Scenariusze z poradników”), a z konsoli: `npm run forever:scenarios`. Raport: `reports/forever_scenarios.md`.
+Build może zmieniać demona zależnie od poziomu i liczby mobów (`pet_rules` w `src/forever/data/builds.json`; wygrywa pierwsza pasująca reguła). Buildy `*_PET` wynikają z porównania z poradnikami (26 listopada 2026, 150 sesji, trzy profile ekwipunku): w affliction Succubus na 20-29 przy 1 mobie, w demonology Voidwalker przy 3 mobach i przy 2 mobach do poziomu 39 (na przeciętnym ekwipunku; na questowym opłaca się dłużej, na dobrym krócej, od około 36); `AFF_WRACK_SH_PET` bierze też Soul Harvest zaraz po Improved Corruption (zysk na 15-19).
+

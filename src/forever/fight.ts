@@ -136,7 +136,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const hasPact = rk(ranks, 'demonic_pact') > 0;
   let demons: DemonState = { out: null, sacrificed: null };
   // before the build's own demon is learned another one stands in (a warlock never levels without a demon)
-  const own = demonsAt(variant, level);
+  const own = demonsAt(variant, level, nMobs);
   if (own.sacrificed && rk(ranks, 'demonic_sacrifice') > 0) {
     demons = sacrificeDemon({ out: own.sacrificed, sacrificed: null });
   }

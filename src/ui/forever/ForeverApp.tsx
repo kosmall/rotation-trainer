@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_SETTINGS, normalizeSettings, paramsOf, type DuelOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
 import type { JobRunner } from '../../forever/web/client';
-import { customVariant, SCENARIO_IDS, VARIANT_IDS } from '../../forever/builds';
+import { customVariant, VARIANT_IDS } from '../../forever/builds';
 import { customId, loadCustom, saveCustom, type CustomState } from '../../forever/web/custom';
 import { CustomView } from './CustomView';
 import { FOREVER_VIEWS, FOREVER_VIEW_TITLES, routeHref, type ForeverView } from '../shell/router';
@@ -55,8 +55,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
       }),
     [custom.builds],
   );
-  const [withScenarios, setWithScenarios] = useState(false);
-  const allIds = useMemo(() => [...VARIANT_IDS, ...SCENARIO_IDS, ...customData.map((b) => customId(b.name))], [customData]);
+  const allIds = useMemo(() => [...VARIANT_IDS, ...customData.map((b) => customId(b.name))], [customData]);
   const includedData = customData.filter((b) => custom.included.includes(b.name));
   useEffect(() => {
     try {
@@ -68,7 +67,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
 
   const s = normalizeSettings(settings);
   const simParams = useMemo(() => paramsOf(normalizeSettings(settings)), [settings]);
-  const runRanking = useCallback(() => run.run({ kind: 'ranking', settings: s, custom: includedData, scenarios: withScenarios }), [run, s, includedData, withScenarios]);
+  const runRanking = useCallback(() => run.run({ kind: 'ranking', settings: s, custom: includedData }), [run, s, includedData]);
   const ranking = run.results.ranking as RankingResult | undefined;
   const sweep = run.results.sweep as SweepResult | undefined;
   const duel = run.results.duel as DuelOutcome | undefined;
@@ -84,12 +83,9 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
         ))}
       </nav>
       <SettingsBar settings={s} onChange={setSettings} run={run} onRun={view === 'compare' || view === 'custom' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : view === 'custom' ? 'Uruchom (użyj Sprawdź)' : 'Uruchom symulację'} />
-      {view === 'sim' && (
+      {view === 'sim' && customData.length > 0 && (
         <fieldset className="fv-panel">
-          <legend>Dodatkowe buildy w rankingu</legend>
-          <label className="fv-inline">
-            <input type="checkbox" checked={withScenarios} onChange={(e) => setWithScenarios(e.target.checked)} /> Scenariusze z poradników ({SCENARIO_IDS.length}, w tym z Felhunterem)
-          </label>
+          <legend>Własne buildy w rankingu</legend>
           {customData.map((b) => (
             <label key={b.name} className="fv-inline">
               <input
@@ -103,7 +99,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
         </fieldset>
       )}
       {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => run.run({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
-      {view === 'builds' && <BuildsView level={s.level} ids={allIds} id={buildId} onIdChange={setBuildId} />}
+      {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} />}
       {view === 'rotations' && <RotationsView ids={allIds} params={simParams} />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
       {view === 'custom' && (

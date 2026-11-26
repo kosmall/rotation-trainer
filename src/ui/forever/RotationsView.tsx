@@ -6,7 +6,6 @@ import { TALENT_BY_ID } from '../../forever/talents';
 import type { Params, PetKind } from '../../forever/types';
 import { LoadoutRows, spellName, TITLES, wrackFloor } from './buildFacts';
 import { IconTile } from './IconTile';
-import { ScenarioNote } from './BuildsView';
 
 /** Before the build's own demon is learned another one stands in. */
 function standInNote(pet: PetKind): string {
@@ -98,7 +97,6 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
   return (
     <section className="fv-panel">
       <h2>{TITLES[v.rotation]}</h2>
-      <ScenarioNote id={v.id} />
       <dl className="fv-facts fv-facts-icons">
         <LoadoutRows v={v} params={params} petNote={v.pet ? standInNote(v.pet) : ''} />
       </dl>

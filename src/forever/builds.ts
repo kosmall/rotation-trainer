@@ -1,5 +1,4 @@
 import buildsJson from './data/builds.json';
-import scenariosJson from './data/scenarios.json';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks, type Ranks } from './talents';
 import type { PetKind, Tree } from './types';
 
@@ -15,8 +14,19 @@ export interface BuildVariant {
   immolate?: boolean;
   /** Affliction: Wrack only while the player's health is above this fraction, Drain Life below (overrides the parameter `wrack_min_hp_pct`). */
   wrack_min_hp_pct?: number;
+  /** The demon by level and pull size: the first rule that applies wins over `pet`. */
+  pet_rules?: PetRule[];
   pre_respec_build: string | null;
   respec_level: number;
+}
+
+/** A demon used instead of the build's `pet` between two levels and for some pull sizes (all bounds inclusive, optional). */
+export interface PetRule {
+  pet: PetKind;
+  fromLevel?: number;
+  toLevel?: number;
+  minMobs?: number;
+  maxMobs?: number;
 }
 
 type RawBuilds = {
@@ -36,7 +46,6 @@ export function expandOrder(runs: readonly [string, number][]): string[] {
 }
 
 const CUSTOM_ORDERS = new Map<string, [string, number][]>();
-for (const [id, runs] of Object.entries((scenariosJson as unknown as { orders: Record<string, [string, number][]> }).orders)) CUSTOM_ORDERS.set(id, runs);
 
 /** Registers an inline order (a custom build from a file) under a unique id. */
 export function registerOrder(id: string, runs: [string, number][]): void {
@@ -50,20 +59,6 @@ export function loadOrder(id: string): string[] {
 }
 
 const CUSTOM_VARIANTS = new Map<string, BuildVariant>();
-
-/** Leveling builds taken from public guides (data/scenarios.json), simulated like the built-in ones. */
-export interface Scenario extends BuildVariant {
-  title: string;
-  source: string;
-  note: string;
-}
-export const SCENARIOS: readonly Scenario[] = (scenariosJson as unknown as { scenarios: (Omit<BuildVariant, 'pre_respec_build' | 'respec_level'> & { title: string; source: string; note: string })[] }).scenarios.map((x) => ({
-  ...x,
-  pre_respec_build: null,
-  respec_level: 40,
-}));
-export const SCENARIO_IDS: readonly string[] = SCENARIOS.map((x) => x.id);
-for (const x of SCENARIOS) CUSTOM_VARIANTS.set(x.id, { id: x.id, order: x.order, pet: x.pet, sacrificed: x.sacrificed, rotation: x.rotation, filler: x.filler, rank: x.rank, pre_respec_build: null, respec_level: 40 });
 
 export function loadVariant(id: string): BuildVariant {
   const v = RAW.variants.find((x) => x.id === id) ?? CUSTOM_VARIANTS.get(id);
@@ -190,5 +185,6 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
     pre_respec_build: (obj.pre_respec_build ?? null) as string | null,
     respec_level: Number(obj.respec_level ?? 40),
     ...(typeof obj.wrack_min_hp_pct === 'number' ? { wrack_min_hp_pct: obj.wrack_min_hp_pct } : {}),
+    ...(Array.isArray(obj.pet_rules) ? { pet_rules: obj.pet_rules as PetRule[] } : {}),
   };
 }

@@ -2,7 +2,7 @@
 // `runCell` or one duel level each) plus a function that assembles their outputs. The worker and the
 // main-thread fallback both run the tasks one by one and report progress after each.
 
-import { customId, customVariant, loadVariant, SCENARIO_IDS, VARIANT_IDS, type CustomBuildData } from '../builds';
+import { customId, customVariant, loadVariant, VARIANT_IDS, type CustomBuildData } from '../builds';
 import { loadParams } from '../data/load';
 import { duelLevel, pairedDiff, type DuelResult, type MetricDiff } from '../duel';
 import { runCell, type CellMetrics } from '../runner';
@@ -87,7 +87,7 @@ export function paramsOf(s: Settings): Params {
 
 /** `custom`: the user's builds that the job may use (the worker has no access to the browser storage); ranking and sweep run all of them. */
 export type JobRequest =
-  | { kind: 'ranking'; settings: Settings; custom?: readonly CustomBuildData[]; /** Also rank the guide scenarios (data/scenarios.json). */ scenarios?: boolean }
+  | { kind: 'ranking'; settings: Settings; custom?: readonly CustomBuildData[] }
   | { kind: 'sweep'; settings: Settings; builds: readonly string[]; custom?: readonly CustomBuildData[] }
   | { kind: 'duel'; settings: Settings; a: string; b: string; sweep: boolean; custom?: readonly CustomBuildData[] };
 
@@ -130,7 +130,7 @@ export interface Job {
 const LEVELS = Array.from({ length: MAX_LEVEL - MIN_LEVEL + 1 }, (_, i) => MIN_LEVEL + i);
 
 function checkBuild(id: string, custom: readonly string[]): string {
-  if (!VARIANT_IDS.includes(id) && !SCENARIO_IDS.includes(id) && !custom.includes(id)) throw new Error(`unknown build ${id}`);
+  if (!VARIANT_IDS.includes(id) && !custom.includes(id)) throw new Error(`unknown build ${id}`);
   return id;
 }
 
@@ -141,7 +141,7 @@ export function planJob(req: JobRequest): Job {
   const cfg = (build: string, level: number) => ({ variant: loadVariant(checkBuild(build, customIds)), level, profile: s.profile, params, mobs: s.mobs });
   switch (req.kind) {
     case 'ranking':
-      const ids = [...VARIANT_IDS, ...(req.scenarios ? SCENARIO_IDS : []), ...customIds];
+      const ids = [...VARIANT_IDS, ...customIds];
       return {
         total: ids.length,
         run: (i) => {

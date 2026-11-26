@@ -5,12 +5,15 @@ import { simulatePull } from '../../src/forever/fight';
 import { runCell } from '../../src/forever/runner';
 import { demonsAt } from '../../src/forever/stats';
 
+/** A demonology build whose demon comes late. */
+const FELHUNTER = { ...loadVariant('DEMO_PACT_R1'), id: 'FEL_TEST', pet: 'felhunter' as const, sacrificed: null };
+
 describe('a demon before the build’s own one is learned', () => {
   it('is the Voidwalker from level 10, then the build’s demon', () => {
     const succ = loadVariant('DEMO_PACT_R1');
     expect(demonsAt(succ, 12)).toEqual({ pet: 'voidwalker', sacrificed: 'imp' });
     expect(demonsAt(succ, 20)).toEqual({ pet: 'succubus', sacrificed: 'imp' });
-    const fel = loadVariant('HB_DEMO_FEL');
+    const fel = FELHUNTER;
     expect(demonsAt(fel, 29).pet).toBe('voidwalker');
     expect(demonsAt(fel, 30).pet).toBe('felhunter');
   });
@@ -22,8 +25,9 @@ describe('a demon before the build’s own one is learned', () => {
   });
 
   it('lets the builds with a late demon level normally (they died in almost every fight before)', () => {
-    for (const [build, level] of [['DEMO_PACT_R1', 15], ['HB_DEMO_FEL', 20], ['HB_DEMO_FEL', 29], ['TF_DEMO_SUC_R1', 12]] as const) {
-      const m = runCell({ variant: loadVariant(build), level, profile: 'average', params: loadParams(), mobs: 1 }, 20, 1).metrics;
+    for (const [variant, level] of [[loadVariant('DEMO_PACT_R1'), 15], [FELHUNTER, 20], [FELHUNTER, 29], [loadVariant('DEMO_PACT_R2'), 12]] as const) {
+      const build = variant.id;
+      const m = runCell({ variant, level, profile: 'average', params: loadParams(), mobs: 1 }, 20, 1).metrics;
       expect(m.killsPerHour, `${build} L${level}`).toBeGreaterThan(40);
       expect(m.deathsPerHour, `${build} L${level}`).toBeLessThan(5);
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadVariant, SCENARIO_IDS, VARIANT_IDS } from '../../src/forever/builds';
+import { loadVariant, VARIANT_IDS } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { lifeTapWanted } from '../../src/forever/policy';
 import { evalCond, evaluateSteps, rotationSpec, type SpecCtx } from '../../src/forever/rotation-spec';
@@ -74,7 +74,7 @@ describe('rotation spec equals the rotation code', () => {
     let n = 0;
     for (const over of PARAM_SETS) {
       const params = loadParams(over);
-      for (const id of [...VARIANT_IDS, ...SCENARIO_IDS]) {
+      for (const id of VARIANT_IDS) {
         const v = loadVariant(id);
         const spec = rotationSpec(v, params);
         for (let seed = 1; seed <= 60; seed++) {
@@ -98,7 +98,7 @@ describe('rotation spec equals the rotation code', () => {
   });
 
   it('has exactly one filler marked per build', () => {
-    for (const id of [...VARIANT_IDS, ...SCENARIO_IDS]) {
+    for (const id of VARIANT_IDS) {
       const spec = rotationSpec(loadVariant(id), loadParams());
       expect(spec.steps.some((s) => s.filler), id).toBe(true);
     }

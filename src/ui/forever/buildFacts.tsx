@@ -43,6 +43,17 @@ export function wrackFloor(v: BuildVariant, params?: Params): number {
   return v.filler === 'wrack' ? (v.wrack_min_hp_pct ?? params?.wrack_min_hp_pct ?? 0) : 0;
 }
 
+/** The pet rules of a build in words: "Succubus na levelach 20-29 przy 1 mobie". */
+export function petRulesText(v: BuildVariant): string {
+  return (v.pet_rules ?? [])
+    .map((r) => {
+      const levels = r.fromLevel !== undefined && r.toLevel !== undefined ? ` na levelach ${r.fromLevel}-${r.toLevel}` : r.toLevel !== undefined ? ` do levelu ${r.toLevel}` : r.fromLevel !== undefined ? ` od levelu ${r.fromLevel}` : '';
+      const mobs = r.maxMobs === 1 ? ' przy 1 mobie' : r.minMobs !== undefined && r.maxMobs === r.minMobs ? ` przy ${r.minMobs} mobach` : r.minMobs !== undefined ? ` przy ${r.minMobs}+ mobach` : '';
+      return `${PET_NAMES[r.pet] ?? r.pet}${levels}${mobs}`;
+    })
+    .join(', ');
+}
+
 const pctText = (f: number): string => `${String(Math.round(f * 1000) / 10).replace('.', ',')}%`;
 
 /** What a build fights with: pet, Shadow Bolt rank, filler and talent order. */
@@ -54,6 +65,7 @@ export function LoadoutRows({ v, petNote = '', params }: { v: BuildVariant; petN
       <FactRow label="Pet" icons={v.pet ? <IconTile kind="pet" id={v.pet} name={PET_NAMES[v.pet] ?? v.pet} size={28} /> : null}>
         {v.pet ? (PET_NAMES[v.pet] ?? v.pet) : 'brak'}
         {v.sacrificed ? `, poświęcony: ${PET_NAMES[v.sacrificed] ?? v.sacrificed}` : ''}
+        {v.pet_rules ? `; zamiast niego: ${petRulesText(v)}` : ''}
         {petNote}
       </FactRow>
       <FactRow label="Shadow Bolt" icons={<IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />}>

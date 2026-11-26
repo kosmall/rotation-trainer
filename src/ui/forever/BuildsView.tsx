@@ -1,5 +1,5 @@
-import { describeBuild, loadVariant, picksAt, SCENARIOS, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
-import { demonsAt } from '../../forever/stats';
+import { describeBuild, loadVariant, picksAt, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
+import { demonLearned, demonsAt } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
 import { FactRow, LoadoutRows, PET_NAMES, ROTATION_ICONS, TITLES, TREE_ICONS } from './buildFacts';
@@ -10,15 +10,20 @@ import { TalentWowheadLink } from './WowheadLink';
 const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
 
 /** What differs at this level: the build's own demon (or the one to sacrifice) is not learned yet. */
-function petNote(v: BuildVariant, level: number): string {
-  const at = demonsAt(v, level);
-  const standIn = at.pet !== v.pet && at.pet ? `; na levelu ${level} jeszcze niedostępny, walczy ${PET_NAMES[at.pet] ?? at.pet}` : '';
+function petNote(v: BuildVariant, level: number, mobs: number): string {
+  const at = demonsAt(v, level, mobs);
+  let standIn = '';
+  if (at.pet !== v.pet && at.pet) {
+    // either the build's own demon is not learned yet, or one of its pet rules picks another
+    const why = v.pet && !demonLearned(v.pet, level) ? 'jeszcze niedostępny' : `przy ${mobs} ${mobs === 1 ? 'mobie' : 'mobach'}`;
+    standIn = `; na levelu ${level} ${why}, walczy ${PET_NAMES[at.pet] ?? at.pet}`;
+  }
   const noSacrifice = v.sacrificed && at.sacrificed === null ? `; na levelu ${level} nie ma jeszcze kogo poświęcić` : '';
   return standIn + noSacrifice;
 }
 
 /** One build: talent points per tree at the level, the order points were spent, the next pick. */
-export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: { level: number; ids?: readonly string[]; id: string; onIdChange(id: string): void }) {
+export function BuildsView({ level, mobs = 1, ids = VARIANT_IDS, id, onIdChange: setId }: { level: number; mobs?: number; ids?: readonly string[]; id: string; onIdChange(id: string): void }) {
   const v = loadVariant(ids.includes(id) ? id : (ids[0] as string));
   const snap = describeBuild(v, level);
   const picks = picksAt(v, level);
@@ -36,12 +41,11 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
           </select>
         </label>
       </div>
-      <ScenarioNote id={v.id} />
       <dl className="fv-facts fv-facts-icons">
         <FactRow label="Rotacja" icons={<IconTile {...ROTATION_ICONS[v.rotation]} name={TITLES[v.rotation]} size={28} />}>
           {TITLES[v.rotation]}
         </FactRow>
-        <LoadoutRows v={v} petNote={petNote(v, level)} />
+        <LoadoutRows v={v} petNote={petNote(v, level, mobs)} />
         <FactRow label={`Punkty na levelu ${level}`}>{snap.points}</FactRow>
         {(Object.keys(TREE_NAMES) as Tree[]).map((t) => (
           <FactRow key={t} label={TREE_NAMES[t]} icons={<IconTile {...TREE_ICONS[t]} name={TREE_NAMES[t]} size={28} />}>
@@ -92,15 +96,5 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
         ))}
       </ol>
     </>
-  );
-}
-
-export function ScenarioNote({ id }: { id: string }) {
-  const sc = SCENARIOS.find((x) => x.id === id);
-  if (!sc) return null;
-  return (
-    <p className="fv-note">
-      Scenariusz z poradnika: {sc.title}. Źródło: {sc.source}. {sc.note}
-    </p>
   );
 }
