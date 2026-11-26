@@ -24,7 +24,7 @@
 
 ## Review Focus
 
-- Low levels (e.g. `--level 20`): Felhunter and Siphon Life aren't learned yet and Wrack can't fit within the row gates → those combinations are skipped, with no crash and no duplicate rows (Task 2, Task 5 tests).
+- Low levels (e.g. `--level 20`): Felhunter and Siphon Life aren't learned yet and Wrack can't fit within the row gates → those combinations are skipped, with no crash and no duplicate rows (Task 2, Task 4 tests).
 - `--perk` pushing points above 51 → capped at 51 by `pointsAtLevel`; random starts and moves stay legal at 51 (Task 3 test).
 - Resuming after changing data, `--param` or flags → the state hash differs and the run starts over instead of mixing results (Task 4 test).
 - Different worker counts or completion orders → identical top list (Task 4 test with a reversed runner).
