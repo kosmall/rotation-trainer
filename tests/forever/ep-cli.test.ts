@@ -1,23 +1,30 @@
-import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+import { runEpCli } from '../../src/forever/ep-cli';
 
-const run = (...args: string[]) => spawnSync('npx', ['tsx', 'scripts/forever-ep.ts', ...args], { encoding: 'utf8' });
+const base = ['--levels', '50', '--sessions', '6', '--param', 'session_pulls=6'];
 
 describe('forever:ep command', () => {
   it('prints the weights table for one build and level', () => {
-    const r = run('--build', 'AFF_WRACK', '--levels', '50', '--sessions', '6', '--param', 'session_pulls=6');
-    expect(r.status).toBe(0);
-    expect(r.stdout).toContain('Level 50');
-    expect(r.stdout).toContain('spellPower');
+    const r = runEpCli(['--build', 'AFF_WRACK', ...base]);
+    expect(r.text).toContain('Level 50');
+    expect(r.text).toContain('spellPower');
+    expect(r.out).toBeUndefined();
+  });
+  it('hands back the output path', () => {
+    expect(runEpCli(['--build', 'AFF_WRACK', ...base, '--out', 'reports/x.md']).out).toBe('reports/x.md');
+  });
+  it('compares several builds', () => {
+    const r = runEpCli(['--builds', 'AFF_WRACK,DEMO_PACT_R1', ...base]);
+    expect(r.text).toContain('AFF_WRACK vs DEMO_PACT_R1');
+  });
+  it('a larger --delta is used for that stat', () => {
+    expect(runEpCli(['--build', 'AFF_WRACK', ...base, '--delta', 'spellPower=20']).text).toContain('Level 50');
+    expect(() => runEpCli(['--build', 'AFF_WRACK', ...base, '--delta', 'luck=20'])).toThrow(/--delta/);
   });
   it('rejects an unknown build and lists the known ones', () => {
-    const r = run('--build', 'NOPE', '--levels', '50', '--sessions', '6');
-    expect(r.status).not.toBe(0);
-    expect(r.stderr).toContain('AFF_WRACK');
+    expect(() => runEpCli(['--build', 'NOPE', ...base])).toThrow(/AFF_WRACK/);
   });
   it('rejects fewer than two sessions', () => {
-    const r = run('--build', 'AFF_WRACK', '--levels', '50', '--sessions', '1');
-    expect(r.status).not.toBe(0);
-    expect(r.stderr).toContain('sessions');
+    expect(() => runEpCli(['--build', 'AFF_WRACK', '--levels', '50', '--sessions', '1'])).toThrow(/sessions/);
   });
 }, 60000);
