@@ -11,3 +11,7 @@ coverage
 # regenerable with npm run screens (only 1440 and 390-dark are kept in git)
 docs/design/app/*-1024-dark.png
 docs/design/app/*-390-light.png
+
+# build discovery resume state (npm run forever:discover)
+reports/.forever_discover_*.state.json*
+reports/forever_discover_*_quick.*

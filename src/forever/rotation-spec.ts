@@ -90,14 +90,14 @@ export const EUREKA_SPELLS: readonly string[] = ['shadow_bolt', 'immolate', 'sea
 const EUREKA_NOT_AFFECTED = ['corruption', 'bane_of_agony', 'siphon_life', 'life_tap', 'curse_of_elements'];
 const BRAND_MARGIN_SEC = 1.5;
 
-const T: Cond = { op: 'true' };
-const all = (...of: (Cond | null)[]): Cond => {
+export const T: Cond = { op: 'true' };
+export const all = (...of: (Cond | null)[]): Cond => {
   const list = of.filter((c): c is Cond => c !== null && c.op !== 'true');
   return list.length === 0 ? T : list.length === 1 ? (list[0] as Cond) : { op: 'all', of: list };
 };
-const not = (of: Cond): Cond => ({ op: 'not', of });
-const knows = (spell: string): Cond => ({ op: 'knows', spell });
-const lacksDot = (spell: string): Cond => not({ op: 'target_has_dot', spell });
+export const not = (of: Cond): Cond => ({ op: 'not', of });
+export const knows = (spell: string): Cond => ({ op: 'knows', spell });
+export const lacksDot = (spell: string): Cond => not({ op: 'target_has_dot', spell });
 
 function eurekaWhen(policy: EurekaPolicy, p: Params): Cond {
   const ready: Cond = { op: 'cooldown_ready', spell: 'eureka' };
@@ -326,8 +326,37 @@ export function evalCond(c: Cond, ctx: SpecCtx): boolean {
 }
 
 /** The candidates of the steps whose conditions hold, in order (the same list as the rotation code returns, apart from repeats). */
-export function evaluateSteps(spec: RotationSpec, ctx: SpecCtx): Candidate[] {
+export function evaluateSteps(spec: Pick<RotationSpec, 'steps'>, ctx: SpecCtx): Candidate[] {
   const out: Candidate[] = [];
   for (const s of spec.steps) if (evalCond(s.when, ctx)) out.push({ spellId: s.spell, rankWant: s.rank });
   return out;
+}
+
+/** What the fight's estimates (time to kill, Drain Soul window, Eureka! filler) assume about a rotation. */
+export interface RotationEstimate {
+  /** The filler spell; `wrack` falls back to Shadow Bolt while Wrack is not known. */
+  filler: string;
+  /** Rank of the filler when it is Shadow Bolt (any other filler uses its highest rank). */
+  fillerRank: number | 'max';
+  /** Periodic effects counted in the damage-per-second rates. */
+  dotSpells: string[];
+}
+
+/** A rotation the fight plays from data instead of the built-in rotation code. */
+export interface DataRotation {
+  steps: SpecStep[];
+  estimate: RotationEstimate;
+}
+
+/** The estimate the fight has always derived from a build. */
+export function estimateOf(v: BuildVariant, p: Params): RotationEstimate {
+  const fire = v.rotation === 'fire';
+  const filler = fire ? (p.fire_filler === 'searing_pain' ? 'searing_pain' : 'shadow_bolt') : v.filler === 'wrack' ? 'wrack' : v.filler === 'drain_life' ? 'drain_life' : 'shadow_bolt';
+  const dotSpells = ['corruption', 'bane_of_agony', 'siphon_life', ...(v.rotation === 'affliction' && (p.aff_use_immolate || v.immolate) ? ['immolate'] : [])];
+  return { filler, fillerRank: fire ? 1 : v.rank, dotSpells };
+}
+
+/** A build's built-in rotation as data (plays exactly like the rotation code). */
+export function dataRotationOf(v: BuildVariant, p: Params): DataRotation {
+  return { steps: rotationSpec(v, p).steps, estimate: estimateOf(v, p) };
 }

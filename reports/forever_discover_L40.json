@@ -1,0 +1,3018 @@
+{
+  "meta": {
+    "level": 40,
+    "points": 31,
+    "profile": "average",
+    "mobs": 1,
+    "seed": 1,
+    "perk": 0,
+    "changedParams": {},
+    "hash": "f64ae303-ea00e84a",
+    "combos": 36288,
+    "searched": 212,
+    "evaluations": 474538
+  },
+  "baseline": [
+    {
+      "id": "DT_SS_WRACK_70",
+      "metrics": {
+        "variant": "DT_SS_WRACK_70",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 121.51163853662858,
+        "killsPerHourStd": 0.8339559588098812,
+        "ttkMean": 21.626791666666666,
+        "ttkStd": 1.5893398388800128,
+        "manaPerKill": 1092.5575,
+        "netManaPerKill": 112.2695,
+        "hpPerKill": -755.4788838596642,
+        "drinkSecPerKill": 0,
+        "eatSecPerKill": 0,
+        "lifeTapSecPerKill": 3.82925,
+        "restSecPerKill": 0,
+        "downtimeShare": 0,
+        "breaksPerHour": 0,
+        "killsPerBreak": 6000,
+        "breakFreePullPct": 100,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.03166666666666667,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        121.39605813754625,
+        121.62721893571091
+      ]
+    },
+    {
+      "id": "DT_SS_WRACK_50",
+      "metrics": {
+        "variant": "DT_SS_WRACK_50",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 120.45053468541309,
+        "killsPerHourStd": 1.43948282620022,
+        "ttkMean": 21.70141666666667,
+        "ttkStd": 2.1799851029071955,
+        "manaPerKill": 1090.7241666666666,
+        "netManaPerKill": 132.51616666666666,
+        "hpPerKill": -721.5170018322392,
+        "drinkSecPerKill": 0.18637095837217366,
+        "eatSecPerKill": 0.18637095837217366,
+        "lifeTapSecPerKill": 3.743,
+        "restSecPerKill": 0.18637095837217366,
+        "downtimeShare": 0.006235689329378106,
+        "breaksPerHour": 1.0238295448260113,
+        "killsPerBreak": 117.6470588235294,
+        "breakFreePullPct": 99.15,
+        "gcdUtil": 0.9983948820545508,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.051333333333333335,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        120.25103254412276,
+        120.65003682670341
+      ]
+    },
+    {
+      "id": "DT_SS",
+      "metrics": {
+        "variant": "DT_SS",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 116.55672022340038,
+        "killsPerHourStd": 0.5283484151212321,
+        "ttkMean": 22.88625,
+        "ttkStd": 0.9107181262155682,
+        "manaPerKill": 1111.4008333333334,
+        "netManaPerKill": 85.99283333333334,
+        "hpPerKill": -811.2562941333338,
+        "drinkSecPerKill": 0,
+        "eatSecPerKill": 0,
+        "lifeTapSecPerKill": 4.0055,
+        "restSecPerKill": 0,
+        "downtimeShare": 0,
+        "breaksPerHour": 0,
+        "killsPerBreak": 6000,
+        "breakFreePullPct": 100,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        116.48349486895674,
+        116.62994557784401
+      ]
+    },
+    {
+      "id": "DEMO_PACT_R1",
+      "metrics": {
+        "variant": "DEMO_PACT_R1",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 114.84764218337823,
+        "killsPerHourStd": 0.7749604504215445,
+        "ttkMean": 19.587416666666673,
+        "ttkStd": 1.1585293945840336,
+        "manaPerKill": 590.6703333333334,
+        "netManaPerKill": 356.537,
+        "hpPerKill": 0.43791344854562264,
+        "drinkSecPerKill": 3.7584597619660336,
+        "eatSecPerKill": 3.7584597619660336,
+        "lifeTapSecPerKill": 1.0975,
+        "restSecPerKill": 3.7584597619660336,
+        "downtimeShare": 0.11990284497302776,
+        "breaksPerHour": 19.141273697229703,
+        "killsPerBreak": 6,
+        "breakFreePullPct": 83.33333333333333,
+        "gcdUtil": 0.9999948946815342,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.006833333333333334,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        114.74023814460791,
+        114.95504622214854
+      ]
+    },
+    {
+      "id": "DEMO_PACT_VIDEO",
+      "metrics": {
+        "variant": "DEMO_PACT_VIDEO",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 114.84764218337823,
+        "killsPerHourStd": 0.7749604504215445,
+        "ttkMean": 19.587416666666673,
+        "ttkStd": 1.1585293945840336,
+        "manaPerKill": 590.6703333333334,
+        "netManaPerKill": 356.537,
+        "hpPerKill": 0.43791344854562264,
+        "drinkSecPerKill": 3.7584597619660336,
+        "eatSecPerKill": 3.7584597619660336,
+        "lifeTapSecPerKill": 1.0975,
+        "restSecPerKill": 3.7584597619660336,
+        "downtimeShare": 0.11990284497302776,
+        "breaksPerHour": 19.141273697229703,
+        "killsPerBreak": 6,
+        "breakFreePullPct": 83.33333333333333,
+        "gcdUtil": 0.9999948946815342,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.006833333333333334,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        114.74023814460791,
+        114.95504622214854
+      ]
+    },
+    {
+      "id": "DEMO_FIRE",
+      "metrics": {
+        "variant": "DEMO_FIRE",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5914,
+        "killsPerHour": 114.01840809294323,
+        "killsPerHourStd": 9.69101063178973,
+        "ttkMean": 15.640497125464996,
+        "ttkStd": 2.0699370880691204,
+        "manaPerKill": 904.8997294555293,
+        "netManaPerKill": 568.0177544808928,
+        "hpPerKill": 37.20217996965106,
+        "drinkSecPerKill": 6.356077607034713,
+        "eatSecPerKill": 6.356077607034713,
+        "lifeTapSecPerKill": 1.5791342576936085,
+        "restSecPerKill": 6.356077607034713,
+        "downtimeShare": 0.24757886660647435,
+        "breaksPerHour": 30.268667687845937,
+        "killsPerBreak": 3.7668789808917196,
+        "breakFreePullPct": 73.83333333333333,
+        "gcdUtil": 0.9320773768917997,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 1.6580289306718157,
+        "petDeathsPerHour": 1.445955462795188,
+        "threatSwitchesPerKill": 0.31078796077105175,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        112.6753025434225,
+        115.36151364246396
+      ]
+    },
+    {
+      "id": "DEMO_PACT_R2",
+      "metrics": {
+        "variant": "DEMO_PACT_R2",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 113.88674961257978,
+        "killsPerHourStd": 1.3258864809401085,
+        "ttkMean": 19.683699999999998,
+        "ttkStd": 1.032144303692009,
+        "manaPerKill": 633.3838333333333,
+        "netManaPerKill": 377.11716666666666,
+        "hpPerKill": 0.9673311997724198,
+        "drinkSecPerKill": 3.9266498628812405,
+        "eatSecPerKill": 3.9266498628812405,
+        "lifeTapSecPerKill": 1.20125,
+        "restSecPerKill": 3.9266498628812405,
+        "downtimeShare": 0.12422038604172961,
+        "breaksPerHour": 19.41769080894485,
+        "killsPerBreak": 5.865102639296188,
+        "breakFreePullPct": 82.95,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.017333333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        113.70299112151554,
+        114.07050810364402
+      ]
+    },
+    {
+      "id": "AFF_DRAINTANK",
+      "metrics": {
+        "variant": "AFF_DRAINTANK",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 112.89070768362379,
+        "killsPerHourStd": 0.6558470946026224,
+        "ttkMean": 23.88925,
+        "ttkStd": 1.0539819339784213,
+        "manaPerKill": 1057.1433333333334,
+        "netManaPerKill": 84.47133333333333,
+        "hpPerKill": -759.5932592,
+        "drinkSecPerKill": 0,
+        "eatSecPerKill": 0,
+        "lifeTapSecPerKill": 3.7995,
+        "restSecPerKill": 0,
+        "downtimeShare": 0,
+        "breaksPerHour": 0,
+        "killsPerBreak": 6000,
+        "breakFreePullPct": 100,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        112.79981191373284,
+        112.98160345351474
+      ]
+    },
+    {
+      "id": "HB_AFF_VW",
+      "metrics": {
+        "variant": "HB_AFF_VW",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 112.89070768362379,
+        "killsPerHourStd": 0.6558470946026224,
+        "ttkMean": 23.88925,
+        "ttkStd": 1.0539819339784213,
+        "manaPerKill": 1057.1433333333334,
+        "netManaPerKill": 84.47133333333333,
+        "hpPerKill": -759.5932592,
+        "drinkSecPerKill": 0,
+        "eatSecPerKill": 0,
+        "lifeTapSecPerKill": 3.7995,
+        "restSecPerKill": 0,
+        "downtimeShare": 0,
+        "breaksPerHour": 0,
+        "killsPerBreak": 6000,
+        "breakFreePullPct": 100,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        112.79981191373284,
+        112.98160345351474
+      ]
+    },
+    {
+      "id": "DT_SS_IMMO",
+      "metrics": {
+        "variant": "DT_SS_IMMO",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5999,
+        "killsPerHour": 111.91653037519748,
+        "killsPerHourStd": 3.4947442237270003,
+        "ttkMean": 21.87851308551425,
+        "ttkStd": 4.278037118967394,
+        "manaPerKill": 1215.3108851475247,
+        "netManaPerKill": 252.07834639106517,
+        "hpPerKill": -637.5107958920945,
+        "drinkSecPerKill": 2.26998046460658,
+        "eatSecPerKill": 2.26998046460658,
+        "lifeTapSecPerKill": 3.7626271045174198,
+        "restSecPerKill": 2.26998046460658,
+        "downtimeShare": 0.07109756549564443,
+        "breaksPerHour": 11.212174488330337,
+        "killsPerBreak": 9.98169717138103,
+        "breakFreePullPct": 89.98333333333333,
+        "gcdUtil": 0.9828014189800777,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.01865586437326179,
+        "petDeathsPerHour": 0.01865586437326179,
+        "threatSwitchesPerKill": 0,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        111.43218353673194,
+        112.40087721366302
+      ]
+    },
+    {
+      "id": "TF_DEMO_SUC_R1",
+      "metrics": {
+        "variant": "TF_DEMO_SUC_R1",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 111.766305177475,
+        "killsPerHourStd": 0.6164189649431908,
+        "ttkMean": 20.415466666666678,
+        "ttkStd": 1.0848134642712906,
+        "manaPerKill": 605.7943333333334,
+        "netManaPerKill": 367.4476666666667,
+        "hpPerKill": 0.16088052516411377,
+        "drinkSecPerKill": 3.7945987397500387,
+        "eatSecPerKill": 3.7945987397500387,
+        "lifeTapSecPerKill": 1.11725,
+        "restSecPerKill": 3.7945987397500387,
+        "downtimeShare": 0.11780785577026802,
+        "breaksPerHour": 18.627717529579165,
+        "killsPerBreak": 6,
+        "breakFreePullPct": 83.33333333333333,
+        "gcdUtil": 0.9999534666527334,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.002,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        111.680873867563,
+        111.85173648738702
+      ]
+    },
+    {
+      "id": "AFF_DRAINTANK_IMMO",
+      "metrics": {
+        "variant": "AFF_DRAINTANK_IMMO",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 110.9387333877339,
+        "killsPerHourStd": 3.423611147285916,
+        "ttkMean": 22.612083333333334,
+        "ttkStd": 5.1422241690364,
+        "manaPerKill": 1117.7,
+        "netManaPerKill": 226.372,
+        "hpPerKill": -595.7375184,
+        "drinkSecPerKill": 1.8382601136023937,
+        "eatSecPerKill": 1.8382601136023937,
+        "lifeTapSecPerKill": 3.48175,
+        "restSecPerKill": 1.8382601136023937,
+        "downtimeShare": 0.056648402400067056,
+        "breaksPerHour": 8.80113951542689,
+        "killsPerBreak": 12.605042016806722,
+        "breakFreePullPct": 92.06666666666666,
+        "gcdUtil": 0.9715373417604893,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.00016666666666666666,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        110.46424509068913,
+        111.41322168477868
+      ]
+    },
+    {
+      "id": "CWF_DEMO_SUC_R1",
+      "metrics": {
+        "variant": "CWF_DEMO_SUC_R1",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5998,
+        "killsPerHour": 108.30723097295406,
+        "killsPerHourStd": 2.022907518814892,
+        "ttkMean": 21.32059019673224,
+        "ttkStd": 2.223422428044724,
+        "manaPerKill": 607.8151050350117,
+        "netManaPerKill": 363.8937979326442,
+        "hpPerKill": 0.31943782128357556,
+        "drinkSecPerKill": 3.8815088539383464,
+        "eatSecPerKill": 3.8815088539383464,
+        "lifeTapSecPerKill": 1.1433811270423475,
+        "restSecPerKill": 3.8815088539383464,
+        "downtimeShare": 0.1177997638087209,
+        "breaksPerHour": 18.003052564193933,
+        "killsPerBreak": 6.0160481444333,
+        "breakFreePullPct": 83.38333333333334,
+        "gcdUtil": 0.9831632401711281,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.03611444847380929,
+        "petDeathsPerHour": 0.03611444847380929,
+        "threatSwitchesPerKill": 0.0020006668889629878,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        108.02687029459767,
+        108.58759165131045
+      ]
+    },
+    {
+      "id": "HB_DEMO_SUC_R1",
+      "metrics": {
+        "variant": "HB_DEMO_SUC_R1",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 106.58747792628344,
+        "killsPerHourStd": 1.1116960085973566,
+        "ttkMean": 21.191700000000008,
+        "ttkStd": 1.1816233814697357,
+        "manaPerKill": 776.963,
+        "netManaPerKill": 512.7496666666667,
+        "hpPerKill": 0.24183279994310503,
+        "drinkSecPerKill": 4.583374427502457,
+        "eatSecPerKill": 4.583374427502457,
+        "lifeTapSecPerKill": 1.2385,
+        "restSecPerKill": 4.583374427502457,
+        "downtimeShare": 0.13570286683869723,
+        "breaksPerHour": 20.979968571823456,
+        "killsPerBreak": 5.080440304826419,
+        "breakFreePullPct": 80.31666666666666,
+        "gcdUtil": 0.9995619354118197,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.0021666666666666666,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        106.4334047201692,
+        106.74155113239769
+      ]
+    },
+    {
+      "id": "HB_DEMO_SUC_SACFEL",
+      "metrics": {
+        "variant": "HB_DEMO_SUC_SACFEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 106.58747792628344,
+        "killsPerHourStd": 1.1116960085973566,
+        "ttkMean": 21.191700000000008,
+        "ttkStd": 1.1816233814697357,
+        "manaPerKill": 776.963,
+        "netManaPerKill": 512.7496666666667,
+        "hpPerKill": 0.24183279994310503,
+        "drinkSecPerKill": 4.583374427502457,
+        "eatSecPerKill": 4.583374427502457,
+        "lifeTapSecPerKill": 1.2385,
+        "restSecPerKill": 4.583374427502457,
+        "downtimeShare": 0.13570286683869723,
+        "breaksPerHour": 20.979968571823456,
+        "killsPerBreak": 5.080440304826419,
+        "breakFreePullPct": 80.31666666666666,
+        "gcdUtil": 0.9995619354118197,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.0021666666666666666,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        106.4334047201692,
+        106.74155113239769
+      ]
+    },
+    {
+      "id": "HB_AFF_SUC",
+      "metrics": {
+        "variant": "HB_AFF_SUC",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5939,
+        "killsPerHour": 103.59528317251853,
+        "killsPerHourStd": 6.848534888195249,
+        "ttkMean": 22.983667284054555,
+        "ttkStd": 1.6161571221858442,
+        "manaPerKill": 1095.6642532412864,
+        "netManaPerKill": 300.63748105741706,
+        "hpPerKill": -465.1237547315283,
+        "drinkSecPerKill": 2.661376304716842,
+        "eatSecPerKill": 2.661376304716842,
+        "lifeTapSecPerKill": 3.1055733288432394,
+        "restSecPerKill": 2.661376304716842,
+        "downtimeShare": 0.10603497851632049,
+        "breaksPerHour": 12.123037852315269,
+        "killsPerBreak": 8.545323741007195,
+        "breakFreePullPct": 88.41666666666667,
+        "gcdUtil": 0.9730681318681318,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 1.0640364158147215,
+        "petDeathsPerHour": 0.8547177766380549,
+        "threatSwitchesPerKill": 0.999326485940394,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        102.64612466223397,
+        104.5444416828031
+      ]
+    },
+    {
+      "id": "DEMO_PACT_MAXRANK",
+      "metrics": {
+        "variant": "DEMO_PACT_MAXRANK",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5944,
+        "killsPerHour": 102.466763889073,
+        "killsPerHourStd": 6.736331765066329,
+        "ttkMean": 18.5016150740242,
+        "ttkStd": 2.310133917252598,
+        "manaPerKill": 1050.9979811574697,
+        "netManaPerKill": 641.307537012113,
+        "hpPerKill": 15.15091533496188,
+        "drinkSecPerKill": 7.607502188271642,
+        "eatSecPerKill": 7.607502188271642,
+        "lifeTapSecPerKill": 1.9204239569313593,
+        "restSecPerKill": 7.607502188271642,
+        "downtimeShare": 0.24353953697908065,
+        "breaksPerHour": 31.65023191459253,
+        "killsPerBreak": 3.237472766884532,
+        "breakFreePullPct": 69.4,
+        "gcdUtil": 0.9535306655415493,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.9653665507718855,
+        "petDeathsPerHour": 0.8619344203320406,
+        "threatSwitchesPerKill": 0.2180349932705249,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        101.53315593827844,
+        103.40037183986755
+      ]
+    },
+    {
+      "id": "TAV_AFF_SUC",
+      "metrics": {
+        "variant": "TAV_AFF_SUC",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5926,
+        "killsPerHour": 102.33443890998244,
+        "killsPerHourStd": 8.282858220312205,
+        "ttkMean": 22.39532568342895,
+        "ttkStd": 1.6468301946214423,
+        "manaPerKill": 1201.2276409044887,
+        "netManaPerKill": 359.2431657104286,
+        "hpPerKill": -528.2397765804521,
+        "drinkSecPerKill": 3.428064293093706,
+        "eatSecPerKill": 3.428064293093706,
+        "lifeTapSecPerKill": 3.588002024974688,
+        "restSecPerKill": 3.428064293093706,
+        "downtimeShare": 0.13313564390042976,
+        "breaksPerHour": 15.351892708568071,
+        "killsPerBreak": 6.665916760404949,
+        "breakFreePullPct": 85.18333333333334,
+        "gcdUtil": 0.9641275608504561,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 1.2778853323217516,
+        "petDeathsPerHour": 1.1224668459582954,
+        "threatSwitchesPerKill": 0.998650016874789,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        101.1864933278053,
+        103.48238449215958
+      ]
+    },
+    {
+      "id": "HB_DEMO_SUC_MAX",
+      "metrics": {
+        "variant": "HB_DEMO_SUC_MAX",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5963,
+        "killsPerHour": 99.77972884247639,
+        "killsPerHourStd": 5.2095166293064885,
+        "ttkMean": 19.31445581083345,
+        "ttkStd": 2.357286163313808,
+        "manaPerKill": 1161.89652859299,
+        "netManaPerKill": 729.4162334395438,
+        "hpPerKill": 9.143321301356947,
+        "drinkSecPerKill": 8.094548975957116,
+        "eatSecPerKill": 8.094548975957116,
+        "lifeTapSecPerKill": 2.0272513835317794,
+        "restSecPerKill": 8.094548975957116,
+        "downtimeShare": 0.24156055431375736,
+        "breaksPerHour": 32.26149877717499,
+        "killsPerBreak": 3.0928423236514524,
+        "breakFreePullPct": 67.86666666666666,
+        "gcdUtil": 0.9666038910465306,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.6191262732134204,
+        "petDeathsPerHour": 0.5187274180977306,
+        "threatSwitchesPerKill": 0.09273855441891665,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        99.0577266735602,
+        100.50173101139258
+      ]
+    },
+    {
+      "id": "TAV_AFF_FEL",
+      "metrics": {
+        "variant": "TAV_AFF_FEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5939,
+        "killsPerHour": 97.03884188232821,
+        "killsPerHourStd": 5.865756135255353,
+        "ttkMean": 23.600740865465564,
+        "ttkStd": 0.9166398145343264,
+        "manaPerKill": 1295.044620306449,
+        "netManaPerKill": 420.46775551439634,
+        "hpPerKill": -514.2806195869538,
+        "drinkSecPerKill": 4.432643274189691,
+        "eatSecPerKill": 4.432643274189691,
+        "lifeTapSecPerKill": 3.726890048829769,
+        "restSecPerKill": 4.432643274189691,
+        "downtimeShare": 0.14597976300630902,
+        "breaksPerHour": 18.65943044782267,
+        "killsPerBreak": 5.200525394045534,
+        "breakFreePullPct": 80.96666666666667,
+        "gcdUtil": 0.9805650206043174,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.9966946211183736,
+        "petDeathsPerHour": 0.4738384264333252,
+        "threatSwitchesPerKill": 1.005388112476848,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        96.22588955808318,
+        97.85179420657325
+      ]
+    },
+    {
+      "id": "TF_AFF_SUC",
+      "metrics": {
+        "variant": "TF_AFF_SUC",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5839,
+        "killsPerHour": 96.35875001004653,
+        "killsPerHourStd": 8.593924699043917,
+        "ttkMean": 22.087497859222463,
+        "ttkStd": 1.1604980771048028,
+        "manaPerKill": 1231.8222298338756,
+        "netManaPerKill": 458.31991779414284,
+        "hpPerKill": -475.0236082699393,
+        "drinkSecPerKill": 4.350811458512196,
+        "eatSecPerKill": 4.350811458512196,
+        "lifeTapSecPerKill": 3.6257920876862477,
+        "restSecPerKill": 4.350811458512196,
+        "downtimeShare": 0.18876415317249323,
+        "breaksPerHour": 18.185878148839063,
+        "killsPerBreak": 5.298548094373865,
+        "breakFreePullPct": 81.63333333333334,
+        "gcdUtil": 0.9450642751857233,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 2.656920491799536,
+        "petDeathsPerHour": 1.7657794572829217,
+        "threatSwitchesPerKill": 1.0092481589313238,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        95.16769281343323,
+        97.54980720665984
+      ]
+    },
+    {
+      "id": "TF_DEMO_FEL",
+      "metrics": {
+        "variant": "TF_DEMO_FEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5976,
+        "killsPerHour": 95.07069957084612,
+        "killsPerHourStd": 4.692947785304932,
+        "ttkMean": 24.70630856760374,
+        "ttkStd": 2.0579856171783946,
+        "manaPerKill": 705.2615461847389,
+        "netManaPerKill": 435.48912315930386,
+        "hpPerKill": 16.668010041625294,
+        "drinkSecPerKill": 4.726512815990042,
+        "eatSecPerKill": 4.726512815990042,
+        "lifeTapSecPerKill": 1.2645582329317269,
+        "restSecPerKill": 4.726512815990042,
+        "downtimeShare": 0.13542607883068236,
+        "breaksPerHour": 18.772326889825706,
+        "killsPerBreak": 5.064406779661017,
+        "breakFreePullPct": 80.33333333333333,
+        "gcdUtil": 0.9851705003017377,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.381810038437133,
+        "petDeathsPerHour": 0.31817503203094416,
+        "threatSwitchesPerKill": 0.18473895582329317,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        94.42029019110839,
+        95.72110895058384
+      ]
+    },
+    {
+      "id": "CWF_DEMO_FEL",
+      "metrics": {
+        "variant": "CWF_DEMO_FEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5988,
+        "killsPerHour": 95.05023036105638,
+        "killsPerHourStd": 3.2402252762463184,
+        "ttkMean": 24.83259853039411,
+        "ttkStd": 1.9855125525069246,
+        "manaPerKill": 720.5723112892451,
+        "netManaPerKill": 439.5302271209085,
+        "hpPerKill": 13.51644780208308,
+        "drinkSecPerKill": 4.827683554989634,
+        "eatSecPerKill": 4.827683554989634,
+        "lifeTapSecPerKill": 1.3173847695390781,
+        "restSecPerKill": 4.827683554989634,
+        "downtimeShare": 0.1327028041515012,
+        "breaksPerHour": 19.016395452996917,
+        "killsPerBreak": 4.998330550918197,
+        "breakFreePullPct": 80.03333333333333,
+        "gcdUtil": 0.9910798829301889,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.19048142356925127,
+        "petDeathsPerHour": 0.14286106767693846,
+        "threatSwitchesPerKill": 0.16917167668670674,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        94.60115804903684,
+        95.49930267307592
+      ]
+    },
+    {
+      "id": "CWF_AFF_FEL",
+      "metrics": {
+        "variant": "CWF_AFF_FEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5868,
+        "killsPerHour": 94.11354214380115,
+        "killsPerHourStd": 6.7489293933264,
+        "ttkMean": 19.910097137014315,
+        "ttkStd": 1.6816331578478612,
+        "manaPerKill": 1115.0357873210635,
+        "netManaPerKill": 710.9676209952283,
+        "hpPerKill": 98.08853231929578,
+        "drinkSecPerKill": 8.09821741563941,
+        "eatSecPerKill": 8.09821741563941,
+        "lifeTapSecPerKill": 1.721881390593047,
+        "restSecPerKill": 8.09821741563941,
+        "downtimeShare": 0.26565147458243377,
+        "breaksPerHour": 32.06083346037125,
+        "killsPerBreak": 2.9354677338669335,
+        "breakFreePullPct": 66.68333333333334,
+        "gcdUtil": 0.9729424487802832,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 2.1170735451570812,
+        "petDeathsPerHour": 0.3047302830150344,
+        "threatSwitchesPerKill": 1.019256987048398,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        93.17818825080617,
+        95.04889603679614
+      ]
+    },
+    {
+      "id": "HB_AFF_FEL",
+      "metrics": {
+        "variant": "HB_AFF_FEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5922,
+        "killsPerHour": 93.59473372725434,
+        "killsPerHourStd": 6.095628514231601,
+        "ttkMean": 24.850439040864572,
+        "ttkStd": 1.1483856350027217,
+        "manaPerKill": 1236.757852077001,
+        "netManaPerKill": 410.07497467071937,
+        "hpPerKill": -413.4459160934601,
+        "drinkSecPerKill": 4.2515613993020205,
+        "eatSecPerKill": 4.2515613993020205,
+        "lifeTapSecPerKill": 3.229229989868288,
+        "restSecPerKill": 4.2515613993020205,
+        "downtimeShare": 0.14319717946423932,
+        "breaksPerHour": 17.33762629159034,
+        "killsPerBreak": 5.398359161349134,
+        "breakFreePullPct": 81.71666666666667,
+        "gcdUtil": 0.9768218243147285,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 1.2327573844521846,
+        "petDeathsPerHour": 0.553160364818288,
+        "threatSwitchesPerKill": 1.0072610604525498,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        92.74992271668492,
+        94.43954473782375
+      ]
+    },
+    {
+      "id": "CWF_AFF_SUC",
+      "metrics": {
+        "variant": "CWF_AFF_SUC",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5795,
+        "killsPerHour": 92.11840363960907,
+        "killsPerHourStd": 9.26272070143332,
+        "ttkMean": 20.384020707506465,
+        "ttkStd": 1.6557314491605182,
+        "manaPerKill": 1071.8619499568595,
+        "netManaPerKill": 680.9870578084556,
+        "hpPerKill": 74.55438443955495,
+        "drinkSecPerKill": 6.914582282828802,
+        "eatSecPerKill": 6.914582282828802,
+        "lifeTapSecPerKill": 1.665660051768766,
+        "restSecPerKill": 6.914582282828802,
+        "downtimeShare": 0.26645543802168953,
+        "breaksPerHour": 27.452714941433108,
+        "killsPerBreak": 3.3555298204979733,
+        "breakFreePullPct": 71.21666666666667,
+        "gcdUtil": 0.9177348817443161,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 3.2587183341017876,
+        "petDeathsPerHour": 2.4162204233340083,
+        "threatSwitchesPerKill": 1.0091458153580672,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        90.83465604604585,
+        93.40215123317229
+      ]
+    },
+    {
+      "id": "AFF_WRACK",
+      "metrics": {
+        "variant": "AFF_WRACK",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5944,
+        "killsPerHour": 91.57576358463007,
+        "killsPerHourStd": 9.23295079510467,
+        "ttkMean": 24.780577052489907,
+        "ttkStd": 16.659490628230614,
+        "manaPerKill": 1005.0311238223419,
+        "netManaPerKill": 523.6852288021535,
+        "hpPerKill": -153.30098572525196,
+        "drinkSecPerKill": 5.4947952990963795,
+        "eatSecPerKill": 5.4947952990963795,
+        "lifeTapSecPerKill": 2.2563088829071334,
+        "restSecPerKill": 5.4947952990963795,
+        "downtimeShare": 0.16421987479984448,
+        "breaksPerHour": 22.0619941879526,
+        "killsPerBreak": 4.150837988826815,
+        "breakFreePullPct": 76.13333333333334,
+        "gcdUtil": 0.7470246086529991,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.862759549249543,
+        "petDeathsPerHour": 0.862759549249543,
+        "threatSwitchesPerKill": 0.21382907133243606,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        90.29614188958433,
+        92.8553852796758
+      ]
+    },
+    {
+      "id": "HB_DEMO_FEL",
+      "metrics": {
+        "variant": "HB_DEMO_FEL",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5951,
+        "killsPerHour": 91.43031152229237,
+        "killsPerHourStd": 5.211607923954217,
+        "ttkMean": 25.719694169047237,
+        "ttkStd": 2.920354405054788,
+        "manaPerKill": 815.8956477902874,
+        "netManaPerKill": 555.5830952781046,
+        "hpPerKill": 33.65054028997281,
+        "drinkSecPerKill": 4.791172144225454,
+        "eatSecPerKill": 4.791172144225454,
+        "lifeTapSecPerKill": 1.220215089900857,
+        "restSecPerKill": 4.791172144225454,
+        "downtimeShare": 0.14193756273371919,
+        "breaksPerHour": 18.51344738436604,
+        "killsPerBreak": 4.9385892116182575,
+        "breakFreePullPct": 79.91666666666667,
+        "gcdUtil": 0.9748271732462022,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0.7528289807750506,
+        "petDeathsPerHour": 0.4301879890143146,
+        "threatSwitchesPerKill": 0.21626617375231053,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        90.70801951472531,
+        92.15260352985943
+      ]
+    },
+    {
+      "id": "AFF_WRACK_IMMO",
+      "metrics": {
+        "variant": "AFF_WRACK_IMMO",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 5887,
+        "killsPerHour": 83.6973106326605,
+        "killsPerHourStd": 10.495704247623054,
+        "ttkMean": 26.235884151520285,
+        "ttkStd": 14.920738129015817,
+        "manaPerKill": 1198.2962459656871,
+        "netManaPerKill": 665.3252930185154,
+        "hpPerKill": -135.83220057326182,
+        "drinkSecPerKill": 6.664818592163916,
+        "eatSecPerKill": 6.664818592163916,
+        "lifeTapSecPerKill": 2.4983013419398676,
+        "restSecPerKill": 6.664818592163916,
+        "downtimeShare": 0.20047114447869976,
+        "breaksPerHour": 24.098342368330144,
+        "killsPerBreak": 3.473156342182891,
+        "breakFreePullPct": 71.75,
+        "gcdUtil": 0.7319324975323838,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 1.6065561578886762,
+        "petDeathsPerHour": 1.6065561578886762,
+        "threatSwitchesPerKill": 0.089179548156956,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        82.24268023788325,
+        85.15194102743776
+      ]
+    },
+    {
+      "id": "CWF_DESTRO_IMP",
+      "metrics": {
+        "variant": "CWF_DESTRO_IMP",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 4049,
+        "killsPerHour": 36.07074708870623,
+        "killsPerHourStd": 4.025779336490519,
+        "ttkMean": 37.594171400345765,
+        "ttkStd": 1.977392272570106,
+        "manaPerKill": 1886.2956285502594,
+        "netManaPerKill": 1764.98172388244,
+        "hpPerKill": 913.3005150797699,
+        "drinkSecPerKill": 6.988652118572249,
+        "eatSecPerKill": 6.988652118572249,
+        "lifeTapSecPerKill": 0.5686589281304025,
+        "restSecPerKill": 6.988652118572249,
+        "downtimeShare": 0.5045387271751426,
+        "breaksPerHour": 10.3784688462195,
+        "killsPerBreak": 3.4755364806866953,
+        "breakFreePullPct": 80.58333333333333,
+        "gcdUtil": 0.9528448522784309,
+        "gcdWasteSecPerKill": 0.017559891331192887,
+        "gcdWasteShare": 0.0004902065555301987,
+        "deathsPerHour": 17.380594608561584,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 1.4818473697209187,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        35.51280253850118,
+        36.62869163891128
+      ]
+    }
+  ],
+  "top": [
+    {
+      "rank": 1,
+      "combo": {
+        "id": "ag/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_health_funnel": 1,
+        "demonic_aegis": 2,
+        "demonic_energies": 2,
+        "demonic_sacrifice": 1,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "improved_imp": 3,
+        "master_demonologist": 5,
+        "demonic_pact": 1,
+        "fel_vitality": 1,
+        "master_summoner": 2,
+        "improved_voidwalker": 2
+      },
+      "label": "Agony → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 135.55039672989452,
+        "killsPerHourStd": 1.173606106770689,
+        "ttkMean": 18.53625,
+        "ttkStd": 1.215925168956831,
+        "manaPerKill": 861.3025,
+        "netManaPerKill": 368.3425,
+        "hpPerKill": -431.2824858434674,
+        "drinkSecPerKill": 0.022137779370108263,
+        "eatSecPerKill": 0.022137779370108263,
+        "lifeTapSecPerKill": 2.31075,
+        "restSecPerKill": 0.022137779370108263,
+        "downtimeShare": 0.0008335513267602914,
+        "breaksPerHour": 0.13555039672989452,
+        "killsPerBreak": 1000,
+        "breakFreePullPct": 99.9,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.009166666666666667,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        135.38774322193277,
+        135.71305023785627
+      ],
+      "gainVsBest": {
+        "mean": 14.043243961818126,
+        "ci95": [
+          13.841097532548076,
+          14.245390391088176
+        ],
+        "significant": true,
+        "pct": 11.55711842169334,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 3
+      },
+      "insensitive": [
+        "demonic_aegis",
+        "demonic_energies",
+        "improved_voidwalker"
+      ]
+    },
+    {
+      "rank": 2,
+      "combo": {
+        "id": "ag/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_imp": 3,
+        "demonic_embrace": 3,
+        "demonic_energies": 2,
+        "demonic_aegis": 1,
+        "fel_vitality": 2,
+        "demonic_sacrifice": 1,
+        "demonic_brand": 2,
+        "decimation": 2,
+        "improved_voidwalker": 2,
+        "soul_link": 1,
+        "unholy_power": 5,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "master_summoner": 1,
+        "master_demonologist": 2
+      },
+      "label": "Agony → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 135.1167340607358,
+        "killsPerHourStd": 1.039067999542025,
+        "ttkMean": 18.639833333333332,
+        "ttkStd": 1.209417388921482,
+        "manaPerKill": 862.8013333333333,
+        "netManaPerKill": 372.508,
+        "hpPerKill": -430.97783613180076,
+        "drinkSecPerKill": 0.00379467488789236,
+        "eatSecPerKill": 0.00379467488789236,
+        "lifeTapSecPerKill": 2.29825,
+        "restSecPerKill": 0.00379467488789236,
+        "downtimeShare": 0.00014242335490952904,
+        "breaksPerHour": 0.022519455676789302,
+        "killsPerBreak": 6000,
+        "breakFreePullPct": 99.98333333333333,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.007833333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        134.97272658313216,
+        135.26074153833946
+      ],
+      "gainVsBest": {
+        "mean": 13.607375739581633,
+        "ci95": [
+          13.421409185877833,
+          13.793342293285432
+        ],
+        "significant": true,
+        "pct": 11.198413504628869,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 7
+      },
+      "insensitive": [
+        "demonic_aegis",
+        "demonic_embrace",
+        "demonic_energies",
+        "improved_voidwalker"
+      ]
+    },
+    {
+      "rank": 3,
+      "combo": {
+        "id": "ag/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_health_funnel": 1,
+        "unholy_power": 5,
+        "demonic_embrace": 4,
+        "demonic_energies": 2,
+        "improved_imp": 3,
+        "demonic_sacrifice": 1,
+        "master_summoner": 2,
+        "demonic_brand": 2,
+        "fel_vitality": 2,
+        "soul_link": 1,
+        "master_demonologist": 2,
+        "improved_voidwalker": 1,
+        "demonic_pact": 1,
+        "demonic_knowledge": 3,
+        "demonic_aegis": 1
+      },
+      "label": "Agony → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 135.10977669356353,
+        "killsPerHourStd": 0.9689026855678612,
+        "ttkMean": 18.645,
+        "ttkStd": 1.211632373632673,
+        "manaPerKill": 863.049,
+        "netManaPerKill": 372.8623333333333,
+        "hpPerKill": -431.3363660127471,
+        "drinkSecPerKill": 0,
+        "eatSecPerKill": 0,
+        "lifeTapSecPerKill": 2.29775,
+        "restSecPerKill": 0,
+        "downtimeShare": 0,
+        "breaksPerHour": 0,
+        "killsPerBreak": 6000,
+        "breakFreePullPct": 100,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.0075,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        134.97549363234566,
+        135.2440597547814
+      ],
+      "gainVsBest": {
+        "mean": 13.599364901619357,
+        "ci95": [
+          13.416742827658043,
+          13.78198697558067
+        ],
+        "significant": true,
+        "pct": 11.191820853868208,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 6
+      },
+      "insensitive": [
+        "demonic_aegis",
+        "demonic_embrace",
+        "demonic_energies",
+        "improved_voidwalker"
+      ]
+    },
+    {
+      "rank": 4,
+      "combo": {
+        "id": "ag/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "wrack_single_then_drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_voidwalker": 3,
+        "improved_imp": 3,
+        "demonic_aegis": 2,
+        "demonic_sacrifice": 1,
+        "master_summoner": 2,
+        "improved_sayaad": 3,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "fel_vitality": 1,
+        "demonic_pact": 1,
+        "master_demonologist": 3,
+        "improved_health_funnel": 1
+      },
+      "label": "Agony → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 134.9652920333801,
+        "killsPerHourStd": 1.3008139750831667,
+        "ttkMean": 18.630416666666665,
+        "ttkStd": 1.1924848691211016,
+        "manaPerKill": 863.0018333333334,
+        "netManaPerKill": 369.1351666666667,
+        "hpPerKill": -431.781250939389,
+        "drinkSecPerKill": 0.04310765771766996,
+        "eatSecPerKill": 0.04310765771766996,
+        "lifeTapSecPerKill": 2.315,
+        "restSecPerKill": 0.04310765771766996,
+        "downtimeShare": 0.0016161215590945327,
+        "breaksPerHour": 0.2699305840667602,
+        "killsPerBreak": 500,
+        "breakFreePullPct": 99.8,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.008,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        134.78500841434277,
+        135.14557565241745
+      ],
+      "gainVsBest": {
+        "mean": 13.460583564679624,
+        "ci95": [
+          13.251703477570345,
+          13.669463651788902
+        ],
+        "significant": true,
+        "pct": 11.077608471736683,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_PACT_R1",
+        "distance": 7
+      },
+      "insensitive": [
+        "demonic_aegis",
+        "improved_sayaad",
+        "improved_voidwalker",
+        "master_demonologist"
+      ]
+    },
+    {
+      "rank": 5,
+      "combo": {
+        "id": "ag+cor/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_imp": 3,
+        "demonic_embrace": 4,
+        "unholy_power": 4,
+        "demonic_energies": 2,
+        "demonic_sacrifice": 1,
+        "demonic_aegis": 1,
+        "fel_vitality": 3,
+        "demonic_brand": 2,
+        "improved_sayaad": 2,
+        "soul_link": 1,
+        "master_summoner": 2,
+        "demonic_pact": 1,
+        "demonic_knowledge": 3,
+        "master_demonologist": 1,
+        "improved_felhunter": 1
+      },
+      "label": "Agony, Corruption → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag+cor/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 134.32655125245833,
+        "killsPerHourStd": 2.4215238570752833,
+        "ttkMean": 17.708583333333333,
+        "ttkStd": 0.9570896839722197,
+        "manaPerKill": 900.028,
+        "netManaPerKill": 454.268,
+        "hpPerKill": -330.8094536316659,
+        "drinkSecPerKill": 1.0917771794146218,
+        "eatSecPerKill": 1.0917771794146218,
+        "lifeTapSecPerKill": 2.0895,
+        "restSecPerKill": 1.0917771794146218,
+        "downtimeShare": 0.040737406457472945,
+        "breaksPerHour": 5.999919289276472,
+        "killsPerBreak": 22.388059701492537,
+        "breakFreePullPct": 95.53333333333333,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.015,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.9909451681903,
+        134.66215733672635
+      ],
+      "gainVsBest": {
+        "mean": 12.853039518821252,
+        "ci95": [
+          12.50378947932646,
+          13.202289558316043
+        ],
+        "significant": true,
+        "pct": 10.577620114098634,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 7
+      },
+      "insensitive": [
+        "demonic_aegis",
+        "demonic_embrace",
+        "demonic_energies",
+        "improved_sayaad",
+        "master_demonologist",
+        "unholy_power"
+      ]
+    },
+    {
+      "rank": 6,
+      "combo": {
+        "id": "ag+cor/t6/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "wrack_single_then_drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_voidwalker": 2,
+        "fel_vitality": 3,
+        "demonic_energies": 2,
+        "demonic_sacrifice": 1,
+        "improved_imp": 3,
+        "demonic_aegis": 1,
+        "decimation": 2,
+        "master_summoner": 2,
+        "soul_link": 1,
+        "improved_sayaad": 2,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "demonic_brand": 2,
+        "master_demonologist": 1
+      },
+      "label": "Agony, Corruption → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 4,
+      "metrics": {
+        "variant": "ag+cor/t6/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 134.24793192273506,
+        "killsPerHourStd": 2.287504001741745,
+        "ttkMean": 17.660066666666665,
+        "ttkStd": 0.9575810613922128,
+        "manaPerKill": 898.519,
+        "netManaPerKill": 452.599,
+        "hpPerKill": -330.89857738157616,
+        "drinkSecPerKill": 1.1559888839837655,
+        "eatSecPerKill": 1.1559888839837655,
+        "lifeTapSecPerKill": 2.09025,
+        "restSecPerKill": 1.1559888839837655,
+        "downtimeShare": 0.043108088055691954,
+        "breaksPerHour": 6.824269872739032,
+        "killsPerBreak": 19.672131147540984,
+        "breakFreePullPct": 94.91666666666667,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.011833333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.93090004277695,
+        134.56496380269317
+      ],
+      "gainVsBest": {
+        "mean": 12.769272431082907,
+        "ci95": [
+          12.430158307204774,
+          13.10838655496104
+        ],
+        "significant": true,
+        "pct": 10.508682612516763,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 6
+      }
+    },
+    {
+      "rank": 7,
+      "combo": {
+        "id": "ag+cor/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "wrack_single_then_drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_imp": 3,
+        "improved_health_funnel": 2,
+        "demonic_energies": 1,
+        "fel_vitality": 3,
+        "improved_voidwalker": 3,
+        "demonic_sacrifice": 1,
+        "demonic_aegis": 1,
+        "soul_link": 1,
+        "improved_sayaad": 1,
+        "demonic_brand": 2,
+        "demonic_pact": 1,
+        "decimation": 2,
+        "master_demonologist": 1,
+        "demonic_knowledge": 3,
+        "master_summoner": 1
+      },
+      "label": "Agony, Corruption → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 5,
+      "metrics": {
+        "variant": "ag+cor/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 134.24793192273506,
+        "killsPerHourStd": 2.287504001741745,
+        "ttkMean": 17.660066666666665,
+        "ttkStd": 0.9575810613922128,
+        "manaPerKill": 898.519,
+        "netManaPerKill": 452.599,
+        "hpPerKill": -330.89857738157616,
+        "drinkSecPerKill": 1.1559888839837655,
+        "eatSecPerKill": 1.1559888839837655,
+        "lifeTapSecPerKill": 2.09025,
+        "restSecPerKill": 1.1559888839837655,
+        "downtimeShare": 0.043108088055691954,
+        "breaksPerHour": 6.824269872739032,
+        "killsPerBreak": 19.672131147540984,
+        "breakFreePullPct": 94.91666666666667,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.011833333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.93090004277695,
+        134.56496380269317
+      ],
+      "gainVsBest": {
+        "mean": 12.769272431082907,
+        "ci95": [
+          12.430158307204774,
+          13.10838655496104
+        ],
+        "significant": true,
+        "pct": 10.508682612516763,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 8
+      }
+    },
+    {
+      "rank": 8,
+      "combo": {
+        "id": "ag+imm/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": true,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_health_funnel": 2,
+        "improved_imp": 3,
+        "fel_vitality": 3,
+        "demonic_energies": 2,
+        "demonic_aegis": 2,
+        "demonic_sacrifice": 1,
+        "improved_sayaad": 1,
+        "decimation": 2,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "master_demonologist": 2,
+        "master_summoner": 1
+      },
+      "label": "Agony, Immolate → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 5,
+      "metrics": {
+        "variant": "ag+imm/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 134.04026537705352,
+        "killsPerHourStd": 2.154619406015079,
+        "ttkMean": 17.064349999999997,
+        "ttkStd": 0.9628266978234532,
+        "manaPerKill": 941.9746666666666,
+        "netManaPerKill": 490.7746666666667,
+        "hpPerKill": -307.5481750202687,
+        "drinkSecPerKill": 1.7932512578999928,
+        "eatSecPerKill": 1.7932512578999928,
+        "lifeTapSecPerKill": 2.115,
+        "restSecPerKill": 1.7932512578999928,
+        "downtimeShare": 0.06676885402684724,
+        "breaksPerHour": 10.410460610951155,
+        "killsPerBreak": 12.875536480686696,
+        "breakFreePullPct": 92.23333333333333,
+        "gcdUtil": 1.0000000000000002,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.029166666666666667,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.7416503624511,
+        134.33888039165592
+      ],
+      "gainVsBest": {
+        "mean": 12.557633524141728,
+        "ci95": [
+          12.240469744134897,
+          12.87479730414856
+        ],
+        "significant": true,
+        "pct": 10.334510895724893,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 5
+      }
+    },
+    {
+      "rank": 9,
+      "combo": {
+        "id": "ag+imm/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": true,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_health_funnel": 2,
+        "demonic_embrace": 3,
+        "unholy_power": 5,
+        "improved_imp": 3,
+        "demonic_aegis": 2,
+        "demonic_energies": 1,
+        "demonic_sacrifice": 1,
+        "improved_voidwalker": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "demonic_brand": 2,
+        "fel_vitality": 3,
+        "demonic_pact": 1,
+        "master_demonologist": 1,
+        "decimation": 1
+      },
+      "label": "Agony, Immolate → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag+imm/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.98578275921463,
+        "killsPerHourStd": 1.8410369887966433,
+        "ttkMean": 17.12005,
+        "ttkStd": 0.9623620356262141,
+        "manaPerKill": 942.7645,
+        "netManaPerKill": 492.47116666666665,
+        "hpPerKill": -306.50765226397476,
+        "drinkSecPerKill": 1.7484723600891081,
+        "eatSecPerKill": 1.7484723600891081,
+        "lifeTapSecPerKill": 2.11075,
+        "restSecPerKill": 1.7484723600891081,
+        "downtimeShare": 0.06507512161094181,
+        "breaksPerHour": 9.646976358663453,
+        "killsPerBreak": 13.88888888888889,
+        "breakFreePullPct": 92.8,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.028333333333333332,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.73062805033274,
+        134.24093746809652
+      ],
+      "gainVsBest": {
+        "mean": 12.494017885045318,
+        "ci95": [
+          12.218558303932213,
+          12.769477466158424
+        ],
+        "significant": true,
+        "pct": 10.282157359995693,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 8
+      }
+    },
+    {
+      "rank": 10,
+      "combo": {
+        "id": "coe+ag/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "genes": {
+          "coe": true,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "wrack_single_then_drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_imp": 3,
+        "unholy_power": 5,
+        "demonic_energies": 1,
+        "demonic_sacrifice": 1,
+        "fel_vitality": 3,
+        "decimation": 1,
+        "demonic_embrace": 4,
+        "demonic_brand": 2,
+        "improved_sayaad": 1,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "master_demonologist": 3,
+        "demonic_pact": 1,
+        "improved_voidwalker": 2
+      },
+      "label": "CoE, Agony → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 1,
+      "metrics": {
+        "variant": "coe+ag/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.97965205379722,
+        "killsPerHourStd": 1.231988299712281,
+        "ttkMean": 18.861833333333333,
+        "ttkStd": 1.2497680953964376,
+        "manaPerKill": 862.6083333333333,
+        "netManaPerKill": 395.355,
+        "hpPerKill": -406.82187116418623,
+        "drinkSecPerKill": 0.007918489536621854,
+        "eatSecPerKill": 0.007918489536621854,
+        "lifeTapSecPerKill": 2.19025,
+        "restSecPerKill": 0.007918489536621854,
+        "downtimeShare": 0.00029469902025228606,
+        "breaksPerHour": 0.04465988401793241,
+        "killsPerBreak": 3000,
+        "breakFreePullPct": 99.96666666666667,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.003833333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.8089071867077,
+        134.15039692088675
+      ],
+      "gainVsBest": {
+        "mean": 12.473638377926362,
+        "ci95": [
+          12.27242394934306,
+          12.674852806509664
+        ],
+        "significant": true,
+        "pct": 10.265385709671174,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 8
+      }
+    },
+    {
+      "rank": 11,
+      "combo": {
+        "id": "coe+ag/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": true,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "demonic_embrace": 3,
+        "improved_imp": 3,
+        "fel_vitality": 3,
+        "demonic_energies": 2,
+        "demonic_sacrifice": 1,
+        "improved_voidwalker": 2,
+        "decimation": 2,
+        "soul_link": 1,
+        "demonic_brand": 2,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "unholy_power": 5,
+        "master_demonologist": 3
+      },
+      "label": "CoE, Agony → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 2,
+      "metrics": {
+        "variant": "coe+ag/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.97854854122784,
+        "killsPerHourStd": 1.296138681397456,
+        "ttkMean": 18.858166666666666,
+        "ttkStd": 1.251090528355389,
+        "manaPerKill": 863.1868333333333,
+        "netManaPerKill": 396.36016666666666,
+        "hpPerKill": -406.727195508971,
+        "drinkSecPerKill": 0.01180646856407392,
+        "eatSecPerKill": 0.01180646856407392,
+        "lifeTapSecPerKill": 2.18825,
+        "restSecPerKill": 0.01180646856407392,
+        "downtimeShare": 0.00043939264489229396,
+        "breaksPerHour": 0.06698927427061392,
+        "killsPerBreak": 2000,
+        "breakFreePullPct": 99.95,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.003833333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.79891288483688,
+        134.1581841976188
+      ],
+      "gainVsBest": {
+        "mean": 12.473798772530179,
+        "ci95": [
+          12.262414047088155,
+          12.685183497972202
+        ],
+        "significant": true,
+        "pct": 10.2655177090465,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 7
+      }
+    },
+    {
+      "rank": 12,
+      "combo": {
+        "id": "coe+ag/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "genes": {
+          "coe": true,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "wrack_single_then_drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_imp": 3,
+        "improved_health_funnel": 1,
+        "demonic_embrace": 5,
+        "fel_vitality": 3,
+        "demonic_sacrifice": 1,
+        "demonic_energies": 1,
+        "decimation": 2,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "master_demonologist": 3,
+        "demonic_pact": 1
+      },
+      "label": "CoE, Agony → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "coe+ag/t0/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.91160125287848,
+        "killsPerHourStd": 1.3971838065057651,
+        "ttkMean": 18.863,
+        "ttkStd": 1.2513294147495104,
+        "manaPerKill": 862.6333333333333,
+        "netManaPerKill": 395.86,
+        "hpPerKill": -406.24775395273497,
+        "drinkSecPerKill": 0.020406413771166407,
+        "eatSecPerKill": 0.020406413771166407,
+        "lifeTapSecPerKill": 2.188,
+        "restSecPerKill": 0.020406413771166407,
+        "downtimeShare": 0.0007590709844238012,
+        "breaksPerHour": 0.1115930010440654,
+        "killsPerBreak": 1200,
+        "breakFreePullPct": 99.91666666666667,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.003833333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.7179614566262,
+        134.10524104913077
+      ],
+      "gainVsBest": {
+        "mean": 12.408956521306068,
+        "ci95": [
+          12.191300517004851,
+          12.626612525607285
+        ],
+        "significant": true,
+        "pct": 10.212154712707212,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 8
+      }
+    },
+    {
+      "rank": 13,
+      "combo": {
+        "id": "coe+ag/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": true,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_imp": 3,
+        "unholy_power": 5,
+        "improved_health_funnel": 1,
+        "improved_voidwalker": 3,
+        "demonic_sacrifice": 1,
+        "master_summoner": 1,
+        "fel_vitality": 3,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "improved_felhunter": 3,
+        "decimation": 1,
+        "improved_sayaad": 1,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "master_demonologist": 1,
+        "demonic_aegis": 1
+      },
+      "label": "CoE, Agony → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 6,
+      "metrics": {
+        "variant": "coe+ag/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.83886007584556,
+        "killsPerHourStd": 1.2295822892590242,
+        "ttkMean": 18.890666666666668,
+        "ttkStd": 1.252919732810158,
+        "manaPerKill": 864.676,
+        "netManaPerKill": 396.78266666666667,
+        "hpPerKill": -408.066291019369,
+        "drinkSecPerKill": 0.007350829596412583,
+        "eatSecPerKill": 0.007350829596412583,
+        "lifeTapSecPerKill": 2.19325,
+        "restSecPerKill": 0.007350829596412583,
+        "downtimeShare": 0.0002732851816099022,
+        "breaksPerHour": 0.04461295335861518,
+        "killsPerBreak": 3000,
+        "breakFreePullPct": 99.96666666666667,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.0036666666666666666,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.6684486647922,
+        134.0092714868989
+      ],
+      "gainVsBest": {
+        "mean": 12.332802165834224,
+        "ci95": [
+          12.129978517745288,
+          12.53562581392316
+        ],
+        "significant": true,
+        "pct": 10.149482234260722,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 9
+      }
+    },
+    {
+      "rank": 14,
+      "combo": {
+        "id": "ag+imm/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": false,
+          "siphon": false,
+          "immolate": true,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "demonic_embrace": 3,
+        "improved_imp": 3,
+        "unholy_power": 4,
+        "improved_voidwalker": 3,
+        "demonic_sacrifice": 1,
+        "improved_sayaad": 1,
+        "master_summoner": 2,
+        "demonic_aegis": 2,
+        "fel_vitality": 3,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "demonic_brand": 2,
+        "master_demonologist": 1,
+        "demonic_pact": 1,
+        "decimation": 1
+      },
+      "label": "Agony, Immolate → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "ag+imm/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.62076795328548,
+        "killsPerHourStd": 1.724254600463798,
+        "ttkMean": 17.222,
+        "ttkStd": 0.9008280904486871,
+        "manaPerKill": 943.3678333333334,
+        "netManaPerKill": 492.3811666666667,
+        "hpPerKill": -310.1469393960248,
+        "drinkSecPerKill": 1.7199196966341057,
+        "eatSecPerKill": 1.7199196966341057,
+        "lifeTapSecPerKill": 2.114,
+        "restSecPerKill": 1.7199196966341057,
+        "downtimeShare": 0.06383805296728638,
+        "breaksPerHour": 9.487074524683269,
+        "killsPerBreak": 14.084507042253522,
+        "breakFreePullPct": 92.9,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.03166666666666667,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.38179845767138,
+        133.85973744889958
+      ],
+      "gainVsBest": {
+        "mean": 12.125965696006409,
+        "ci95": [
+          11.857890266195504,
+          12.394041125817314
+        ],
+        "significant": true,
+        "pct": 9.979262762020237,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 8
+      }
+    },
+    {
+      "rank": 15,
+      "combo": {
+        "id": "ag+cor/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": true,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_imp": 3,
+        "improved_health_funnel": 2,
+        "demonic_embrace": 2,
+        "unholy_power": 1,
+        "fel_vitality": 3,
+        "demonic_sacrifice": 1,
+        "improved_voidwalker": 2,
+        "demonic_energies": 2,
+        "master_summoner": 2,
+        "soul_link": 1,
+        "demonic_brand": 2,
+        "improved_felhunter": 2,
+        "decimation": 2,
+        "demonic_pact": 1,
+        "demonic_knowledge": 3,
+        "demonic_aegis": 1,
+        "master_demonologist": 1
+      },
+      "label": "Agony, Corruption → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 8,
+      "metrics": {
+        "variant": "ag+cor/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 133.57486954247355,
+        "killsPerHourStd": 2.3247947976395684,
+        "ttkMean": 17.884483333333332,
+        "ttkStd": 1.0034401070303087,
+        "manaPerKill": 902.2685,
+        "netManaPerKill": 454.2151666666667,
+        "hpPerKill": -335.17378839409815,
+        "drinkSecPerKill": 1.0666940275794978,
+        "eatSecPerKill": 1.0666940275794978,
+        "lifeTapSecPerKill": 2.10025,
+        "restSecPerKill": 1.0666940275794978,
+        "downtimeShare": 0.0395787543265742,
+        "breaksPerHour": 6.055394085925467,
+        "killsPerBreak": 22.058823529411764,
+        "breakFreePullPct": 95.46666666666667,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.026,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        133.25266942188304,
+        133.89706966306406
+      ],
+      "gainVsBest": {
+        "mean": 12.098074307036375,
+        "ci95": [
+          11.762888887771455,
+          12.433259726301296
+        ],
+        "significant": true,
+        "pct": 9.956309085067206,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 10
+      }
+    },
+    {
+      "rank": 16,
+      "combo": {
+        "id": "coe+imm/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": true,
+          "agony": false,
+          "corruption": false,
+          "siphon": false,
+          "immolate": true,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_health_funnel": 2,
+        "improved_imp": 3,
+        "unholy_power": 4,
+        "demonic_embrace": 3,
+        "fel_vitality": 3,
+        "improved_voidwalker": 3,
+        "demonic_sacrifice": 1,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "master_demonologist": 3,
+        "improved_felhunter": 1,
+        "demonic_energies": 1
+      },
+      "label": "CoE, Immolate → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 3,
+      "metrics": {
+        "variant": "coe+imm/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 132.9844104984128,
+        "killsPerHourStd": 1.3861880777525457,
+        "ttkMean": 18.260866666666665,
+        "ttkStd": 1.2660262185094133,
+        "manaPerKill": 906.8948333333333,
+        "netManaPerKill": 444.65483333333333,
+        "hpPerKill": -364.42872248132716,
+        "drinkSecPerKill": 0.8099755960282364,
+        "eatSecPerKill": 0.8099755960282364,
+        "lifeTapSecPerKill": 2.16675,
+        "restSecPerKill": 0.8099755960282364,
+        "downtimeShare": 0.029920590876643213,
+        "breaksPerHour": 4.543634025362437,
+        "killsPerBreak": 29.26829268292683,
+        "breakFreePullPct": 96.58333333333333,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.006666666666666667,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        132.79229463241617,
+        133.17652636440945
+      ],
+      "gainVsBest": {
+        "mean": 11.481672609846155,
+        "ci95": [
+          11.257756461740128,
+          11.705588757952183
+        ],
+        "significant": true,
+        "pct": 9.449031177688472,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 9
+      }
+    },
+    {
+      "rank": 17,
+      "combo": {
+        "id": "cor/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": false,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_imp": 3,
+        "demonic_embrace": 3,
+        "demonic_energies": 2,
+        "demonic_aegis": 2,
+        "demonic_sacrifice": 1,
+        "fel_vitality": 3,
+        "master_summoner": 1,
+        "soul_link": 1,
+        "demonic_brand": 2,
+        "improved_sayaad": 1,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "master_demonologist": 1,
+        "improved_felhunter": 1,
+        "improved_voidwalker": 1
+      },
+      "label": "Corruption → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 2,
+      "metrics": {
+        "variant": "cor/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 132.4848453703387,
+        "killsPerHourStd": 1.9197191453635651,
+        "ttkMean": 18.9395,
+        "ttkStd": 1.076854842922419,
+        "manaPerKill": 911.084,
+        "netManaPerKill": 418.9773333333333,
+        "hpPerKill": -418.40209638752594,
+        "drinkSecPerKill": 0.23341921152805242,
+        "eatSecPerKill": 0.23341921152805242,
+        "lifeTapSecPerKill": 2.30675,
+        "restSecPerKill": 0.23341921152805242,
+        "downtimeShare": 0.008590141151600112,
+        "breaksPerHour": 1.3248484537033869,
+        "killsPerBreak": 100,
+        "breakFreePullPct": 99,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.004333333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        132.21878587090927,
+        132.7509048697681
+      ],
+      "gainVsBest": {
+        "mean": 10.995401488470677,
+        "ci95": [
+          10.699386028332608,
+          11.291416948608745
+        ],
+        "significant": true,
+        "pct": 9.048846366396592,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 6
+      }
+    },
+    {
+      "rank": 18,
+      "combo": {
+        "id": "cor/t0/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": false,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 0,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "improved_imp": 3,
+        "demonic_embrace": 3,
+        "demonic_energies": 2,
+        "demonic_sacrifice": 1,
+        "fel_vitality": 3,
+        "master_summoner": 1,
+        "soul_link": 1,
+        "demonic_brand": 2,
+        "improved_sayaad": 1,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "decimation": 1,
+        "master_demonologist": 2,
+        "improved_felhunter": 1,
+        "improved_health_funnel": 1
+      },
+      "label": "Corruption → Drain Life",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 4,
+      "metrics": {
+        "variant": "cor/t0/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 132.42265237156133,
+        "killsPerHourStd": 1.8796533090562162,
+        "ttkMean": 18.86275,
+        "ttkStd": 1.1443363528473933,
+        "manaPerKill": 909.5215,
+        "netManaPerKill": 419.1748333333333,
+        "hpPerKill": -413.88515180342813,
+        "drinkSecPerKill": 0.3229311166933221,
+        "eatSecPerKill": 0.3229311166933221,
+        "lifeTapSecPerKill": 2.2985,
+        "restSecPerKill": 0.3229311166933221,
+        "downtimeShare": 0.011878720834955525,
+        "breaksPerHour": 1.8097762490780047,
+        "killsPerBreak": 73.17073170731707,
+        "breakFreePullPct": 98.63333333333334,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.005833333333333334,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        132.16214571374312,
+        132.68315902937954
+      ],
+      "gainVsBest": {
+        "mean": 10.931949600804401,
+        "ci95": [
+          10.650624458426615,
+          11.213274743182188
+        ],
+        "significant": true,
+        "pct": 8.996627592598106,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 7
+      }
+    },
+    {
+      "rank": 19,
+      "combo": {
+        "id": "cor/t6/nods/drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": false,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "improved_health_funnel": 1,
+        "unholy_power": 5,
+        "demonic_embrace": 2,
+        "fel_vitality": 3,
+        "demonic_energies": 2,
+        "demonic_sacrifice": 1,
+        "improved_imp": 3,
+        "master_summoner": 2,
+        "decimation": 2,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "master_demonologist": 1,
+        "improved_voidwalker": 1,
+        "demonic_pact": 1,
+        "improved_sayaad": 1
+      },
+      "label": "Corruption → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 5,
+      "metrics": {
+        "variant": "cor/t6/nods/drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 132.3788800682857,
+        "killsPerHourStd": 1.9147360070605468,
+        "ttkMean": 18.94175,
+        "ttkStd": 1.0869355281281126,
+        "manaPerKill": 911.2308333333333,
+        "netManaPerKill": 418.75083333333333,
+        "hpPerKill": -418.2727143243982,
+        "drinkSecPerKill": 0.252920314048531,
+        "eatSecPerKill": 0.252920314048531,
+        "lifeTapSecPerKill": 2.3085,
+        "restSecPerKill": 0.252920314048531,
+        "downtimeShare": 0.009300363311184345,
+        "breaksPerHour": 1.4561676807511426,
+        "killsPerBreak": 90.9090909090909,
+        "breakFreePullPct": 98.9,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.004333333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        132.11351119658988,
+        132.6442489399815
+      ],
+      "gainVsBest": {
+        "mean": 10.889329996139045,
+        "ci95": [
+          10.592194889369855,
+          11.186465102908235
+        ],
+        "significant": true,
+        "pct": 8.961553088477656,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_FIRE",
+        "distance": 7
+      }
+    },
+    {
+      "rank": 20,
+      "combo": {
+        "id": "cor/t6/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "genes": {
+          "coe": false,
+          "agony": false,
+          "corruption": true,
+          "siphon": false,
+          "immolate": false,
+          "minTtkSec": 6,
+          "drainSoulFinisher": false,
+          "filler": "wrack_single_then_drain_life"
+        },
+        "pets": {
+          "pet": "imp",
+          "sacrificed": "voidwalker"
+        }
+      },
+      "ranks": {
+        "unholy_power": 5,
+        "demonic_energies": 2,
+        "improved_imp": 3,
+        "fel_vitality": 3,
+        "demonic_sacrifice": 1,
+        "improved_sayaad": 3,
+        "decimation": 1,
+        "improved_voidwalker": 3,
+        "demonic_brand": 2,
+        "soul_link": 1,
+        "demonic_knowledge": 3,
+        "demonic_pact": 1,
+        "master_demonologist": 1,
+        "demonic_embrace": 2
+      },
+      "label": "Corruption → Drain Life; DoTs if TTK ≥ 6 s",
+      "perTree": {
+        "aff": 0,
+        "demo": 31,
+        "destro": 0
+      },
+      "freePoints": 1,
+      "metrics": {
+        "variant": "cor/t6/nods/wrack_single_then_drain_life|imp>voidwalker",
+        "level": 40,
+        "profile": "average",
+        "sessions": 200,
+        "kills": 6000,
+        "killsPerHour": 132.3788800682857,
+        "killsPerHourStd": 1.9147360070605468,
+        "ttkMean": 18.94175,
+        "ttkStd": 1.0869355281281126,
+        "manaPerKill": 911.2308333333333,
+        "netManaPerKill": 418.75083333333333,
+        "hpPerKill": -418.2727143243982,
+        "drinkSecPerKill": 0.252920314048531,
+        "eatSecPerKill": 0.252920314048531,
+        "lifeTapSecPerKill": 2.3085,
+        "restSecPerKill": 0.252920314048531,
+        "downtimeShare": 0.009300363311184345,
+        "breaksPerHour": 1.4561676807511426,
+        "killsPerBreak": 90.9090909090909,
+        "breakFreePullPct": 98.9,
+        "gcdUtil": 1,
+        "gcdWasteSecPerKill": 0,
+        "gcdWasteShare": 0,
+        "deathsPerHour": 0,
+        "petDeathsPerHour": 0,
+        "threatSwitchesPerKill": 0.004333333333333333,
+        "timeoutPct": 0,
+        "eurekaPerHour": 0
+      },
+      "kphCi": [
+        132.11351119658988,
+        132.6442489399815
+      ],
+      "gainVsBest": {
+        "mean": 10.889329996139045,
+        "ci95": [
+          10.592194889369855,
+          11.186465102908235
+        ],
+        "significant": true,
+        "pct": 8.961553088477656,
+        "vs": "DT_SS_WRACK_70"
+      },
+      "tiedWithFirst": false,
+      "nearestKnown": {
+        "id": "DEMO_PACT_R1",
+        "distance": 9
+      }
+    }
+  ]
+}
