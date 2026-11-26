@@ -18,7 +18,7 @@ const arg = (name: string, fallback: string): string => {
 const ADDON_TESTS = 'C:/Program Files (x86)/World of Warcraft/_forever_/Interface/AddOns/LifeTapAdvisor/tests';
 const out = arg('out', existsSync(ADDON_TESTS) ? join(ADDON_TESTS, 'vectors.lua') : 'addon-out/vectors.lua');
 
-const BUILDS = ['DT_SS', 'AFF_WRACK', 'AFF_DRAINTANK', 'DEMO_PACT_R1', 'DEMO_FIRE', 'HB_AFF_FEL', 'CWF_DESTRO_IMP', 'TF_DEMO_FEL'];
+const BUILDS = ['DT_SS', 'DT_SS_WRACK_70', 'DT_SS_WRACK_50', 'AFF_WRACK', 'DEMO_PACT_R1', 'DEMO_FIRE', 'CWF_DESTRO_IMP', 'TF_DEMO_FEL'];
 const LEVELS = [14, 36, 45, 58];
 const POLICY_LIST: EurekaPolicy[] = ['first_affected', 'filler', 'ttk', 'pull_start', 'delay'];
 const SPELLS = ['shadow_bolt', 'corruption', 'bane_of_agony', 'immolate', 'searing_pain', 'drain_life', 'drain_soul', 'siphon_life', 'wrack', 'curse_of_elements', 'eureka'];
@@ -57,6 +57,8 @@ for (const policy of POLICY_LIST) {
         const combatSec = Math.round(rng.next() * 20 * 10) / 10;
         // keep the readable inputs and the health at 2 decimals, as the Lua side reads them
         const hp = Math.round(rng.next() * 10000) / 100;
+        // the player's own health (the Wrack builds channel Wrack only above a floor)
+        const playerHp = Math.round(rng.next() * 10000) / 100;
         const level2 = { hpPerSec: Math.round(hpPerSec * 100) / 100, fin: Math.round(fin * 100) / 100 };
         const ctx: SpecCtx = {
           params, variant: v, mobsInPull: mobs, petAlive: pet, hasShadowTrance: trance,
@@ -70,6 +72,7 @@ for (const policy of POLICY_LIST) {
           targetHp: () => hp,
           estTtkSec: () => hp / level2.hpPerSec,
           drainSoulKillSec: () => hp / level2.fin,
+          hpPct: playerHp,
           drainSoulExpected: () => 0,
           fillerExpected: () => 0,
         };
@@ -85,7 +88,7 @@ for (const policy of POLICY_LIST) {
             combatSec,
           });
         }
-        rows.push({ policy, build: buildId, level, hp, hpPerSec: level2.hpPerSec, fin: level2.fin, talents, knows, afford, dots, curse, trance, pet, mobs, eurekaReady, brand, firstAction, combatSec, expect: step ? step.id : null, eureka });
+        rows.push({ policy, build: buildId, level, hp, playerHp, hpPerSec: level2.hpPerSec, fin: level2.fin, talents, knows, afford, dots, curse, trance, pet, mobs, eurekaReady, brand, firstAction, combatSec, expect: step ? step.id : null, eureka });
       }
     }
   }
