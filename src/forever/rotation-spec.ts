@@ -353,7 +353,8 @@ export function estimateOf(v: BuildVariant, p: Params): RotationEstimate {
   return { filler, fillerRank: fire ? 1 : v.rank, dotSpells };
 }
 
-/** A build's built-in rotation as data (plays exactly like the rotation code). */
+/** A build's rotation as data: its composed rotation, or the built-in one (plays exactly like the rotation code). */
 export function dataRotationOf(v: BuildVariant, p: Params): DataRotation {
+  if (v.genes) return buildRotation(v.genes, p);
   return { steps: rotationSpec(v, p).steps, estimate: estimateOf(v, p) };
 }

@@ -50,7 +50,13 @@ export function discoverPool(options: DiscoverOptions, n: number, signal: AbortS
     const w = makeWorker();
     if (w) workers.push(w);
   }
-  for (const w of workers) w.postMessage({ type: 'init', options });
+  for (const w of workers) {
+    w.onerror = (e) => {
+      failure = new Error(e.message || 'discovery worker error');
+      close();
+    };
+    w.postMessage({ type: 'init', options });
+  }
   let closed = false;
   const close = (): void => {
     if (closed) return;
@@ -58,6 +64,8 @@ export function discoverPool(options: DiscoverOptions, n: number, signal: AbortS
     for (const w of workers) w.terminate();
   };
   let failCurrent: ((e: unknown) => void) | null = null;
+  /** The error a worker died with: every later call fails with it, not as an abort. */
+  let failure: Error | null = null;
   signal.addEventListener('abort', () => {
     close();
     failCurrent?.(abortError());
@@ -65,6 +73,7 @@ export function discoverPool(options: DiscoverOptions, n: number, signal: AbortS
 
   const runner: Runner = (tasks: Task[], onDone) =>
     new Promise<TaskResult[]>((resolve, reject) => {
+      if (failure) return reject(failure);
       if (signal.aborted || closed) return reject(abortError());
       const out: TaskResult[] = new Array(tasks.length);
       let next = 0;
@@ -83,8 +92,9 @@ export function discoverPool(options: DiscoverOptions, n: number, signal: AbortS
       };
       for (const w of workers) {
         w.onerror = (e) => {
+          failure = new Error(e.message || 'discovery worker error');
           close();
-          fail(new Error(e.message || 'discovery worker error'));
+          fail(failure);
         };
         w.onmessage = (e) => {
           if (failed) return;

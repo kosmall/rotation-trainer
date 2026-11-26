@@ -1,7 +1,9 @@
 // Custom builds of the web app: validation, import/export and the storage format. Framework-free.
 
 import { customId, customVariant, type BuildVariant, type CustomBuildData } from '../builds';
-import { FILLERS as GENE_FILLERS, MIN_TTKS, type RotationGenes } from '../rotation-genes';
+import { parseGenes, type RotationGenes } from '../rotation-genes';
+
+export { parseGenes };
 import { TALENT_BY_ID } from '../talents';
 import type { PetKind } from '../types';
 
@@ -21,25 +23,6 @@ export const FILLERS: Readonly<Record<BuildVariant['rotation'], readonly string[
 
 /** The rotation a build starts with when switched to a rotation composed from spells. */
 export const DEFAULT_GENES: RotationGenes = { coe: true, agony: true, corruption: true, siphon: false, immolate: false, minTtkSec: 6, drainSoulFinisher: true, filler: 'drain_life' };
-
-/** Rotation genes from unknown data, or undefined when anything is malformed. */
-export function parseGenes(raw: unknown): RotationGenes | undefined {
-  if (raw === null || typeof raw !== 'object') return undefined;
-  const o = raw as Record<string, unknown>;
-  const flags = ['coe', 'agony', 'corruption', 'siphon', 'immolate', 'drainSoulFinisher'] as const;
-  if (flags.some((k) => typeof o[k] !== 'boolean')) return undefined;
-  if (!MIN_TTKS.includes(o.minTtkSec as never) || !GENE_FILLERS.includes(o.filler as never)) return undefined;
-  return {
-    coe: o.coe as boolean,
-    agony: o.agony as boolean,
-    corruption: o.corruption as boolean,
-    siphon: o.siphon as boolean,
-    immolate: o.immolate as boolean,
-    minTtkSec: o.minTtkSec as RotationGenes['minTtkSec'],
-    drainSoulFinisher: o.drainSoulFinisher as boolean,
-    filler: o.filler as RotationGenes['filler'],
-  };
-}
 
 /** A new empty build. */
 export function emptyBuild(name: string): CustomBuildData {

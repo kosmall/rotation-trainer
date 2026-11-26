@@ -2,7 +2,7 @@ import { describeBuild, loadVariant, picksAt, VARIANT_IDS, type BuildVariant } f
 import { demonLearned, demonsAt } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
-import { FactRow, LoadoutRows, PET_NAMES, ROTATION_ICONS, rotationTitle, TREE_ICONS } from './buildFacts';
+import { FactRow, LoadoutRows, PET_NAMES, rotationIcon, rotationTitle, TREE_ICONS } from './buildFacts';
 import { IconTile } from './IconTile';
 import { TalentTrees } from './TalentTrees';
 import { TalentWowheadLink } from './WowheadLink';
@@ -42,7 +42,7 @@ export function BuildsView({ level, mobs = 1, ids = VARIANT_IDS, id, onIdChange:
         </label>
       </div>
       <dl className="fv-facts fv-facts-icons">
-        <FactRow label="Rotacja" icons={<IconTile {...ROTATION_ICONS[v.rotation]} name={rotationTitle(v)} size={28} />}>
+        <FactRow label="Rotacja" icons={<IconTile {...rotationIcon(v)} name={rotationTitle(v)} size={28} />}>
           {rotationTitle(v)}
         </FactRow>
         <LoadoutRows v={v} petNote={petNote(v, level, mobs)} />

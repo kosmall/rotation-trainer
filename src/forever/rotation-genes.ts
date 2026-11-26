@@ -114,3 +114,21 @@ export function buildRotation(g: RotationGenes, p: Params): DataRotation {
   return { steps, estimate };
 }
 
+/** Rotation genes from unknown data, or undefined when anything is malformed. */
+export function parseGenes(raw: unknown): RotationGenes | undefined {
+  if (raw === null || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const flags = ['coe', 'agony', 'corruption', 'siphon', 'immolate', 'drainSoulFinisher'] as const;
+  if (flags.some((k) => typeof o[k] !== 'boolean')) return undefined;
+  if (!MIN_TTKS.includes(o.minTtkSec as never) || !FILLERS.includes(o.filler as never)) return undefined;
+  return {
+    coe: o.coe as boolean,
+    agony: o.agony as boolean,
+    corruption: o.corruption as boolean,
+    siphon: o.siphon as boolean,
+    immolate: o.immolate as boolean,
+    minTtkSec: o.minTtkSec as RotationGenes['minTtkSec'],
+    drainSoulFinisher: o.drainSoulFinisher as boolean,
+    filler: o.filler as RotationGenes['filler'],
+  };
+}
