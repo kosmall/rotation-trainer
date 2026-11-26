@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { BuildVariant } from '../../forever/builds';
-import { FILLER_NAME, rotationLabel, type FillerGene } from '../../forever/rotation-genes';
+import { FILLER_NAME, rotationLabel, WRACK_FLOOR, type FillerGene } from '../../forever/rotation-genes';
 import { getSpell } from '../../forever/spells';
 import type { Params, Tree } from '../../forever/types';
 import { IconTile } from './IconTile';
@@ -44,8 +44,14 @@ export function rotationTitle(v: BuildVariant): string {
   return v.genes ? `Własna rotacja: ${rotationLabel(v.genes)}` : TITLES[v.rotation];
 }
 
+/** The icon of a build's rotation: its tree, or the filler of a composed rotation. */
+export function rotationIcon(v: BuildVariant): { kind: 'spell' | 'talent' | 'pet'; id: string } {
+  return v.genes ? { kind: 'spell', id: GENE_FILLER_SPELL[v.genes.filler] } : ROTATION_ICONS[v.rotation];
+}
+
 /** The health floor (fraction) above which a Wrack-filler build channels Wrack (Drain Life below it); 0 = always Wrack. */
 export function wrackFloor(v: BuildVariant, params?: Params): number {
+  if (v.genes) return WRACK_FLOOR[v.genes.filler] ?? 0;
   return v.filler === 'wrack' ? (v.wrack_min_hp_pct ?? params?.wrack_min_hp_pct ?? 0) : 0;
 }
 

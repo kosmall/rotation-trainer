@@ -1,6 +1,6 @@
 import buildsJson from './data/builds.json';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks, type Ranks } from './talents';
-import type { RotationGenes } from './rotation-genes';
+import { parseGenes, type RotationGenes } from './rotation-genes';
 import type { PetKind, Tree } from './types';
 
 export interface BuildVariant {
@@ -179,6 +179,8 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
   if (picks.length !== MAX_TALENT_POINTS) throw new Error(`a build needs exactly ${MAX_TALENT_POINTS} points (level 10 to 60), got ${picks.length}`);
   const check = validatePicks(picks);
   if (!check.ok) throw new Error(`invalid talent order: ${check.errors.join('; ')}`);
+  const genes = obj.genes === undefined ? undefined : parseGenes(obj.genes);
+  if (obj.genes !== undefined && !genes) throw new Error('invalid rotation genes');
   return {
     id,
     order: orderId,
@@ -190,7 +192,7 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
     pre_respec_build: (obj.pre_respec_build ?? null) as string | null,
     respec_level: Number(obj.respec_level ?? 40),
     ...(typeof obj.wrack_min_hp_pct === 'number' ? { wrack_min_hp_pct: obj.wrack_min_hp_pct } : {}),
-    ...(obj.genes && typeof obj.genes === 'object' ? { genes: obj.genes as RotationGenes } : {}),
+    ...(genes ? { genes } : {}),
     ...(Array.isArray(obj.pet_rules) ? { pet_rules: obj.pet_rules as PetRule[] } : {}),
   };
 }

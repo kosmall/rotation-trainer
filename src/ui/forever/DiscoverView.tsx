@@ -6,7 +6,7 @@ import { liveSteps, sacrificeLive } from '../../forever/discover/space';
 import { TALENTS, TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
 import { paramsOf, type Settings } from '../../forever/web/api';
-import { discoveredBuild, type DiscoverBudget } from '../../forever/web/discover';
+import { discoveredBuild, fullRotationNote, type DiscoverBudget } from '../../forever/web/discover';
 import { routeHref } from '../shell/router';
 import { PET_NAMES, spellName } from './buildFacts';
 import { describeCond } from './RotationsView';
@@ -25,7 +25,8 @@ function petText(row: TopRow): string {
 /** Build discovery: every rotation × pet combination with its own talent search at the chosen level; any result can be saved as a custom build. */
 export function DiscoverView({ settings, discovery, existingNames, onSave }: { settings: Settings; discovery: DiscoverRun; existingNames: readonly string[]; onSave(b: CustomBuildData): void }) {
   const [budget, setBudget] = useState<DiscoverBudget>('full');
-  const [savedName, setSavedName] = useState<string | null>(null);
+  // the saved note belongs to the result it was saved from
+  const [savedNote, setSavedNote] = useState<{ name: string; from: unknown } | null>(null);
   const d = discovery;
   // leaving the view (another Forever tab) stops a running search
   const cancel = d.cancel;
@@ -84,9 +85,9 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               Najlepszy znany: {best.id} {f1(best.metrics.killsPerHour)} kills/h. Sprawdzono {res.meta.combos} kombinacji, {res.meta.searched} dokładnie, {res.meta.evaluations} symulacji. ✓ = różnica istotna (95%), ~ = w granicach szumu, ≈#1 = nie gorszy istotnie od pierwszego.
             </p>
           )}
-          {savedName && (
+          {savedNote && savedNote.from === res && (
             <p className="fv-note" role="status">
-              Zapisano: <b>{savedName}</b>. <a href={routeHref({ mode: 'forever', view: 'custom' })}>Otwórz w zakładce Własny build</a>
+              Zapisano: <b>{savedNote.name}</b>. <a href={routeHref({ mode: 'forever', view: 'custom' })}>Otwórz w zakładce Własny build</a>
             </p>
           )}
           <div className="fv-scroll">
@@ -137,7 +138,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
                         onClick={() => {
                           const b = discoveredBuild(t, res.meta.level, existingNames);
                           onSave(b);
-                          setSavedName(b.name);
+                          setSavedNote({ name: b.name, from: res });
                         }}
                       >
                         Zapisz
@@ -177,6 +178,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
                   </li>
                 ))}
               </ol>
+              {fullRotationNote(t) && <p className="fv-note">{fullRotationNote(t)}</p>}
               <p className="fv-note">Opiera się na szacunkach: {verifyFor(t, res.meta.level).join(', ') || 'brak'}</p>
             </details>
           ))}

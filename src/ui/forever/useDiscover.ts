@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { discover, type Budget, type DiscoverOptions, type DiscoverResult } from '../../forever/discover/engine';
 import type { SpaceFilter } from '../../forever/discover/space';
 import type { Settings } from '../../forever/web/api';
-import { discoverOptions, workerCount, type DiscoverBudget } from '../../forever/web/discover';
+import { VARIANT_IDS } from '../../forever/builds';
+import { enumerateCombos } from '../../forever/discover/space';
+import { discoverEtaSec, discoverOptions, workerCount, type DiscoverBudget } from '../../forever/web/discover';
 import { discoverPool, type DiscoverPool } from '../../forever/web/discover-client';
 
 export const DISCOVER_STORAGE_KEY = 'wow-forever-sim:discover:v1';
@@ -96,18 +98,20 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       const pool = makePool(options, ctl.signal);
       let stageStart = { stage: '', at: Date.now(), done: 0 };
       let lastPaint = 0;
+      const combos = enumerateCombos(options.level, options.space).length;
+      const current = (): boolean => abort.current === ctl && !ctl.signal.aborted;
       const progress = (stage: string, done: number, total: number): void => {
-        if (ctl.signal.aborted) return;
+        if (!current()) return;
         const now = Date.now();
         if (stage !== stageStart.stage) stageStart = { stage, at: now, done };
         if (stage === stageStart.stage && now - lastPaint < 250 && done < total && done !== stageStart.done) return;
         lastPaint = now;
-        const rate = (done - stageStart.done) / Math.max(0.001, (now - stageStart.at) / 1000);
-        setProg({ stage, done, total, etaSec: rate > 0 && done < total ? (total - done) / rate : null });
+        const etaSec = discoverEtaSec({ stage, done: done - stageStart.done, total: total - stageStart.done, stageElapsedSec: (now - stageStart.at) / 1000, budget: options.budget, combos, baselines: VARIANT_IDS.length });
+        setProg({ stage, done, total, etaSec });
       };
       discover(options, pool.runner, { progress })
         .then((result) => {
-          if (ctl.signal.aborted) return;
+          if (!current()) return;
           const next = { settings: s, budget, result };
           setSaved(next);
           try {
@@ -118,6 +122,8 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
           setStatus('done');
         })
         .catch((e: unknown) => {
+          // a run replaced by a newer one says nothing
+          if (abort.current !== ctl) return;
           if (ctl.signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) setStatus('aborted');
           else {
             setError(e instanceof Error ? e.message : String(e));
