@@ -7,6 +7,7 @@ import { rankAt } from './spells';
 import { soulHarvest } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
 import { gcdMs, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec } from './stats';
+import type { DataRotation } from './rotation-spec';
 import type { Ranks } from './talents';
 import type { Params } from './types';
 
@@ -19,6 +20,8 @@ export interface CellConfig {
   /** Talent ranks override (optimizer); default: the variant's picks at the level (see `picks`). */
   ranks?: Ranks;
   picks?: PicksOptions;
+  /** A rotation given as data (build discovery); default: the variant's built-in rotation code. */
+  rotation?: DataRotation;
 }
 
 export interface RestInput {
@@ -114,7 +117,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   };
   let mana = stats.maxMana * params.rest_to_mana_pct;
   let hp = stats.maxHp * params.rest_to_hp_pct;
-  const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks };
+  const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks, ...(cfg.rotation ? { rotation: cfg.rotation } : {}) };
   const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
   let shCarryMs = 0;
   // Gnome Eureka!: cooldown and buff left, as they were when the last pull ended; the time since then is taken off at the next pull.

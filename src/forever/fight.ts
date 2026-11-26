@@ -7,6 +7,7 @@ import { ranksAt } from './builds';
 import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
+import { estimateOf, evaluateSteps, type DataRotation } from './rotation-spec';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
@@ -20,6 +21,8 @@ export interface PullConfig {
   mobs?: 1 | 2 | 3;
   /** Talent ranks override (optimizer); default: the variant's picks at the level. */
   ranks?: Ranks;
+  /** A rotation given as data; default: the variant's built-in rotation code. */
+  rotation?: DataRotation;
   startMana?: number;
   startHp?: number;
   /** Soul Harvest time left from the previous kill (ms), carried into this pull. */
@@ -484,10 +487,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return best;
   };
   // ---- estimates for rotation rules ---------------------------------------------------------
+  const est = cfg.rotation?.estimate ?? estimateOf(variant, params);
   const fillerRank = (): { id: string; r: SpellRank } => {
-    const want = variant.rank;
-    const id = variant.rotation === 'fire' ? (params.fire_filler === 'searing_pain' ? 'searing_pain' : 'shadow_bolt') : variant.filler === 'wrack' && known('wrack') ? 'wrack' : variant.filler === 'drain_life' ? 'drain_life' : 'shadow_bolt';
-    const r = rankAt(id, id === 'shadow_bolt' ? (variant.rotation === 'fire' ? 1 : want) : 'max', level) ?? (rankAt('shadow_bolt', 'max', level) as SpellRank);
+    const id = est.filler === 'wrack' && !known('wrack') ? 'shadow_bolt' : est.filler;
+    const r = rankAt(id, id === 'shadow_bolt' ? est.fillerRank : 'max', level) ?? (rankAt('shadow_bolt', 'max', level) as SpellRank);
     return { id, r };
   };
   const fillerCastMs = (id: string, r: SpellRank): number => Math.max(gcd, hastedCastMs(castMsOf(getSpell(id), r, rk(ranks, 'bane'), params), params.haste_pct));
@@ -518,7 +521,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const f = fillerRank();
     const sh = mults().shadow;
     let dots = 0;
-    const dotSpells = ['corruption', 'bane_of_agony', 'siphon_life', ...(variant.rotation === 'affliction' && (params.aff_use_immolate || variant.immolate) ? ['immolate'] : [])];
+    const dotSpells = est.dotSpells;
     for (const id of dotSpells) {
       const r = known(id) ? rankAt(id, 'max', level) : undefined;
       if (r) {
@@ -536,7 +539,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   }
 
   // ---- rotation context ---------------------------------------------------------------------
-  const rotation = rotationFor(variant.rotation);
+  const dataRotation = cfg.rotation;
+  const rotation: (ctx: RotationCtx) => Candidate[] = dataRotation ? (ctx) => evaluateSteps(dataRotation, ctx) : rotationFor(variant.rotation);
   const makeCtx = (m: Mob): RotationCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance, hpPct: (hp / maxHp) * 100,
     known, talentRank: (id) => rk(ranks, id),
