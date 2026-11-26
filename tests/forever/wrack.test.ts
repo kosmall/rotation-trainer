@@ -194,8 +194,8 @@ describe('wrack_min_hp_pct: Wrack only above a health floor, Drain Life below', 
   });
 });
 
-describe('DT_SS_WRACK build', () => {
-  const v = loadVariant('DT_SS_WRACK');
+describe('DT_SS_WRACK_70 build', () => {
+  const v = loadVariant('DT_SS_WRACK_70');
   it('learns Wrack at level 40 and keeps the DT_SS talents at 60', () => {
     expect(ranksAt(v, 40).wrack).toBe(1);
     expect(ranksAt(v, 39).wrack ?? 0).toBe(0);
@@ -219,7 +219,7 @@ describe('DT_SS_WRACK build', () => {
   });
 });
 
-describe('Wrack health floors 40%..90% (DT_SS_WRACK talents)', () => {
+describe('Wrack health floors 40%..90% (DT_SS_WRACK talent order)', () => {
   const ctx = (v: ReturnType<typeof loadVariant>, hpPct: number, mobs: number): RotationCtx => ({
     params: loadParams(), variant: v, mobsInPull: mobs, petAlive: true, hasShadowTrance: false, hpPct,
     known: () => true, talentRank: () => 0, targetHasDot: () => true, targetDotRemainingMs: () => 10000, targetHasCurse: () => true,
@@ -227,7 +227,7 @@ describe('Wrack health floors 40%..90% (DT_SS_WRACK talents)', () => {
     drainSoulKillSec: () => 99, drainSoulExpected: () => 0, fillerExpected: () => 0,
   });
   for (const floor of [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]) {
-    const v = { ...loadVariant('DT_SS_WRACK'), wrack_min_hp_pct: floor };
+    const v = { ...loadVariant('DT_SS_WRACK_70'), wrack_min_hp_pct: floor };
     it(`floor ${floor * 100}%: Wrack just above it, Drain Life at and below it, on 1-3 mobs; the addon spec agrees`, () => {
       const spec = rotationSpec(v, loadParams());
       for (const mobs of [1, 2, 3]) {
@@ -240,10 +240,21 @@ describe('Wrack health floors 40%..90% (DT_SS_WRACK talents)', () => {
     });
   }
   it('in the fight, a higher floor means fewer Wrack casts and more Drain Life casts', () => {
-    const count = (floor: number, spell: string): number => SEEDS.reduce((s, seed) => s + simulatePull({ ...cfg('DT_SS_WRACK'), variant: { ...loadVariant('DT_SS_WRACK'), wrack_min_hp_pct: floor } }, seed).trace.filter((l) => l.includes(`cast ${spell} `)).length, 0);
+    const count = (floor: number, spell: string): number => SEEDS.reduce((s, seed) => s + simulatePull({ ...cfg('DT_SS_WRACK_70'), variant: { ...loadVariant('DT_SS_WRACK_70'), wrack_min_hp_pct: floor } }, seed).trace.filter((l) => l.includes(`cast ${spell} `)).length, 0);
     const wrack = [0.4, 0.6, 0.9].map((f) => count(f, 'wrack'));
     const drain = [0.4, 0.6, 0.9].map((f) => count(f, 'drain_life'));
     expect(wrack[0]).toBeGreaterThan(wrack[2]!);
     expect(drain[2]).toBeGreaterThan(drain[0]!);
+  });
+});
+
+describe('DT_SS_WRACK_50 build', () => {
+  it('has the DT_SS_WRACK_70 talents and pet, with the Wrack floor at 50%', () => {
+    const a = loadVariant('DT_SS_WRACK_50');
+    const b = loadVariant('DT_SS_WRACK_70');
+    expect({ ...a, id: '', wrack_min_hp_pct: 0 }).toEqual({ ...b, id: '', wrack_min_hp_pct: 0 });
+    expect(a.wrack_min_hp_pct).toBe(0.5);
+    expect(b.wrack_min_hp_pct).toBe(0.7);
+    expect(JSON.stringify(rotationSpec(a, loadParams()).steps.find((s) => s.id === 'filler_wrack')?.when)).toContain('"pct":50');
   });
 });

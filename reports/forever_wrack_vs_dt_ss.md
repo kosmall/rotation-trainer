@@ -134,7 +134,7 @@ Build AFF_WRACK w obecnej postaci nie wygrywa z DT_SS w żadnym sprawdzonym scen
 - Kolejność talentów w DW (Wrack na 40 zamiast Unholy Power) to propozycja testowa. Nie jest dodana do `builds.json`.
 - Rampa Agony 0.5/1/1.5 nadal jest niepotwierdzona dla Forever.
 
-## 5. Build DT_SS_WRACK (dodany 26 XI)
+## 5. Build DT_SS_WRACK_70 (dodany 26 XI jako DT_SS_WRACK)
 
 Build ma talenty DT_SS w kolejności z Wrackiem na 40. Amplify Curse i Malevolence idą przed Unholy Power i Demonic Energies, a na 60 talenty są takie same jak w DT_SS.
 
@@ -142,7 +142,7 @@ Rotacja to Affliction. Filler to Wrack, dopóki HP gracza jest powyżej 70% (pol
 
 Na pullach z kilkoma mobami wariant z Wrackiem od progu 70% wypadł lepiej niż wariant "Wrack tylko na 1 moba". Przy 2 mobach i progu 0.7: poziom 50 to 145.2 vs 139.5 kph, poziom 55 to 148.2 vs 141.6.
 
-Sparowane duele z DT_SS (domyślne parametry, 200 sesji, seed 7). Wynik ujemny oznacza, że DT_SS_WRACK jest lepszy.
+Sparowane duele z DT_SS (domyślne parametry, 200 sesji, seed 7). Wynik ujemny oznacza, że DT_SS_WRACK_70 jest lepszy.
 
 | poziom | 1 mob | 2 moby | 3 moby |
 |---:|---:|---:|---:|
@@ -166,7 +166,7 @@ W addonie próg jest warunkiem `hp_pct_above` 70, czyli "HP powyżej 70%". Przy 
 
 ## 6. Próg HP dla Wracka: 40–90% co 10 p.p.
 
-Wszystkie warianty mają talenty DT_SS_WRACK. Wrack jest fillerem, gdy HP gracza jest powyżej progu, a przy HP równym progowi lub niższym fillerem jest Drain Life, przy każdej liczbie mobów. Dla porównania w tabelach jest DT_SS.
+Wszystkie warianty mają talenty DT_SS_WRACK_70 (order `DT_SS_WRACK`). Wrack jest fillerem, gdy HP gracza jest powyżej progu, a przy HP równym progowi lub niższym fillerem jest Drain Life, przy każdej liczbie mobów. Dla porównania w tabelach jest DT_SS.
 
 Każda komórka to kills/h (TTK, przerwy na godzinę), 200 sesji na komórkę. Pogrubiony jest najlepszy wynik w kolumnie. Tabele odtwarza `npm run forever:wrack-thresholds`.
 
@@ -237,8 +237,35 @@ Każda komórka to kills/h (TTK, przerwy na godzinę), 200 sesji na komórkę. P
   - Poziomy 40–45 (najlepszy próg): 1 mob z gearem average 70%; quest 70% na 40 i 40% na 45; good 70% na 40 i 60% na 45; 2 moby 80% na 40 i 70% na 45.
   - Poziomy 50–55: najczęściej wygrywa 50–60%.
   - Poziom 59: wygrywa 60–90%, ale różnice są małe.
-  - Próg 70% (obecny w DT_SS_WRACK) to dobry wybór "na wszystko". Nigdzie nie traci więcej niż ok. 2 kph do najlepszego progu.
+  - Próg 70% (DT_SS_WRACK_70) to dobry wybór "na wszystko". Nigdzie nie traci więcej niż ok. 2 kph do najlepszego progu.
 - **40% to za nisko.** Wraca problem przerw na jedzenie (6–17 na godzinę), bo po Life Tapie HP nie zdąży się odbudować. Na 2–3 moby na poziomach 40 i 59 traci 10–24 kph do najlepszego progu.
 - **80% i 90% dają prawie to samo.** Po pierwszych Life Tapach HP rzadko wraca powyżej 80%, więc Wrack wchodzi głównie na początku walki. Wynik zbliża się do czystego Drain Life (DT_SS), z niewielkim zyskiem z szybszego startu.
 - **3 moby na 40–45:** każdy próg przegrywa z DT_SS o 14–31 kph. Przyczyną są talenty (Unholy Power dopiero po Wracku), a nie próg.
 - **Gear:** z gearem good zysk z Wracka jest największy (+5 do +13 kph przy 50–70%). Z gearem quest jest mały, a na poziomie 40 przy progu 40% Wrack przegrywa z DT_SS (104.0 vs 111.4).
+
+## 7. DT_SS_WRACK_50 vs DT_SS_WRACK_70
+
+Oba buildy mają tę samą kolejność talentów (order `DT_SS_WRACK`) i różnią się tylko progiem HP dla Wracka: 50% albo 70%. Poniżej Drain Life.
+
+Sparowane duele (200 sesji, seed 7). Wynik dodatni oznacza, że lepszy jest próg 70%, a ujemny, że 50%.
+
+| poziom | 1 mob | 2 moby | 3 moby |
+|---:|---:|---:|---:|
+| 40 | +1.2 | +5.2 | +5.1 |
+| 42 | +0.9 | +1.1 | +1.3 |
+| 44 | +1.5 | +1.1 | +2.6 |
+| 46 | +0.3 | +1.3 | +2.6 |
+| 48 | -0.6 | +0.7 | +2.2 |
+| 50 | -1.3 | -0.8 | -0.3 |
+| 52 | -1.4 | -1.5 | -1.3 |
+| 54 | -1.1 | -1.1 | -1.1 |
+| 56 | ~0 | +3.9 | +8.3 |
+| 58 | +1.1 | +7.5 | +10.7 |
+| 60 | +1.7 | +4.5 | +10.4 |
+
+Gear quest, 1 mob (40/45/50/55/59): +3.3 / +0.4 / +1.7 / -0.8 / +3.4.
+Gear good, 1 mob: +1.1 / -0.2 / -0.4 / +0.2 / +1.1.
+
+- **Próg 50% wygrywa tylko na poziomach ok. 48–54,** i to o ok. 1 kph.
+- **Próg 70% wygrywa na pozostałych poziomach.** Na 56–60 przewaga przy 2–3 mobach to 4–11 kph. Przy progu 50% na tych poziomach przerw na jedzenie jest 2–3 razy więcej (3–12 na godzinę wobec 1–7), bo Life Tap zjada więcej HP, niż Drain Life zdąży odbudować.
+- **Rekomendacja:** DT_SS_WRACK_70 jako domyślny. DT_SS_WRACK_50 daje mały zysk tylko w środku zakresu poziomów.

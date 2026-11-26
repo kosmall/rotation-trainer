@@ -64,7 +64,7 @@ npm run forever:sensitivity
 npm run forever:optimize -- --build DEMO_PACT_R1 --core 31 --to 59 --sessions 20
 npm run forever:lifetap -- --mobs 1   # strategie Life Tapa (albo --mobs 2)
 npm run forever:wrack-study   # Wrack vs Drain Life jako filler (reports/forever_wrack_vs_dt_ss.md)
-npm run forever:wrack-thresholds   # DT_SS_WRACK z progiem HP 40..90%
+npm run forever:wrack-thresholds   # talenty DT_SS_WRACK_70 z progiem HP 40..90%
 # Wrack tylko powyżej progu HP, poniżej Drain Life (0 = zawsze Wrack)
 npm run forever:duel -- --a DT_SS --b AFF_WRACK --param wrack_min_hp_pct=0.6
 npm run forever:report
