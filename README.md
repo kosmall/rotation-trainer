@@ -68,6 +68,8 @@ npm run forever:wrack-thresholds   # talenty DT_SS_WRACK_70 z progiem HP 40..90%
 # Wrack tylko powyżej progu HP, poniżej Drain Life (0 = zawsze Wrack)
 npm run forever:duel -- --a DT_SS --b AFF_WRACK --param wrack_min_hp_pct=0.6
 npm run forever:report
+# odkrywanie buildów dla jednego levelu: talenty × rotacje × pety, top 20 (godziny; można przerwać i wznowić)
+npm run forever:discover -- --level 40
 ```
 
 Jak to liczy: build to **kolejność 51 punktów** (level 10 = punkt 1); na levelu L ma pierwsze `L - 9`
@@ -80,6 +82,40 @@ podczas jedzenia). Pojedynek daje obu buildom te same ziarna i liczy różnice p
 przedziałem ufności 95%, a także **level przecięcia**, na którym zwycięzca się zmienia.
 
 Domyślna polityka Life Tapa w symulatorze to Twoja reguła (parametry `lt_*` w `params.json`); najlepsze progi z wyszukiwania są w raportach `reports/forever_lifetap_strategies*.md` i w promptach do addonu (`docs/addon-lifetap-advisor-prompt.md`, `docs/addon-lifetap-advisor-update-prompt.md`).
+
+### Odkrywanie buildów (`forever:discover`)
+
+Narzędzie do szukania **nieoczywistych** buildów dla jednego levelu. Nie zaczyna od znanych buildów:
+przeszukuje talenty, rotacje składane z czarów symulatora i pety, a znane buildy (`builds.json`,
+`scenarios.json`) liczy tylko jako punkt odniesienia. Typowe użycie po patchu albo blue poście: zmieniasz dane
+(`spells.json`, `talents.json`, `params.json`) albo podajesz `--param`, uruchamiasz ponownie i porównujesz raport z
+poprzednim.
+
+```bash
+npm run forever:discover -- --level 40                       # pełne wyszukiwanie (kilka godzin na 4 rdzeniach)
+npm run forever:discover -- --level 40 --quick               # szybki przebieg do sprawdzenia (kilka minut)
+npm run forever:discover -- --level 45 --param wrack_dmg_mult=1.3 --mobs 2 --profile good
+```
+
+- **Co jest przeszukiwane:** rozkład punktów talentów na tym levelu (kolejność nie ma znaczenia); rotacja: które
+  efekty utrzymywać (Curse of the Elements, Bane of Agony, Corruption, Siphon Life, Immolate), od jakiego
+  szacowanego czasu do zabicia celu je nakładać (0, 6 albo 12 s), Drain Soul na dobicie, filler (Shadow Bolt
+  r1/r2/max, Searing Pain, Drain Life, Wrack bez progu albo od 50%/70% HP, Wrack tylko na pojedynczych mobach);
+  pet i pet poświęcony w Demonic Sacrifice. Na levelu 40: 1728 rotacji × 21 ustawień petów = 36 288 kombinacji.
+  Sprzęt (`--profile`), liczba mobów (`--mobs`), polityka Life Tapa, Eureka! i inne parametry są wejściem, nie są
+  przeszukiwane.
+- **Etapy:** krótkie szukanie talentów dla każdej kombinacji (`screen`), długie dla najlepszych 200 i najlepszych 3
+  z każdego fillera (`search`), na koniec 60 najlepszych różnych wyników i wszystkie znane buildy na 200 sesjach z
+  tymi samymi ziarnami (`final`). Flagi: `--screen-sessions`, `--search-sessions`, `--final-sessions`, `--keep`,
+  `--workers`, `--top`, `--seed`, `--perk`.
+- **Wznawianie:** stan zapisuje się w `reports/.forever_discover_L<level>.state.json`; to samo polecenie po
+  przerwaniu wznawia pracę. Zmiana danych, parametrów albo flag zaczyna od nowa (`--fresh` wymusza start od zera).
+- **Wynik:** `reports/forever_discover_L<level>.md` i `.json` (z `--quick`: `_quick`). W tabeli **✓** znaczy, że
+  różnica do najlepszego znanego buildu jest istotna (95% CI na sparowanych sesjach), **~** że mieści się w szumie,
+  a **≈#1** że wiersz nie jest istotnie gorszy od pierwszego. W top 20 są najwyżej 2 wiersze na kombinację rotacja ×
+  pet. W szczegółach: talenty, kroki rotacji, talenty bez wpływu na wynik (dla top 5) i **„Leans on estimates”**,
+  czyli wartości szacunkowe (`verify: true`), na których wynik stoi. „Odkrycie” oparte na zgadywanej liczbie
+  widać od razu.
 
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w
 `talents.json` (`status`, `reason`); raport: `reports/forever_leveling_40plus.md`.
