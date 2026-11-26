@@ -3,6 +3,7 @@ import { demonsAt } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
 import { TalentTrees } from './TalentTrees';
+import { TalentWowheadLink } from './WowheadLink';
 
 const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
 
@@ -68,7 +69,9 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
             const def = TALENT_BY_ID.get(t);
             return (
               <tr key={t}>
-                <th scope="row">{def?.name ?? t}</th>
+                <th scope="row">
+                  <TalentWowheadLink talentId={t}>{def?.name ?? t}</TalentWowheadLink>
+                </th>
                 <td>{TREE_NAMES[def?.tree as Tree] ?? def?.tree}</td>
                 <td>
                   {n}/{def?.maxRank ?? '?'}
@@ -81,7 +84,9 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
       <h2>Kolejność punktów</h2>
       <ol className="fv-picks">
         {picks.map((p, i) => (
-          <li key={i}>{TALENT_BY_ID.get(p)?.name ?? p}</li>
+          <li key={i}>
+            <TalentWowheadLink talentId={p}>{TALENT_BY_ID.get(p)?.name ?? p}</TalentWowheadLink>
+          </li>
         ))}
       </ol>
     </>
