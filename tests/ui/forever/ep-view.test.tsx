@@ -69,6 +69,22 @@ describe('EpView', () => {
     expect(screen.getByText(/ustawienie to 45/)).toBeTruthy();
   });
 
+  it('warns when any setting that shapes the weights changed since the run, and names the profile and mobs of the run', () => {
+    view(outcome(), { settings: { ...settings, profile: 'good', mobs: 2, policy: 'NO_LIFE_TAP', spellstone: true, eureka: 'filler', seed: 7, sessions: 20 } });
+    const warn = screen.getByRole('status');
+    for (const w of ['profil sprzętu', 'moby', 'strategia Life Tapa', 'Spellstone', 'Eureka', 'seed', 'sesje']) expect(warn.textContent).toContain(w);
+    expect(screen.getByText(/profil sprzętu: average, moby: 1/)).toBeTruthy();
+  });
+
+  it('does not enable the button for a preselected build that is no longer on offer', () => {
+    const onRun = vi.fn();
+    view(undefined, { initial: '★ usunięty', onRun });
+    const btn = screen.getByRole('button', { name: 'Policz EP' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    fireEvent.click(btn);
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
   it('a build where spell power gains nothing shows n/a and an explanation, never NaN', () => {
     const o = outcome();
     const r = o.results[0]!;
