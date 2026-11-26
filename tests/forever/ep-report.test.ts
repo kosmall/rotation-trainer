@@ -47,9 +47,13 @@ describe('epReport and formatEp', () => {
       res.weights[s].ci95 = null;
     }
     res.weights.hitPct.capped = true;
+    res.weights.intellect.nonlinear = true;
+    res.weights.intellect.weight = 0.5;
+    res.weights.intellect.ci95 = [0.4, 0.6];
     const text = formatEp(r);
     expect(text).toContain('n/a');
     expect(text).toContain('capped');
+    expect(text).toContain('0.50 (0.40..0.60) *');
     expect(text).not.toMatch(/NaN|Infinity/);
   });
 });

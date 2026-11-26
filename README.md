@@ -72,7 +72,10 @@ ziarna z daną statą podniesioną i obniżoną (domyślnie +/-40, dla crit i hi
 zmienia krok), iloraz zysku względem spell power i przedział 95% z bootstrapu po sesjach. Pod listą wag raport pokazuje,
 które staty różnią się istotnie między buildami (przedział różnicy nie obejmuje 0). Profile sprzętu to nadal
 placeholdery, więc wagi są orientacyjne; waga hit dotyczy tylko zakresu poniżej limitu trafienia (przy limicie wynosi 0).
-Gwiazdka przy wadze oznacza, że krok w dół i w górę dają różne nachylenia (zależność nie jest liniowa).
+Wagi to nachylenie na kroku +/-40 punktów (crit i hit +/-3), więc to średnia z kroku, nie pochodna w punkcie: symulacja ma
+progi (HP, przerwy na jedzenie i picie), a mniejszy krok daje wyraźnie inne, głośniejsze wagi. Gwiazdka przy wadze oznacza,
+że krok w dół i w górę dają istotnie różne nachylenia (zależność nie jest liniowa), więc waga jest tylko przybliżona.
+Jeden build na jednym levelu przy 100 sesjach liczy się ok. 5 s.
 
 ```bash
 npm run forever:ep -- --build AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 100 --seed 1

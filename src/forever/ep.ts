@@ -6,7 +6,7 @@ import { loadVariant, ranksAt, type PicksOptions } from './builds';
 import { loadParams } from './data/load';
 import type { BuildRef } from './duel';
 import { effectNum } from './effects';
-import { killsPerHour, runCell, type SessionResult } from './runner';
+import { killsPerHour, runCell, std, type SessionResult } from './runner';
 import { playerStatsFor } from './stats';
 import type { Params, StatKey } from './types';
 import { createRng } from '../engine/rng';
@@ -41,8 +41,10 @@ export interface StatWeight {
   kphPerPoint: number;
   /** Hit only: the profile already sits at the hit cap, so more of it is worth nothing. */
   capped: boolean;
-  /** Slope of the downward step over the slope of the upward one (1 = linear); null when not measurable. */
+  /** Slope of the downward step over the slope of the upward one (1 = linear); null when not measurable. Informational. */
   linearity: number | null;
+  /** The downward and upward steps give clearly different slopes (see `isNonlinear`): the weight is only approximate. */
+  nonlinear: boolean;
 }
 
 export interface EpResult {
@@ -80,6 +82,19 @@ export function percentileInterval(xs: readonly number[]): [number, number] {
   return [at(0.025), at(0.975)];
 }
 
+/**
+ * Do the downward and upward steps of a stat disagree beyond the noise? Per session the two slopes are paired (same
+ * seed); the mean gap must lie outside its 95% interval and be more than a quarter of the larger mean slope.
+ */
+export function isNonlinear(slopeUp: readonly number[], slopeDown: readonly number[]): boolean {
+  const n = Math.min(slopeUp.length, slopeDown.length);
+  if (n < 2) return false;
+  const gaps = Array.from({ length: n }, (_, i) => (slopeDown[i] as number) - (slopeUp[i] as number));
+  const gap = Math.abs(mean(gaps));
+  const half = (1.96 * std(gaps)) / Math.sqrt(n);
+  return gap > half && gap > 0.25 * Math.max(Math.abs(mean(slopeUp)), Math.abs(mean(slopeDown)));
+}
+
 export const BOOTSTRAP_SEED_OFFSET = 7919;
 
 export function computeEp(build: BuildRef, level: number, o: EpOptions): EpResult {
@@ -102,6 +117,7 @@ export function computeEp(build: BuildRef, level: number, o: EpOptions): EpResul
     const up = capped ? 0 : stat === 'hitPct' ? Math.min(deltas[stat], hitHeadroom) : deltas[stat];
     const down = capped ? 0 : Math.min(deltas[stat], stats[stat]);
     let linearity: number | null = null;
+    let nonlinear = false;
     if (capped) {
       slopes[stat] = base.map(() => 0);
     } else {
@@ -112,9 +128,13 @@ export function computeEp(build: BuildRef, level: number, o: EpOptions): EpResul
         const slopeUp = (mean(kphUp) - mean(base)) / up;
         const slopeDown = (mean(base) - mean(kphDown)) / down;
         linearity = Math.abs(slopeUp) < 1e-9 ? null : slopeDown / slopeUp;
+        nonlinear = isNonlinear(
+          kphUp.map((v, i) => (v - (base[i] as number)) / up),
+          kphDown.map((v, i) => ((base[i] as number) - v) / down),
+        );
       }
     }
-    weights[stat] = { stat, up, down, weight: null, ci95: null, kphPerPoint: mean(slopes[stat]), capped, linearity };
+    weights[stat] = { stat, up, down, weight: null, ci95: null, kphPerPoint: mean(slopes[stat]), capped, linearity, nonlinear };
   }
 
   const sp = slopes.spellPower;

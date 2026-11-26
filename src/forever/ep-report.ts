@@ -67,7 +67,7 @@ function cell(r: EpResult, stat: StatKey): string {
   if (w.capped) return 'capped (0)';
   if (w.weight === null) return 'n/a';
   const ci = w.ci95 ? ` (${f2(w.ci95[0])}..${f2(w.ci95[1])})` : '';
-  const flag = w.linearity !== null && (w.linearity < 0.5 || w.linearity > 2) ? ' *' : '';
+  const flag = w.nonlinear ? ' *' : '';
   return `${f2(w.weight)}${ci}${flag}`;
 }
 
@@ -93,7 +93,7 @@ export function formatEp(report: EpReport): string {
     out.push('');
   }
   out.push(
-    'Notes: the gear profiles are placeholders (`verify: true` in `levels.json`), so the weights are indicative. Hit counts only below the hit cap. `*` marks a weight whose downward and upward steps disagree (not linear). Weights are kills per hour per point relative to spell power.',
+    'Notes: the gear profiles are placeholders (`verify: true` in `levels.json`), so the weights are indicative. Hit counts only below the hit cap. `*` marks a weight whose downward and upward steps clearly disagree (not linear, so only approximate). Weights are kills per hour per point relative to spell power.',
   );
   return out.join('\n');
 }

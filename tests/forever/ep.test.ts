@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EP_STATS, computeEp, weightFrom } from '../../src/forever/ep';
+import { EP_STATS, computeEp, isNonlinear, weightFrom } from '../../src/forever/ep';
 
 const o = { profile: 'average', sessions: 12, seed: 1, params: { session_pulls: 8 }, bootstrap: 100 };
 
@@ -47,5 +47,21 @@ describe('weightFrom', () => {
   it('is the ratio of means, over the chosen indices', () => {
     expect(weightFrom([2, 2], [1, 1])).toBe(2);
     expect(weightFrom([2, 4], [1, 1], [1, 1])).toBe(4);
+  });
+});
+
+describe('isNonlinear', () => {
+  it('is false when the two steps agree, even with noise', () => {
+    expect(isNonlinear([1, 1, 1, 1], [1, 1, 1, 1])).toBe(false);
+    expect(isNonlinear([1, 5, -3, 1], [2, -4, 6, 0])).toBe(false);
+  });
+  it('is true when the downward steps are consistently much steeper', () => {
+    expect(isNonlinear([1, 1.1, 0.9, 1], [2, 2.1, 1.9, 2])).toBe(true);
+  });
+  it('is false when the gap is significant but tiny next to the slope', () => {
+    expect(isNonlinear([10, 10.01, 9.99, 10], [10.2, 10.21, 10.19, 10.2])).toBe(false);
+  });
+  it('is reported per stat in the result', () => {
+    for (const s of EP_STATS) expect(typeof computeEp('AFF_WRACK', 50, o).weights[s].nonlinear).toBe('boolean');
   });
 });
