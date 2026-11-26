@@ -180,7 +180,7 @@ export function requiredRanks(c: Combo): Ranks {
   return r;
 }
 
-function spellKnown(spell: string, rank: number | 'max', level: number, ranks: Ranks): boolean {
+export function spellKnown(spell: string, rank: number | 'max', level: number, ranks: Ranks): boolean {
   const s = getSpell(spell);
   if (s.teachesTalent && (ranks[s.teachesTalent] ?? 0) === 0) return false;
   return rankAt(spell, rank, level) !== undefined;
@@ -194,11 +194,15 @@ function possible(c: Cond, level: number, ranks: Ranks): boolean {
   return true;
 }
 
+/** The steps of a combination's rotation that can ever be cast at a level with these talents. */
+export function liveSteps(c: Combo, level: number, ranks: Ranks, p: Params = DEFAULT_KEY_PARAMS): SpecStep[] {
+  return buildRotation(c.genes, p).steps.filter((s) => spellKnown(s.spell, s.rank, level, ranks) && possible(s.when, level, ranks));
+}
+
 /** Identifies how a combination really plays at a level with these talents (dead steps and an unused sacrifice dropped). */
 export function effectiveKey(c: Combo, level: number, ranks: Ranks): string {
-  const rot = buildRotation(c.genes, DEFAULT_KEY_PARAMS);
-  const live = rot.steps.filter((s) => spellKnown(s.spell, s.rank, level, ranks) && possible(s.when, level, ranks)).map((s) => [s.spell, s.rank, s.when]);
-  const est = rot.estimate;
+  const live = liveSteps(c, level, ranks).map((s) => [s.spell, s.rank, s.when]);
+  const est = buildRotation(c.genes, DEFAULT_KEY_PARAMS).estimate;
   const filler = est.filler === 'wrack' && !spellKnown('wrack', 'max', level, ranks) ? 'shadow_bolt' : est.filler;
   const sacrificed = (ranks.demonic_sacrifice ?? 0) > 0 ? c.pets.sacrificed : null;
   return JSON.stringify({ live, filler, fillerRank: est.fillerRank, dots: est.dotSpells, pet: c.pets.pet, sacrificed });
