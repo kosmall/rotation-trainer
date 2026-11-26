@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EP_STATS, computeEp, isNonlinear, weightFrom } from '../../src/forever/ep';
+import { loadVariant } from '../../src/forever/builds';
+import { loadParams } from '../../src/forever/data/load';
+import { EP_STATS, computeEp, isNonlinear, planEp, sessionKph, weightFrom } from '../../src/forever/ep';
+import { runCell } from '../../src/forever/runner';
 
 const o = { profile: 'average', sessions: 12, seed: 1, params: { session_pulls: 8 }, bootstrap: 100 };
 
@@ -63,5 +66,27 @@ describe('isNonlinear', () => {
   });
   it('is reported per stat in the result', () => {
     for (const s of EP_STATS) expect(typeof computeEp('AFF_WRACK', 50, o).weights[s].nonlinear).toBe('boolean');
+  });
+});
+
+describe('planEp', () => {
+  it('has a base step and an up and a down step per stat, none for a capped hit', () => {
+    expect(planEp('AFF_WRACK', 50, o).total).toBe(11);
+    expect(planEp('DEMO_PACT_R1', 50, o).total).toBe(13);
+  });
+  it('step 0 is the base run, one kills-per-hour value per session', () => {
+    const plan = planEp('AFF_WRACK', 50, o);
+    const base = runCell({ variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: loadParams(o.params) }, 12, 1).raw.map(sessionKph);
+    expect(plan.run(0)).toHaveLength(12);
+    expect(plan.run(0)).toEqual(base);
+  });
+  it('assembling every step gives the result of computeEp', () => {
+    const plan = planEp('AFF_WRACK', 50, o);
+    const outs = Array.from({ length: plan.total }, (_, i) => plan.run(i));
+    expect(plan.assemble(outs)).toEqual(computeEp('AFF_WRACK', 50, o));
+  });
+  it('validates when planning, not when running', () => {
+    expect(() => planEp('AFF_WRACK', 5, o)).toThrow(/level/);
+    expect(() => planEp('NOPE', 50, o)).toThrow(/AFF_WRACK/);
   });
 });

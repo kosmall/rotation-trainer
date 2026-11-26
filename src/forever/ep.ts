@@ -97,7 +97,15 @@ export function isNonlinear(slopeUp: readonly number[], slopeDown: readonly numb
 
 export const BOOTSTRAP_SEED_OFFSET = 7919;
 
-export function computeEp(build: BuildRef, level: number, o: EpOptions): EpResult {
+/** The simulation steps of one build at one level: step 0 is the base run, then per stat an upward and (when the profile has anything to lose) a downward step. */
+export interface EpPlan {
+  total: number;
+  /** Kills per hour per session of step i. */
+  run(i: number): number[];
+  assemble(outs: readonly number[][]): EpResult;
+}
+
+export function planEp(build: BuildRef, level: number, o: EpOptions): EpPlan {
   if (!Number.isInteger(o.sessions) || o.sessions < 2) throw new Error(`sessions must be at least 2, got ${o.sessions}`);
   if (!Number.isInteger(level) || level < MIN_LEVEL || level > MAX_LEVEL) throw new Error(`level must be ${MIN_LEVEL}-${MAX_LEVEL}, got ${level}`);
   const variant = typeof build === 'string' ? loadVariant(build) : build;
@@ -106,55 +114,76 @@ export function computeEp(build: BuildRef, level: number, o: EpOptions): EpResul
   const stats = playerStatsFor(level, o.profile, ranks);
   const deltas = { ...DEFAULT_DELTAS, ...o.deltas };
   const cfg = { variant, level, profile: o.profile, params, mobs: o.mobs, picks: o.picks };
-  const run = (statDelta?: Partial<Record<StatKey, number>>): number[] => runCell({ ...cfg, statDelta }, o.sessions, o.seed).raw.map(sessionKph);
-  const base = run();
   const hitHeadroom = Math.max(0, params.mob_miss_pct - effectNum('suppression', 'hitPctPerRank') * (ranks['suppression'] ?? 0) - 1 - stats.hitPct);
 
-  const slopes = {} as Record<StatKey, number[]>;
-  const weights = {} as Record<StatKey, StatWeight>;
-  for (const stat of EP_STATS) {
+  const steps: (Partial<Record<StatKey, number>> | undefined)[] = [undefined];
+  const layout = EP_STATS.map((stat) => {
     const capped = stat === 'hitPct' && hitHeadroom <= 0;
     const up = capped ? 0 : stat === 'hitPct' ? Math.min(deltas[stat], hitHeadroom) : deltas[stat];
     const down = capped ? 0 : Math.min(deltas[stat], stats[stat]);
-    let linearity: number | null = null;
-    let nonlinear = false;
-    if (capped) {
-      slopes[stat] = base.map(() => 0);
-    } else {
-      const kphUp = run({ [stat]: up });
-      const kphDown = down > 0 ? run({ [stat]: -down }) : base;
-      slopes[stat] = kphUp.map((v, i) => (v - (kphDown[i] as number)) / (up + down));
-      if (down > 0) {
-        const slopeUp = (mean(kphUp) - mean(base)) / up;
-        const slopeDown = (mean(base) - mean(kphDown)) / down;
-        linearity = Math.abs(slopeUp) < 1e-9 ? null : slopeDown / slopeUp;
-        nonlinear = isNonlinear(
-          kphUp.map((v, i) => (v - (base[i] as number)) / up),
-          kphDown.map((v, i) => ((base[i] as number) - v) / down),
-        );
-      }
+    let upStep = -1;
+    let downStep = -1;
+    if (!capped) {
+      upStep = steps.push({ [stat]: up }) - 1;
+      if (down > 0) downStep = steps.push({ [stat]: -down }) - 1;
     }
-    weights[stat] = { stat, up, down, weight: null, ci95: null, kphPerPoint: mean(slopes[stat]), capped, linearity, nonlinear };
-  }
+    return { stat, up, down, capped, upStep, downStep };
+  });
 
-  const sp = slopes.spellPower;
-  const valid = mean(sp) > 0;
-  const draws = bootstrapIndices(o.sessions, o.bootstrap ?? 400, o.seed + BOOTSTRAP_SEED_OFFSET);
-  if (valid) {
-    for (const stat of EP_STATS) {
-      const w = weights[stat];
-      if (stat === 'spellPower') {
-        w.weight = 1;
-        w.ci95 = [1, 1];
-      } else if (w.capped) {
-        w.weight = 0;
-        w.ci95 = [0, 0];
-      } else {
-        w.weight = weightFrom(slopes[stat], sp);
-        const reps = draws.map((idx) => weightFrom(slopes[stat], sp, idx)).filter((x): x is number => x !== null);
-        w.ci95 = reps.length * 2 >= draws.length ? percentileInterval(reps) : null;
+  return {
+    total: steps.length,
+    run: (i) => runCell({ ...cfg, statDelta: steps[i] }, o.sessions, o.seed).raw.map(sessionKph),
+    assemble: (outs) => {
+      const base = outs[0] as number[];
+      const slopes = {} as Record<StatKey, number[]>;
+      const weights = {} as Record<StatKey, StatWeight>;
+      for (const { stat, up, down, capped, upStep, downStep } of layout) {
+        let linearity: number | null = null;
+        let nonlinear = false;
+        if (capped) {
+          slopes[stat] = base.map(() => 0);
+        } else {
+          const kphUp = outs[upStep] as number[];
+          const kphDown = downStep >= 0 ? (outs[downStep] as number[]) : base;
+          slopes[stat] = kphUp.map((v, i) => (v - (kphDown[i] as number)) / (up + down));
+          if (down > 0) {
+            const slopeUp = (mean(kphUp) - mean(base)) / up;
+            const slopeDown = (mean(base) - mean(kphDown)) / down;
+            linearity = Math.abs(slopeUp) < 1e-9 ? null : slopeDown / slopeUp;
+            nonlinear = isNonlinear(
+              kphUp.map((v, i) => (v - (base[i] as number)) / up),
+              kphDown.map((v, i) => ((base[i] as number) - v) / down),
+            );
+          }
+        }
+        weights[stat] = { stat, up, down, weight: null, ci95: null, kphPerPoint: mean(slopes[stat]), capped, linearity, nonlinear };
       }
-    }
-  }
-  return { build: variant.id, level, sessions: o.sessions, baseKph: mean(base), valid, weights, slopes };
+
+      const sp = slopes.spellPower;
+      const valid = mean(sp) > 0;
+      const draws = bootstrapIndices(o.sessions, o.bootstrap ?? 400, o.seed + BOOTSTRAP_SEED_OFFSET);
+      if (valid) {
+        for (const stat of EP_STATS) {
+          const w = weights[stat];
+          if (stat === 'spellPower') {
+            w.weight = 1;
+            w.ci95 = [1, 1];
+          } else if (w.capped) {
+            w.weight = 0;
+            w.ci95 = [0, 0];
+          } else {
+            w.weight = weightFrom(slopes[stat], sp);
+            const reps = draws.map((idx) => weightFrom(slopes[stat], sp, idx)).filter((x): x is number => x !== null);
+            w.ci95 = reps.length * 2 >= draws.length ? percentileInterval(reps) : null;
+          }
+        }
+      }
+      return { build: variant.id, level, sessions: o.sessions, baseKph: mean(base), valid, weights, slopes };
+    },
+  };
+}
+
+export function computeEp(build: BuildRef, level: number, o: EpOptions): EpResult {
+  const plan = planEp(build, level, o);
+  return plan.assemble(Array.from({ length: plan.total }, (_, i) => plan.run(i)));
 }

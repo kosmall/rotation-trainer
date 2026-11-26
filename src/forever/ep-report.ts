@@ -62,7 +62,7 @@ export function epReport(builds: BuildRef[], levels: number[], o: EpOptions): Ep
 
 const f2 = (x: number): string => x.toFixed(2);
 
-function cell(r: EpResult, stat: StatKey): string {
+export function epCell(r: EpResult, stat: StatKey): string {
   const w = r.weights[stat];
   if (w.capped) return 'capped (0)';
   if (w.weight === null) return 'n/a';
@@ -78,7 +78,7 @@ export function formatEp(report: EpReport): string {
   for (const level of levels) {
     const rs = report.results.filter((r) => r.level === level);
     out.push(`## Level ${level}`, '', `| stat | ${rs.map((r) => r.build).join(' | ')} |`, `|---|${rs.map(() => '---:').join('|')}|`);
-    for (const stat of EP_STATS) out.push(`| ${stat} | ${rs.map((r) => cell(r, stat)).join(' | ')} |`);
+    for (const stat of EP_STATS) out.push(`| ${stat} | ${rs.map((r) => epCell(r, stat)).join(' | ')} |`);
     out.push(`| kills/h at base | ${rs.map((r) => r.baseKph.toFixed(1)).join(' | ')} |`, '');
     const bad = rs.filter((r) => !r.valid).map((r) => r.build);
     if (bad.length) out.push(`Spell power does not gain kills per hour for ${bad.join(', ')}: weights not available.`, '');

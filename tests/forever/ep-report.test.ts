@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EP_STATS, computeEp, type EpResult } from '../../src/forever/ep';
-import { compareEp, epReport, formatEp } from '../../src/forever/ep-report';
+import { compareEp, epCell, epReport, formatEp } from '../../src/forever/ep-report';
 
 const o = { profile: 'average', sessions: 12, seed: 1, params: { session_pulls: 8 }, bootstrap: 100 };
 
@@ -55,5 +55,20 @@ describe('epReport and formatEp', () => {
     expect(text).toContain('capped');
     expect(text).toContain('0.50 (0.40..0.60) *');
     expect(text).not.toMatch(/NaN|Infinity/);
+  });
+});
+
+describe('epCell', () => {
+  const res = () => epReport(['AFF_WRACK'], [50], o).results[0] as EpResult;
+  it('shows capped, n/a and the non-linear marker', () => {
+    const r = res();
+    r.weights.hitPct.capped = true;
+    expect(epCell(r, 'hitPct')).toBe('capped (0)');
+    r.weights.intellect.weight = null;
+    expect(epCell(r, 'intellect')).toBe('n/a');
+    r.weights.spirit.weight = 0.5;
+    r.weights.spirit.ci95 = [0.4, 0.6];
+    r.weights.spirit.nonlinear = true;
+    expect(epCell(r, 'spirit')).toBe('0.50 (0.40..0.60) *');
   });
 });
