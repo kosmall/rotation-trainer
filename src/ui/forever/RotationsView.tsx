@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { loadVariant, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { rotationSpec, type Cond, type RotationSpec, type SpecStep } from '../../forever/rotation-spec';
 import { getSpell } from '../../forever/spells';
+import { petData } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
-import type { Params } from '../../forever/types';
+import type { Params, PetKind } from '../../forever/types';
 import { IconTile } from './IconTile';
 import { ScenarioNote } from './BuildsView';
 
@@ -20,6 +21,12 @@ function spellName(id: string): string {
   } catch {
     return id;
   }
+}
+
+/** Before the build's own demon is learned another one stands in. */
+function standInNote(pet: PetKind): string {
+  const from = petData(pet).unlock as number;
+  return from > 10 ? ` (od levelu ${from}; wcześniej Voidwalker)` : '';
 }
 
 const num = (x: number): string => String(Math.round(x * 100) / 100).replace('.', ',');
@@ -113,6 +120,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
           <span>
             {v.pet ? (PET_NAMES[v.pet] ?? v.pet) : 'brak'}
             {v.sacrificed ? `, poświęcony: ${PET_NAMES[v.sacrificed] ?? v.sacrificed}` : ''}
+            {v.pet ? standInNote(v.pet) : ''}
           </span>
         </dd>
         <dt>Shadow Bolt</dt>

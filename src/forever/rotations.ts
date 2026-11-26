@@ -75,7 +75,7 @@ export function affliction(ctx: RotationCtx): Candidate[] {
   out.push(...dotsCommon(ctx, true));
   const longEnough = ctx.estTtkSec() >= ctx.params.corruption_min_ttk_sec;
   if (ctx.known('siphon_life') && !ctx.targetHasDot('siphon_life') && longEnough) out.push({ spellId: 'siphon_life', rankWant: 'max' });
-  if (ctx.params.aff_use_immolate && ctx.known('immolate') && !ctx.targetHasDot('immolate') && longEnough) out.push({ spellId: 'immolate', rankWant: 'max' });
+  if ((ctx.params.aff_use_immolate || ctx.variant.immolate) && ctx.known('immolate') && !ctx.targetHasDot('immolate') && longEnough) out.push({ spellId: 'immolate', rankWant: 'max' });
   out.push(...drainSoulFinisher(ctx));
   const filler = ctx.variant.filler;
   const wrackOk = ctx.known('wrack');

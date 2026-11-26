@@ -1,6 +1,6 @@
 import baseJson from './data/classic_base.json';
 import levelsJson from './data/levels.json';
-import type { Params } from './types';
+import type { Params, PetKind } from './types';
 import type { Ranks } from './talents';
 
 type Pair = [number, number];
@@ -182,6 +182,20 @@ export function petData(kind: string): Record<string, unknown> {
   const d = LV.pets[kind];
   if (!d) throw new Error(`unknown pet ${kind}`);
   return d;
+}
+
+/** Is the demon learned at this level (data `unlock`: Imp 1, Voidwalker 10, Succubus 20, Felhunter 30)? */
+export const demonLearned = (kind: PetKind, level: number): boolean => level >= (petData(kind).unlock as number);
+
+/**
+ * The demons a build really has at a level: its own, or until that one is learned the Voidwalker (the Imp before
+ * level 10), as a player would. A demon the build sacrifices must be learned too, otherwise nothing is sacrificed.
+ */
+export function demonsAt(build: { pet: PetKind | null; sacrificed: PetKind | null }, level: number): { pet: PetKind | null; sacrificed: PetKind | null } {
+  let pet = build.pet;
+  if (pet !== null && !demonLearned(pet, level)) pet = demonLearned('voidwalker', level) ? 'voidwalker' : 'imp';
+  const sacrificed = build.sacrificed !== null && demonLearned(build.sacrificed, level) ? build.sacrificed : null;
+  return { pet, sacrificed };
 }
 
 export interface PetBase { hp: number; mana: number; armor: number; meleeAvg: number }

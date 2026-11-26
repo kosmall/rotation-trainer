@@ -11,6 +11,8 @@ export interface BuildVariant {
   rotation: 'affliction' | 'demonology' | 'fire';
   filler: string;
   rank: 1 | 2 | 'max';
+  /** Affliction: this build also keeps Immolate up (as the parameter `aff_use_immolate` does for every build). */
+  immolate?: boolean;
   pre_respec_build: string | null;
   respec_level: number;
 }

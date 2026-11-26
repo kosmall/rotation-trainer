@@ -28,8 +28,8 @@ describe('builds', () => {
     expect(loadOrder('DEMO_PACT_BANE2').slice(0, 31)).toEqual(loadOrder('DEMO_PACT_BANE5').slice(0, 31));
     expect(picksAt(loadVariant('DEMO_PACT_R1'), 40)[30]).toBe('demonic_pact');
   });
-  it('has the eight simulated variants', () => {
-    expect(VARIANT_IDS).toEqual(['AFF_WRACK', 'AFF_DRAINTANK', 'DT_SS', 'DEMO_PACT_R1', 'DEMO_PACT_VIDEO', 'DEMO_PACT_R2', 'DEMO_PACT_MAXRANK', 'DEMO_FIRE']);
+  it('has the eleven simulated variants', () => {
+    expect(VARIANT_IDS).toEqual(['AFF_WRACK', 'AFF_WRACK_IMMO', 'AFF_DRAINTANK', 'AFF_DRAINTANK_IMMO', 'DT_SS', 'DT_SS_IMMO', 'DEMO_PACT_R1', 'DEMO_PACT_VIDEO', 'DEMO_PACT_R2', 'DEMO_PACT_MAXRANK', 'DEMO_FIRE']);
   });
   it('respec: below respec_level the pre-respec build is used, from it the own list', () => {
     const v = loadVariant('DEMO_PACT_R1');

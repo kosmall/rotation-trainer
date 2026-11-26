@@ -175,3 +175,27 @@ describe('rates behind the rotation conditions (addon export)', () => {
     expect(pct).toBeLessThan(80);
   });
 });
+
+describe('builds with Immolate', () => {
+  const PAIRS = [['AFF_WRACK', 'AFF_WRACK_IMMO'], ['AFF_DRAINTANK', 'AFF_DRAINTANK_IMMO'], ['DT_SS', 'DT_SS_IMMO']] as const;
+  const casts = (build: string, level: number) =>
+    simulatePull({ variant: loadVariant(build), level, profile: 'average', params: loadParams(), mobs: 1, trace: true }, 3).trace.filter((l) => l.includes('cast immolate')).length;
+
+  it('differ from their base only by Immolate: same talents, pet and filler', () => {
+    for (const [base, immo] of PAIRS) {
+      const a = loadVariant(base);
+      const b = loadVariant(immo);
+      expect({ ...b, id: a.id, immolate: undefined }).toEqual({ ...a, immolate: undefined });
+      expect(b.immolate).toBe(true);
+    }
+  });
+
+  it('cast Immolate in the fight and list it in the rotation spec; the base builds do not', () => {
+    for (const [base, immo] of PAIRS) {
+      expect(casts(base, 45), base).toBe(0);
+      expect(casts(immo, 45), immo).toBeGreaterThan(0);
+      expect(rotationSpec(loadVariant(base), loadParams()).steps.map((s) => s.id)).not.toContain('immolate');
+      expect(rotationSpec(loadVariant(immo), loadParams()).steps.map((s) => s.id)).toContain('immolate');
+    }
+  });
+});

@@ -1,4 +1,5 @@
 import { describeBuild, loadVariant, picksAt, SCENARIOS, VARIANT_IDS } from '../../forever/builds';
+import { demonsAt } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
 import { TalentTrees } from './TalentTrees';
@@ -31,7 +32,12 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
           {v.rotation}, filler: {v.filler}, ranga SB: {String(v.rank)}
         </dd>
         <dt>Pet</dt>
-        <dd>{v.pet ?? 'brak'}{v.sacrificed ? ` (poświęcony: ${v.sacrificed})` : ''}</dd>
+        <dd>
+          {v.pet ?? 'brak'}
+          {v.sacrificed ? ` (poświęcony: ${v.sacrificed})` : ''}
+          {demonsAt(v, level).pet !== v.pet ? `; na levelu ${level} jeszcze niedostępny, walczy ${demonsAt(v, level).pet}` : ''}
+          {v.sacrificed && demonsAt(v, level).sacrificed === null ? `; na levelu ${level} nie ma jeszcze kogo poświęcić` : ''}
+        </dd>
         <dt>Kolejność talentów</dt>
         <dd>
           {v.order}

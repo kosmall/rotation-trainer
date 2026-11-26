@@ -24,7 +24,7 @@ describe('custom builds', () => {
     const r = runJob({ kind: 'ranking', settings: { ...DEFAULT_SETTINGS, level: 45, sessions: 5 }, custom: [d] });
     if (r.kind !== 'ranking') throw new Error('kind');
     expect(r.rows.some((x) => x.metrics.variant === customId('Pół'))).toBe(true);
-    expect(r.rows).toHaveLength(9);
+    expect(r.rows).toHaveLength(12);
   });
   it('a copy of a built-in build scores exactly like the original', () => {
     const d = aff();

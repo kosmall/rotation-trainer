@@ -463,6 +463,18 @@
    "respec_level": 40
   },
   {
+   "id": "AFF_WRACK_IMMO",
+   "order": "AFF_WRACK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "wrack",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "immolate": true
+  },
+  {
    "id": "AFF_DRAINTANK",
    "order": "AFF_DRAINTANK",
    "pet": "voidwalker",
@@ -474,6 +486,18 @@
    "respec_level": 40
   },
   {
+   "id": "AFF_DRAINTANK_IMMO",
+   "order": "AFF_DRAINTANK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "drain_life",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "immolate": true
+  },
+  {
    "id": "DT_SS",
    "order": "DT_SS",
    "pet": "voidwalker",
@@ -483,6 +507,18 @@
    "rank": "max",
    "pre_respec_build": null,
    "respec_level": 40
+  },
+  {
+   "id": "DT_SS_IMMO",
+   "order": "DT_SS",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "drain_life",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "immolate": true
   },
   {
    "id": "DEMO_PACT_R1",

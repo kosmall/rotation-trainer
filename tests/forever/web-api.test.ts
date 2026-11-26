@@ -61,10 +61,16 @@ describe('Major Spellstone option', () => {
     const kph = (spellstone: boolean) => {
       const r = runJob({ kind: 'ranking', settings: { ...DEFAULT_SETTINGS, level: 50, sessions: 40, spellstone } });
       if (r.kind !== 'ranking') throw new Error('kind');
-      return new Map(r.rows.map((x) => [x.metrics.variant, x.metrics.killsPerHour]));
+      return new Map(r.rows.map((x) => [x.metrics.variant, x.metrics]));
     };
     const off = kph(false);
     const on = kph(true);
-    for (const [id, v] of off) expect(on.get(id) as number).toBeGreaterThan(v);
+    for (const [id, m] of off) {
+      const w = on.get(id)!;
+      // Every build kills faster. Kills per hour rise too, except for the mana-hungry Immolate builds: faster casts
+      // spend mana faster, so they stop for food more often (DT_SS_IMMO at 50: about -0.5 kills per hour).
+      expect(w.ttkMean, `${id} time to kill`).toBeLessThan(m.ttkMean);
+      if (!id.endsWith('_IMMO')) expect(w.killsPerHour, `${id} kills per hour`).toBeGreaterThan(m.killsPerHour);
+    }
   });
 });

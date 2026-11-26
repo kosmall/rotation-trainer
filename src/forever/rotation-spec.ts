@@ -154,7 +154,7 @@ function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
     trance('max');
     dots(true);
     step('siphon_life', 'siphon_life', 'max', all(knows('siphon_life'), lacksDot('siphon_life'), longEnough));
-    if (p.aff_use_immolate) step('immolate', 'immolate', 'max', all(knows('immolate'), lacksDot('immolate'), longEnough));
+    if (p.aff_use_immolate || v.immolate) step('immolate', 'immolate', 'max', all(knows('immolate'), lacksDot('immolate'), longEnough));
     finisher();
     if (v.filler === 'wrack') step('filler_wrack', 'wrack', 'max', knows('wrack'), true);
     else if (v.filler === 'drain_life') step('filler_wrack_single_mob', 'wrack', 'max', all(knows('wrack'), { op: 'mobs_in_pull_is', count: 1 }), true);

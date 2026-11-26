@@ -8,7 +8,7 @@ import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, s
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
-import { armorReduction, combatRegenPerSec, demonArmorOf, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
+import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
 import type { Params, PetKind, SpellRank } from './types';
 
@@ -134,14 +134,15 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   // ---- demons -------------------------------------------------------------------------
   const hasPact = rk(ranks, 'demonic_pact') > 0;
   let demons: DemonState = { out: null, sacrificed: null };
-  if (variant.sacrificed && rk(ranks, 'demonic_sacrifice') > 0) {
-    demons = sacrificeDemon({ out: variant.sacrificed, sacrificed: null });
+  // before the build's own demon is learned another one stands in (a warlock never levels without a demon)
+  const own = demonsAt(variant, level);
+  if (own.sacrificed && rk(ranks, 'demonic_sacrifice') > 0) {
+    demons = sacrificeDemon({ out: own.sacrificed, sacrificed: null });
   }
-  if (variant.pet) demons = summonDemon(demons, variant.pet, hasPact);
+  if (own.pet) demons = summonDemon(demons, own.pet, hasPact);
   const petKind: PetKind | null = demons.out;
   const pd = petKind ? petData(petKind) : null;
-  const petUnlocked = !pd || level >= (pd.unlock as number);
-  let petAlive = petKind !== null && petUnlocked;
+  let petAlive = petKind !== null;
 
   const petHpMult = (1 + effectNum('fel_vitality', 'petHpManaPerRank') * rk(ranks, 'fel_vitality'));
   const petBase = petKind ? petBaseAt(petKind, level) : { hp: 0, mana: 0, armor: 0, meleeAvg: 0 };
@@ -506,7 +507,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const f = fillerRank();
     const sh = mults().shadow;
     let dots = 0;
-    for (const id of ['corruption', 'bane_of_agony', 'siphon_life']) {
+    const dotSpells = ['corruption', 'bane_of_agony', 'siphon_life', ...(variant.rotation === 'affliction' && (params.aff_use_immolate || variant.immolate) ? ['immolate'] : [])];
+    for (const id of dotSpells) {
       const r = known(id) ? rankAt(id, 'max', level) : undefined;
       if (r) {
         const b = dotTickBase(id, r);

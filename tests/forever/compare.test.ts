@@ -7,12 +7,12 @@ const base = { sessions: 6, seed: 1, params: { session_pulls: 6 } };
 describe('compare and verify registry', () => {
   it('returns one row per build x level x profile', () => {
     const rows = compareBuilds({ ...base, levels: [45, 50], profiles: ['quest', 'good'] });
-    expect(rows).toHaveLength(8 * 2 * 2);
+    expect(rows).toHaveLength(11 * 2 * 2);
   });
   it('renders a markdown block per level and profile with all builds', () => {
     const md = renderMarkdownTable(compareBuilds({ ...base, levels: [50], profiles: ['average'] }));
     expect(md).toContain('#### Level 50, gear: average');
-    expect(md.match(/^\| (AFF|DT|DEMO)/gm)).toHaveLength(8);
+    expect(md.match(/^\| (AFF|DT|DEMO)/gm)).toHaveLength(11);
   });
   it('overriding bane_per_rank changes the Bane 5/5 build but not the Bane 2/5 one beyond its cast', () => {
     const at = (bane: number) => compareBuilds({ ...base, levels: [50], profiles: ['average'], builds: ['DEMO_PACT_VIDEO'], params: { ...base.params, bane_per_rank: bane } })[0]!;
