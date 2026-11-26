@@ -8,6 +8,7 @@ import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, s
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { estimateOf, evaluateSteps, type DataRotation } from './rotation-spec';
+import { buildRotation } from './rotation-genes';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
@@ -129,6 +130,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const { variant, level, params } = cfg;
   const rng: Rng = createRng(seed);
   const ranks = cfg.ranks ?? ranksAt(variant, level);
+  // a rotation given as data, or the rotation composed from the variant's genes
+  const dataRotationCfg = cfg.rotation ?? (variant.genes ? buildRotation(variant.genes, params) : undefined);
   const stats = playerStatsFor(level, cfg.profile, ranks, cfg.statDelta);
   const nMobs = cfg.mobs ?? params.mobs_per_pull;
   const mobBase = mobAt(level);
@@ -489,7 +492,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return best;
   };
   // ---- estimates for rotation rules ---------------------------------------------------------
-  const est = cfg.rotation?.estimate ?? estimateOf(variant, params);
+  const est = dataRotationCfg?.estimate ?? estimateOf(variant, params);
   const fillerRank = (): { id: string; r: SpellRank } => {
     const id = est.filler === 'wrack' && !known('wrack') ? 'shadow_bolt' : est.filler;
     const r = rankAt(id, id === 'shadow_bolt' ? est.fillerRank : 'max', level) ?? (rankAt('shadow_bolt', 'max', level) as SpellRank);
@@ -541,7 +544,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   }
 
   // ---- rotation context ---------------------------------------------------------------------
-  const dataRotation = cfg.rotation;
+  const dataRotation = dataRotationCfg;
   const rotation: (ctx: RotationCtx) => Candidate[] = dataRotation ? (ctx) => evaluateSteps(dataRotation, ctx) : rotationFor(variant.rotation);
   const makeCtx = (m: Mob): RotationCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance, hpPct: (hp / maxHp) * 100,
