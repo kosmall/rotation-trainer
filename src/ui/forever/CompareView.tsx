@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { VARIANT_IDS } from '../../forever/builds';
-import type { DuelOutcome, Settings } from '../../forever/web/api';
+import { MAX_LEVEL, MIN_LEVEL, type DuelOutcome, type Settings } from '../../forever/web/api';
 import { SweepChart } from './SweepChart';
 import type { ForeverRun } from './useForeverRun';
 
@@ -44,7 +44,7 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
           </select>
         </label>
         <label>
-          <input type="checkbox" checked={sweep} onChange={(e) => setSweep(e.target.checked)} /> Cały zakres 40–59
+          <input type="checkbox" checked={sweep} onChange={(e) => setSweep(e.target.checked)} /> Cały zakres {MIN_LEVEL}–{MAX_LEVEL}
         </label>
         <button type="button" className="btn primary" disabled={running || a === b} onClick={() => onRun(a, b, sweep)}>
           Porównaj
@@ -85,7 +85,9 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
           </table>
           {duel.sweep && (
             <>
-              <h2>Zabicia na godzinę, levele 40–59</h2>
+              <h2>
+                Zabicia na godzinę, levele {MIN_LEVEL}–{MAX_LEVEL}
+              </h2>
               <SweepChart
                 title={`${duel.a} vs ${duel.b}: zabicia na godzinę wg levelu`}
                 levels={duel.sweep.map((r) => r.level)}

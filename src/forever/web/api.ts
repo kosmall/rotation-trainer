@@ -115,7 +115,7 @@ export interface DuelOutcome {
   b: string;
   /** The result at the chosen level. */
   at: DuelResult;
-  /** All levels 40-59 when the sweep was requested. */
+  /** All levels MIN_LEVEL..MAX_LEVEL when the sweep was requested. */
   sweep: DuelResult[] | null;
 }
 export type JobResult = RankingResult | SweepResult | DuelOutcome;
