@@ -57,6 +57,8 @@ export interface PullResult {
   /** Soul Harvest time still running when the pull ended (ms). */
   soulHarvestLeftMs: number;
   eurekaUses: number;
+  /** The numbers the rotation conditions use (for the addon export): damage per second estimates and the mob health. */
+  rates: { mobHp: number; fillerDps: number; petDps: number; dpsEstimate: number; dotsDps: number; drainSoulDps: number };
   /** Eureka! cooldown and buff still running when the pull ended (ms). */
   eurekaCdLeftMs: number;
   eurekaBuffLeftMs: number;
@@ -199,7 +201,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   let res: PullResult = {
     pullSec: 0, mobsKilled: 0, mobsInPull: nMobs, killTimesSec: [], manaSpent: 0, manaFromLifeTap: 0, lifeTapCount: 0, lifeTapHpSpent: 0, damageTaken: 0, healed: 0,
     startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, playerDied: false, timedOut: false,
-    soulHarvestProcs: 0, soulHarvestLeftMs: 0, eurekaUses: 0, eurekaCdLeftMs: 0, eurekaBuffLeftMs: 0, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
+    soulHarvestProcs: 0, soulHarvestLeftMs: 0, eurekaUses: 0, eurekaCdLeftMs: 0, eurekaBuffLeftMs: 0, rates: { mobHp: 0, fillerDps: 0, petDps: 0, dpsEstimate: 0, dotsDps: 0, drainSoulDps: 0 }, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
   };
 
   const firstAlive = (): Mob | undefined => mobs.find((m) => m.alive);
@@ -499,6 +501,26 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return expectedDirect(f.id, f.r) / (fillerCastMs(f.id, f.r) / 1000) * 0.9 + estPetDps();
   };
   const dpsEstimate = estDps();
+  {
+    // Rates behind the rotation conditions (`estTtkSec`, `drainSoulKillSec`), with every DoT on the target.
+    const f = fillerRank();
+    const sh = mults().shadow;
+    let dots = 0;
+    for (const id of ['corruption', 'bane_of_agony', 'siphon_life']) {
+      const r = known(id) ? rankAt(id, 'max', level) : undefined;
+      if (r) {
+        const b = dotTickBase(id, r);
+        dots += (b.tickDmg * sh) / (b.tickMs / 1000);
+      }
+    }
+    const dsr = known('drain_soul') ? rankAt('drain_soul', 'max', level) : undefined;
+    let ds = 0;
+    if (dsr) {
+      const b = dotTickBase('drain_soul', dsr);
+      ds = ((b.tickDmg * sh) / (b.tickMs / 1000)) * (1 + effectNum('soul_siphon', 'perEffectPerRank') * rk(ranks, 'soul_siphon') * Math.min(effectNum('soul_siphon', 'maxEffects'), 3));
+    }
+    res.rates = { mobHp: mobBase.hp * params.mob_hp_mult, fillerDps: (expectedDirect(f.id, f.r) / (fillerCastMs(f.id, f.r) / 1000)) * 0.9, petDps: estPetDps(), dpsEstimate, dotsDps: dots, drainSoulDps: ds };
+  }
 
   // ---- rotation context ---------------------------------------------------------------------
   const rotation = rotationFor(variant.rotation);

@@ -49,8 +49,8 @@
     "source": "Seconds. Bane of Agony and Curse of the Elements are skipped when the estimated time to kill the target is below it. 0 = never skip."
   },
   "use_curse_of_elements": {
-    "value": false,
-    "source": "Affliction rotation option; subject to skip_agony_if_ttk_below."
+    "value": true,
+    "source": "Affliction and Demonology rotation: Curse of the Elements is cast first when the target has no curse (the user's rotation, 26 Nov 2026; it is per target, so it is cast on every mob). In the simulator it costs 0.3-4 kills per hour (a GCD and mana for +4% damage in a fight of about 20 s), so it is a choice of the user, not of the optimiser. Subject to skip_agony_if_ttk_below. Earlier results (before 26 Nov) were computed without it."
   },
   "demo_use_agony": {
     "value": false,

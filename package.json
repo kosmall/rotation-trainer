@@ -18,6 +18,8 @@
     "scenario:ids": "tsx scripts/scenario-ids.ts",
     "screens": "node scripts/screens.mjs",
     "forever:run": "tsx scripts/forever-run.ts",
+    "addon:export": "tsx scripts/addon-export.ts",
+    "addon:vectors": "tsx scripts/addon-vectors.ts",
     "forever:duel": "tsx scripts/forever-duel.ts",
     "forever:build": "tsx scripts/forever-build.ts",
     "forever:verify": "tsx scripts/forever-verify.ts",

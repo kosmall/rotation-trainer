@@ -87,7 +87,8 @@ describe('rotation spec equals the rotation code', () => {
 
   it('leaves out the steps that the parameters switch off', () => {
     const ids = (over: Partial<Params>, build: string) => rotationSpec(loadVariant(build), loadParams(over)).steps.map((s) => s.id);
-    expect(ids({}, 'AFF_DRAINTANK')).not.toContain('curse_of_elements');
+    expect(ids({}, 'AFF_DRAINTANK')).toContain('curse_of_elements');
+    expect(ids({ use_curse_of_elements: false }, 'AFF_DRAINTANK')).not.toContain('curse_of_elements');
     expect(ids({}, 'AFF_DRAINTANK')).not.toContain('immolate');
     expect(ids({ use_curse_of_elements: true, aff_use_immolate: true }, 'AFF_DRAINTANK')).toEqual(expect.arrayContaining(['curse_of_elements', 'immolate']));
     expect(ids({}, 'DEMO_PACT_R1')).not.toContain('bane_of_agony');
@@ -158,5 +159,19 @@ describe('spec is plain JSON', () => {
     expect(JSON.parse(JSON.stringify(spec))).toEqual(spec);
     expect(spec.reads).toEqual(expect.arrayContaining(['player mana', 'player health', 'target health']));
     expect(spec.schema).toBe('forever-rotation/1');
+  });
+});
+
+describe('rates behind the rotation conditions (addon export)', () => {
+  it('a pull reports positive damage rates and the mob health', () => {
+    const r = simulatePull({ variant: loadVariant('DT_SS'), level: 45, profile: 'average', params: loadParams(), mobs: 1 }, 1).rates;
+    expect(r.mobHp).toBeGreaterThan(0);
+    expect(r.dpsEstimate).toBeGreaterThan(0);
+    expect(r.dotsDps).toBeGreaterThan(0);
+    expect(r.drainSoulDps).toBeGreaterThan(0);
+    // "the target lives N s" as a percent of its health: 6 s of damage is a sensible share of a 20 s fight
+    const pct = (6 * 100 * r.dpsEstimate) / r.mobHp;
+    expect(pct).toBeGreaterThan(10);
+    expect(pct).toBeLessThan(80);
   });
 });
