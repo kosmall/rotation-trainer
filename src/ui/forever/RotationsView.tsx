@@ -1,27 +1,12 @@
 import { useMemo, useState } from 'react';
 import { loadVariant, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { rotationSpec, type Cond, type RotationSpec, type SpecStep } from '../../forever/rotation-spec';
-import { getSpell } from '../../forever/spells';
 import { petData } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Params, PetKind } from '../../forever/types';
+import { LoadoutRows, spellName, TITLES } from './buildFacts';
 import { IconTile } from './IconTile';
 import { ScenarioNote } from './BuildsView';
-
-const TITLES: Record<BuildVariant['rotation'], string> = { affliction: 'Affliction (DoT-y + filler)', demonology: 'Demonology (Shadow Bolt + pet)', fire: 'Demonology/Fire (Immolate + Searing Pain)' };
-const PET_NAMES: Record<string, string> = { imp: 'Imp', voidwalker: 'Voidwalker', succubus: 'Succubus', felhunter: 'Felhunter' };
-const FILLER_SPELLS: Record<string, string[]> = { wrack: ['wrack'], drain_life: ['drain_life'], shadow_bolt: ['shadow_bolt'], searing_pain: ['searing_pain'] };
-const FILLER_NAMES: Record<string, string> = { wrack: 'Wrack', drain_life: 'Drain Life (tank)', shadow_bolt: 'Shadow Bolt', searing_pain: 'Searing Pain' };
-
-function spellName(id: string): string {
-  if (id === 'eureka') return 'Eureka!';
-  if (id === 'life_tap') return 'Life Tap';
-  try {
-    return getSpell(id).name;
-  } catch {
-    return id;
-  }
-}
 
 /** Before the build's own demon is learned another one stands in. */
 function standInNote(pet: PetKind): string {
@@ -114,32 +99,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
       <h2>{TITLES[v.rotation]}</h2>
       <ScenarioNote id={v.id} />
       <dl className="fv-facts fv-facts-icons">
-        <dt>Pet</dt>
-        <dd>
-          {v.pet ? <IconTile kind="pet" id={v.pet} name={PET_NAMES[v.pet] ?? v.pet} size={28} /> : null}
-          <span>
-            {v.pet ? (PET_NAMES[v.pet] ?? v.pet) : 'brak'}
-            {v.sacrificed ? `, poświęcony: ${PET_NAMES[v.sacrificed] ?? v.sacrificed}` : ''}
-            {v.pet ? standInNote(v.pet) : ''}
-          </span>
-        </dd>
-        <dt>Shadow Bolt</dt>
-        <dd>
-          <IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />
-          <span>{v.rotation === 'fire' ? 'ranga 1' : v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`}</span>
-        </dd>
-        <dt>Filler</dt>
-        <dd>
-          {FILLER_SPELLS[v.filler]?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}
-          <span>{FILLER_NAMES[v.filler] ?? v.filler}</span>
-        </dd>
-        <dt>Talenty</dt>
-        <dd>
-          <span>
-            {v.order.startsWith('custom:') ? 'własna kolejność' : v.order}
-            {v.pre_respec_build ? ` (do respeca na levelu ${v.respec_level}: ${v.pre_respec_build})` : ''}
-          </span>
-        </dd>
+        <LoadoutRows v={v} petNote={v.pet ? standInNote(v.pet) : ''} />
       </dl>
       <p className="fv-note">Po każdym rzucie (GCD) sprawdzasz warunki od góry. Pierwszy spełniony krok, na którego czar Cię stać, jest rzucany, po czym wracasz na początek.</p>
       <ol className="fv-flow" aria-label={`Diagram rotacji ${id}`}>

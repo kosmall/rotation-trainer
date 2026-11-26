@@ -1,10 +1,20 @@
-import { describeBuild, loadVariant, picksAt, SCENARIOS, VARIANT_IDS } from '../../forever/builds';
+import { describeBuild, loadVariant, picksAt, SCENARIOS, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { demonsAt } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
+import { FactRow, LoadoutRows, PET_NAMES, ROTATION_ICONS, TITLES, TREE_ICONS } from './buildFacts';
+import { IconTile } from './IconTile';
 import { TalentTrees } from './TalentTrees';
 
 const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
+
+/** What differs at this level: the build's own demon (or the one to sacrifice) is not learned yet. */
+function petNote(v: BuildVariant, level: number): string {
+  const at = demonsAt(v, level);
+  const standIn = at.pet !== v.pet && at.pet ? `; na levelu ${level} jeszcze niedostępny, walczy ${PET_NAMES[at.pet] ?? at.pet}` : '';
+  const noSacrifice = v.sacrificed && at.sacrificed === null ? `; na levelu ${level} nie ma jeszcze kogo poświęcić` : '';
+  return standIn + noSacrifice;
+}
 
 /** One build: talent points per tree at the level, the order points were spent, the next pick. */
 export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: { level: number; ids?: readonly string[]; id: string; onIdChange(id: string): void }) {
@@ -26,31 +36,23 @@ export function BuildsView({ level, ids = VARIANT_IDS, id, onIdChange: setId }: 
         </label>
       </div>
       <ScenarioNote id={v.id} />
-      <dl className="fv-facts">
-        <dt>Rotacja</dt>
-        <dd>
-          {v.rotation}, filler: {v.filler}, ranga SB: {String(v.rank)}
-        </dd>
-        <dt>Pet</dt>
-        <dd>
-          {v.pet ?? 'brak'}
-          {v.sacrificed ? ` (poświęcony: ${v.sacrificed})` : ''}
-          {demonsAt(v, level).pet !== v.pet ? `; na levelu ${level} jeszcze niedostępny, walczy ${demonsAt(v, level).pet}` : ''}
-          {v.sacrificed && demonsAt(v, level).sacrificed === null ? `; na levelu ${level} nie ma jeszcze kogo poświęcić` : ''}
-        </dd>
-        <dt>Kolejność talentów</dt>
-        <dd>
-          {v.order}
-          {v.pre_respec_build ? `; do respeca na levelu ${v.respec_level}: ${v.pre_respec_build}` : ''}
-        </dd>
-        <dt>Punkty na levelu {level}</dt>
-        <dd>
-          {snap.points} ({Object.entries(snap.perTree).map(([t, n]) => `${TREE_NAMES[t as Tree] ?? t} ${n}`).join(' / ')})
-        </dd>
-        <dt>Ostatni / następny punkt</dt>
-        <dd>
-          {snap.lastPick ?? '-'} / {snap.nextPick ?? '-'}
-        </dd>
+      <dl className="fv-facts fv-facts-icons">
+        <FactRow label="Rotacja" icons={<IconTile {...ROTATION_ICONS[v.rotation]} name={TITLES[v.rotation]} size={28} />}>
+          {TITLES[v.rotation]}
+        </FactRow>
+        <LoadoutRows v={v} petNote={petNote(v, level)} />
+        <FactRow label={`Punkty na levelu ${level}`}>{snap.points}</FactRow>
+        {(Object.keys(TREE_NAMES) as Tree[]).map((t) => (
+          <FactRow key={t} label={TREE_NAMES[t]} icons={<IconTile {...TREE_ICONS[t]} name={TREE_NAMES[t]} size={28} />}>
+            {snap.perTree[t] ?? 0}
+          </FactRow>
+        ))}
+        <FactRow label="Ostatni punkt" icons={snap.lastPickId ? <IconTile kind="talent" id={snap.lastPickId} name={snap.lastPick ?? ''} size={28} /> : null}>
+          {snap.lastPick ?? '-'}
+        </FactRow>
+        <FactRow label="Następny punkt" icons={snap.nextPickId ? <IconTile kind="talent" id={snap.nextPickId} name={snap.nextPick ?? ''} size={28} /> : null}>
+          {snap.nextPick ?? '-'}
+        </FactRow>
       </dl>
       <h2>Drzewa talentów na levelu {level}</h2>
       <TalentTrees ranks={snap.ranks} perTree={snap.perTree} />
