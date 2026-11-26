@@ -7,6 +7,10 @@
 import type { BuildVariant } from './builds';
 import type { Candidate, RotationCtx } from './rotations';
 import type { EurekaPolicy, Params } from './types';
+import { all, knows, lacksDot, not, T } from './conds';
+import { buildRotation } from './rotation-genes';
+
+export { all, knows, lacksDot, not, T };
 
 /** A condition on the state of the fight. Everything an addon has to read is named by `reads`. */
 export type Cond =
@@ -90,14 +94,6 @@ export const EUREKA_SPELLS: readonly string[] = ['shadow_bolt', 'immolate', 'sea
 const EUREKA_NOT_AFFECTED = ['corruption', 'bane_of_agony', 'siphon_life', 'life_tap', 'curse_of_elements'];
 const BRAND_MARGIN_SEC = 1.5;
 
-export const T: Cond = { op: 'true' };
-export const all = (...of: (Cond | null)[]): Cond => {
-  const list = of.filter((c): c is Cond => c !== null && c.op !== 'true');
-  return list.length === 0 ? T : list.length === 1 ? (list[0] as Cond) : { op: 'all', of: list };
-};
-export const not = (of: Cond): Cond => ({ op: 'not', of });
-export const knows = (spell: string): Cond => ({ op: 'knows', spell });
-export const lacksDot = (spell: string): Cond => not({ op: 'target_has_dot', spell });
 
 function eurekaWhen(policy: EurekaPolicy, p: Params): Cond {
   const ready: Cond = { op: 'cooldown_ready', spell: 'eureka' };
@@ -118,6 +114,7 @@ function eurekaWhen(policy: EurekaPolicy, p: Params): Cond {
 
 /** Steps of a rotation kind, in priority order (mirrors rotations.ts). */
 function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
+  if (v.genes) return buildRotation(v.genes, p).steps;
   const out: SpecStep[] = [];
   const longEnough: Cond = { op: 'ttk_at_least', sec: p.corruption_min_ttk_sec };
   const skip: Cond | null = p.skip_agony_if_ttk_below > 0 ? { op: 'ttk_at_least', sec: p.skip_agony_if_ttk_below } : null;

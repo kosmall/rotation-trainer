@@ -68,3 +68,28 @@ describe('custom build tab', () => {
     await waitFor(() => expect((screen.getByLabelText('Nazwa') as HTMLInputElement).value).toBe('Własny build 2'));
   });
 });
+
+describe('custom build with a composed rotation', () => {
+  it('composes a rotation from spells and goes back to a template', async () => {
+    render(<ForeverApp view="custom" runner={runner} />);
+    await screen.findByText(/Punkty:/);
+    fireEvent.change(screen.getByLabelText('Szablon rotacji'), { target: { value: 'custom' } });
+    fireEvent.click(screen.getByLabelText('Corruption'));
+    fireEvent.change(screen.getByLabelText('Filler'), { target: { value: 'searing_pain' } });
+    const saved = () => JSON.parse(window.localStorage.getItem(CUSTOM_STORAGE_KEY) ?? '{}').builds[0];
+    expect(saved().genes.corruption).toBe(false);
+    expect(saved().genes.filler).toBe('searing_pain');
+    expect(screen.getAllByText(/Własna rotacja: CoE, Agony → Searing Pain/).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('Szablon rotacji'), { target: { value: 'affliction' } });
+    expect(saved().genes).toBeUndefined();
+    expect(saved().rotation).toBe('affliction');
+  });
+  it('shows the composed rotation in the Rotations view', async () => {
+    const genes = { coe: false, agony: true, corruption: false, siphon: false, immolate: false, minTtkSec: 6, drainSoulFinisher: false, filler: 'drain_life' };
+    window.localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify({ builds: [{ name: 'Gen', picks: ['suppression'], rotation: 'affliction', filler: 'wrack', rank: 'max', pet: 'imp', sacrificed: null, genes }], active: 'Gen', included: [] }));
+    render(<ForeverApp view="rotations" runner={runner} />);
+    const select = await screen.findByLabelText(/Build/);
+    fireEvent.change(select, { target: { value: '★ Gen' } });
+    expect((await screen.findAllByText(/Własna rotacja: Agony → Drain Life/)).length).toBeGreaterThan(0);
+  });
+});
