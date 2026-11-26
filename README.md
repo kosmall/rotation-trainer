@@ -77,6 +77,8 @@ progi (HP, przerwy na jedzenie i picie), a mniejszy krok daje wyraźnie inne, g�
 że krok w dół i w górę dają istotnie różne nachylenia (zależność nie jest liniowa), więc waga jest tylko przybliżona.
 Jeden build na jednym levelu przy 100 sesjach liczy się ok. 5 s.
 
+W aplikacji ta sama analiza jest w symulatorze Forever, w zakładce **Wagi statów (EP)** (`#/forever/ep`): zaznacz buildy, kliknij „Policz EP”, a wagi pojawią się dla levelu i ustawień z paska symulacji.
+
 ```bash
 npm run forever:ep -- --build AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 100 --seed 1
 npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out reports/forever_ep_compare.md   # porównanie buildów (reports/forever_ep.md to pełny raport z wnioskami, nie nadpisuj go)

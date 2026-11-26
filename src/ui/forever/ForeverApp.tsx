@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_SETTINGS, normalizeSettings, paramsOf, type DuelOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
+import { DEFAULT_SETTINGS, normalizeSettings, paramsOf, type DuelOutcome, type EpOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
 import type { JobRunner } from '../../forever/web/client';
 import { customVariant, SCENARIO_IDS, VARIANT_IDS } from '../../forever/builds';
 import { customId, loadCustom, saveCustom, type CustomState } from '../../forever/web/custom';
@@ -8,6 +8,7 @@ import { FOREVER_VIEWS, FOREVER_VIEW_TITLES, routeHref, type ForeverView } from 
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { BuildsView } from './BuildsView';
 import { CompareView } from './CompareView';
+import { EpView } from './EpView';
 import { RotationsView } from './RotationsView';
 import { SettingsBar } from './SettingsBar';
 import { SimView } from './SimView';
@@ -72,6 +73,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
   const ranking = run.results.ranking as RankingResult | undefined;
   const sweep = run.results.sweep as SweepResult | undefined;
   const duel = run.results.duel as DuelOutcome | undefined;
+  const ep = run.results.ep as EpOutcome | undefined;
 
   return (
     <div className="forever-app">
@@ -83,7 +85,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
           </a>
         ))}
       </nav>
-      <SettingsBar settings={s} onChange={setSettings} run={run} onRun={view === 'compare' || view === 'custom' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : view === 'custom' ? 'Uruchom (użyj Sprawdź)' : 'Uruchom symulację'} />
+      <SettingsBar settings={s} onChange={setSettings} run={run} onRun={view === 'compare' || view === 'custom' || view === 'ep' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : view === 'custom' ? 'Uruchom (użyj Sprawdź)' : view === 'ep' ? 'Uruchom (użyj Policz EP)' : 'Uruchom symulację'} />
       {view === 'sim' && (
         <fieldset className="fv-panel">
           <legend>Dodatkowe buildy w rankingu</legend>
@@ -106,6 +108,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
       {view === 'builds' && <BuildsView level={s.level} ids={allIds} id={buildId} onIdChange={setBuildId} />}
       {view === 'rotations' && <RotationsView ids={allIds} params={simParams} />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
+      {view === 'ep' && <EpView settings={s} run={run} outcome={ep} ids={allIds} initial={buildId} onRun={(builds) => run.run({ kind: 'ep', settings: s, builds, custom: customData.filter((c) => builds.includes(customId(c.name))) })} />}
       {view === 'custom' && (
         <CustomView
           state={custom}
