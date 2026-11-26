@@ -1,7 +1,7 @@
 // Build discovery in the web app: search options from the app settings, the worker count, and a
 // found result saved as a custom build that carries its composed rotation. Framework-free.
 
-import type { CustomBuildData } from '../builds';
+import type { BuildVariant, CustomBuildData } from '../builds';
 import { DEFAULT_BUDGET, QUICK_BUDGET, type Budget, type DiscoverOptions, type TopRow } from '../discover/engine';
 import { rotationLabel } from '../rotation-genes';
 import { sacrificeLive } from '../discover/space';
@@ -73,4 +73,20 @@ export function discoverEtaSec(i: EtaInput): number | null {
 export function fullRotationNote(row: TopRow): string | null {
   const full = rotationLabel(row.combo.genes);
   return full === row.label ? null : `Zapisany build na innych levelach gra pełną rotację: ${full}`;
+}
+
+/** A found result as a build variant for the views (talent facts, rotation diagram); not registered. */
+export function rowVariant(row: TopRow): BuildVariant {
+  return {
+    id: `#${row.rank} ${row.label}`,
+    order: 'custom:discover',
+    pet: row.combo.pets.pet,
+    sacrificed: sacrificeLive(row.combo, row.ranks) ? row.combo.pets.sacrificed : null,
+    rotation: 'affliction',
+    filler: 'drain_life',
+    rank: 'max',
+    pre_respec_build: null,
+    respec_level: 40,
+    genes: { ...row.combo.genes },
+  };
 }

@@ -1,19 +1,15 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import type { CustomBuildData } from '../../forever/builds';
 import type { TopRow } from '../../forever/discover/engine';
-import { verifyFor } from '../../forever/discover/report';
-import { liveSteps, sacrificeLive } from '../../forever/discover/space';
-import { TALENTS, TALENT_BY_ID } from '../../forever/talents';
-import type { Tree } from '../../forever/types';
+import { sacrificeLive } from '../../forever/discover/space';
 import { paramsOf, type Settings } from '../../forever/web/api';
-import { discoveredBuild, fullRotationNote, type DiscoverBudget } from '../../forever/web/discover';
+import { discoveredBuild, type DiscoverBudget } from '../../forever/web/discover';
 import { routeHref } from '../shell/router';
-import { PET_NAMES, spellName } from './buildFacts';
-import { describeCond } from './RotationsView';
+import { PET_NAMES } from './buildFacts';
+import { DiscoverDetails } from './DiscoverDetails';
 import type { DiscoverRun } from './useDiscover';
 
 const STAGES: Record<string, string> = { screen: '1/3: przegląd wszystkich kombinacji', search: '2/3: dokładne szukanie talentów', final: '3/3: przeliczenie najlepszych', insensitivity: '3/3: talenty bez wpływu' };
-const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
 const f1 = (x: number): string => x.toFixed(1);
 
 function petText(row: TopRow): string {
@@ -27,6 +23,8 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
   const [budget, setBudget] = useState<DiscoverBudget>('full');
   // the saved note belongs to the result it was saved from
   const [savedNote, setSavedNote] = useState<{ name: string; from: unknown } | null>(null);
+  // results opened in the table (by rank); a new result closes them
+  const [openFor, setOpenFor] = useState<{ ranks: number[]; from: unknown }>({ ranks: [], from: null });
   const d = discovery;
   // leaving the view (another Forever tab) stops a running search
   const cancel = d.cancel;
@@ -36,6 +34,8 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
   const res = shown?.result;
   const best = res?.baseline[0];
   const params = shown ? paramsOf(shown.settings) : null;
+  const open = new Set(openFor.from === res ? openFor.ranks : []);
+  const toggle = (rank: number): void => setOpenFor({ ranks: open.has(rank) ? [...open].filter((r) => r !== rank) : [...open, rank], from: res });
 
   return (
     <>
@@ -109,8 +109,12 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               </thead>
               <tbody>
                 {res.top.map((t) => (
-                  <tr key={t.rank} className={t.rank === 1 ? 'fv-best' : undefined}>
+                  <Fragment key={t.rank}>
+                  <tr className={t.rank === 1 ? 'fv-best' : undefined}>
                     <td>
+                      <button type="button" className="fv-toggle" aria-expanded={open.has(t.rank)} aria-label={`Szczegóły #${t.rank}`} onClick={() => toggle(t.rank)}>
+                        {open.has(t.rank) ? '▾' : '▸'}
+                      </button>{' '}
                       {t.rank}
                       {t.tiedWithFirst ? ' ≈#1' : ''}
                     </td>
@@ -145,43 +149,18 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
                       </button>
                     </td>
                   </tr>
+                  {open.has(t.rank) && (
+                    <tr className="fv-detail-row">
+                      <td colSpan={11}>
+                        <DiscoverDetails row={t} level={res.meta.level} params={params} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
-          {res.top.map((t) => (
-            <details key={t.rank} className="fv-adv">
-              <summary>
-                #{t.rank}: {t.label}, {petText(t)}
-              </summary>
-              <ul>
-                {(['aff', 'demo', 'destro'] as Tree[]).map((tree) => {
-                  const list = TALENTS.filter((x) => x.tree === tree && (t.ranks[x.id] ?? 0) > 0).map((x) => `${x.name} ${t.ranks[x.id]}${x.status === 'modelled' ? '' : '*'}`);
-                  return list.length ? (
-                    <li key={tree}>
-                      <b>
-                        {TREE_NAMES[tree]} ({t.perTree[tree]}):
-                      </b>{' '}
-                      {list.join(', ')}
-                    </li>
-                  ) : null;
-                })}
-                <li>Punkty bez modelowanego efektu (*): {t.freePoints}</li>
-                {t.insensitive && <li>Bez wpływu na wynik (punkt w martwym talencie nic istotnie nie kosztuje): {t.insensitive.length ? t.insensitive.map((id) => TALENT_BY_ID.get(id)?.name ?? id).join(', ') : 'brak'}</li>}
-              </ul>
-              <ol className="fv-steps">
-                {liveSteps(t.combo, res.meta.level, t.ranks, params).map((s) => (
-                  <li key={s.id}>
-                    {spellName(s.spell)}
-                    {s.rank === 'max' ? '' : ` r${s.rank}`}: {describeCond(s.when)}
-                    {s.filler ? ' (filler)' : ''}
-                  </li>
-                ))}
-              </ol>
-              {fullRotationNote(t) && <p className="fv-note">{fullRotationNote(t)}</p>}
-              <p className="fv-note">Opiera się na szacunkach: {verifyFor(t, res.meta.level).join(', ') || 'brak'}</p>
-            </details>
-          ))}
         </section>
       )}
     </>
