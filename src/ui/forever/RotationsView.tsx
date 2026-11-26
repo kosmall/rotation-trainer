@@ -4,7 +4,7 @@ import { rotationSpec, type Cond, type RotationSpec, type SpecStep } from '../..
 import { petData } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Params, PetKind } from '../../forever/types';
-import { LoadoutRows, spellName, TITLES } from './buildFacts';
+import { LoadoutRows, spellName, TITLES, wrackFloor } from './buildFacts';
 import { IconTile } from './IconTile';
 import { ScenarioNote } from './BuildsView';
 
@@ -94,12 +94,13 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
   const id = v.id;
   const eurekaWhen = describeCond(spec.eureka.when);
   const ltWhen = describeCond(spec.lifeTap.when);
+  const floor = wrackFloor(v, params);
   return (
     <section className="fv-panel">
       <h2>{TITLES[v.rotation]}</h2>
       <ScenarioNote id={v.id} />
       <dl className="fv-facts fv-facts-icons">
-        <LoadoutRows v={v} petNote={v.pet ? standInNote(v.pet) : ''} />
+        <LoadoutRows v={v} params={params} petNote={v.pet ? standInNote(v.pet) : ''} />
       </dl>
       <p className="fv-note">Po każdym rzucie (GCD) sprawdzasz warunki od góry. Pierwszy spełniony krok, na którego czar Cię stać, jest rzucany, po czym wracasz na początek.</p>
       <ol className="fv-flow" aria-label={`Diagram rotacji ${id}`}>
@@ -149,6 +150,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
               </span>
               <b>
                 {spellName(st.spell)} ({rankText(st)}){st.filler ? ', filler' : ''}
+                {floor > 0 && st.id === 'filler_drain_life' ? `, filler przy HP ${num(floor * 100)}% i niższym` : ''}
               </b>
             </span>
             <span className="fv-loopstub" aria-hidden="true" />

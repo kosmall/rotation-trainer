@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { BuildVariant } from '../../forever/builds';
 import { getSpell } from '../../forever/spells';
-import type { Tree } from '../../forever/types';
+import type { Params, Tree } from '../../forever/types';
 import { IconTile } from './IconTile';
 
 export const TITLES: Record<BuildVariant['rotation'], string> = { affliction: 'Affliction (DoT-y + filler)', demonology: 'Demonology (Shadow Bolt + pet)', fire: 'Demonology/Fire (Immolate + Searing Pain)' };
@@ -38,8 +38,17 @@ export function FactRow({ label, icons, children }: { label: string; icons?: Rea
   );
 }
 
+/** The health floor (fraction) above which a Wrack-filler build channels Wrack (Drain Life below it); 0 = always Wrack. */
+export function wrackFloor(v: BuildVariant, params?: Params): number {
+  return v.filler === 'wrack' ? (v.wrack_min_hp_pct ?? params?.wrack_min_hp_pct ?? 0) : 0;
+}
+
+const pctText = (f: number): string => `${String(Math.round(f * 1000) / 10).replace('.', ',')}%`;
+
 /** What a build fights with: pet, Shadow Bolt rank, filler and talent order. */
-export function LoadoutRows({ v, petNote = '' }: { v: BuildVariant; petNote?: string }) {
+export function LoadoutRows({ v, petNote = '', params }: { v: BuildVariant; petNote?: string; params?: Params }) {
+  const floor = wrackFloor(v, params);
+  const fillerSpells = floor > 0 ? ['wrack', 'drain_life'] : FILLER_SPELLS[v.filler];
   return (
     <>
       <FactRow label="Pet" icons={v.pet ? <IconTile kind="pet" id={v.pet} name={PET_NAMES[v.pet] ?? v.pet} size={28} /> : null}>
@@ -50,8 +59,8 @@ export function LoadoutRows({ v, petNote = '' }: { v: BuildVariant; petNote?: st
       <FactRow label="Shadow Bolt" icons={<IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />}>
         {v.rotation === 'fire' ? 'ranga 1' : v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`}
       </FactRow>
-      <FactRow label="Filler" icons={FILLER_SPELLS[v.filler]?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}>
-        {FILLER_NAMES[v.filler] ?? v.filler}
+      <FactRow label="Filler" icons={fillerSpells?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}>
+        {floor > 0 ? `Wrack, gdy HP powyżej ${pctText(floor)}; przy niższym HP Drain Life` : (FILLER_NAMES[v.filler] ?? v.filler)}
       </FactRow>
       <FactRow label="Talenty">
         {v.order.startsWith('custom:') ? 'własna kolejność' : v.order}
