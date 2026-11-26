@@ -35,12 +35,37 @@ export interface DiscoverRun {
 
 const defaultPool: PoolFactory = (o, signal) => discoverPool(o, workerCount(typeof navigator === 'undefined' ? undefined : navigator.hardwareConcurrency), signal);
 
+const isObj = (x: unknown): x is Record<string, unknown> => x !== null && typeof x === 'object';
+
+/** Whether a stored discovery has everything the view reads (an older or edited entry is ignored instead of breaking the view). */
+function isShowable(o: unknown): o is SavedDiscovery {
+  if (!isObj(o) || !isObj(o.settings) || !isObj(o.result)) return false;
+  const r = o.result;
+  if (!isObj(r.meta) || typeof r.meta.level !== 'number' || !Array.isArray(r.baseline) || !Array.isArray(r.top)) return false;
+  if (!r.baseline.every((b) => isObj(b) && typeof b.id === 'string' && isObj(b.metrics))) return false;
+  return r.top.every(
+    (t) =>
+      isObj(t) &&
+      typeof t.rank === 'number' &&
+      isObj(t.combo) &&
+      isObj(t.combo.genes) &&
+      isObj(t.combo.pets) &&
+      isObj(t.ranks) &&
+      isObj(t.perTree) &&
+      isObj(t.metrics) &&
+      Array.isArray(t.kphCi) &&
+      isObj(t.gainVsBest) &&
+      isObj(t.nearestKnown) &&
+      typeof t.label === 'string',
+  );
+}
+
 function loadSaved(): SavedDiscovery | null {
   try {
     const raw = window.localStorage.getItem(DISCOVER_STORAGE_KEY);
     if (!raw) return null;
     const o = JSON.parse(raw) as SavedDiscovery;
-    return o && o.result && Array.isArray(o.result.top) && Array.isArray(o.result.baseline) && o.settings ? o : null;
+    return isShowable(o) ? o : null;
   } catch {
     return null;
   }
