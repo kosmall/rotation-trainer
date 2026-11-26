@@ -1,6 +1,6 @@
 import baseJson from './data/classic_base.json';
 import levelsJson from './data/levels.json';
-import type { Params, PetKind } from './types';
+import type { Params, PetKind, StatDelta } from './types';
 import type { Ranks } from './talents';
 
 type Pair = [number, number];
@@ -117,11 +117,11 @@ export function maxManaOf(level: number, intellect: number, racialMult = 1): num
  * (WoW Classic tables), plus the gear profile, Stamina and Intellect conversion, Gnome Expansive Mind
  * (+5% maximum mana), Demonic Embrace (+3% Stamina per rank) and Fel Vitality (+5% mana per rank).
  */
-export function playerStatsFor(level: number, profile: string, ranks: Ranks): PlayerStats {
+export function playerStatsFor(level: number, profile: string, ranks: Ranks, delta: StatDelta = {}): PlayerStats {
   const L = clampLevel(level);
   const base = BASE.gnomeWarlockBase[L] as StatRow;
-  const sta = (base.sta + prof(profile, 'stamina', level)) * (1 + 0.03 * (ranks['demonic_embrace'] ?? 0));
-  const int = base.int + prof(profile, 'intellect', level);
+  const sta = (base.sta + prof(profile, 'stamina', level) + (delta.stamina ?? 0)) * (1 + 0.03 * (ranks['demonic_embrace'] ?? 0));
+  const int = base.int + prof(profile, 'intellect', level) + (delta.intellect ?? 0);
   const maxHp = maxHealthOf(level, sta);
   const maxMana = Math.round(maxManaOf(level, int, BASE.foreverObserved.gnomeMaxManaMult) * (1 + 0.05 * (ranks['fel_vitality'] ?? 0)));
   return {
@@ -130,10 +130,10 @@ export function playerStatsFor(level: number, profile: string, ranks: Ranks): Pl
     maxMana,
     stamina: sta,
     intellect: int,
-    spellPower: prof(profile, 'spellPower', level),
-    spirit: base.spi + prof(profile, 'spirit', level),
-    critPct: prof(profile, 'critPct', level),
-    hitPct: prof(profile, 'hitPct', level),
+    spellPower: prof(profile, 'spellPower', level) + (delta.spellPower ?? 0),
+    spirit: base.spi + prof(profile, 'spirit', level) + (delta.spirit ?? 0),
+    critPct: prof(profile, 'critPct', level) + (delta.critPct ?? 0),
+    hitPct: prof(profile, 'hitPct', level) + (delta.hitPct ?? 0),
     armor: base.agi * 2 + prof(profile, 'armor', level),
     foodHpPerSec: consumableRate(LV.consumables.food, level, 'hpPerSec'),
     drinkManaPerSec: consumableRate(LV.consumables.drink, level, 'manaPerSec'),

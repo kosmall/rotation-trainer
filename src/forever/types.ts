@@ -128,3 +128,8 @@ export interface SpellData {
   source: string;
   ranks: SpellRank[];
 }
+
+/** Player stats a gear delta can change (equivalency points). */
+export type StatKey = 'spellPower' | 'intellect' | 'spirit' | 'stamina' | 'critPct' | 'hitPct';
+/** Extra stats on top of the gear profile, added before the Stamina/Intellect conversions. */
+export type StatDelta = Partial<Record<StatKey, number>>;

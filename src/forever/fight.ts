@@ -10,7 +10,7 @@ import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
-import type { Params, PetKind, SpellRank } from './types';
+import type { Params, PetKind, SpellRank, StatDelta } from './types';
 
 export interface PullConfig {
   variant: BuildVariant;
@@ -20,6 +20,8 @@ export interface PullConfig {
   mobs?: 1 | 2 | 3;
   /** Talent ranks override (optimizer); default: the variant's picks at the level. */
   ranks?: Ranks;
+  /** Extra stats on top of the gear profile (equivalency points). */
+  statDelta?: StatDelta;
   startMana?: number;
   startHp?: number;
   /** Soul Harvest time left from the previous kill (ms), carried into this pull. */
@@ -123,7 +125,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const { variant, level, params } = cfg;
   const rng: Rng = createRng(seed);
   const ranks = cfg.ranks ?? ranksAt(variant, level);
-  const stats = playerStatsFor(level, cfg.profile, ranks);
+  const stats = playerStatsFor(level, cfg.profile, ranks, cfg.statDelta);
   const nMobs = cfg.mobs ?? params.mobs_per_pull;
   const mobBase = mobAt(level);
   const trace: string[] = [];

@@ -8,7 +8,7 @@ import { soulHarvest } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
 import { gcdMs, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec } from './stats';
 import type { Ranks } from './talents';
-import type { Params } from './types';
+import type { Params, StatDelta } from './types';
 
 export interface CellConfig {
   variant: BuildVariant;
@@ -19,6 +19,8 @@ export interface CellConfig {
   /** Talent ranks override (optimizer); default: the variant's picks at the level (see `picks`). */
   ranks?: Ranks;
   picks?: PicksOptions;
+  /** Extra stats on top of the gear profile (equivalency points). */
+  statDelta?: StatDelta;
 }
 
 export interface RestInput {
@@ -104,7 +106,7 @@ export function killsPerHour(kills: number, totalSec: number): number {
 export function runSession(cfg: CellConfig, seed: number): SessionResult {
   const { variant, level, params } = cfg;
   const ranks = cfg.ranks ?? ranksAt(variant, level, cfg.picks);
-  const stats = playerStatsFor(level, cfg.profile, ranks);
+  const stats = playerStatsFor(level, cfg.profile, ranks, cfg.statDelta);
   const gcd = gcdMs(params.haste_pct, params);
   const ltRank = rankAt('life_tap', 'max', level);
   const out: SessionResult = {
@@ -114,7 +116,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   };
   let mana = stats.maxMana * params.rest_to_mana_pct;
   let hp = stats.maxHp * params.rest_to_hp_pct;
-  const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks };
+  const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks, statDelta: cfg.statDelta };
   const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
   let shCarryMs = 0;
   // Gnome Eureka!: cooldown and buff left, as they were when the last pull ended; the time since then is taken off at the next pull.
