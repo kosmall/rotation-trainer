@@ -1,6 +1,7 @@
 import { TALENT_BY_ID, TALENTS } from '../../forever/talents';
 import type { Ranks } from '../../forever/talents';
 import { IconTile } from './IconTile';
+import { hasWowheadTip, TalentWowheadLink } from './WowheadLink';
 
 const TREES = [
   { id: 'aff', name: 'Affliction' },
@@ -36,8 +37,10 @@ export function TalentTrees({ ranks, perTree, editing }: { ranks: Readonly<Ranks
                 const pos = { gridRow: t.row + 1, gridColumn: t.col + 1 };
                 if (!editing)
                   return (
-                    <div key={t.id} className={cls} style={pos} title={title} role="img" aria-label={title}>
-                      <IconTile kind="talent" id={t.id} name={t.name} />
+                    <div key={t.id} className={cls} style={pos} title={hasWowheadTip(t.id) ? undefined : title} role="img" aria-label={title}>
+                      <TalentWowheadLink talentId={t.id}>
+                        <IconTile kind="talent" id={t.id} name={t.name} />
+                      </TalentWowheadLink>
                       <span className="fv-rank" aria-hidden="true">
                         {n}/{t.maxRank}
                       </span>

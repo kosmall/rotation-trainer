@@ -91,3 +91,5 @@
 .fv-io { width: 100%; min-height: 6rem; font-family: var(--font-code, monospace); font-size: 0.8rem; }
 @media (pointer: coarse) { .fv-talent-btn, .fv-talent-minus { min-width: 32px; } .fv-talent-minus { width: 26px; height: 26px; left: -10px; top: -10px; } }
 .fv-inline { display: inline-flex; gap: 6px; margin-right: 16px; }
+.fv-wh { display: block; width: 100%; height: 100%; color: inherit; text-decoration: none; }
+th .fv-wh, li .fv-wh { display: inline; width: auto; height: auto; text-decoration: underline dotted; text-underline-offset: 3px; }
