@@ -136,6 +136,21 @@ npm run forever:discover -- --level 45 --param wrack_dmg_mult=1.3 --mobs 2 --pro
   czyli wartości szacunkowe (`verify: true`), na których wynik stoi. „Odkrycie” oparte na zgadywanej liczbie
   widać od razu.
 
+**W aplikacji:** zakładka **Odkrywanie** (`#/forever/discover`) robi to samo w przeglądarce, na tym samym silniku
+i z tymi samymi wynikami co CLI. Level, sprzęt, liczba mobów, polityka Life Tapa, Spellstone i Eureka! są brane z
+paska ustawień, a **Zakres** to **Pełne** (~15 min) albo **Szybkie** (~1-3 min). Liczy na `min(8, liczba rdzeni)` Web
+Workerach; **Przerwij** zatrzymuje wszystkie. Ostatni wynik zostaje zapamiętany (bez wznawiania po odświeżeniu
+strony). **Zapisz** przy wierszu dodaje wynik jako **własny build**: punkty w kolejności rzędów drzewka (poniżej
+levelu wyszukiwania build ma pierwsze N z nich, powyżej punkty są niewydane; w edytorze można je przestawić i
+dobudować do 51), znaleziona rotacja i pety. Taki build bierze udział w rankingu, na krzywej, w Porównaniu i w EP
+na każdym levelu.
+
+**Rotacja z klocków we własnym buildzie:** w edytorze własnego buildu „Szablon rotacji” ma opcję **Własna (z
+klocków)**: utrzymywane efekty (Curse of the Elements, Bane of Agony, Corruption, Siphon Life, Immolate), próg „DoT-y
+gdy TTK ≥” (zawsze, 6 s, 12 s), Drain Soul na dobicie i filler (Shadow Bolt r1/r2/max, Searing Pain, Drain Life,
+Wrack bez progu albo od 50%/70% HP, Wrack tylko na pojedynczych mobach). To te same klocki, z których składa
+rotacje wyszukiwarka; Buildy i Rotacje pokazują je jako „Własna rotacja: …”.
+
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w
 `talents.json` (`status`, `reason`); raport: `reports/forever_leveling_40plus.md`.
 
