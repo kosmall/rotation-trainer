@@ -90,14 +90,14 @@ export const EUREKA_SPELLS: readonly string[] = ['shadow_bolt', 'immolate', 'sea
 const EUREKA_NOT_AFFECTED = ['corruption', 'bane_of_agony', 'siphon_life', 'life_tap', 'curse_of_elements'];
 const BRAND_MARGIN_SEC = 1.5;
 
-const T: Cond = { op: 'true' };
-const all = (...of: (Cond | null)[]): Cond => {
+export const T: Cond = { op: 'true' };
+export const all = (...of: (Cond | null)[]): Cond => {
   const list = of.filter((c): c is Cond => c !== null && c.op !== 'true');
   return list.length === 0 ? T : list.length === 1 ? (list[0] as Cond) : { op: 'all', of: list };
 };
-const not = (of: Cond): Cond => ({ op: 'not', of });
-const knows = (spell: string): Cond => ({ op: 'knows', spell });
-const lacksDot = (spell: string): Cond => not({ op: 'target_has_dot', spell });
+export const not = (of: Cond): Cond => ({ op: 'not', of });
+export const knows = (spell: string): Cond => ({ op: 'knows', spell });
+export const lacksDot = (spell: string): Cond => not({ op: 'target_has_dot', spell });
 
 function eurekaWhen(policy: EurekaPolicy, p: Params): Cond {
   const ready: Cond = { op: 'cooldown_ready', spell: 'eureka' };
