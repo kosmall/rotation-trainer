@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { extremesAt, summarize, type Leader } from './sweepStats';
 
 export interface SweepSeries {
   id: string;
@@ -24,6 +25,9 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
   const x = (i: number) => m.l + (i * (W - m.l - m.r)) / Math.max(1, levels.length - 1);
   const y = (v: number) => H - m.b - ((v - y0) / (y1 - y0 || 1)) * (H - m.t - m.b);
   const ticks = [0, 1, 2, 3, 4].map((k) => y0 + ((y1 - y0) * k) / 4);
+  const summary = summarize(series, levels.length);
+  const labelOf = new Map(series.map((s) => [s.id, s.label]));
+  const names = (l: Leader) => l.ids.map((x) => labelOf.get(x) ?? x).join(', ');
   return (
     <figure className="fv-chart">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={`${id}-t`} width="100%">
@@ -66,7 +70,8 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
       </ul>
       <details>
         <summary>Pokaż dane</summary>
-        <table className="fv-table">
+        <div className="fv-scroll">
+        <table className="fv-table" aria-label={`Dane: ${title}`}>
           <thead>
             <tr>
               <th scope="col">Level</th>
@@ -78,17 +83,35 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
             </tr>
           </thead>
           <tbody>
-            {levels.map((l, i) => (
-              <tr key={l}>
-                <th scope="row">{l}</th>
-                {series.map((s) => (
-                  <td key={s.id}>{(s.values[i] ?? 0).toFixed(1)}</td>
-                ))}
-              </tr>
-            ))}
+            {levels.map((l, i) => {
+              const top = new Set(extremesAt(series, i).best);
+              return (
+                <tr key={l}>
+                  <th scope="row">{l}</th>
+                  {series.map((s) =>
+                    top.has(s.id) ? (
+                      <td key={s.id} className="fv-top" title={`Najlepszy wynik na levelu ${l}`}>
+                        <strong>{(s.values[i] ?? 0).toFixed(1)}</strong>
+                      </td>
+                    ) : (
+                      <td key={s.id}>{(s.values[i] ?? 0).toFixed(1)}</td>
+                    ),
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        </div>
       </details>
+      {series.length > 1 && (
+        <dl className="fv-facts fv-summary" aria-label="Podsumowanie krzywej">
+          <dt>Najczęściej najlepszy</dt>
+          <dd>{summary.levels === 0 ? 'buildy nie różnią się na żadnym levelu' : `${names(summary.mostBest)}: ${summary.mostBest.count} z ${summary.levels} leveli`}</dd>
+          <dt>Najczęściej najgorszy</dt>
+          <dd>{summary.levels === 0 ? 'buildy nie różnią się na żadnym levelu' : `${names(summary.mostWorst)}: ${summary.mostWorst.count} z ${summary.levels} leveli`}</dd>
+        </dl>
+      )}
     </figure>
   );
 }

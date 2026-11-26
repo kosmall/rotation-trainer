@@ -37,6 +37,8 @@ function loadSettings(): Settings {
 export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRunner }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [buildId, setBuildId] = useState(VARIANT_IDS[0] as string);
+  const [curveIds, setCurveIds] = useState<readonly string[]>([]);
+  const curveSet = useMemo(() => new Set(curveIds), [curveIds]);
   const run = useForeverRun(runner);
   const [custom, setCustom] = useState<CustomState>(() => loadCustom(storage()));
   useEffect(() => saveCustom(storage(), custom), [custom]);
@@ -100,7 +102,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
           ))}
         </fieldset>
       )}
-      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} onSweep={() => run.run({ kind: 'sweep', settings: s, builds: [...VARIANT_IDS, ...(withScenarios ? SCENARIO_IDS : []), ...includedData.map((b) => customId(b.name))], custom: includedData })} onOpenBuild={setBuildId} />}
+      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => run.run({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
       {view === 'builds' && <BuildsView level={s.level} ids={allIds} id={buildId} onIdChange={setBuildId} />}
       {view === 'rotations' && <RotationsView ids={allIds} params={simParams} />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}

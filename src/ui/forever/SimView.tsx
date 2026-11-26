@@ -6,7 +6,7 @@ import type { ForeverRun } from './useForeverRun';
 
 const f = (x: number, d = 1) => x.toFixed(d);
 
-export function RankingTable({ ranking, highlight, onOpenBuild }: { ranking: RankingResult; highlight?: string; onOpenBuild?(id: string): void }) {
+export function RankingTable({ ranking, highlight, onOpenBuild, selected, onToggle }: { ranking: RankingResult; highlight?: string; onOpenBuild?(id: string): void; selected?: ReadonlySet<string>; onToggle?(id: string): void }) {
   const best = ranking.rows[0]?.metrics.killsPerHour ?? 1;
   return (
       <div className="fv-scroll">
@@ -36,6 +36,9 @@ export function RankingTable({ ranking, highlight, onOpenBuild }: { ranking: Ran
                 <tr key={m.variant} className={`${i === 0 ? 'fv-best' : ''}${m.variant === highlight ? ' fv-mine' : ''}`.trim() || undefined}>
                   <td>{i + 1}</td>
                   <th scope="row">
+                    {selected && onToggle && (
+                      <input type="checkbox" className="fv-pick" aria-label={`Na krzywej: ${m.variant}`} checked={selected.has(m.variant)} onChange={() => onToggle(m.variant)} />
+                    )}
                     {onOpenBuild ? (
                       <a href={routeHref({ mode: 'forever', view: 'builds' })} onClick={() => onOpenBuild(m.variant)} title="Pokaż drzewo talentów tego builda">
                         {m.variant}
@@ -68,7 +71,25 @@ export function RankingTable({ ranking, highlight, onOpenBuild }: { ranking: Ran
   );
 }
 
-export function SimView({ run, ranking, sweep, onSweep, onOpenBuild }: { run: ForeverRun; ranking: RankingResult | undefined; sweep: SweepResult | undefined; onSweep(): void; onOpenBuild(id: string): void }) {
+export function SimView({
+  run,
+  ranking,
+  sweep,
+  selected,
+  onSelect,
+  onSweep,
+  onOpenBuild,
+}: {
+  run: ForeverRun;
+  ranking: RankingResult | undefined;
+  sweep: SweepResult | undefined;
+  /** The builds ticked for the curve over the levels. */
+  selected: ReadonlySet<string>;
+  onSelect(ids: readonly string[]): void;
+  /** Computes the curve of these builds. */
+  onSweep(builds: readonly string[]): void;
+  onOpenBuild(id: string): void;
+}) {
   if (!ranking)
     return (
       <p className="fv-empty">
@@ -76,17 +97,34 @@ export function SimView({ run, ranking, sweep, onSweep, onOpenBuild }: { run: Fo
       </p>
     );
   const s = ranking.settings;
+  const ids = ranking.rows.map((r) => r.metrics.variant);
+  // only builds of the current ranking can be computed (a scenario or a custom build may have been switched off since)
+  const chosen = ids.filter((id) => selected.has(id));
+  const toggle = (id: string) => onSelect(selected.has(id) ? [...selected].filter((x) => x !== id) : [...selected, id]);
+  const levelCount = MAX_LEVEL - MIN_LEVEL + 1;
   return (
     <>
       <p className="fv-note">
         Level {s.level}, sprzęt: {s.profile}, {s.mobs} mob/pull, {s.sessions} sesji, seed {s.seed}. Wyniki zależą od założeń oznaczonych do weryfikacji (zakładka Założenia).
       </p>
-      <RankingTable ranking={ranking} onOpenBuild={onOpenBuild} />
+      <RankingTable ranking={ranking} onOpenBuild={onOpenBuild} selected={selected} onToggle={toggle} />
       <p className="fv-note">„≈” oznacza różnicę nieistotną statystycznie (przedział 95% obejmuje 0).</p>
       <h2>Krzywa kills/h po levelach {MIN_LEVEL}–{MAX_LEVEL}</h2>
-      <button type="button" className="btn" disabled={run.status === 'running'} onClick={onSweep}>
-        Policz wszystkie levele ({VARIANT_IDS.length * (MAX_LEVEL - MIN_LEVEL + 1)} komórek)
-      </button>
+      <p className="fv-note">Zaznacz buildy w tabeli rankingu (pole obok nazwy) i policz ich wyniki na każdym levelu.</p>
+      <div className="fv-row">
+        <button type="button" className="btn primary" disabled={run.status === 'running' || chosen.length === 0} onClick={() => onSweep(chosen)}>
+          Policz zaznaczone ({chosen.length}, {chosen.length * levelCount} komórek)
+        </button>
+        <button type="button" className="btn" onClick={() => onSelect(ids.slice(0, 5))}>
+          Zaznacz 5 najlepszych
+        </button>
+        <button type="button" className="btn" onClick={() => onSelect(ids)}>
+          Zaznacz wszystkie
+        </button>
+        <button type="button" className="btn" disabled={selected.size === 0} onClick={() => onSelect([])}>
+          Wyczyść
+        </button>
+      </div>
       {sweep && <SweepChart title="Zabicia na godzinę wg levelu" levels={sweep.levels} series={sweep.series.map((x) => ({ id: x.build, label: x.build, values: x.kph }))} valueName="zabić/h" />}
       {sweep && sweep.settings.sessions !== DEFAULT_SETTINGS.sessions && <p className="fv-note">Krzywa użyła {sweep.settings.sessions} sesji.</p>}
     </>
