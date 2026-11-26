@@ -68,7 +68,7 @@ npm run forever:wrack-thresholds   # talenty DT_SS_WRACK_70 z progiem HP 40..90%
 # Wrack tylko powyżej progu HP, poniżej Drain Life (0 = zawsze Wrack)
 npm run forever:duel -- --a DT_SS --b AFF_WRACK --param wrack_min_hp_pct=0.6
 npm run forever:report
-# odkrywanie buildów dla jednego levelu: talenty × rotacje × pety, top 20 (godziny; można przerwać i wznowić)
+# odkrywanie buildów dla jednego levelu: talenty × rotacje × pety, top 20 (kilkanaście minut; można przerwać i wznowić)
 npm run forever:discover -- --level 40
 ```
 
@@ -92,7 +92,7 @@ przeszukuje talenty, rotacje składane z czarów symulatora i pety, a znane buil
 poprzednim.
 
 ```bash
-npm run forever:discover -- --level 40                       # pełne wyszukiwanie (kilka godzin na 4 rdzeniach)
+npm run forever:discover -- --level 40                       # pełne wyszukiwanie (ok. 15-20 min na 4 rdzeniach dla levelu 40)
 npm run forever:discover -- --level 40 --quick               # szybki przebieg do sprawdzenia (kilka minut)
 npm run forever:discover -- --level 45 --param wrack_dmg_mult=1.3 --mobs 2 --profile good
 ```
