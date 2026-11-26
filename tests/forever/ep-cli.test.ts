@@ -24,6 +24,13 @@ describe('forever:ep command', () => {
   it('rejects an unknown build and lists the known ones', () => {
     expect(() => runEpCli(['--build', 'NOPE', ...base])).toThrow(/AFF_WRACK/);
   });
+  it('rejects a bad --mobs instead of reporting that spell power gains nothing', () => {
+    expect(() => runEpCli(['--build', 'AFF_WRACK', ...base, '--mobs', 'abc'])).toThrow(/mobs/);
+    expect(() => runEpCli(['--build', 'AFF_WRACK', ...base, '--mobs', '5'])).toThrow(/mobs/);
+  });
+  it('rejects a reversed level range instead of printing an empty report', () => {
+    expect(() => runEpCli(['--build', 'AFF_WRACK', '--sessions', '6', '--levels', '50-45'])).toThrow(/levels/);
+  });
   it('rejects fewer than two sessions', () => {
     expect(() => runEpCli(['--build', 'AFF_WRACK', '--levels', '50', '--sessions', '1'])).toThrow(/sessions/);
   });

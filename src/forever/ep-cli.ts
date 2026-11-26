@@ -30,9 +30,13 @@ export function runEpCli(args: string[]): { text: string; out?: string } {
     deltas[k as StatKey] = Number(v);
   }
   const builds = args.includes('--all') ? [...VARIANT_IDS] : arg('builds', '') ? arg('builds', '').split(',') : [arg('build', 'AFF_WRACK')];
-  const report = epReport(builds, parseLevels(arg('levels', '40-59')), {
+  const levels = parseLevels(arg('levels', '40-59'));
+  if (levels.length === 0 || levels.some((l) => !Number.isFinite(l))) throw new Error(`--levels wants a range like 40-59 (low to high) or a list like 45,50,55; got "${arg('levels', '40-59')}"`);
+  const mobs = Number(arg('mobs', '1'));
+  if (mobs !== 1 && mobs !== 2 && mobs !== 3) throw new Error(`--mobs must be 1, 2 or 3, got ${arg('mobs', '1')}`);
+  const report = epReport(builds, levels, {
     profile: arg('profile', 'average'),
-    mobs: Number(arg('mobs', '1')) as 1 | 2 | 3,
+    mobs,
     sessions: Number(arg('sessions', '100')),
     seed: Number(arg('seed', '1')),
     params: params as Partial<Params>,

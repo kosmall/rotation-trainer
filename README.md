@@ -79,7 +79,7 @@ Jeden build na jednym levelu przy 100 sesjach liczy się ok. 5 s.
 
 ```bash
 npm run forever:ep -- --build AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 100 --seed 1
-npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out reports/forever_ep.md   # porównanie buildów
+npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out reports/forever_ep_compare.md   # porównanie buildów (reports/forever_ep.md to pełny raport z wnioskami, nie nadpisuj go)
 npm run forever:ep -- --all --levels 50                                                            # wszystkie buildy
 ```
 
