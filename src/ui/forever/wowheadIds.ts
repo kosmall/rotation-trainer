@@ -1,6 +1,6 @@
 // Wowhead Forever spell ids (rank 1) of the Forever talents: https://www.wowhead.com/forever/spell=<id>.
-// Wowhead has no separate entries for higher ranks, so the tooltip shows rank 1. Talents without an entry
-// (mostly Forever-only talents whose id is unknown) keep the plain `title` tooltip.
+// Wowhead has no separate entries for higher ranks, so the tooltip shows rank 1. Every Forever talent has an entry
+// (ids read from the Wowhead Forever talent calculator and checked against its tooltip API); a talent without one keeps the plain `title` tooltip.
 export const TALENT_WOWHEAD_IDS: Readonly<Record<string, number>> = {
   improved_life_tap: 18182,
   suppression: 18174,
@@ -35,6 +35,23 @@ export const TALENT_WOWHEAD_IDS: Readonly<Record<string, number>> = {
   shadowburn: 17877,
   intensity: 18135,
   agonizing_flames: 17927,
-  conflagrate: 17962,
+  conflagrate: 1293817,
   pyroclasm: 18073,
+  soul_harvest: 437032,
+  improved_drains: 403511,
+  pandemic: 427712,
+  malevolence: 1310949,
+  wrack: 1316697,
+  demonic_aegis: 1235316,
+  demonic_energies: 1225214,
+  decimation: 440870,
+  demonic_brand: 1293695,
+  improved_felhunter: 1225217,
+  demonic_knowledge: 412732,
+  demonic_pact: 425464,
+  molten_skin: 1225220,
+  bane_of_havoc: 1225228,
+  fire_and_brimstone: 412751,
+  shadow_and_flame: 426316,
+  incinerate: 412758,
 };
