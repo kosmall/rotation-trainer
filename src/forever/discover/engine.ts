@@ -4,7 +4,7 @@
 // runner executes (inline here, worker threads in the CLI). Framework-free and Node-free.
 
 import { createRng } from '../../engine/rng';
-import { loadVariant, ranksAt, SCENARIO_IDS, VARIANT_IDS, type BuildVariant } from '../builds';
+import { loadVariant, ranksAt, VARIANT_IDS, type BuildVariant } from '../builds';
 import classicBase from '../data/classic_base.json';
 import levelsJson from '../data/levels.json';
 import { loadParams } from '../data/load';
@@ -137,7 +137,7 @@ export function comboVariant(c: Combo): BuildVariant {
   return { id: c.id, order: '', pet: c.pets.pet, sacrificed: c.pets.sacrificed, rotation: 'affliction', filler: '', rank: 'max', pre_respec_build: null, respec_level: 40 };
 }
 
-const KNOWN_IDS: readonly string[] = [...VARIANT_IDS, ...SCENARIO_IDS];
+const KNOWN_IDS: readonly string[] = VARIANT_IDS;
 
 function cell(o: DiscoverOptions, combo: Combo, ranks: Ranks, sessions: number, seed: number): { metrics: CellMetrics; raw: SessionResult[] } {
   return runCell({ variant: comboVariant(combo), level: o.level, profile: o.profile, params: o.params, mobs: o.mobs, ranks, rotation: buildRotation(combo.genes, o.params) }, sessions, seed);

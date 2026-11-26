@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SCENARIO_IDS, VARIANT_IDS } from '../../src/forever/builds';
+import { VARIANT_IDS } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { discover, inlineRunner, pickTop, QUICK_BUDGET, runTask, stageSeed, stateHash, type DiscoverOptions, type DiscoverState, type Runner, type Task } from '../../src/forever/discover/engine';
 import { effectiveKey, enumerateCombos, type SpaceFilter } from '../../src/forever/discover/space';
@@ -43,14 +43,14 @@ describe('discovery engine', async () => {
     expect(res.meta.combos).toBe(enumerateCombos(40, space).length);
   });
   it('has every known build in the baseline', () => {
-    expect(res.baseline.map((b) => b.id).sort()).toEqual([...VARIANT_IDS, ...SCENARIO_IDS].sort());
+    expect(res.baseline.map((b) => b.id).sort()).toEqual([...VARIANT_IDS].sort());
   });
   it('fills the comparison columns', () => {
     const first = res.top[0]!;
     expect(first.tiedWithFirst).toBe(false);
     expect(first.kphCi[0]).toBeLessThanOrEqual(first.metrics.killsPerHour);
     expect(first.kphCi[1]).toBeGreaterThanOrEqual(first.metrics.killsPerHour);
-    expect(VARIANT_IDS.concat(SCENARIO_IDS)).toContain(first.nearestKnown.id);
+    expect(VARIANT_IDS).toContain(first.nearestKnown.id);
     expect(first.perTree.aff + first.perTree.demo + first.perTree.destro).toBe(31);
     expect(Array.isArray(first.insensitive)).toBe(true);
   });

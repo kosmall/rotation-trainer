@@ -86,8 +86,8 @@ Domyślna polityka Life Tapa w symulatorze to Twoja reguła (parametry `lt_*` w 
 ### Odkrywanie buildów (`forever:discover`)
 
 Narzędzie do szukania **nieoczywistych** buildów dla jednego levelu. Nie zaczyna od znanych buildów:
-przeszukuje talenty, rotacje składane z czarów symulatora i pety, a znane buildy (`builds.json`,
-`scenarios.json`) liczy tylko jako punkt odniesienia. Typowe użycie po patchu albo blue poście: zmieniasz dane
+przeszukuje talenty, rotacje składane z czarów symulatora i pety, a znane buildy (`builds.json`) liczy
+tylko jako punkt odniesienia. Typowe użycie po patchu albo blue poście: zmieniasz dane
 (`spells.json`, `talents.json`, `params.json`) albo podajesz `--param`, uruchamiasz ponownie i porównujesz raport z
 poprzednim.
 

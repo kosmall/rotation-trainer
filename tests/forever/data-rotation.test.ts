@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadVariant, SCENARIO_IDS, VARIANT_IDS } from '../../src/forever/builds';
+import { loadVariant, VARIANT_IDS } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { dataRotationOf, estimateOf } from '../../src/forever/rotation-spec';
 import { runCell } from '../../src/forever/runner';
@@ -16,7 +16,7 @@ const same = (id: string, p: Params, levels: number[]): void => {
 };
 
 describe('rotation given as data', () => {
-  it.each([...VARIANT_IDS, ...SCENARIO_IDS])('%s: identical sessions', (id) => {
+  it.each([...VARIANT_IDS])('%s: identical sessions', (id) => {
     same(id, loadParams({ session_pulls: 5 }), [40, 47, 59]);
   });
   it('identical with Immolate on for affliction and the Eureka! filler policy', () => {
