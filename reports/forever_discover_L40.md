@@ -4,7 +4,7 @@ Talents × rotations composed from the simulator's spells × pet setups, ranked 
 
 - Gear profile: average; mobs per pull: 1; seed: 1; Talented perk: 0
 - Changed parameters: none (params.json defaults)
-- Searched: 36288 rotation × pet combinations screened, 212 searched in depth, 474538 simulations; run time 16 min
+- Searched: 36288 rotation × pet combinations screened, 212 searched in depth, 474524 simulations; run time 17 min
 - Data and settings hash: `f64ae303-ea00e84a`
 
 How to read: **✓** the difference to the best known build is significant (95% CI on paired sessions), **~** it is within the noise; **≈#1** the row is not significantly worse than row 1. "Nearest known" is the known build with the fewest talent points moved (in brackets).
@@ -15,34 +15,20 @@ How to read: **✓** the difference to the best known build is significant (95% 
 |---|---:|---|
 | DT_SS_WRACK_70 | 121.5 | 121.4–121.6 |
 | DT_SS_WRACK_50 | 120.5 | 120.3–120.7 |
+| DT_SS_WRACK_50_PET | 120.5 | 120.3–120.7 |
 | DT_SS | 116.6 | 116.5–116.6 |
 | DEMO_PACT_R1 | 114.8 | 114.7–115.0 |
+| DEMO_PACT_R1_PET | 114.8 | 114.7–115.0 |
 | DEMO_PACT_VIDEO | 114.8 | 114.7–115.0 |
 | DEMO_FIRE | 114.0 | 112.7–115.4 |
 | DEMO_PACT_R2 | 113.9 | 113.7–114.1 |
 | AFF_DRAINTANK | 112.9 | 112.8–113.0 |
-| HB_AFF_VW | 112.9 | 112.8–113.0 |
 | DT_SS_IMMO | 111.9 | 111.4–112.4 |
-| TF_DEMO_SUC_R1 | 111.8 | 111.7–111.9 |
 | AFF_DRAINTANK_IMMO | 110.9 | 110.5–111.4 |
-| CWF_DEMO_SUC_R1 | 108.3 | 108.0–108.6 |
-| HB_DEMO_SUC_R1 | 106.6 | 106.4–106.7 |
-| HB_DEMO_SUC_SACFEL | 106.6 | 106.4–106.7 |
-| HB_AFF_SUC | 103.6 | 102.6–104.5 |
 | DEMO_PACT_MAXRANK | 102.5 | 101.5–103.4 |
-| TAV_AFF_SUC | 102.3 | 101.2–103.5 |
-| HB_DEMO_SUC_MAX | 99.8 | 99.1–100.5 |
-| TAV_AFF_FEL | 97.0 | 96.2–97.9 |
-| TF_AFF_SUC | 96.4 | 95.2–97.5 |
-| TF_DEMO_FEL | 95.1 | 94.4–95.7 |
-| CWF_DEMO_FEL | 95.1 | 94.6–95.5 |
-| CWF_AFF_FEL | 94.1 | 93.2–95.0 |
-| HB_AFF_FEL | 93.6 | 92.7–94.4 |
-| CWF_AFF_SUC | 92.1 | 90.8–93.4 |
 | AFF_WRACK | 91.6 | 90.3–92.9 |
-| HB_DEMO_FEL | 91.4 | 90.7–92.2 |
+| AFF_WRACK_SH_PET | 91.6 | 90.3–92.9 |
 | AFF_WRACK_IMMO | 83.7 | 82.2–85.2 |
-| CWF_DESTRO_IMP | 36.1 | 35.5–36.6 |
 
 ## Top 20
 
