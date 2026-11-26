@@ -3,7 +3,7 @@
 // 1 / kills per hour (every level weighted the same). Start from the greedy path, then improve the
 // whole sequence with local search (replace a point, swap two, replace a block). Framework-free.
 
-import type { Rng } from '../../engine/rng';
+import { createRng, type Rng } from '../../engine/rng';
 import { runCell } from '../runner';
 import { pointsAtLevel, validatePicks, type Ranks } from '../talents';
 import { TALENT_BY_ID } from '../talents';
@@ -162,3 +162,121 @@ export function improvePath(ctx: CompleteCtx, start: readonly string[], maxSims:
 
 /** A talent's name for the path table. */
 export const talentName = (id: string): string => TALENT_BY_ID.get(id)?.name ?? id;
+
+// ---- tasks and orchestration -----------------------------------------------------------------
+
+export interface CompleteBudget {
+  /** Independent local searches per row, from the greedy path. */
+  restarts: number;
+  sessions: number;
+  /** New simulations per row (split across the restarts). */
+  maxSims: number;
+  /** Sessions of the final evaluation of the best and the greedy path. */
+  finalSessions: number;
+}
+
+export const COMPLETE_FULL: CompleteBudget = { restarts: 4, sessions: 10, maxSims: 1500, finalSessions: 40 };
+export const COMPLETE_QUICK: CompleteBudget = { restarts: 2, sessions: 4, maxSims: 300, finalSessions: 20 };
+
+export type CompleteTask =
+  | { kind: 'complete-greedy'; row: number; ctx: CompleteCtx }
+  | { kind: 'complete-improve'; row: number; ctx: CompleteCtx; start: string[]; maxSims: number; seed: number }
+  | { kind: 'complete-final'; row: number; ctx: CompleteCtx; path: string[]; which: 'best' | 'greedy' };
+
+export type CompleteResult =
+  | { kind: 'complete-path'; row: number; path: string[]; cost: number; from: 'greedy' | 'improve' }
+  | { kind: 'complete-final'; row: number; which: 'best' | 'greedy'; kph: number[] };
+
+/** Executes one completion task (pure; runs inside a worker). */
+export function runCompleteTask(t: CompleteTask): CompleteResult {
+  if (t.kind === 'complete-greedy') {
+    const cache: KphCache = new Map();
+    const path = greedyPath(t.ctx, cache);
+    return { kind: 'complete-path', row: t.row, path, cost: pathCost(t.ctx, path, cache).cost, from: 'greedy' };
+  }
+  if (t.kind === 'complete-improve') {
+    const cache: KphCache = new Map();
+    const path = improvePath(t.ctx, t.start, t.maxSims, createRng(t.seed), cache);
+    return { kind: 'complete-path', row: t.row, path, cost: pathCost(t.ctx, path, cache).cost, from: 'improve' };
+  }
+  return { kind: 'complete-final', row: t.row, which: t.which, kph: pathCost(t.ctx, t.path, new Map()).kph };
+}
+
+export interface CompleteRowInput {
+  rank: number;
+  label: string;
+  combo: Combo;
+  ranks: Ranks;
+}
+
+export interface CompletedBuild {
+  rank: number;
+  label: string;
+  combo: Combo;
+  baseRanks: Ranks;
+  fromLevel: number;
+  toLevel: number;
+  path: string[];
+  /** The best path's points with the kills per hour at each level (final evaluation). */
+  perLevel: { level: number; pick: string; kph: number }[];
+  /** Harmonic mean of kills per hour over the path's levels (final evaluation). */
+  avgKph: number;
+  greedyPath: string[];
+  greedyAvgKph: number;
+  /** Costs on the search sessions (Σ 1/kph): best ≤ greedy. */
+  searchCost: number;
+  greedySearchCost: number;
+}
+
+export type CompleteRunner = (tasks: CompleteTask[], onDone: (r: CompleteResult) => void) => Promise<CompleteResult[]>;
+export type CompleteBase = Omit<CompleteCtx, 'combo' | 'baseRanks' | 'sessions'>;
+
+/** Greedy path per row, then local-search restarts from it, then a final evaluation of the best and the greedy path. */
+export async function completeBuilds(rows: readonly CompleteRowInput[], base: CompleteBase, b: CompleteBudget, run: CompleteRunner, progress?: (stage: string, done: number, total: number) => void): Promise<CompletedBuild[]> {
+  const ctxOf = (r: CompleteRowInput, sessions: number, seed: number): CompleteCtx => ({ ...base, combo: r.combo, baseRanks: r.ranks, sessions, seed });
+  const stage = async (name: string, tasks: CompleteTask[]): Promise<CompleteResult[]> => {
+    let done = 0;
+    progress?.(name, 0, tasks.length);
+    return run(tasks, () => progress?.(name, ++done, tasks.length));
+  };
+  const greedy = (await stage('greedy', rows.map((r, row) => ({ kind: 'complete-greedy', row, ctx: ctxOf(r, b.sessions, base.seed) })))) as Extract<CompleteResult, { kind: 'complete-path' }>[];
+  const improveTasks: CompleteTask[] = [];
+  rows.forEach((r, row) => {
+    for (let k = 0; k < b.restarts; k++)
+      improveTasks.push({ kind: 'complete-improve', row, ctx: ctxOf(r, b.sessions, base.seed), start: (greedy[row] as { path: string[] }).path, maxSims: Math.max(1, Math.floor(b.maxSims / b.restarts)), seed: base.seed * 1000 + row * 10 + k });
+  });
+  const improved = (await stage('improve', improveTasks)) as Extract<CompleteResult, { kind: 'complete-path' }>[];
+  const best = rows.map((_, row) => {
+    let pickd = greedy[row] as Extract<CompleteResult, { kind: 'complete-path' }>;
+    for (const x of improved) if (x.row === row && x.cost < pickd.cost - 1e-12) pickd = x;
+    return pickd;
+  });
+  const finalSeed = base.seed + 7777;
+  const finals = (await stage(
+    'final',
+    rows.flatMap((r, row): CompleteTask[] => [
+      { kind: 'complete-final', row, which: 'best', ctx: ctxOf(r, b.finalSessions, finalSeed), path: (best[row] as { path: string[] }).path },
+      { kind: 'complete-final', row, which: 'greedy', ctx: ctxOf(r, b.finalSessions, finalSeed), path: (greedy[row] as { path: string[] }).path },
+    ]),
+  )) as Extract<CompleteResult, { kind: 'complete-final' }>[];
+  return rows.map((r, row) => {
+    const kph = finals.find((f) => f.row === row && f.which === 'best')?.kph ?? [];
+    const gk = finals.find((f) => f.row === row && f.which === 'greedy')?.kph ?? [];
+    const path = (best[row] as { path: string[] }).path;
+    return {
+      rank: r.rank,
+      label: r.label,
+      combo: r.combo,
+      baseRanks: r.ranks,
+      fromLevel: base.fromLevel,
+      toLevel: base.toLevel,
+      path,
+      perLevel: path.map((pick, i) => ({ level: base.fromLevel + 1 + i, pick, kph: kph[i] ?? 0 })),
+      avgKph: harmonicKph(kph),
+      greedyPath: (greedy[row] as { path: string[] }).path,
+      greedyAvgKph: harmonicKph(gk),
+      searchCost: (best[row] as { cost: number }).cost,
+      greedySearchCost: (greedy[row] as { cost: number }).cost,
+    };
+  });
+}

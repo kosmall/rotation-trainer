@@ -1,7 +1,8 @@
 // Runs build discovery tasks on a pool of module Web Workers (results in task order, abort stops
 // every worker); without Worker support the tasks run on the main thread, yielding between them.
 
-import { runTask, type DiscoverOptions, type Runner, type Task, type TaskResult } from '../discover/engine';
+import type { DiscoverOptions, Task, TaskResult } from '../discover/engine';
+import { runAnyTask, type AnyResult, type AnyTask } from './discover-tasks';
 
 export interface WorkerLike {
   postMessage(m: unknown): void;
@@ -10,10 +11,12 @@ export interface WorkerLike {
   onerror: ((e: { message?: string }) => void) | null;
 }
 
-export interface DiscoverPool {
-  runner: Runner;
+/** A pool that runs tasks of one kind (discovery or completion) and returns their results in task order. */
+export interface Pool<T, R> {
+  runner(tasks: T[], onDone: (r: R) => void): Promise<R[]>;
   close(): void;
 }
+export type DiscoverPool = Pool<Task, TaskResult>;
 
 const abortError = (): DOMException => new DOMException('The search was aborted', 'AbortError');
 
@@ -26,12 +29,12 @@ function defaultWorker(): WorkerLike | null {
   }
 }
 
-function inlinePool(options: DiscoverOptions, signal: AbortSignal): DiscoverPool {
-  const runner: Runner = async (tasks, onDone) => {
-    const out: TaskResult[] = [];
+function inlinePool<T extends AnyTask, R extends AnyResult>(options: DiscoverOptions, signal: AbortSignal): Pool<T, R> {
+  const runner = async (tasks: T[], onDone: (r: R) => void): Promise<R[]> => {
+    const out: R[] = [];
     for (const t of tasks) {
       if (signal.aborted) throw abortError();
-      const r = runTask(options, t);
+      const r = runAnyTask(options, t) as R;
       out.push(r);
       onDone(r);
       await new Promise<void>((res) => setTimeout(res, 0));
@@ -42,9 +45,9 @@ function inlinePool(options: DiscoverOptions, signal: AbortSignal): DiscoverPool
   return { runner, close: () => undefined };
 }
 
-export function discoverPool(options: DiscoverOptions, n: number, signal: AbortSignal, makeWorker: () => WorkerLike | null = defaultWorker): DiscoverPool {
+export function discoverPool<T extends AnyTask = Task, R extends AnyResult = TaskResult>(options: DiscoverOptions, n: number, signal: AbortSignal, makeWorker: () => WorkerLike | null = defaultWorker): Pool<T, R> {
   const first = makeWorker();
-  if (!first) return inlinePool(options, signal);
+  if (!first) return inlinePool<T, R>(options, signal);
   const workers: WorkerLike[] = [first];
   for (let i = 1; i < n; i++) {
     const w = makeWorker();
@@ -71,11 +74,11 @@ export function discoverPool(options: DiscoverOptions, n: number, signal: AbortS
     failCurrent?.(abortError());
   });
 
-  const runner: Runner = (tasks: Task[], onDone) =>
-    new Promise<TaskResult[]>((resolve, reject) => {
+  const runner = (tasks: T[], onDone: (r: R) => void): Promise<R[]> =>
+    new Promise<R[]>((resolve, reject) => {
       if (failure) return reject(failure);
       if (signal.aborted || closed) return reject(abortError());
-      const out: TaskResult[] = new Array(tasks.length);
+      const out: R[] = new Array(tasks.length);
       let next = 0;
       let finished = 0;
       let failed = false;
@@ -98,7 +101,7 @@ export function discoverPool(options: DiscoverOptions, n: number, signal: AbortS
         };
         w.onmessage = (e) => {
           if (failed) return;
-          const m = e.data as { i: number; result: TaskResult };
+          const m = e.data as { i: number; result: R };
           out[m.i] = m.result;
           finished++;
           onDone(m.result);
