@@ -421,13 +421,12 @@
     "durationMs": 10000,
     "levelBase": 26,
     "perLevel": 1.5,
-    "rank1Mult": 1.5,
     "min": 14,
     "max": 17,
     "spCoeff": 0.078
    },
    "verify": true,
-   "source": "Confirmed: threat -17%/-33%/-50%, brands 10 s, pet's next 2/4/6 attacks (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)). Damage per attack: rank 3 = ((60-26)*1.5 + 14..17 + 0.078*SP) (timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026)); rank 1 tooltip 90-93 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip)) is reproduced by a x1.5 on the level term (ASSUMPTION); rank 2 interpolated (ASSUMPTION). Whether '60' is the caster level is unknown (param brand_scale)."
+   "source": "Confirmed: threat -17%/-33%/-50%, brands 10 s, pet's next 2/4/6 attacks (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026)). Damage per attack, the same at every rank: (level-26)*1.5 + 14..17 + 0.078*SP, Fire with the Imp and Shadow otherwise, multiplied by Unholy Power and Master Demonologist (Wowhead Forever spells 1293695, 1293697, 1293698, read 26 Nov 2026; https://www.wowhead.com/forever/spell=1293695). An older rank 1 tooltip showed 90-93 at level 60 (guildorder.com); not used. Soul Link's 3% is applied to it as damage done by the demon (ASSUMPTION). Whether the level in the formula is the caster level is marked by the Wowhead tooltip; param brand_scale can fix it at 60."
   },
   {
    "id": "improved_felhunter",
@@ -486,7 +485,7 @@
     "voidwalkerPhysReduce": 0.1,
     "felhunterMagicReduce": 0.1
    },
-   "source": "Confirmed: 2% per rank (10% at 5/5) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
+   "source": "Wowhead Forever spell 23785: warlock and demon both get the effect while the demon is out (Imp +10% Fire, Succubus +10% Shadow damage, read 26 Nov 2026; https://www.wowhead.com/forever/spell=23761). Confirmed: 2% per rank (10% at 5/5) (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },
   {
    "id": "demonic_pact",

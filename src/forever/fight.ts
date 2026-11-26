@@ -4,7 +4,7 @@
 import { createRng, type Rng } from '../engine/rng';
 import type { BuildVariant } from './builds';
 import { ranksAt } from './builds';
-import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
+import { brandAttacks, brandDamage, brandSchool, demonicKnowledgeSp, effectNum, petSchoolMult, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { estimateOf, evaluateSteps, type DataRotation } from './rotation-spec';
@@ -164,7 +164,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
   pet.hp = pet.maxHp;
   const soulLink = rk(ranks, 'soul_link') > 0;
-  const petDmgMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1) * params.pet_dmg_mult;
+  // Talents that raise everything the demon does, the brand included (pet_dmg_mult is only for the estimated pet tables).
+  const petTalentMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1);
+  const petDmgMult = petTalentMult * params.pet_dmg_mult;
+  const petMd = (school: 'shadow' | 'fire'): number => (petKind ? petSchoolMult(ranks, petKind, school) : 1);
 
   // ---- player ---------------------------------------------------------------------------
   const maxMana = stats.maxMana;
@@ -417,7 +420,9 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (m.brandCharges > 0 && t < m.brandUntil) {
       m.brandCharges--;
       res.brandHits++;
-      dealToMob(m, brandDamage(level, spEff(), rk(ranks, 'demonic_brand'), params), false, 1);
+      const d = brandDamage(level, spEff(), rk(ranks, 'demonic_brand'), params) * petTalentMult * (petKind ? petMd(brandSchool(petKind)) : 1);
+      log(t, `pet brand ${d.toFixed(3)}`);
+      dealToMob(m, d, false, 1);
     }
   };
 
@@ -509,7 +514,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (!pd || !petAlive) return 0;
     if (petKind === 'imp') {
       const fr = petRank(pd.fireboltRanks);
-      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult) / ((pd.fireboltCastMs as number) / 1000) : 0;
+      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult * petMd('fire')) / ((pd.fireboltCastMs as number) / 1000) : 0;
     }
     return (petBase.meleeAvg / ((pd.swingMs as number) / 1000)) * petDmgMult * params.pet_hit_chance;
   };
@@ -645,7 +650,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       if (fr && pet.mana >= fr.mana) {
         pet.mana -= fr.mana;
         if (rng.next() < params.pet_hit_chance) {
-          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp'));
+          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * petMd('fire') * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp'));
+          log(t, `pet firebolt ${d.toFixed(3)}`);
           dealToMob(m, d, false, 1);
           if (m.alive) brandHit(m);
         }
@@ -655,6 +661,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     }
     if (rng.next() < params.pet_hit_chance) {
       const d = petBase.meleeAvg * (1 - mobArmorRed) * petDmgMult;
+      log(t, `pet melee ${d.toFixed(3)}`);
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);
     }
@@ -669,7 +676,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const lr = petRank(pd.lashRanks);
     if (lr && pet.mana >= lr.mana) {
       pet.mana -= lr.mana;
-      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad'));
+      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad'));
+      log(t, `pet lash ${d.toFixed(3)}`);
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);
     }
