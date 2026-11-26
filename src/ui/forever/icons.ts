@@ -66,6 +66,7 @@ export const SPELL_ICONS: Readonly<Record<string, string>> = {
   siphon_life: 'spell_shadow_requiem',
   wrack: 'ability_deathknight_hemorrhagicfever',
   life_tap: 'spell_shadow_burningspirit',
+  eureka: 'inv_gnometoy',
   curse_of_elements: 'spell_shadow_chilltouch',
 };
 

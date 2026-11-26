@@ -81,7 +81,7 @@ export function overridesOf(s: Settings): Partial<Params> {
   return { ...(POLICIES[s.policy]?.params ?? {}), ...(s.spellstone ? SPELLSTONE_PARAMS : {}), eureka_policy: s.eureka };
 }
 
-function paramsOf(s: Settings): Params {
+export function paramsOf(s: Settings): Params {
   return loadParams(overridesOf(s));
 }
 

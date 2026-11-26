@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_SETTINGS, normalizeSettings, type DuelOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
+import { DEFAULT_SETTINGS, normalizeSettings, paramsOf, type DuelOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
 import type { JobRunner } from '../../forever/web/client';
 import { customVariant, SCENARIO_IDS, VARIANT_IDS } from '../../forever/builds';
 import { customId, loadCustom, saveCustom, type CustomState } from '../../forever/web/custom';
@@ -65,6 +65,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
   }, [settings]);
 
   const s = normalizeSettings(settings);
+  const simParams = useMemo(() => paramsOf(normalizeSettings(settings)), [settings]);
   const runRanking = useCallback(() => run.run({ kind: 'ranking', settings: s, custom: includedData, scenarios: withScenarios }), [run, s, includedData, withScenarios]);
   const ranking = run.results.ranking as RankingResult | undefined;
   const sweep = run.results.sweep as SweepResult | undefined;
@@ -101,7 +102,7 @@ export function ForeverApp({ view, runner }: { view: ForeverView; runner?: JobRu
       )}
       {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} onSweep={() => run.run({ kind: 'sweep', settings: s, builds: [...VARIANT_IDS, ...(withScenarios ? SCENARIO_IDS : []), ...includedData.map((b) => customId(b.name))], custom: includedData })} onOpenBuild={setBuildId} />}
       {view === 'builds' && <BuildsView level={s.level} ids={allIds} id={buildId} onIdChange={setBuildId} />}
-      {view === 'rotations' && <RotationsView ids={allIds} />}
+      {view === 'rotations' && <RotationsView ids={allIds} params={simParams} />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
       {view === 'custom' && (
         <CustomView

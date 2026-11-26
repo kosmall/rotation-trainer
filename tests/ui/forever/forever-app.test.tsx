@@ -48,6 +48,42 @@ describe('ForeverApp', () => {
     expect(screen.getByRole('region', { name: 'Drzewo Affliction' })).toBeTruthy();
   });
 
+  it('marks Eureka! in the rotation diagram before the spells of the chosen timing', () => {
+    const marks = () => document.querySelectorAll('.fv-flow .fv-eureka');
+    const { unmount } = render(<ForeverApp view="rotations" runner={runner} />);
+    // off: the recommended place, dimmed
+    expect(marks().length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.fv-flow .fv-eureka-off')).toHaveLength(marks().length);
+    expect(screen.getByText(/Eureka! jest wyłączona w ustawieniach/)).toBeTruthy();
+    unmount();
+    window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ eureka: 'filler' }));
+    const second = render(<ForeverApp view="rotations" runner={runner} />);
+    // AFF_WRACK: the filler row (Wrack), not dimmed
+    expect(marks()).toHaveLength(1);
+    expect(document.querySelectorAll('.fv-flow .fv-eureka-off')).toHaveLength(0);
+    second.unmount();
+    window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ eureka: 'pull_start' }));
+    render(<ForeverApp view="rotations" runner={runner} />);
+    expect(marks()).toHaveLength(0);
+    expect(screen.getByText('Eureka! na starcie pulla')).toBeTruthy();
+  });
+
+  it('draws the rotation from its JSON and offers that JSON', () => {
+    render(<ForeverApp view="rotations" runner={runner} />);
+    const pre = screen.getByLabelText('JSON rotacji AFF_WRACK');
+    const spec = JSON.parse(pre.textContent ?? '');
+    expect(spec.schema).toBe('forever-rotation/1');
+    expect(spec.build).toBe('AFF_WRACK');
+    // every step of the JSON is a row of the diagram, in the same order
+    const rows = [...document.querySelectorAll('.fv-flow [data-step]')].map((r) => r.getAttribute('data-step'));
+    expect(rows).toEqual(['life_tap', ...spec.steps.map((s: { id: string }) => s.id)]);
+    const link = screen.getByRole('link', { name: 'Pobierz JSON' });
+    expect(link.getAttribute('download')).toBe('AFF_WRACK.rotation.json');
+    // numbers are written out: no vague wording
+    expect(screen.getAllByText(/cel pożyje co najmniej 6 s/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/dość długo/)).toBeNull();
+  });
+
   it('shows an error when the run fails', async () => {
     const failing: JobRunner = () => Promise.reject(new Error('boom'));
     render(<ForeverApp view="sim" runner={failing} />);
@@ -73,7 +109,7 @@ describe('ForeverApp', () => {
     expect(screen.queryByText(/Demonology \(Shadow Bolt/)).toBeNull();
     fireEvent.change(screen.getByLabelText(/Build/), { target: { value: 'DEMO_PACT_R1' } });
     expect(screen.getByText(/Demonology \(Shadow Bolt/)).toBeTruthy();
-    expect(screen.getByText('Shadow Bolt (ranga 1)')).toBeTruthy();
+    expect(screen.getAllByText('Shadow Bolt (ranga 1)').length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText(/Build/), { target: { value: 'AFF_WRACK' } });
     expect(document.querySelectorAll('.fv-flow .fv-icon').length).toBeGreaterThan(8);
     expect(document.querySelector('.fv-flow img[src*="spell_shadow_shadowbolt"]')).toBeTruthy();

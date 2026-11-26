@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
 import { FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
-import type { RankingResult, Settings } from '../../forever/web/api';
+import { paramsOf, type RankingResult, type Settings } from '../../forever/web/api';
 import { RotationFlow } from './RotationsView';
 import { RankingTable } from './SimView';
 import { TalentTrees } from './TalentTrees';
@@ -236,7 +236,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
           </select>
         </label>
       </div>
-      {variant && <RotationFlow v={variant} />}
+      {variant && <RotationFlow v={variant} params={paramsOf(settings)} />}
 
       <h2>Symulacja</h2>
       <p className="fv-note">Od levelu 40 liczy się tylko ten build (respec na 40 daje wszystkie punkty naraz).</p>

@@ -59,6 +59,9 @@
 .fv-node-cond { flex: 0 0 340px; max-width: 340px; border-style: dashed; }
 .fv-node-cast { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; border-color: var(--class, currentColor); }
 .fv-node-cast .fv-step-icons { min-width: 0; }
+.fv-eureka { display: inline-flex; align-items: center; gap: 4px; }
+.fv-eureka-off { opacity: 0.5; }
+.fv-node-eureka { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
 .fv-flow-row { display: flex; align-items: center; gap: 10px; margin: 0 -28px 22px 0; position: relative; }
 .fv-flow-row .fv-no { position: absolute; left: 12px; bottom: -19px; font-size: 0.7rem; opacity: 0.65; }
 .fv-flow-end .fv-no { display: none; }
