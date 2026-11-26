@@ -4,7 +4,7 @@ import { rotationSpec, type Cond, type RotationSpec, type SpecStep } from '../..
 import { petData } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Params, PetKind } from '../../forever/types';
-import { LoadoutRows, spellName, TITLES, wrackFloor } from './buildFacts';
+import { LoadoutRows, rotationTitle, spellName, wrackFloor } from './buildFacts';
 import { IconTile } from './IconTile';
 
 /** Before the build's own demon is learned another one stands in. */
@@ -96,7 +96,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
   const floor = wrackFloor(v, params);
   return (
     <section className="fv-panel">
-      <h2>{TITLES[v.rotation]}</h2>
+      <h2>{rotationTitle(v)}</h2>
       <dl className="fv-facts fv-facts-icons">
         <LoadoutRows v={v} params={params} petNote={v.pet ? standInNote(v.pet) : ''} />
       </dl>

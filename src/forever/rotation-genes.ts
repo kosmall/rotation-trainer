@@ -26,7 +26,7 @@ export interface RotationGenes {
 export const DOT_KEYS = ['coe', 'agony', 'corruption', 'siphon', 'immolate'] as const;
 const DOT_SHORT: Record<(typeof DOT_KEYS)[number], string> = { coe: 'coe', agony: 'ag', corruption: 'cor', siphon: 'sl', immolate: 'imm' };
 const DOT_NAME: Record<(typeof DOT_KEYS)[number], string> = { coe: 'CoE', agony: 'Agony', corruption: 'Corruption', siphon: 'Siphon Life', immolate: 'Immolate' };
-const FILLER_NAME: Record<FillerGene, string> = {
+export const FILLER_NAME: Record<FillerGene, string> = {
   sb_r1: 'Shadow Bolt r1',
   sb_r2: 'Shadow Bolt r2',
   sb_max: 'Shadow Bolt',

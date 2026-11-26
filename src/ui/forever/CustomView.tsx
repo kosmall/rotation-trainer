@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
-import { FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
+import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
+import { FILLER_NAME, FILLERS as GENE_FILLERS, MIN_TTKS, type RotationGenes } from '../../forever/rotation-genes';
 import { paramsOf, type RankingResult, type Settings } from '../../forever/web/api';
 import { FILLER_NAMES, PET_NAMES, TITLES } from './buildFacts';
 import { RotationFlow } from './RotationsView';
@@ -175,10 +176,14 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
         <label>
           Szablon rotacji
           <select
-            value={build.rotation}
+            value={build.genes ? 'custom' : build.rotation}
             onChange={(e) => {
+              if (e.target.value === 'custom') {
+                update({ genes: { ...DEFAULT_GENES } });
+                return;
+              }
               const rotation = e.target.value as CustomBuildData['rotation'];
-              update({ rotation, filler: FILLERS[rotation][0] as string, rank: rotation === 'demonology' ? 1 : 'max' });
+              update({ rotation, filler: FILLERS[rotation][0] as string, rank: rotation === 'demonology' ? 1 : 'max', genes: undefined });
             }}
           >
             {ROTATIONS.map((r) => (
@@ -186,9 +191,11 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
                 {TITLES[r]}
               </option>
             ))}
+            <option value="custom">Własna (z klocków)</option>
           </select>
         </label>
-        {rotationFillers.length > 1 && (
+        {build.genes && <GeneControls genes={build.genes} onChange={(genes) => update({ genes })} />}
+        {!build.genes && rotationFillers.length > 1 && (
           <label>
             Filler
             <select value={build.filler} onChange={(e) => update({ filler: e.target.value })}>
@@ -200,7 +207,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
             </select>
           </label>
         )}
-        {build.rotation === 'demonology' && (
+        {!build.genes && build.rotation === 'demonology' && (
           <label>
             Ranga Shadow Bolta
             <select value={String(build.rank)} onChange={(e) => update({ rank: e.target.value === 'max' ? 'max' : e.target.value === '2' ? 2 : 1 })}>
@@ -284,4 +291,46 @@ function swap(a: readonly string[], i: number, j: number): string[] {
   const out = [...a];
   [out[i], out[j]] = [out[j] as string, out[i] as string];
   return out;
+}
+
+const GENE_FLAGS: readonly [keyof RotationGenes, string][] = [
+  ['coe', 'Curse of the Elements'],
+  ['agony', 'Bane of Agony'],
+  ['corruption', 'Corruption'],
+  ['siphon', 'Siphon Life'],
+  ['immolate', 'Immolate'],
+  ['drainSoulFinisher', 'Drain Soul na dobicie'],
+];
+
+/** The blocks of a rotation composed from spells: maintained effects, their time-to-kill floor, the finisher and the filler. */
+function GeneControls({ genes, onChange }: { genes: RotationGenes; onChange(g: RotationGenes): void }) {
+  return (
+    <>
+      {GENE_FLAGS.map(([key, label]) => (
+        <label key={key} className="fv-inline">
+          <input type="checkbox" checked={genes[key] as boolean} onChange={(e) => onChange({ ...genes, [key]: e.target.checked })} /> {label}
+        </label>
+      ))}
+      <label>
+        DoT-y gdy TTK ≥
+        <select value={String(genes.minTtkSec)} onChange={(e) => onChange({ ...genes, minTtkSec: Number(e.target.value) as RotationGenes['minTtkSec'] })}>
+          {MIN_TTKS.map((t) => (
+            <option key={t} value={String(t)}>
+              {t === 0 ? 'zawsze' : `${t} s`}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Filler
+        <select value={genes.filler} onChange={(e) => onChange({ ...genes, filler: e.target.value as RotationGenes['filler'] })}>
+          {GENE_FILLERS.map((f) => (
+            <option key={f} value={f}>
+              {FILLER_NAME[f]}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
 }
