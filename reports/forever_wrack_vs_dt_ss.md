@@ -133,3 +133,33 @@ Build AFF_WRACK w obecnej postaci nie wygrywa z DT_SS w żadnym sprawdzonym scen
 - Tick, który wypada po wygaśnięciu DoT-a, przepada. W Classic tak było, ale dla Forever nie jest to potwierdzone.
 - Kolejność talentów w DW (Wrack na 40 zamiast Unholy Power) to propozycja testowa. Nie jest dodana do `builds.json`.
 - Rampa Agony 0.5/1/1.5 nadal jest niepotwierdzona dla Forever.
+
+## 5. Build DT_SS_WRACK (dodany 26 XI)
+
+Build ma talenty DT_SS w kolejności z Wrackiem na 40. Amplify Curse i Malevolence idą przed Unholy Power i Demonic Energies, a na 60 talenty są takie same jak w DT_SS.
+
+Rotacja to Affliction. Filler to Wrack, dopóki HP gracza jest powyżej 70% (pole buildu `wrack_min_hp_pct: 0.7`, które nadpisuje parametr). Poniżej tego progu filler to Drain Life. Reguła działa przy każdej liczbie mobów.
+
+Na pullach z kilkoma mobami wariant z Wrackiem od progu 70% wypadł lepiej niż wariant "Wrack tylko na 1 moba". Przy 2 mobach i progu 0.7: poziom 50 to 145.2 vs 139.5 kph, poziom 55 to 148.2 vs 141.6.
+
+Sparowane duele z DT_SS (domyślne parametry, 200 sesji, seed 7). Wynik ujemny oznacza, że DT_SS_WRACK jest lepszy.
+
+| poziom | 1 mob | 2 moby | 3 moby |
+|---:|---:|---:|---:|
+| 40 | -4.9 | -1.1 | +22.1 |
+| 42 | -5.5 | -5.2 | +16.3 |
+| 44 | -5.6 | -3.7 | +16.9 |
+| 46 | -4.7 | -4.6 | -4.1 |
+| 48 | -3.7 | -2.1 | -1.7 |
+| 50 | -5.3 | -4.5 | -4.5 |
+| 52 | -7.5 | -7.9 | -7.8 |
+| 54 | -5.1 | -6.2 | -6.3 |
+| 56 | -3.9 | -4.7 | -6.1 |
+| 58 | -13.9 | ~0 | +1.6 |
+| 60 | -9.9 | +1.3 | +4.5 |
+
+Na pullach z 3 mobami na poziomach 40–45 lepszy jest DT_SS, bo ma Unholy Power od 40 (voidwalker tankuje 3 moby).
+
+Na poziomach 58–60 DT_SS na pojedynczym mobie używa Wracka bez progu HP, stąd duża różnica na 1 moba.
+
+W addonie próg jest warunkiem `hp_pct_above` 70, czyli "HP powyżej 70%". Przy dokładnie 70% wybierany jest Drain Life.

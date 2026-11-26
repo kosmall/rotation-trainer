@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { loadVariant } from '../../src/forever/builds';
+import { loadVariant, ranksAt } from '../../src/forever/builds';
+import { rotationSpec } from '../../src/forever/rotation-spec';
 import { loadParams } from '../../src/forever/data/load';
 import { simulatePull, type PullConfig } from '../../src/forever/fight';
 import { getSpell, rankAt } from '../../src/forever/spells';
@@ -190,5 +191,30 @@ describe('wrack_min_hp_pct: Wrack only above a health floor, Drain Life below', 
     const casts = (over: Partial<Params>): number => SEEDS.reduce((s, seed) => s + simulatePull(cfg('AFF_WRACK', 50, {}, over), seed).trace.filter((l) => l.includes('cast drain_life ')).length, 0);
     expect(casts({})).toBe(0);
     expect(casts({ wrack_min_hp_pct: 0.7 })).toBeGreaterThan(0);
+  });
+});
+
+describe('DT_SS_WRACK build', () => {
+  const v = loadVariant('DT_SS_WRACK');
+  it('learns Wrack at level 40 and keeps the DT_SS talents at 60', () => {
+    expect(ranksAt(v, 40).wrack).toBe(1);
+    expect(ranksAt(v, 39).wrack ?? 0).toBe(0);
+    expect(ranksAt(v, 60)).toEqual(ranksAt(loadVariant('DT_SS'), 60));
+  });
+  it('Wrack is the filler above 70% health, Drain Life below (on any number of mobs)', () => {
+    const ctx = (hpPct: number, mobs: number): RotationCtx => ({
+      params: loadParams(), variant: v, mobsInPull: mobs, petAlive: true, hasShadowTrance: false, hpPct,
+      known: () => true, talentRank: () => 0, targetHasDot: () => true, targetDotRemainingMs: () => 10000, targetHasCurse: () => true,
+      targetBrandRemainingMs: () => 0, targetBrandCharges: () => 0, targetHp: () => 5000, estTtkSec: () => 20,
+      drainSoulKillSec: () => 99, drainSoulExpected: () => 0, fillerExpected: () => 0,
+    });
+    for (const mobs of [1, 2, 3]) {
+      expect(rotationFor('affliction')(ctx(71, mobs))[0]!.spellId).toBe('wrack');
+      expect(rotationFor('affliction')(ctx(69, mobs))[0]!.spellId).toBe('drain_life');
+    }
+  });
+  it('the build floor wins over the parameter, and the addon spec carries it', () => {
+    const spec = rotationSpec(v, loadParams({ wrack_min_hp_pct: 0.2 }));
+    expect(JSON.stringify(spec.steps.find((s) => s.id === 'filler_wrack')?.when)).toContain('"pct":70');
   });
 });

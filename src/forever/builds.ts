@@ -13,6 +13,8 @@ export interface BuildVariant {
   rank: 1 | 2 | 'max';
   /** Affliction: this build also keeps Immolate up (as the parameter `aff_use_immolate` does for every build). */
   immolate?: boolean;
+  /** Affliction: Wrack only while the player's health is above this fraction, Drain Life below (overrides the parameter `wrack_min_hp_pct`). */
+  wrack_min_hp_pct?: number;
   pre_respec_build: string | null;
   respec_level: number;
 }
@@ -187,5 +189,6 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
     rank: (obj.rank ?? 1) as BuildVariant['rank'],
     pre_respec_build: (obj.pre_respec_build ?? null) as string | null,
     respec_level: Number(obj.respec_level ?? 40),
+    ...(typeof obj.wrack_min_hp_pct === 'number' ? { wrack_min_hp_pct: obj.wrack_min_hp_pct } : {}),
   };
 }

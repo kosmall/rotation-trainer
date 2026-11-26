@@ -80,7 +80,7 @@ export function affliction(ctx: RotationCtx): Candidate[] {
   if ((ctx.params.aff_use_immolate || ctx.variant.immolate) && ctx.known('immolate') && !ctx.targetHasDot('immolate') && longEnough) out.push({ spellId: 'immolate', rankWant: 'max' });
   out.push(...drainSoulFinisher(ctx));
   const filler = ctx.variant.filler;
-  const hpFloor = ctx.params.wrack_min_hp_pct;
+  const hpFloor = ctx.variant.wrack_min_hp_pct ?? ctx.params.wrack_min_hp_pct;
   const wrackOk = ctx.known('wrack') && (hpFloor <= 0 || (ctx.hpPct ?? 0) > hpFloor * 100);
   if (filler === 'wrack' && wrackOk) out.push({ spellId: 'wrack', rankWant: 'max' });
   if (filler === 'drain_life') {

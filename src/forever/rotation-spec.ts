@@ -156,7 +156,8 @@ function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
     step('siphon_life', 'siphon_life', 'max', all(knows('siphon_life'), lacksDot('siphon_life'), longEnough));
     if (p.aff_use_immolate || v.immolate) step('immolate', 'immolate', 'max', all(knows('immolate'), lacksDot('immolate'), longEnough));
     finisher();
-    const wrackWhen = p.wrack_min_hp_pct > 0 ? all(knows('wrack'), { op: 'hp_pct_above', pct: p.wrack_min_hp_pct * 100 }) : knows('wrack');
+    const wrackFloor = v.wrack_min_hp_pct ?? p.wrack_min_hp_pct;
+    const wrackWhen = wrackFloor > 0 ? all(knows('wrack'), { op: 'hp_pct_above', pct: wrackFloor * 100 }) : knows('wrack');
     if (v.filler === 'wrack') step('filler_wrack', 'wrack', 'max', wrackWhen, true);
     else if (v.filler === 'drain_life') step('filler_wrack_single_mob', 'wrack', 'max', all(wrackWhen, { op: 'mobs_in_pull_is', count: 1 }), true);
     step('filler_drain_life', 'drain_life', 'max', knows('drain_life'), v.filler === 'drain_life');
