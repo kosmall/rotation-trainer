@@ -137,6 +137,8 @@ export interface BuildSnapshot {
   ranks: Ranks;
   lastPick: string | null;
   nextPick: string | null;
+  lastPickId: string | null;
+  nextPickId: string | null;
 }
 
 export function describeBuild(variant: BuildVariant, level: number, opts: PicksOptions = {}): BuildSnapshot {
@@ -153,6 +155,8 @@ export function describeBuild(variant: BuildVariant, level: number, opts: PicksO
     ranks: r.ranks,
     lastPick: nameOf(picks[picks.length - 1]),
     nextPick: nameOf(full[picks.length]),
+    lastPickId: picks[picks.length - 1] ?? null,
+    nextPickId: full[picks.length] ?? null,
   };
 }
 

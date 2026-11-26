@@ -3,14 +3,11 @@ import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
 import { FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
 import { paramsOf, type RankingResult, type Settings } from '../../forever/web/api';
+import { FILLER_NAMES, PET_NAMES, TITLES } from './buildFacts';
 import { RotationFlow } from './RotationsView';
 import { RankingTable } from './SimView';
 import { TalentTrees } from './TalentTrees';
 import type { ForeverRun } from './useForeverRun';
-
-const ROT_NAMES = { affliction: 'Affliction (DoT-y + filler)', demonology: 'Demonology (Shadow Bolt + pet)', fire: 'Demonology/Fire (Immolate + Searing Pain)' } as const;
-const FILLER_NAMES: Record<string, string> = { wrack: 'Wrack', drain_life: 'Drain Life (tank)', shadow_bolt: 'Shadow Bolt', searing_pain: 'Searing Pain' };
-const PET_NAMES: Record<string, string> = { imp: 'Imp', voidwalker: 'Voidwalker', succubus: 'Succubus', felhunter: 'Felhunter' };
 
 /** Where the player builds their own talent order and picks a rotation template; the build joins the simulations. */
 export function CustomView({ state, onChange, settings, run, ranking, onRun }: { state: CustomState; onChange(s: CustomState): void; settings: Settings; run: ForeverRun; ranking: RankingResult | undefined; onRun(): void }) {
@@ -186,7 +183,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
           >
             {ROTATIONS.map((r) => (
               <option key={r} value={r}>
-                {ROT_NAMES[r]}
+                {TITLES[r]}
               </option>
             ))}
           </select>

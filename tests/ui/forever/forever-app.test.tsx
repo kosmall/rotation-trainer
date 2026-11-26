@@ -98,6 +98,31 @@ describe('ForeverApp', () => {
     expect(screen.getByRole('img', { name: /zabicia na godzinę/i })).toBeTruthy();
   });
 
+  it('lists the facts of a build one per row, with icons', () => {
+    window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ level: 59 }));
+    render(<ForeverApp view="builds" runner={runner} />);
+    fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'AFF_WRACK' } });
+    const facts = document.querySelector('.fv-facts-icons') as HTMLElement;
+    const rows = new Map([...facts.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling as HTMLElement]));
+    expect([...rows.keys()]).toEqual(['Rotacja', 'Pet', 'Shadow Bolt', 'Filler', 'Talenty', 'Punkty na levelu 59', 'Affliction', 'Demonology', 'Destruction', 'Ostatni punkt', 'Następny punkt']);
+    // the text next to the icons (an icon tile carries the name's initials)
+    const text = (name: string) => rows.get(name)?.lastElementChild?.textContent;
+    expect(text('Rotacja')).toBe('Affliction (DoT-y + filler)');
+    expect(text('Shadow Bolt')).toBe('najwyższa ranga');
+    expect(text('Filler')).toBe('Wrack');
+    expect(text('Punkty na levelu 59')).toBe('50');
+    expect(text('Affliction')).toBe('46');
+    expect(text('Ostatni punkt')).toBe('Demonic Embrace');
+    for (const name of ['Rotacja', 'Pet', 'Shadow Bolt', 'Filler', 'Affliction', 'Demonology', 'Destruction', 'Ostatni punkt', 'Następny punkt']) expect(rows.get(name)?.querySelector('.fv-icon img'), name as string).toBeTruthy();
+  });
+
+  it('names the demon that stands in until the own demon of the build is learned', () => {
+    window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ level: 10 }));
+    render(<ForeverApp view="builds" runner={runner} />);
+    fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'DEMO_PACT_R1' } });
+    expect(screen.getByText('Succubus, poświęcony: Imp; na levelu 10 jeszcze niedostępny, walczy Voidwalker')).toBeTruthy();
+  });
+
   it('lists builds, rotations and assumptions', () => {
     const { unmount } = render(<ForeverApp view="builds" runner={runner} />);
     expect(screen.getByRole('table', { name: 'Talenty' })).toBeTruthy();
