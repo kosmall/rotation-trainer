@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { VARIANT_IDS } from '../../src/forever/builds';
+import { customId, VARIANT_IDS, picksAt } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { loadVariant } from '../../src/forever/builds';
 import { runCell } from '../../src/forever/runner';
@@ -72,5 +72,36 @@ describe('Major Spellstone option', () => {
       expect(w.ttkMean, `${id} time to kill`).toBeLessThan(m.ttkMean);
       if (!id.endsWith('_IMMO')) expect(w.killsPerHour, `${id} kills per hour`).toBeGreaterThan(m.killsPerHour);
     }
+  });
+});
+
+describe('ep job', () => {
+  const settings = { ...DEFAULT_SETTINGS, sessions: 5, level: 50 };
+  it('returns one EP result per build at the level of the settings, with progress up to the total', () => {
+    const calls: [number, number][] = [];
+    const r = runJob({ kind: 'ep', settings, builds: ['AFF_WRACK', 'DEMO_PACT_R1'] }, (done, total) => calls.push([done, total]));
+    if (r.kind !== 'ep') throw new Error('kind');
+    expect(r.results.map((x) => x.build)).toEqual(['AFF_WRACK', 'DEMO_PACT_R1']);
+    expect(r.results.every((x) => x.level === 50 && x.sessions === 5)).toBe(true);
+    expect(calls.at(-1)).toEqual([24, 24]);
+  });
+  it('the settings steer the simulation', () => {
+    const base = (policy: string) => {
+      const r = runJob({ kind: 'ep', settings: { ...settings, policy }, builds: ['AFF_WRACK'] });
+      if (r.kind !== 'ep') throw new Error('kind');
+      return (r.results[0] as { baseKph: number }).baseKph;
+    };
+    expect(base('NO_LIFE_TAP')).not.toBe(base('BEST_1MOB'));
+  });
+  it('rejects an unknown build and an empty list', () => {
+    expect(() => runJob({ kind: 'ep', settings, builds: ['NOPE'] })).toThrow(/unknown build/);
+    expect(() => runJob({ kind: 'ep', settings, builds: [] })).toThrow(/at least one build/);
+  });
+  it('runs a custom build handed over with the request', () => {
+    const v = loadVariant('AFF_WRACK');
+    const d = { name: 'moj', picks: picksAt(v, 60), rotation: v.rotation, filler: v.filler, rank: v.rank, pet: v.pet, sacrificed: v.sacrificed };
+    const r = runJob({ kind: 'ep', settings, builds: [customId('moj')], custom: [d] });
+    if (r.kind !== 'ep') throw new Error('kind');
+    expect(r.results[0]?.build).toBe(customId('moj'));
   });
 });

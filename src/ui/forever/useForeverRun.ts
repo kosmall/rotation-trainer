@@ -10,7 +10,7 @@ export interface ForeverRun {
   total: number;
   error: string | null;
   /** The newest finished result per job kind. */
-  results: { ranking?: JobResult; sweep?: JobResult; duel?: JobResult };
+  results: { ranking?: JobResult; sweep?: JobResult; duel?: JobResult; ep?: JobResult };
   run(request: JobRequest): void;
   cancel(): void;
 }
