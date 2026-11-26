@@ -144,7 +144,7 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
   p();
   p('### How sensitive is AFF_WRACK to Wrack\'s damage?');
   p();
-  p('Wrack is 60 damage per tick (wiki, timesaver) or 124 (guildorder); the data uses 60 at level 40 rising to 124 at level 60 (assumption, see the ledger). Kills per hour at level 50 and 59 as Wrack damage is multiplied; DEMO_PACT_R1 and AFF_DRAINTANK (which uses Drain Life until level 57) for reference:');
+  p('Wrack follows Blizzard\'s formula after the 10 Nov hotfix: (36 + 2.5 per level above 40 + 0.286 x spell power) x 0.7 per tick, 25 at level 40 (Wowhead) and 60 at level 60 (wiki), and it doubles the tick rate of Corruption, Bane of Agony and Siphon Life while channelled without shortening them (see the ledger). Kills per hour at level 50 and 59 as Wrack damage is multiplied; DEMO_PACT_R1 and AFF_DRAINTANK (which uses Drain Life until level 57) for reference:');
   p();
   p('| Wrack damage x | AFF_WRACK @50 | AFF_WRACK @59 | DEMO_PACT_R1 @50 | AFF_DRAINTANK @50 |');
   p('|---:|---:|---:|---:|---:|');

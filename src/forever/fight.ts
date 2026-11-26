@@ -79,8 +79,9 @@ interface Dot {
   tickMs: number;
   tickDmg: number;
   healFrac: number;
-  ticksLeft: number;
-  tickIndex: number;
+  /** Wall-clock time the effect was applied and the time it ends. Wrack does not change the end, only how often it ticks. */
+  appliedAt: number;
+  expiresAt: number;
   /** 2 while Wrack makes the periodic effect tick twice as fast. */
   speed: number;
   factors?: number[];
@@ -339,7 +340,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return { tickDmg: tick, tickMs, ticks };
   };
 
-  const effectsOn = (m: Mob): number => m.dots.filter((d) => SOUL_SIPHON_EFFECTS.has(d.id) && d.ticksLeft > 0).length;
+  const effectsOn = (m: Mob): number => m.dots.filter((d) => SOUL_SIPHON_EFFECTS.has(d.id) && dotActive(d)).length;
   const soulSiphon = (m: Mob): number => {
     const r = rk(ranks, 'soul_siphon');
     if (r === 0) return 1;
@@ -379,22 +380,32 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return Math.round(c);
   };
 
+  /** A tick due at the expiry moment still lands; float slack for the halved spacing under Wrack. */
+  const DOT_EPS_MS = 1e-6;
+  const dotActive = (d: Dot): boolean => t < d.expiresAt + DOT_EPS_MS && d.nextTickAt <= d.expiresAt + DOT_EPS_MS;
+
   const applyDot = (m: Mob, spellId: string, r: SpellRank): void => {
     const spell = getSpell(spellId);
     const b = dotTickBase(spellId, r);
     const factors = spellId === 'bane_of_agony' && params.agony_ramp === 'classic_thirds' ? spell.rampFactors : undefined;
     const speed = channel && channel.spellId === 'wrack' && channel.mob === m && (getSpell('wrack').accelerates ?? []).includes(spellId) ? 2 : 1;
     m.dots = m.dots.filter((d) => d.id !== spellId);
-    m.dots.push({ id: spellId, spellId, school: spell.school, aff: AFF_SPELLS.has(spellId), nextTickAt: t + b.tickMs / speed, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0, ticksLeft: b.ticks, tickIndex: 0, speed, factors });
+    m.dots.push({ id: spellId, spellId, school: spell.school, aff: AFF_SPELLS.has(spellId), nextTickAt: t + b.tickMs / speed, tickMs: b.tickMs, tickDmg: b.tickDmg, healFrac: spell.healFrac ?? 0, appliedAt: t, expiresAt: t + b.ticks * b.tickMs, speed, factors });
   };
 
-  /** Wrack: the target's Siphon Life, Corruption and Bane of Agony tick `to` times as fast (remaining time to the next tick scales). */
+  /**
+   * Wrack: the target's Siphon Life, Corruption and Bane of Agony tick `to` times as fast. Blizzard (hotfix 10 Nov 2026):
+   * "Wrack speeds up how often your periodic effects deal damage, not how long they last" and "the time it skips is kept
+   * after Wrack's channel ends": the remaining time to the next tick scales, the expiry stays, so the effect gains ticks.
+   * A next tick that would land after the expiry is lost (the effect ends without it).
+   */
   const setDotSpeed = (m: Mob, to: number): void => {
     for (const d of m.dots) {
       if (!(getSpell('wrack').accelerates ?? []).includes(d.id) || d.speed === to) continue;
       d.nextTickAt = t + ((d.nextTickAt - t) * d.speed) / to;
       d.speed = to;
     }
+    m.dots = m.dots.filter(dotActive);
   };
 
   const brandHit = (m: Mob): void => {
@@ -529,8 +540,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const makeCtx = (m: Mob): RotationCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance,
     known, talentRank: (id) => rk(ranks, id),
-    targetHasDot: (id) => m.dots.some((d) => d.id === id && d.ticksLeft > 0),
-    targetDotRemainingMs: (id) => { const d = m.dots.find((x) => x.id === id); return d ? Math.max(0, d.nextTickAt - t + ((d.ticksLeft - 1) * d.tickMs) / d.speed) : 0; },
+    targetHasDot: (id) => m.dots.some((d) => d.id === id && dotActive(d)),
+    targetDotRemainingMs: (id) => { const d = m.dots.find((x) => x.id === id && dotActive(x)); return d ? Math.max(0, d.expiresAt - t) : 0; },
     targetHasCurse: () => t < m.curseUntil,
     targetBrandRemainingMs: () => Math.max(0, m.brandUntil - t),
     targetBrandCharges: () => m.brandCharges,
@@ -539,7 +550,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     drainSoulKillSec: () => {
       const r = rankAt('drain_soul', 'max', level);
       if (!r) return Infinity;
-      const bgDots = m.dots.reduce((a, d) => (d.ticksLeft > 0 ? a + (d.tickDmg * (d.factors ? 1 : 1) * (d.school === 'shadow' ? mults().shadow : mults().fire)) / (d.tickMs / d.speed / 1000) : a), 0);
+      const bgDots = m.dots.reduce((a, d) => (dotActive(d) ? a + (d.tickDmg * (d.factors ? 1 : 1) * (d.school === 'shadow' ? mults().shadow : mults().fire)) / (d.tickMs / d.speed / 1000) : a), 0);
       const b = dotTickBase('drain_soul', r);
       const dsDps = (b.tickDmg * mults().shadow * soulSiphon(m)) / (b.tickMs / 1000);
       const total = bgDots + estPetDps() + dsDps;
@@ -773,14 +784,17 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       for (const d of [...m.dots]) {
         if (!m.alive) break;
         if (d.nextTickAt > t) continue;
-        const factor = d.factors ? (d.factors[d.tickIndex] ?? 1) : 1;
+        if (!dotActive(d)) {
+          m.dots = m.dots.filter((x) => x !== d);
+          continue;
+        }
+        // Bane of Agony's ramp goes by the share of the duration elapsed (ticks gained under Wrack keep their stage).
+        const factor = d.factors ? (d.factors[Math.min(d.factors.length - 1, Math.max(0, Math.ceil(((d.nextTickAt - d.appliedAt) / (d.expiresAt - d.appliedAt)) * d.factors.length - 1e-9) - 1))] ?? 1) : 1;
         const dmg = tickDamage(m, d.spellId, d.school, d.tickDmg * factor, false);
         d.nextTickAt += d.tickMs / d.speed;
-        d.tickIndex++;
-        d.ticksLeft--;
         if (d.healFrac > 0) healPlayer(dmg * d.healFrac);
         maybeNightfall(d.spellId);
-        if (d.ticksLeft <= 0) m.dots = m.dots.filter((x) => x !== d);
+        if (!dotActive(d)) m.dots = m.dots.filter((x) => x !== d);
         dealToMob(m, dmg, true, 1);
       }
     }
