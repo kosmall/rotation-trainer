@@ -87,7 +87,7 @@ for (const id of Object.keys(SPELL_IDS)) {
 }
 
 // The addon finds a talent of the game by its spell id (rank 1), or by its English name.
-const talents = TALENTS.map((t) => ({ id: t.id, name: t.name, tree: t.tree, row: t.row, col: t.col, max: t.maxRank, spell: TALENT_WOWHEAD_IDS[t.id], icon: TALENT_ICONS[t.id] }));
+const talents = TALENTS.map((t) => ({ id: t.id, name: t.name, tree: t.tree, row: t.row, col: t.col, max: t.maxRank, spell: TALENT_WOWHEAD_IDS[t.id], icon: TALENT_ICONS[t.id], requires: t.requires }));
 /** Talent orders as `[talent, points]` runs, the first point at level 10; builds that share an order name the same one. */
 const talentOrders: Record<string, [string, number][]> = {};
 
