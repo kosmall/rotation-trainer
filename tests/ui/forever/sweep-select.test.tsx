@@ -33,30 +33,40 @@ describe('sweep statistics', () => {
     expect(extremesAt(series({ A: [7] }), 0)).toEqual({ best: [], worst: [] });
   });
 
-  it('counts over the levels that differ and lists every build that shares the lead', () => {
+  it('ranks every build by the number of levels on which it is the best and the worst', () => {
     const s = series({ A: [9, 1, 5, 4], B: [1, 9, 5, 2], C: [5, 5, 5, 1] });
     const r = summarize(s, 4);
     expect(r.levels).toBe(3);
-    expect(r.mostBest).toEqual({ ids: ['A'], count: 2 });
-    expect(r.mostWorst.count).toBe(1);
-    expect([...r.mostWorst.ids].sort()).toEqual(['A', 'B', 'C']);
+    expect(r.best).toEqual([
+      { id: 'A', count: 2 },
+      { id: 'B', count: 1 },
+      { id: 'C', count: 0 },
+    ]);
+    // the same count: the order of the series
+    expect(r.worst).toEqual([
+      { id: 'A', count: 1 },
+      { id: 'B', count: 1 },
+      { id: 'C', count: 1 },
+    ]);
   });
 });
 
 describe('SweepChart', () => {
-  it('highlights the best value of every level and summarises below', () => {
+  it('highlights the best value of every level and ranks the builds below', () => {
     render(<SweepChart title="T" levels={[10, 11, 12]} series={series({ A: [20, 10, 30], B: [10, 15, 25] })} valueName="zabić/h" />);
     const table = screen.getByRole('table', { name: 'Dane: T', hidden: true });
     const best = [...table.querySelectorAll('td.fv-top')].map((c) => c.textContent);
     expect(best).toEqual(['20.0', '15.0', '30.0']);
-    const summary = screen.getByLabelText('Podsumowanie krzywej');
-    expect(summary.textContent).toContain('Najczęściej najlepszyA: 2 z 3 leveli');
-    expect(summary.textContent).toContain('Najczęściej najgorszyB: 2 z 3 leveli');
+    const rows = (name: string) =>
+      [...screen.getByRole('table', { name }).querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent).join(' '));
+    expect(rows('Ile razy najlepszy')).toEqual(['1 A 2', '2 B 1']);
+    expect(rows('Ile razy najgorszy')).toEqual(['1 B 2', '2 A 1']);
+    expect(screen.getByRole('table', { name: 'Ile razy najlepszy' }).querySelector('caption')?.textContent).toBe('Ile razy najlepszy (z 3 leveli)');
   });
 
-  it('shows no summary for a single build', () => {
+  it('shows no ranking for a single build', () => {
     render(<SweepChart title="T" levels={[10]} series={series({ A: [1] })} valueName="zabić/h" />);
-    expect(screen.queryByLabelText('Podsumowanie krzywej')).toBeNull();
+    expect(screen.queryByRole('table', { name: 'Ile razy najlepszy' })).toBeNull();
   });
 });
 
@@ -80,7 +90,7 @@ describe('picking builds for the curve', () => {
     const sweep = requests.find((r) => r.kind === 'sweep');
     expect([...(sweep?.builds ?? [])].sort()).toEqual(['DEMO_FIRE', 'DT_SS']);
     expect(within(table).getAllByRole('columnheader', { hidden: true })).toHaveLength(3);
-    expect(screen.getByLabelText('Podsumowanie krzywej').textContent).toMatch(/z \d+ leveli/);
+    for (const name of ['Ile razy najlepszy', 'Ile razy najgorszy']) expect(screen.getByRole('table', { name }).querySelectorAll('tbody tr')).toHaveLength(2);
   }, 30000);
 
   it('ticks the best five or all, and clears', async () => {

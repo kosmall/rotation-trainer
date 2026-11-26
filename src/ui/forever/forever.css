@@ -26,7 +26,9 @@
 .fv-chart { margin: 12px 0; }
 .fv-pick { margin-right: 8px; vertical-align: middle; }
 .fv-table td.fv-top { background: color-mix(in srgb, #5ac08a 28%, transparent); }
-.fv-summary { margin-top: 12px; }
+.fv-ranks { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; margin-top: 16px; }
+.fv-ranks .fv-rank-table { flex: 1 1 280px; width: auto; max-width: 420px; }
+.fv-rank-table caption { text-align: left; font-weight: 600; padding-bottom: 6px; }
 .fv-legend { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; padding: 0; margin: 4px 0; font-size: 0.85rem; }
 .fv-legend li { display: flex; align-items: center; gap: 6px; }
 .fv-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; }

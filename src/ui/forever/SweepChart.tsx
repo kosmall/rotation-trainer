@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { extremesAt, summarize, type Leader } from './sweepStats';
+import { extremesAt, summarize, type RankRow } from './sweepStats';
 
 export interface SweepSeries {
   id: string;
@@ -9,6 +9,34 @@ export interface SweepSeries {
 
 const DASH = ['', '6 4', '2 3', '10 3 2 3', '1 5', '8 2', '4 4'];
 const COLORS = ['var(--class)', 'var(--text-dim, #8a8aa0)', '#e0a030', '#4aa3d8', '#d85a7a', '#5ac08a', '#b07ad8'];
+
+/** The builds by the number of levels on which they led (or trailed). */
+function RankTable({ title, rows, levels, nameOf }: { title: string; rows: readonly RankRow[]; levels: number; nameOf(id: string): string }) {
+  return (
+    <table className="fv-table fv-rank-table" aria-label={title}>
+      <caption>
+        {title} (z {levels} leveli)
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Build</th>
+          <th scope="col">Levele</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.id}>
+            {/* builds with the same count share the place */}
+            <td>{rows.findIndex((x) => x.count === r.count) + 1}</td>
+            <th scope="row">{nameOf(r.id)}</th>
+            <td>{r.count}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 /** Lines over levels with a data table behind a disclosure (accessible: role=img + table). */
 export function SweepChart({ title, levels, series, valueName }: { title: string; levels: readonly number[]; series: readonly SweepSeries[]; valueName: string }) {
@@ -27,7 +55,6 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
   const ticks = [0, 1, 2, 3, 4].map((k) => y0 + ((y1 - y0) * k) / 4);
   const summary = summarize(series, levels.length);
   const labelOf = new Map(series.map((s) => [s.id, s.label]));
-  const names = (l: Leader) => l.ids.map((x) => labelOf.get(x) ?? x).join(', ');
   return (
     <figure className="fv-chart">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={`${id}-t`} width="100%">
@@ -104,14 +131,15 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
         </table>
         </div>
       </details>
-      {series.length > 1 && (
-        <dl className="fv-facts fv-summary" aria-label="Podsumowanie krzywej">
-          <dt>Najczęściej najlepszy</dt>
-          <dd>{summary.levels === 0 ? 'buildy nie różnią się na żadnym levelu' : `${names(summary.mostBest)}: ${summary.mostBest.count} z ${summary.levels} leveli`}</dd>
-          <dt>Najczęściej najgorszy</dt>
-          <dd>{summary.levels === 0 ? 'buildy nie różnią się na żadnym levelu' : `${names(summary.mostWorst)}: ${summary.mostWorst.count} z ${summary.levels} leveli`}</dd>
-        </dl>
-      )}
+      {series.length > 1 &&
+        (summary.levels === 0 ? (
+          <p className="fv-note">Buildy nie różnią się na żadnym levelu.</p>
+        ) : (
+          <div className="fv-ranks">
+            <RankTable title="Ile razy najlepszy" rows={summary.best} levels={summary.levels} nameOf={(x) => labelOf.get(x) ?? x} />
+            <RankTable title="Ile razy najgorszy" rows={summary.worst} levels={summary.levels} nameOf={(x) => labelOf.get(x) ?? x} />
+          </div>
+        ))}
     </figure>
   );
 }

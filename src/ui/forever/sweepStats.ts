@@ -18,9 +18,8 @@ export function extremesAt(series: readonly LevelSeries[], i: number): { best: s
   return { best: row.filter((r) => r.v === hi).map((r) => r.id), worst: row.filter((r) => r.v === lo).map((r) => r.id) };
 }
 
-export interface Leader {
-  /** All builds that share the highest count. */
-  ids: string[];
+export interface RankRow {
+  id: string;
   /** On how many levels. */
   count: number;
 }
@@ -28,14 +27,15 @@ export interface Leader {
 export interface SweepSummary {
   /** Levels on which the builds differ (the others are not counted). */
   levels: number;
-  mostBest: Leader;
-  mostWorst: Leader;
+  /** Every build with the number of levels on which it is the best, most often first. */
+  best: RankRow[];
+  /** Every build with the number of levels on which it is the worst, most often first. */
+  worst: RankRow[];
 }
 
-const leader = (counts: ReadonlyMap<string, number>): Leader => {
-  const count = Math.max(0, ...counts.values());
-  return { count, ids: count === 0 ? [] : [...counts].filter(([, n]) => n === count).map(([id]) => id) };
-};
+/** Most levels first; builds with the same count keep the order of the series. */
+const ranking = (series: readonly LevelSeries[], counts: ReadonlyMap<string, number>): RankRow[] =>
+  series.map((s) => ({ id: s.id, count: counts.get(s.id) ?? 0 })).sort((a, b) => b.count - a.count);
 
 /** Counts, over all levels, how often each build is the best and the worst (a tie counts for every tied build). */
 export function summarize(series: readonly LevelSeries[], levelCount: number): SweepSummary {
@@ -49,5 +49,5 @@ export function summarize(series: readonly LevelSeries[], levelCount: number): S
     for (const id of e.best) best.set(id, (best.get(id) ?? 0) + 1);
     for (const id of e.worst) worst.set(id, (worst.get(id) ?? 0) + 1);
   }
-  return { levels, mostBest: leader(best), mostWorst: leader(worst) };
+  return { levels, best: ranking(series, best), worst: ranking(series, worst) };
 }
