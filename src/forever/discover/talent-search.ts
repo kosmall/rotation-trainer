@@ -68,6 +68,19 @@ export function pointDistance(a: Ranks, b: Ranks): number {
   return d / 2;
 }
 
+/** Points of modelled talents moved between two builds (dead points do not count). */
+export function modelledDistance(a: Ranks, b: Ranks): number {
+  let up = 0;
+  let down = 0;
+  for (const id of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (TALENT_BY_ID.get(id)?.status !== 'modelled') continue;
+    const d = (b[id] ?? 0) - (a[id] ?? 0);
+    if (d > 0) up += d;
+    else down -= d;
+  }
+  return Math.max(up, down);
+}
+
 const pick = <T>(xs: readonly T[], rng: Rng): T => xs[Math.floor(rng.next() * xs.length)] as T;
 
 /** Whether one more point can go into the talent now (row gate, prerequisite, max rank), spending in this order. */

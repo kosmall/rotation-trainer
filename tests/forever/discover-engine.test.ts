@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SCENARIO_IDS, VARIANT_IDS } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
-import { discover, inlineRunner, pickTop, QUICK_BUDGET, runTask, stateHash, type DiscoverOptions, type DiscoverState, type Runner, type Task } from '../../src/forever/discover/engine';
+import { discover, inlineRunner, pickTop, QUICK_BUDGET, runTask, stageSeed, stateHash, type DiscoverOptions, type DiscoverState, type Runner, type Task } from '../../src/forever/discover/engine';
 import { effectiveKey, enumerateCombos, type SpaceFilter } from '../../src/forever/discover/space';
 import { isLegal } from '../../src/forever/discover/talent-search';
 import type { CellMetrics } from '../../src/forever/runner';
@@ -88,6 +88,28 @@ describe('discovery engine', async () => {
   });
 });
 
+describe('fills the requested top when enough distinct results exist', async () => {
+  const o = opts({ top: 6 });
+  const res = await discover(o, inlineRunner(o));
+  it('returns 6 rows', () => expect(res.top).toHaveLength(6));
+});
+
+describe('session seeds', () => {
+  it('never share sessions between stages or between seeds', () => {
+    const o = opts({ budget: { ...QUICK_BUDGET, finalSessions: 10000, search: { starts: 1, evals: 1, sessions: 1000 }, screen: { starts: 1, evals: 1, sessions: 1000 } } });
+    const range = (s: number, n: number): [number, number] => [s + 1, s + n];
+    const ranges = [1, 2].flatMap((seed) => {
+      const x = { ...o, seed };
+      return [range(stageSeed(x, 'screen'), 1000), range(stageSeed(x, 'search'), 1000), range(stageSeed(x, 'final'), 10000)];
+    });
+    for (let i = 0; i < ranges.length; i++)
+      for (let j = i + 1; j < ranges.length; j++) {
+        const [a, b] = [ranges[i]!, ranges[j]!];
+        expect(a[1] < b[0] || b[1] < a[0], `${a} vs ${b}`).toBe(true);
+      }
+  });
+});
+
 describe('pickTop', () => {
   const m = (kph: number): CellMetrics => ({ killsPerHour: kph, deathsPerHour: 0 }) as CellMetrics;
   const combo = enumerateCombos(40, { fillers: ['sb_r1'], minTtk: [6], pets: ['succubus'], sacrifice: false, maxDots: 0 })[0]!;
@@ -100,5 +122,12 @@ describe('pickTop', () => {
       { combo, ranks: { improved_shadow_bolt: 4, ruin: 1, aftermath: 2 }, metrics: m(97), effKey: 'k' },
     ];
     expect(pickTop(rows, 20).map((r) => r.metrics.killsPerHour)).toEqual([100, 98]);
+  });
+  it('does not count dead points as a difference', () => {
+    const rows: { combo: typeof combo; ranks: Ranks; metrics: CellMetrics; effKey: string }[] = [
+      { combo, ranks: { bane: 5, aftermath: 2, grim_reach: 2 }, metrics: m(100), effKey: 'k' },
+      { combo, ranks: { bane: 5, aftermath: 1, cataclysm: 1, amplify_curse: 1, curse_of_exhaustion: 1 }, metrics: m(99), effKey: 'k' },
+    ];
+    expect(pickTop(rows, 20)).toHaveLength(1);
   });
 });

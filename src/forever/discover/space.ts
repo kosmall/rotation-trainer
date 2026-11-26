@@ -173,7 +173,11 @@ export function buildRotation(g: RotationGenes, p: Params): DataRotation {
 /** The talents a combination is named after: the search never drops them. */
 export function requiredRanks(c: Combo): Ranks {
   const r: Ranks = {};
-  if (c.pets.sacrificed !== null) r.demonic_sacrifice = 1;
+  if (c.pets.sacrificed !== null) {
+    r.demonic_sacrifice = 1;
+    // summoning a demon after the sacrifice ends it, unless the build has Demonic Pact
+    if (c.pets.pet !== null) r.demonic_pact = 1;
+  }
   if (WRACK_FLOOR[c.genes.filler] !== undefined) r.wrack = 1;
   if (c.genes.siphon) r.siphon_life = 1;
   if (c.genes.drainSoulFinisher) r.soul_harvest = 1;
@@ -194,6 +198,31 @@ function possible(c: Cond, level: number, ranks: Ranks): boolean {
   return true;
 }
 
+/** Whether the Demonic Sacrifice effect lasts: the talent is taken and no demon is summoned after it, or the build has Demonic Pact. */
+export function sacrificeLive(c: Combo, ranks: Ranks): boolean {
+  if (c.pets.sacrificed === null || (ranks.demonic_sacrifice ?? 0) === 0) return false;
+  return c.pets.pet === null || (ranks.demonic_pact ?? 0) > 0;
+}
+
+/** The label of what a combination really plays at a level with these talents (dead steps left out). */
+export function playedLabel(c: Combo, level: number, ranks: Ranks): string {
+  const live = new Set(liveSteps(c, level, ranks).map((s) => s.id));
+  const g = c.genes;
+  let filler = g.filler;
+  if (WRACK_FLOOR[filler] !== undefined && !live.has('filler_wrack')) filler = 'sb_max';
+  if (filler === 'wrack_single_then_drain_life' && !live.has('filler_wrack_single_mob')) filler = 'drain_life';
+  return rotationLabel({
+    ...g,
+    coe: g.coe && live.has('curse_of_elements'),
+    agony: g.agony && live.has('bane_of_agony'),
+    corruption: g.corruption && live.has('corruption'),
+    siphon: g.siphon && live.has('siphon_life'),
+    immolate: g.immolate && live.has('immolate'),
+    drainSoulFinisher: g.drainSoulFinisher && live.has('drain_soul_finisher'),
+    filler,
+  });
+}
+
 /** The steps of a combination's rotation that can ever be cast at a level with these talents. */
 export function liveSteps(c: Combo, level: number, ranks: Ranks, p: Params = DEFAULT_KEY_PARAMS): SpecStep[] {
   return buildRotation(c.genes, p).steps.filter((s) => spellKnown(s.spell, s.rank, level, ranks) && possible(s.when, level, ranks));
@@ -204,7 +233,7 @@ export function effectiveKey(c: Combo, level: number, ranks: Ranks): string {
   const live = liveSteps(c, level, ranks).map((s) => [s.spell, s.rank, s.when]);
   const est = buildRotation(c.genes, DEFAULT_KEY_PARAMS).estimate;
   const filler = est.filler === 'wrack' && !spellKnown('wrack', 'max', level, ranks) ? 'shadow_bolt' : est.filler;
-  const sacrificed = (ranks.demonic_sacrifice ?? 0) > 0 ? c.pets.sacrificed : null;
+  const sacrificed = sacrificeLive(c, ranks) ? c.pets.sacrificed : null;
   return JSON.stringify({ live, filler, fillerRank: est.fillerRank, dots: est.dotSpells, pet: c.pets.pet, sacrificed });
 }
 

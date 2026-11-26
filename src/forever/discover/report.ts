@@ -4,10 +4,10 @@ import { loadParams } from '../data/load';
 import type { Cond } from '../rotation-spec';
 import { getSpell } from '../spells';
 import { TALENT_BY_ID, TALENTS } from '../talents';
-import type { Tree } from '../types';
+import type { Params, Tree } from '../types';
 import { collectVerify } from '../verify';
 import type { DiscoverResult, TopRow } from './engine';
-import { buildRotation, liveSteps } from './space';
+import { buildRotation, liveSteps, sacrificeLive } from './space';
 
 const VERIFY = collectVerify();
 const flagged = (file: string, name: string): boolean => VERIFY.some((a) => a.file === file && a.name === name);
@@ -23,7 +23,7 @@ export function verifyFor(row: TopRow, level: number): string[] {
   spells.add('life_tap');
   for (const s of [...spells].sort()) add('spells.json', s);
   for (const t of TALENTS) if ((row.ranks[t.id] ?? 0) > 0) add('talents.json', t.id);
-  const pets = row.combo.pets.pet !== null || ((row.ranks.demonic_sacrifice ?? 0) > 0 && row.combo.pets.sacrificed !== null);
+  const pets = row.combo.pets.pet !== null || sacrificeLive(row.combo, row.ranks);
   if (pets) add('levels.json', 'levels.pets');
   add('params.json', 'mob_hp_mult');
   add('params.json', 'mob_dmg_mult');
@@ -56,7 +56,7 @@ function duration(sec: number): string {
 
 function petText(row: TopRow): string {
   const pet = row.combo.pets.pet ? cap(row.combo.pets.pet) : 'none';
-  const sac = (row.ranks.demonic_sacrifice ?? 0) > 0 ? row.combo.pets.sacrificed : null;
+  const sac = sacrificeLive(row.combo, row.ranks) ? row.combo.pets.sacrificed : null;
   return sac ? `${pet} (sacrificed ${cap(sac)})` : pet;
 }
 
@@ -108,6 +108,7 @@ function condText(c: Cond): string {
 
 export function renderDiscoverReport(r: DiscoverResult, runSec: number): string {
   const m = r.meta;
+  const params = loadParams(m.changedParams as Partial<Params>);
   const L: string[] = [];
   L.push(`# Build discovery: level ${m.level}`, '');
   L.push(`Talents × rotations composed from the simulator's spells × pet setups, ranked by kills per hour at level ${m.level} (${m.points} talent points).`, '');
@@ -145,7 +146,7 @@ export function renderDiscoverReport(r: DiscoverResult, runSec: number): string 
     L.push(`- Free points (no modelled effect, marked *): ${t.freePoints}`);
     if (t.insensitive) L.push(`- Insensitive (a point moved to a dead talent costs nothing significant): ${t.insensitive.length ? t.insensitive.map(talentName).join(', ') : 'none'}`);
     L.push('', 'Rotation (first castable step wins; Life Tap and Eureka! follow the parameters):', '');
-    liveSteps(t.combo, m.level, t.ranks).forEach((s, i) => {
+    liveSteps(t.combo, m.level, t.ranks, params).forEach((s, i) => {
       L.push(`${i + 1}. ${spellName(s.spell)}${s.rank === 'max' ? '' : ` r${s.rank}`}: ${condText(s.when)}${s.filler ? ' (filler)' : ''}`);
     });
     const v = verifyFor(t, m.level);

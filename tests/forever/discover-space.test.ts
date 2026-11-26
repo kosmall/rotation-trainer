@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadVariant } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
-import { buildRotation, effectiveKey, enumerateCombos, requiredRanks, rotationLabel, type Combo, type RotationGenes } from '../../src/forever/discover/space';
+import { buildRotation, effectiveKey, enumerateCombos, playedLabel, requiredRanks, rotationLabel, type Combo, type RotationGenes } from '../../src/forever/discover/space';
 import { dataRotationOf } from '../../src/forever/rotation-spec';
 
 const genes = (over: Partial<RotationGenes> = {}): RotationGenes => ({
@@ -49,7 +49,9 @@ describe('discovery space', () => {
   });
   it('names the talents a combination needs', () => {
     const c: Combo = { id: 'x', genes: genes({ filler: 'wrack_hp70' }), pets: { pet: 'succubus', sacrificed: 'imp' } };
-    expect(requiredRanks(c)).toEqual({ demonic_sacrifice: 1, wrack: 1, siphon_life: 1, soul_harvest: 1 });
+    expect(requiredRanks(c)).toEqual({ demonic_sacrifice: 1, demonic_pact: 1, wrack: 1, siphon_life: 1, soul_harvest: 1 });
+    // with no demon summoned afterwards the sacrifice holds without Demonic Pact
+    expect(requiredRanks({ ...c, pets: { pet: null, sacrificed: 'imp' } }).demonic_pact).toBeUndefined();
     expect(requiredRanks({ ...c, genes: genes({ siphon: false, drainSoulFinisher: false, filler: 'wrack_single_then_drain_life' }), pets: { pet: null, sacrificed: null } })).toEqual({});
   });
   it('treats rotations that play the same as one', () => {
@@ -57,7 +59,18 @@ describe('discovery space', () => {
     const b: Combo = { id: 'b', genes: genes({ filler: 'wrack_hp70' }), pets: { pet: 'voidwalker', sacrificed: null } };
     expect(effectiveKey(a, 40, { wrack: 0 })).toBe(effectiveKey(b, 40, { wrack: 0 }));
     expect(effectiveKey(a, 40, { wrack: 1, siphon_life: 1 })).not.toBe(effectiveKey(b, 40, { wrack: 1, siphon_life: 1 }));
-    expect(effectiveKey(a, 40, { demonic_sacrifice: 1 })).not.toBe(effectiveKey(b, 40, { demonic_sacrifice: 1 }));
+    // summoning the Voidwalker after the sacrifice ends it unless the build has Demonic Pact
+    expect(effectiveKey(a, 40, { demonic_sacrifice: 1 })).toBe(effectiveKey(b, 40, { demonic_sacrifice: 1 }));
+    expect(effectiveKey(a, 40, { demonic_sacrifice: 1, demonic_pact: 1 })).not.toBe(effectiveKey(b, 40, { demonic_sacrifice: 1, demonic_pact: 1 }));
+    const noPet: Combo = { ...a, pets: { pet: null, sacrificed: 'imp' } };
+    expect(effectiveKey(noPet, 40, { demonic_sacrifice: 1 })).not.toBe(effectiveKey({ ...noPet, pets: { pet: null, sacrificed: null } }, 40, { demonic_sacrifice: 1 }));
+  });
+  it('labels what is played at the level with the talents', () => {
+    const single: Combo = { id: 's', genes: genes({ coe: false, agony: false, siphon: false, drainSoulFinisher: false, filler: 'wrack_single_then_drain_life' }), pets: { pet: null, sacrificed: null } };
+    expect(playedLabel(single, 40, {})).toBe('Corruption → Drain Life; DoTs if TTK ≥ 6 s');
+    expect(playedLabel(single, 40, { siphon_life: 1, wrack: 1 })).toBe('Corruption → Wrack on single mobs, else Drain Life; DoTs if TTK ≥ 6 s');
+    const low: Combo = { id: 'l', genes: genes({ agony: false, siphon: false, drainSoulFinisher: true, filler: 'sb_r1' }), pets: { pet: null, sacrificed: null } };
+    expect(playedLabel(low, 15, {})).toBe('Corruption → Shadow Bolt r1; DoTs if TTK ≥ 6 s');
   });
   it('labels a rotation', () => {
     expect(rotationLabel(genes({ agony: false, siphon: false, immolate: true, filler: 'searing_pain' }))).toBe('CoE, Corruption, Immolate → Searing Pain; DS finish; DoTs if TTK ≥ 6 s');

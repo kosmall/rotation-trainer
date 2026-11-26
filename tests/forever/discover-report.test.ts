@@ -51,6 +51,11 @@ describe('discovery report', () => {
     expect(v).not.toContain('params.json:sb_r1_coeff_mult');
     expect(verifyFor(result.top[1]!, 40)).toContain('params.json:sb_r1_coeff_mult');
   });
+  it('shows the conditions with the run parameters', () => {
+    const [ds] = enumerateCombos(40, { fillers: ['drain_life'], minTtk: [6], pets: ['succubus'], sacrifice: false, maxDots: 0 }).filter((c) => c.genes.drainSoulFinisher);
+    const r: DiscoverResult = { ...result, meta: { ...result.meta, changedParams: { drain_soul_window_sec: 3 } }, top: [row(1, ds, { soul_harvest: 2, improved_drains: 3 }, 105, true)] };
+    expect(renderDiscoverReport(r, 60)).toContain('Drain Soul kills in 1-3 s');
+  });
   it('writes JSON that round-trips', () => {
     const j = toJson(result);
     expect(JSON.parse(j)).toEqual(result);

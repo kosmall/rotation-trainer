@@ -14,8 +14,8 @@ import { pairedDiff, type MetricDiff } from '../duel';
 import { runCell, type CellMetrics, type SessionResult } from '../runner';
 import { pointsAtLevel, TALENT_BY_ID, TALENTS, validatePicks, type Ranks } from '../talents';
 import type { Params, Tree } from '../types';
-import { buildRotation, effectiveKey, enumerateCombos, requiredRanks, rotationLabel, type Combo, type FillerGene, type SpaceFilter } from './space';
-import { canonicalPicks, hillClimb, isLegal, modelledKey, pointDistance, type Scored } from './talent-search';
+import { buildRotation, effectiveKey, enumerateCombos, playedLabel, requiredRanks, type Combo, type FillerGene, type SpaceFilter } from './space';
+import { canonicalPicks, hillClimb, isLegal, modelledDistance, modelledKey, pointDistance, type Scored } from './talent-search';
 
 export interface StageBudget {
   starts: number;
@@ -129,7 +129,8 @@ export function stateHash(o: DiscoverOptions): string {
 }
 
 const STAGE_SEED = { screen: 1, search: 2, final: 3 } as const;
-const stageSeed = (o: DiscoverOptions, stage: keyof typeof STAGE_SEED): number => o.seed * 1000 + STAGE_SEED[stage];
+/** Session seeds of a stage: seed+1..seed+n. Stages and run seeds use disjoint ranges, so the final re-run never reuses the sessions a finalist was selected on. */
+export const stageSeed = (o: DiscoverOptions, stage: keyof typeof STAGE_SEED): number => o.seed * 1_000_000 + STAGE_SEED[stage] * 100_000;
 
 /** The variant a combination is simulated as (its pets; the rotation comes as data). */
 export function comboVariant(c: Combo): BuildVariant {
@@ -191,7 +192,7 @@ interface Row {
 
 const byKph = (a: Row, b: Row): number => b.metrics.killsPerHour - a.metrics.killsPerHour || a.metrics.deathsPerHour - b.metrics.deathsPerHour;
 
-/** The best rows with at most 2 per effective combination, the 2nd only when its talents are more than 2 points away. */
+/** The best rows with at most 2 per effective combination, the 2nd only when more than 2 points of modelled talents are moved. */
 export function pickTop<T extends Row>(rows: readonly T[], top: number): T[] {
   const sorted = [...rows].sort(byKph);
   const groups = new Map<string, T[]>();
@@ -200,7 +201,7 @@ export function pickTop<T extends Row>(rows: readonly T[], top: number): T[] {
     if (out.length >= top) break;
     const g = groups.get(r.effKey) ?? [];
     if (g.length >= 2) continue;
-    if (g.length === 1 && pointDistance((g[0] as T).ranks, r.ranks) <= 2) continue;
+    if (g.length === 1 && modelledDistance((g[0] as T).ranks, r.ranks) <= 2) continue;
     g.push(r);
     groups.set(r.effKey, g);
     out.push(r);
@@ -289,7 +290,10 @@ export async function discover(o: DiscoverOptions, run: Runner, io: DiscoverIo =
       if (!prev || f.kph > prev.kph) cands.set(key, { combo: c, ranks: f.ranks, kph: f.kph, effKey });
     }
   }
-  const finalists = [...cands.entries()].sort((a, b) => b[1].kph - a[1].kph || (a[0] < b[0] ? -1 : 1)).slice(0, o.budget.final);
+  // the same diversity rule as the top list, so the re-run slots go to results that can make it
+  const pool = [...cands.entries()].map(([key, c]) => ({ key, ...c, metrics: { killsPerHour: c.kph, deathsPerHour: 0 } as CellMetrics }));
+  pool.sort((a, b) => (a.key < b.key ? -1 : 1));
+  const finalists = pickTop(pool, o.budget.final).map((c): [string, (typeof pool)[number]] => [c.key, c]);
   const finalTasks: Task[] = [
     ...finalists.map(([key, c]): Task => ({ kind: 'final', key, combo: c.combo, ranks: c.ranks })),
     ...KNOWN_IDS.map((id): Task => ({ kind: 'baseline', id })),
@@ -334,7 +338,7 @@ export async function discover(o: DiscoverOptions, run: Runner, io: DiscoverIo =
       rank: i + 1,
       combo: p.combo,
       ranks: p.ranks,
-      label: rotationLabel(p.combo.genes),
+      label: playedLabel(p.combo, o.level, p.ranks),
       perTree: check.pointsPerTree,
       freePoints: free,
       metrics: p.metrics,
