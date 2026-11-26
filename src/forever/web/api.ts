@@ -5,6 +5,7 @@
 import { customId, customVariant, loadVariant, SCENARIO_IDS, VARIANT_IDS, type CustomBuildData } from '../builds';
 import { loadParams } from '../data/load';
 import { duelLevel, pairedDiff, type DuelResult, type MetricDiff } from '../duel';
+import { planEp, type EpResult } from '../ep';
 import { runCell, type CellMetrics } from '../runner';
 import { PROFILE_IDS } from '../stats';
 import type { EurekaPolicy, Params } from '../types';
@@ -89,7 +90,8 @@ export function paramsOf(s: Settings): Params {
 export type JobRequest =
   | { kind: 'ranking'; settings: Settings; custom?: readonly CustomBuildData[]; /** Also rank the guide scenarios (data/scenarios.json). */ scenarios?: boolean }
   | { kind: 'sweep'; settings: Settings; builds: readonly string[]; custom?: readonly CustomBuildData[] }
-  | { kind: 'duel'; settings: Settings; a: string; b: string; sweep: boolean; custom?: readonly CustomBuildData[] };
+  | { kind: 'duel'; settings: Settings; a: string; b: string; sweep: boolean; custom?: readonly CustomBuildData[] }
+  | { kind: 'ep'; settings: Settings; builds: readonly string[]; custom?: readonly CustomBuildData[] };
 
 export interface RankedBuild {
   metrics: CellMetrics;
@@ -118,7 +120,13 @@ export interface DuelOutcome {
   /** All levels MIN_LEVEL..MAX_LEVEL when the sweep was requested. */
   sweep: DuelResult[] | null;
 }
-export type JobResult = RankingResult | SweepResult | DuelOutcome;
+/** Equivalency points of each requested build at the level of the settings. */
+export interface EpOutcome {
+  kind: 'ep';
+  settings: Settings;
+  results: EpResult[];
+}
+export type JobResult = RankingResult | SweepResult | DuelOutcome | EpOutcome;
 
 export interface Job {
   total: number;
@@ -167,6 +175,21 @@ export function planJob(req: JobRequest): Job {
           levels: LEVELS,
           series: builds.map((build, b) => ({ build, kph: LEVELS.map((_, l) => outs[b * LEVELS.length + l] as number) })),
         }),
+      };
+    }
+    case 'ep': {
+      if (req.builds.length === 0) throw new Error('ep needs at least one build');
+      const plans = req.builds.map((b) => planEp(loadVariant(checkBuild(b, customIds)), s.level, { profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overridesOf(s) }));
+      const starts = plans.map((_, k) => plans.slice(0, k).reduce((n, p) => n + p.total, 0));
+      const total = plans.reduce((n, p) => n + p.total, 0);
+      return {
+        total,
+        run: (i) => {
+          let k = starts.length - 1;
+          while ((starts[k] as number) > i) k--;
+          return (plans[k] as (typeof plans)[number]).run(i - (starts[k] as number));
+        },
+        assemble: (outs) => ({ kind: 'ep', settings: s, results: plans.map((p, k) => p.assemble(outs.slice(starts[k], (starts[k] as number) + p.total) as number[][])) }),
       };
     }
     case 'duel': {
