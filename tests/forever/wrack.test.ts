@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadVariant, ranksAt } from '../../src/forever/builds';
-import { rotationSpec } from '../../src/forever/rotation-spec';
+import { evaluateSteps, rotationSpec } from '../../src/forever/rotation-spec';
 import { loadParams } from '../../src/forever/data/load';
 import { simulatePull, type PullConfig } from '../../src/forever/fight';
 import { getSpell, rankAt } from '../../src/forever/spells';
@@ -216,5 +216,34 @@ describe('DT_SS_WRACK build', () => {
   it('the build floor wins over the parameter, and the addon spec carries it', () => {
     const spec = rotationSpec(v, loadParams({ wrack_min_hp_pct: 0.2 }));
     expect(JSON.stringify(spec.steps.find((s) => s.id === 'filler_wrack')?.when)).toContain('"pct":70');
+  });
+});
+
+describe('Wrack health floors 40%..90% (DT_SS_WRACK talents)', () => {
+  const ctx = (v: ReturnType<typeof loadVariant>, hpPct: number, mobs: number): RotationCtx => ({
+    params: loadParams(), variant: v, mobsInPull: mobs, petAlive: true, hasShadowTrance: false, hpPct,
+    known: () => true, talentRank: () => 0, targetHasDot: () => true, targetDotRemainingMs: () => 10000, targetHasCurse: () => true,
+    targetBrandRemainingMs: () => 0, targetBrandCharges: () => 0, targetHp: () => 5000, estTtkSec: () => 20,
+    drainSoulKillSec: () => 99, drainSoulExpected: () => 0, fillerExpected: () => 0,
+  });
+  for (const floor of [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]) {
+    const v = { ...loadVariant('DT_SS_WRACK'), wrack_min_hp_pct: floor };
+    it(`floor ${floor * 100}%: Wrack just above it, Drain Life at and below it, on 1-3 mobs; the addon spec agrees`, () => {
+      const spec = rotationSpec(v, loadParams());
+      for (const mobs of [1, 2, 3]) {
+        for (const [hp, want] of [[floor * 100 + 0.5, 'wrack'], [floor * 100, 'drain_life'], [floor * 100 - 10, 'drain_life']] as const) {
+          const c = ctx(v, hp, mobs);
+          expect(rotationFor('affliction')(c)[0]!.spellId, `${hp}% hp, ${mobs} mobs`).toBe(want);
+          expect(evaluateSteps(spec, c)[0]!.spellId).toBe(want);
+        }
+      }
+    });
+  }
+  it('in the fight, a higher floor means fewer Wrack casts and more Drain Life casts', () => {
+    const count = (floor: number, spell: string): number => SEEDS.reduce((s, seed) => s + simulatePull({ ...cfg('DT_SS_WRACK'), variant: { ...loadVariant('DT_SS_WRACK'), wrack_min_hp_pct: floor } }, seed).trace.filter((l) => l.includes(`cast ${spell} `)).length, 0);
+    const wrack = [0.4, 0.6, 0.9].map((f) => count(f, 'wrack'));
+    const drain = [0.4, 0.6, 0.9].map((f) => count(f, 'drain_life'));
+    expect(wrack[0]).toBeGreaterThan(wrack[2]!);
+    expect(drain[2]).toBeGreaterThan(drain[0]!);
   });
 });

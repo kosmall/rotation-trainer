@@ -28,7 +28,8 @@
     "forever:report": "tsx scripts/forever-report.ts",
     "forever:lifetap": "tsx scripts/forever-lifetap.ts",
     "forever:scenarios": "tsx scripts/forever-scenarios.ts",
-    "forever:wrack-study": "tsx scripts/forever-wrack-study.ts"
+    "forever:wrack-study": "tsx scripts/forever-wrack-study.ts",
+    "forever:wrack-thresholds": "tsx scripts/forever-wrack-thresholds.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "5.3.0",

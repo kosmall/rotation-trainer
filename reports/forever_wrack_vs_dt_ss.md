@@ -163,3 +163,82 @@ Na pullach z 3 mobami na poziomach 40–45 lepszy jest DT_SS, bo ma Unholy Power
 Na poziomach 58–60 DT_SS na pojedynczym mobie używa Wracka bez progu HP, stąd duża różnica na 1 moba.
 
 W addonie próg jest warunkiem `hp_pct_above` 70, czyli "HP powyżej 70%". Przy dokładnie 70% wybierany jest Drain Life.
+
+## 6. Próg HP dla Wracka: 40–90% co 10 p.p.
+
+Wszystkie warianty mają talenty DT_SS_WRACK. Wrack jest fillerem, gdy HP gracza jest powyżej progu, a przy HP równym progowi lub niższym fillerem jest Drain Life, przy każdej liczbie mobów. Dla porównania w tabelach jest DT_SS.
+
+Każda komórka to kills/h (TTK, przerwy na godzinę), 200 sesji na komórkę. Pogrubiony jest najlepszy wynik w kolumnie. Tabele odtwarza `npm run forever:wrack-thresholds`.
+
+### 1 mob, gear average
+
+| wariant | 40 | 45 | 50 | 55 | 59 |
+|---|---:|---:|---:|---:|---:|
+| DT_SS | 116.6 (22.9 s, 0/h) | 116.4 (22.9 s, 0/h) | 123.3 (21.2 s, 0/h) | 126.2 (20.5 s, 0/h) | 115.0 (17.0 s, 23/h) |
+| Wrack > 40% HP | 117.9 (20.7 s, 10/h) | 121.2 (20.9 s, 6/h) | 127.9 (18.9 s, 8/h) | 129.5 (18.6 s, 6/h) | 123.2 (18.3 s, 13/h) |
+| Wrack > 50% HP | 120.3 (21.7 s, 1/h) | 121.1 (21.7 s, 0/h) | **129.8 (19.7 s, 0/h)** | **132.1 (19.2 s, 0/h)** | 126.5 (19.2 s, 5/h) |
+| Wrack > 60% HP | 120.7 (21.8 s, 0/h) | 120.9 (21.8 s, 0/h) | 129.2 (19.9 s, 0/h) | 131.8 (19.3 s, 0/h) | **127.4 (19.6 s, 3/h)** |
+| Wrack > 70% HP | **121.5 (21.6 s, 0/h)** | **122.2 (21.4 s, 0/h)** | 128.6 (20.0 s, 0/h) | 131.3 (19.4 s, 0/h) | 127.2 (19.9 s, 2/h) |
+| Wrack > 80% HP | 119.3 (22.2 s, 0/h) | 118.3 (22.4 s, 0/h) | 124.0 (21.0 s, 0/h) | 125.3 (20.7 s, 0/h) | 125.6 (20.6 s, 0/h) |
+| Wrack > 90% HP | 119.1 (22.2 s, 0/h) | 118.2 (22.5 s, 0/h) | 124.0 (21.0 s, 0/h) | 125.3 (20.7 s, 0/h) | 125.5 (20.6 s, 0/h) |
+
+### 2 moby, gear average
+
+| wariant | 40 | 45 | 50 | 55 | 59 |
+|---|---:|---:|---:|---:|---:|
+| DT_SS | 133.2 (23.0 s, 0/h) | 130.8 (23.5 s, 0/h) | 140.7 (21.6 s, 0/h) | 142.2 (21.3 s, 0/h) | 139.5 (21.5 s, 1/h) |
+| Wrack > 40% HP | 122.5 (22.1 s, 12/h) | 134.5 (21.9 s, 6/h) | 143.4 (20.1 s, 6/h) | 147.7 (19.7 s, 4/h) | 130.0 (19.9 s, 13/h) |
+| Wrack > 50% HP | 128.9 (22.6 s, 5/h) | 134.4 (22.7 s, 0/h) | **146.0 (20.6 s, 0/h)** | **149.5 (20.1 s, 0/h)** | 135.2 (20.3 s, 9/h) |
+| Wrack > 60% HP | 132.9 (22.7 s, 1/h) | 134.5 (22.8 s, 0/h) | 145.8 (20.7 s, 0/h) | 149.2 (20.1 s, 0/h) | 138.2 (20.6 s, 5/h) |
+| Wrack > 70% HP | 134.4 (22.6 s, 1/h) | **135.4 (22.6 s, 0/h)** | 145.2 (20.8 s, 0/h) | 148.3 (20.3 s, 0/h) | **140.5 (20.8 s, 3/h)** |
+| Wrack > 80% HP | **135.1 (22.6 s, 0/h)** | 132.5 (23.2 s, 0/h) | 140.8 (21.6 s, 0/h) | 142.1 (21.3 s, 0/h) | 140.4 (21.3 s, 1/h) |
+| Wrack > 90% HP | 135.0 (22.7 s, 0/h) | 132.5 (23.2 s, 0/h) | 140.8 (21.6 s, 0/h) | 142.1 (21.3 s, 0/h) | 140.4 (21.3 s, 1/h) |
+
+### 3 moby, gear average
+
+| wariant | 40 | 45 | 50 | 55 | 59 |
+|---|---:|---:|---:|---:|---:|
+| DT_SS | **135.2 (23.4 s, 1/h)** | **136.8 (23.7 s, 0/h)** | 147.4 (21.8 s, 0/h) | 148.4 (21.5 s, 0/h) | 144.1 (21.8 s, 1/h) |
+| Wrack > 40% HP | 103.9 (22.7 s, 9/h) | 122.5 (21.3 s, 15/h) | 148.5 (20.7 s, 3/h) | 153.7 (20.1 s, 4/h) | 120.5 (21.7 s, 10/h) |
+| Wrack > 50% HP | 107.8 (22.6 s, 10/h) | 121.3 (21.7 s, 14/h) | 152.2 (20.9 s, 0/h) | **156.1 (20.4 s, 0/h)** | 130.7 (21.4 s, 7/h) |
+| Wrack > 60% HP | 111.3 (22.7 s, 9/h) | 119.8 (22.3 s, 11/h) | **152.3 (21.0 s, 0/h)** | 155.8 (20.4 s, 0/h) | 138.2 (21.3 s, 5/h) |
+| Wrack > 70% HP | 113.1 (23.0 s, 6/h) | 120.1 (22.9 s, 8/h) | 151.8 (21.0 s, 0/h) | 154.9 (20.6 s, 0/h) | 142.4 (21.4 s, 3/h) |
+| Wrack > 80% HP | 111.9 (23.5 s, 4/h) | 115.2 (24.0 s, 5/h) | 147.3 (21.8 s, 0/h) | 148.1 (21.6 s, 0/h) | 144.5 (21.7 s, 1/h) |
+| Wrack > 90% HP | 112.1 (23.5 s, 4/h) | 114.1 (24.0 s, 5/h) | 147.3 (21.8 s, 0/h) | 148.1 (21.6 s, 0/h) | **144.5 (21.7 s, 1/h)** |
+
+### 1 mob, gear quest
+
+| wariant | 40 | 45 | 50 | 55 | 59 |
+|---|---:|---:|---:|---:|---:|
+| DT_SS | 111.4 (24.3 s, 0/h) | 105.8 (26.0 s, 0/h) | 116.5 (22.9 s, 0/h) | 116.5 (22.9 s, 0/h) | 98.5 (20.8 s, 23/h) |
+| Wrack > 40% HP | 104.0 (23.9 s, 13/h) | **110.9 (23.1 s, 11/h)** | 115.9 (21.7 s, 8/h) | 117.2 (21.2 s, 9/h) | 108.1 (21.1 s, 17/h) |
+| Wrack > 50% HP | 111.2 (23.7 s, 4/h) | 109.6 (24.7 s, 1/h) | 118.0 (22.3 s, 1/h) | **120.7 (21.8 s, 0/h)** | 110.2 (22.0 s, 11/h) |
+| Wrack > 60% HP | 113.6 (23.6 s, 1/h) | 109.7 (24.8 s, 0/h) | 119.5 (22.1 s, 0/h) | 120.3 (21.9 s, 0/h) | 112.4 (22.6 s, 6/h) |
+| Wrack > 70% HP | **114.6 (23.4 s, 0/h)** | 110.0 (24.7 s, 0/h) | **119.9 (22.0 s, 0/h)** | 120.0 (22.0 s, 0/h) | 113.9 (22.8 s, 3/h) |
+| Wrack > 80% HP | 113.3 (23.8 s, 0/h) | 108.0 (25.3 s, 0/h) | 117.2 (22.7 s, 0/h) | 117.4 (22.7 s, 0/h) | 114.4 (23.3 s, 1/h) |
+| Wrack > 90% HP | 113.2 (23.8 s, 0/h) | 107.4 (25.5 s, 0/h) | 117.2 (22.7 s, 0/h) | 117.4 (22.7 s, 0/h) | **114.5 (23.2 s, 1/h)** |
+
+### 1 mob, gear good
+
+| wariant | 40 | 45 | 50 | 55 | 59 |
+|---|---:|---:|---:|---:|---:|
+| DT_SS | 123.2 (21.2 s, 0/h) | 124.1 (21.0 s, 0/h) | 133.0 (19.1 s, 0/h) | 134.7 (18.7 s, 0/h) | 126.6 (14.8 s, 21/h) |
+| Wrack > 40% HP | 126.5 (19.3 s, 6/h) | 130.8 (18.9 s, 4/h) | 139.0 (17.1 s, 5/h) | 140.9 (17.0 s, 3/h) | 136.1 (16.7 s, 7/h) |
+| Wrack > 50% HP | 128.3 (20.0 s, 0/h) | 131.2 (19.4 s, 0/h) | 140.3 (17.6 s, 0/h) | 142.5 (17.2 s, 0/h) | 139.0 (17.5 s, 2/h) |
+| Wrack > 60% HP | 128.2 (20.1 s, 0/h) | **131.3 (19.4 s, 0/h)** | **140.5 (17.6 s, 0/h)** | 142.5 (17.3 s, 0/h) | 139.6 (17.6 s, 1/h) |
+| Wrack > 70% HP | **129.3 (19.8 s, 0/h)** | 131.0 (19.5 s, 0/h) | 139.9 (17.7 s, 0/h) | **142.8 (17.2 s, 0/h)** | **140.1 (17.6 s, 0/h)** |
+| Wrack > 80% HP | 125.6 (20.7 s, 0/h) | 129.0 (19.9 s, 0/h) | 134.0 (18.9 s, 0/h) | 139.2 (17.9 s, 0/h) | 135.9 (18.5 s, 0/h) |
+| Wrack > 90% HP | 125.5 (20.7 s, 0/h) | 126.8 (20.4 s, 0/h) | 133.6 (18.9 s, 0/h) | 138.1 (18.1 s, 0/h) | 135.8 (18.5 s, 0/h) |
+
+
+### Wnioski z progów
+
+- **Najlepszy zakres to 50–70%.** Wyniki w tym przedziale różnią się zwykle o 1–2 kph, czyli mniej więcej tyle, ile wynosi rozrzut symulacji.
+  - Poziomy 40–45 (najlepszy próg): 1 mob z gearem average 70%; quest 70% na 40 i 40% na 45; good 70% na 40 i 60% na 45; 2 moby 80% na 40 i 70% na 45.
+  - Poziomy 50–55: najczęściej wygrywa 50–60%.
+  - Poziom 59: wygrywa 60–90%, ale różnice są małe.
+  - Próg 70% (obecny w DT_SS_WRACK) to dobry wybór "na wszystko". Nigdzie nie traci więcej niż ok. 2 kph do najlepszego progu.
+- **40% to za nisko.** Wraca problem przerw na jedzenie (6–17 na godzinę), bo po Life Tapie HP nie zdąży się odbudować. Na 2–3 moby na poziomach 40 i 59 traci 10–24 kph do najlepszego progu.
+- **80% i 90% dają prawie to samo.** Po pierwszych Life Tapach HP rzadko wraca powyżej 80%, więc Wrack wchodzi głównie na początku walki. Wynik zbliża się do czystego Drain Life (DT_SS), z niewielkim zyskiem z szybszego startu.
+- **3 moby na 40–45:** każdy próg przegrywa z DT_SS o 14–31 kph. Przyczyną są talenty (Unholy Power dopiero po Wracku), a nie próg.
+- **Gear:** z gearem good zysk z Wracka jest największy (+5 do +13 kph przy 50–70%). Z gearem quest jest mały, a na poziomie 40 przy progu 40% Wrack przegrywa z DT_SS (104.0 vs 111.4).
