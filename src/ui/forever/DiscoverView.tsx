@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CustomBuildData } from '../../forever/builds';
 import type { TopRow } from '../../forever/discover/engine';
 import { verifyFor } from '../../forever/discover/report';
@@ -27,6 +27,9 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
   const [budget, setBudget] = useState<DiscoverBudget>('full');
   const [savedName, setSavedName] = useState<string | null>(null);
   const d = discovery;
+  // leaving the view (another Forever tab) stops a running search
+  const cancel = d.cancel;
+  useEffect(() => () => cancel(), [cancel]);
   const running = d.status === 'running';
   const shown = d.saved;
   const res = shown?.result;

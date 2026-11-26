@@ -142,8 +142,9 @@ paska ustawień, a **Zakres** to **Pełne** (~15 min) albo **Szybkie** (~1-3 min
 Workerach; **Przerwij** zatrzymuje wszystkie. Ostatni wynik zostaje zapamiętany (bez wznawiania po odświeżeniu
 strony). **Zapisz** przy wierszu dodaje wynik jako **własny build**: punkty w kolejności rzędów drzewka (poniżej
 levelu wyszukiwania build ma pierwsze N z nich, powyżej punkty są niewydane; w edytorze można je przestawić i
-dobudować do 51), znaleziona rotacja i pety. Taki build bierze udział w rankingu, na krzywej, w Porównaniu i w EP
-na każdym levelu.
+dobudować do 51), znaleziona rotacja i pety. Taki build jest od razu do wyboru w Porównaniu, EP, Buildach i Rotacjach
+na każdym levelu; do rankingu i krzywej w Symulacji dołączasz go zaznaczeniem „Własne buildy w rankingu”. Wyjście z
+zakładki Odkrywanie przerywa trwające wyszukiwanie.
 
 **Rotacja z klocków we własnym buildzie:** w edytorze własnego buildu „Szablon rotacji” ma opcję **Własna (z
 klocków)**: utrzymywane efekty (Curse of the Elements, Bane of Agony, Corruption, Siphon Life, Immolate), próg „DoT-y

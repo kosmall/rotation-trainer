@@ -65,4 +65,25 @@ describe('Odkrywanie view', () => {
     await waitFor(() => expect(screen.getByText(/Przerwano/)).toBeTruthy());
     expect(aborted).toBe(true);
   });
+
+  it('stops the search when another Forever tab is opened', async () => {
+    let aborted = false;
+    const never = (_o: DiscoverOptions, signal: AbortSignal): DiscoverPool => ({
+      runner: () => new Promise((_, reject) => signal.addEventListener('abort', () => ((aborted = true), reject(new DOMException('aborted', 'AbortError'))))),
+      close: () => undefined,
+    });
+    const r = render(<ForeverApp view="discover" discoverPool={never} discoverTuning={tuning} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Szukaj' }));
+    await screen.findByRole('button', { name: 'Przerwij' });
+    r.rerender(<ForeverApp view="compare" discoverPool={never} discoverTuning={tuning} />);
+    await waitFor(() => expect(aborted).toBe(true));
+  });
+
+  it('ignores a stored result it cannot show', () => {
+    window.localStorage.setItem('wow-forever-sim:discover:v1', JSON.stringify({ settings, budget: 'full', result: { meta: { level: 40 }, baseline: [], top: [{ rank: 1 }] } }));
+    render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
+    expect(screen.getByRole('button', { name: 'Szukaj' })).toBeTruthy();
+    expect(screen.queryByRole('table', { name: 'Najlepsze znalezione buildy' })).toBeNull();
+  });
 });
+
