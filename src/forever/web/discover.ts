@@ -2,6 +2,7 @@
 // found result saved as a custom build that carries its composed rotation. Framework-free.
 
 import type { BuildVariant, CustomBuildData } from '../builds';
+import type { CompletedBuild } from '../discover/complete';
 import { DEFAULT_BUDGET, QUICK_BUDGET, type Budget, type DiscoverOptions, type TopRow } from '../discover/engine';
 import { rotationLabel } from '../rotation-genes';
 import { sacrificeLive } from '../discover/space';
@@ -88,5 +89,19 @@ export function rowVariant(row: TopRow): BuildVariant {
     pre_respec_build: null,
     respec_level: 40,
     genes: { ...row.combo.genes },
+  };
+}
+
+/** A completed build as a custom build: the found points in row order, then the path; the genes and the pets as simulated. */
+export function completedBuild(c: CompletedBuild, existing: readonly string[]): CustomBuildData {
+  return {
+    name: uniqueName(`L${c.fromLevel}→${c.toLevel} #${c.rank} ${c.label}`.slice(0, 36).trim(), existing),
+    picks: [...canonicalPicks(c.baseRanks), ...c.path],
+    rotation: 'affliction',
+    filler: 'drain_life',
+    rank: 'max',
+    pet: c.combo.pets.pet,
+    sacrificed: c.combo.pets.sacrificed,
+    genes: { ...c.combo.genes },
   };
 }

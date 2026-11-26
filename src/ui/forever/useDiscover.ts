@@ -5,22 +5,33 @@ import type { Settings } from '../../forever/web/api';
 import { VARIANT_IDS } from '../../forever/builds';
 import { enumerateCombos } from '../../forever/discover/space';
 import { discoverEtaSec, discoverOptions, workerCount, type DiscoverBudget } from '../../forever/web/discover';
-import { discoverPool, type DiscoverPool } from '../../forever/web/discover-client';
+import { completeBuilds, COMPLETE_FULL, COMPLETE_QUICK, type CompleteBudget, type CompletedBuild, type CompleteResult, type CompleteTask } from '../../forever/discover/complete';
+import type { Runner } from '../../forever/discover/engine';
+import { discoverPool, type Pool } from '../../forever/web/discover-client';
+import type { AnyResult, AnyTask } from '../../forever/web/discover-tasks';
 
 export const DISCOVER_STORAGE_KEY = 'wow-forever-sim:discover:v1';
 
 export type DiscoverStatus = 'idle' | 'running' | 'done' | 'error' | 'aborted';
-export type PoolFactory = (o: DiscoverOptions, signal: AbortSignal) => DiscoverPool;
+export type PoolFactory = (o: DiscoverOptions, signal: AbortSignal) => Pool<AnyTask, AnyResult>;
 /** Test hooks: a smaller space and budget. */
 export interface DiscoverTuning {
   space?: SpaceFilter;
   budget?: Budget;
+  /** Completion: a smaller budget and an earlier last level. */
+  completeBudget?: CompleteBudget;
+  toLevel?: number;
 }
+
+/** The last level a found build is completed to. */
+export const COMPLETE_TO_LEVEL = 59;
 
 export interface SavedDiscovery {
   settings: Settings;
   budget: DiscoverBudget;
   result: DiscoverResult;
+  /** Found builds completed to the last level (dropped when a new search replaces the result). */
+  completions?: CompletedBuild[];
 }
 
 export interface DiscoverRun {
@@ -31,7 +42,13 @@ export interface DiscoverRun {
   etaSec: number | null;
   error: string | null;
   saved: SavedDiscovery | null;
+  /** What is running: the search or completing chosen results. */
+  job: 'search' | 'complete' | null;
+  /** The level found builds are completed to. */
+  toLevel: number;
   run(s: Settings, budget: DiscoverBudget): void;
+  /** Completes the results with these ranks to `toLevel` (settings of the shown result). */
+  complete(ranks: readonly number[], budget: DiscoverBudget): void;
   cancel(): void;
 }
 
@@ -62,12 +79,18 @@ function isShowable(o: unknown): o is SavedDiscovery {
   );
 }
 
+const isCompletion = (c: unknown): boolean =>
+  isObj(c) && typeof c.rank === 'number' && typeof c.label === 'string' && isObj(c.combo) && isObj(c.combo.genes) && isObj(c.baseRanks) && Array.isArray(c.path) && Array.isArray(c.perLevel) && typeof c.avgKph === 'number' && typeof c.greedyAvgKph === 'number';
+
 function loadSaved(): SavedDiscovery | null {
   try {
     const raw = window.localStorage.getItem(DISCOVER_STORAGE_KEY);
     if (!raw) return null;
     const o = JSON.parse(raw) as SavedDiscovery;
-    return isShowable(o) ? o : null;
+    if (!isShowable(o)) return null;
+    // unreadable completions are dropped, the result stays
+    if (o.completions !== undefined && !(Array.isArray(o.completions) && o.completions.every(isCompletion))) delete o.completions;
+    return o;
   } catch {
     return null;
   }
@@ -79,7 +102,28 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
   const [prog, setProg] = useState({ stage: '', done: 0, total: 0, etaSec: null as number | null });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedDiscovery | null>(loadSaved);
+  const [job, setJob] = useState<'search' | 'complete' | null>(null);
   const abort = useRef<AbortController | null>(null);
+  const savedRef = useRef(saved);
+  savedRef.current = saved;
+  const toLevel = tuning.toLevel ?? COMPLETE_TO_LEVEL;
+  const persist = (next: SavedDiscovery): void => {
+    setSaved(next);
+    try {
+      window.localStorage.setItem(DISCOVER_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* private mode or full storage: the result is not remembered */
+    }
+  };
+  const failWith = (ctl: AbortController, e: unknown): void => {
+    // a run replaced by a newer one says nothing
+    if (abort.current !== ctl) return;
+    if (ctl.signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) setStatus('aborted');
+    else {
+      setError(e instanceof Error ? e.message : String(e));
+      setStatus('error');
+    }
+  };
 
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -93,6 +137,7 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       const base = discoverOptions(s, budget);
       const options: DiscoverOptions = { ...base, ...(tuning.budget ? { budget: tuning.budget } : {}), ...(tuning.space ? { space: tuning.space } : {}) };
       setStatus('running');
+      setJob('search');
       setError(null);
       setProg({ stage: '', done: 0, total: 0, etaSec: null });
       const pool = makePool(options, ctl.signal);
@@ -109,31 +154,60 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
         const etaSec = discoverEtaSec({ stage, done: done - stageStart.done, total: total - stageStart.done, stageElapsedSec: (now - stageStart.at) / 1000, budget: options.budget, combos, baselines: VARIANT_IDS.length });
         setProg({ stage, done, total, etaSec });
       };
-      discover(options, pool.runner, { progress })
+      discover(options, pool.runner.bind(pool) as unknown as Runner, { progress })
         .then((result) => {
           if (!current()) return;
-          const next = { settings: s, budget, result };
-          setSaved(next);
-          try {
-            window.localStorage.setItem(DISCOVER_STORAGE_KEY, JSON.stringify(next));
-          } catch {
-            /* private mode or full storage: the result is not remembered */
-          }
+          persist({ settings: s, budget, result });
           setStatus('done');
         })
-        .catch((e: unknown) => {
-          // a run replaced by a newer one says nothing
-          if (abort.current !== ctl) return;
-          if (ctl.signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) setStatus('aborted');
-          else {
-            setError(e instanceof Error ? e.message : String(e));
-            setStatus('error');
-          }
-        })
+        .catch((e: unknown) => failWith(ctl, e))
         .finally(() => pool.close());
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [makePool, tuning.budget, tuning.space],
   );
 
-  return { status, ...prog, error, saved, run, cancel };
+  const complete = useCallback(
+    (ranks: readonly number[], budget: DiscoverBudget) => {
+      const shown = savedRef.current;
+      if (!shown) return;
+      const rows = shown.result.top.filter((t) => ranks.includes(t.rank)).map((t) => ({ rank: t.rank, label: t.label, combo: t.combo, ranks: t.ranks }));
+      if (rows.length === 0 || shown.result.meta.level >= toLevel) return;
+      abort.current?.abort();
+      const ctl = new AbortController();
+      abort.current = ctl;
+      const options = discoverOptions(shown.settings, budget);
+      const pool = makePool(options, ctl.signal);
+      const current = (): boolean => abort.current === ctl && !ctl.signal.aborted;
+      setStatus('running');
+      setJob('complete');
+      setError(null);
+      setProg({ stage: '', done: 0, total: 0, etaSec: null });
+      let stageStart = { stage: '', at: Date.now() };
+      const progress = (stage: string, done: number, total: number): void => {
+        if (!current()) return;
+        const now = Date.now();
+        if (stage !== stageStart.stage) stageStart = { stage, at: now };
+        const rate = done / Math.max(0.001, (now - stageStart.at) / 1000);
+        setProg({ stage: `complete-${stage}`, done, total, etaSec: done > 0 && done < total ? (total - done) / rate : null });
+      };
+      const cb = tuning.completeBudget ?? (budget === 'full' ? COMPLETE_FULL : COMPLETE_QUICK);
+      const base = { fromLevel: shown.result.meta.level, toLevel, profile: options.profile, mobs: options.mobs, params: options.params, seed: options.seed };
+      completeBuilds(rows, base, cb, pool.runner.bind(pool) as unknown as (t: CompleteTask[], d: (r: CompleteResult) => void) => Promise<CompleteResult[]>, progress)
+        .then((done) => {
+          if (!current()) return;
+          const latest = savedRef.current;
+          if (!latest || latest.result !== shown.result) return;
+          const kept = (latest.completions ?? []).filter((c) => !done.some((d) => d.rank === c.rank));
+          persist({ ...latest, completions: [...kept, ...done].sort((a, b) => a.rank - b.rank) });
+          setStatus('done');
+        })
+        .catch((e: unknown) => failWith(ctl, e))
+        .finally(() => pool.close());
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [makePool, tuning.completeBudget, toLevel],
+  );
+
+  return { status, ...prog, error, saved, job, toLevel, run, complete, cancel };
 }
