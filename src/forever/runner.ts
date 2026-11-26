@@ -9,7 +9,7 @@ import { lifeTapWanted, needsBreak } from './policy';
 import { gcdMs, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec } from './stats';
 import type { DataRotation } from './rotation-spec';
 import type { Ranks } from './talents';
-import type { Params } from './types';
+import type { Params, StatDelta } from './types';
 
 export interface CellConfig {
   variant: BuildVariant;
@@ -22,6 +22,8 @@ export interface CellConfig {
   picks?: PicksOptions;
   /** A rotation given as data (build discovery); default: the variant's built-in rotation code. */
   rotation?: DataRotation;
+  /** Extra stats on top of the gear profile (equivalency points). */
+  statDelta?: StatDelta;
 }
 
 export interface RestInput {
@@ -107,7 +109,7 @@ export function killsPerHour(kills: number, totalSec: number): number {
 export function runSession(cfg: CellConfig, seed: number): SessionResult {
   const { variant, level, params } = cfg;
   const ranks = cfg.ranks ?? ranksAt(variant, level, cfg.picks);
-  const stats = playerStatsFor(level, cfg.profile, ranks);
+  const stats = playerStatsFor(level, cfg.profile, ranks, cfg.statDelta);
   const gcd = gcdMs(params.haste_pct, params);
   const ltRank = rankAt('life_tap', 'max', level);
   const out: SessionResult = {
@@ -117,7 +119,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   };
   let mana = stats.maxMana * params.rest_to_mana_pct;
   let hp = stats.maxHp * params.rest_to_hp_pct;
-  const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks, ...(cfg.rotation ? { rotation: cfg.rotation } : {}) };
+  const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks, statDelta: cfg.statDelta, ...(cfg.rotation ? { rotation: cfg.rotation } : {}) };
   const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
   let shCarryMs = 0;
   // Gnome Eureka!: cooldown and buff left, as they were when the last pull ended; the time since then is taken off at the next pull.

@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { runJob } from '../../../src/forever/web/api';
+import { runJob, type JobRequest } from '../../../src/forever/web/api';
+import { CUSTOM_STORAGE_KEY } from '../../../src/forever/web/custom';
 import type { JobRunner } from '../../../src/forever/web/client';
 import { ForeverApp } from '../../../src/ui/forever/ForeverApp';
 import { parseRoute, routeHref } from '../../../src/ui/shell/router';
@@ -21,6 +22,8 @@ describe('forever routes', () => {
     expect(parseRoute('#/forever/compare')).toEqual({ mode: 'forever', view: 'compare' });
     expect(parseRoute('#/forever/nope')).toEqual({ mode: 'forever', view: 'sim' });
     expect(routeHref({ mode: 'forever', view: 'builds' })).toBe('#/forever/builds');
+    expect(parseRoute('#/forever/ep')).toEqual({ mode: 'forever', view: 'ep' });
+    expect(routeHref({ mode: 'forever', view: 'ep' })).toBe('#/forever/ep');
   });
 });
 
@@ -148,5 +151,31 @@ describe('ForeverApp', () => {
     cleanup();
     render(<ForeverApp view="assumptions" runner={runner} />);
     expect(screen.getByRole('table', { name: 'Założenia do weryfikacji' })).toBeTruthy();
+  });
+});
+
+describe('ForeverApp EP tab', () => {
+  it('computes EP for the build of the Builds tab and shows its column', async () => {
+    render(<ForeverApp view="ep" runner={runner} />);
+    expect(screen.getByRole('button', { name: 'Uruchom (użyj Policz EP)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Policz EP' }));
+    const table = await screen.findByRole('table', { name: 'Wagi statów (EP)' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['stat', 'AFF_WRACK']);
+  });
+
+  it('hands a picked custom build to the job (the worker cannot read the browser storage)', async () => {
+    window.localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify({ builds: [{ name: 'Mój', picks: ['suppression', 'suppression'], rotation: 'affliction', filler: 'wrack', rank: 'max', pet: 'voidwalker', sacrificed: null }], active: 'Mój', included: [] }));
+    const seen: JobRequest[] = [];
+    const spy: JobRunner = (req, o) => {
+      seen.push(req);
+      return runner(req, o);
+    };
+    render(<ForeverApp view="ep" runner={spy} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: '★ Mój' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Policz EP' }));
+    await screen.findByRole('table', { name: 'Wagi statów (EP)' });
+    const req = seen[0];
+    expect(req?.kind).toBe('ep');
+    expect(req?.kind === 'ep' && req.custom?.map((c) => c.name)).toEqual(['Mój']);
   });
 });
