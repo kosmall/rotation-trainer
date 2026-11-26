@@ -27,7 +27,8 @@
     "forever:optimize": "tsx scripts/forever-optimize.ts",
     "forever:report": "tsx scripts/forever-report.ts",
     "forever:lifetap": "tsx scripts/forever-lifetap.ts",
-    "forever:scenarios": "tsx scripts/forever-scenarios.ts"
+    "forever:scenarios": "tsx scripts/forever-scenarios.ts",
+    "forever:wrack-study": "tsx scripts/forever-wrack-study.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "5.3.0",

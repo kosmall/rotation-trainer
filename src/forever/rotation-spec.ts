@@ -156,8 +156,9 @@ function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
     step('siphon_life', 'siphon_life', 'max', all(knows('siphon_life'), lacksDot('siphon_life'), longEnough));
     if (p.aff_use_immolate || v.immolate) step('immolate', 'immolate', 'max', all(knows('immolate'), lacksDot('immolate'), longEnough));
     finisher();
-    if (v.filler === 'wrack') step('filler_wrack', 'wrack', 'max', knows('wrack'), true);
-    else if (v.filler === 'drain_life') step('filler_wrack_single_mob', 'wrack', 'max', all(knows('wrack'), { op: 'mobs_in_pull_is', count: 1 }), true);
+    const wrackWhen = p.wrack_min_hp_pct > 0 ? all(knows('wrack'), { op: 'hp_pct_above', pct: p.wrack_min_hp_pct * 100 }) : knows('wrack');
+    if (v.filler === 'wrack') step('filler_wrack', 'wrack', 'max', wrackWhen, true);
+    else if (v.filler === 'drain_life') step('filler_wrack_single_mob', 'wrack', 'max', all(wrackWhen, { op: 'mobs_in_pull_is', count: 1 }), true);
     step('filler_drain_life', 'drain_life', 'max', knows('drain_life'), v.filler === 'drain_life');
     step('shadow_bolt', 'shadow_bolt', 'max', T);
     cheap();
@@ -265,7 +266,6 @@ export function rotationSpec(v: BuildVariant, p: Params): RotationSpec {
 /** What the conditions are evaluated against: the fight state of the rotation plus the player's mana, health and the Eureka! facts. */
 export interface SpecCtx extends RotationCtx {
   manaPct?: number;
-  hpPct?: number;
   cooldownReady?: (spell: string) => boolean;
   firstActionOfPull?: boolean;
   nextSpell?: string;

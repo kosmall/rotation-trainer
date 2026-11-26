@@ -54,6 +54,7 @@ function randomCtx(seed: number, variant: ReturnType<typeof loadVariant>, params
     drainSoulKillSec: () => drainKill,
     drainSoulExpected: () => 0,
     fillerExpected: () => 0,
+    hpPct: rng.next() * 100,
   };
 }
 
@@ -65,6 +66,7 @@ const PARAM_SETS: Partial<Params>[] = [
   { fire_filler: 'shadow_bolt_r1' },
   { use_drain_soul_finisher: false },
   { corruption_min_ttk_sec: 10 },
+  { wrack_min_hp_pct: 0.5 },
 ];
 
 describe('rotation spec equals the rotation code', () => {

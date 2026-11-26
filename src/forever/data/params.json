@@ -196,6 +196,10 @@
     "value": false,
     "source": "Affliction rotation: Immolate is optional (task)."
   },
+  "wrack_min_hp_pct": {
+    "value": 0,
+    "source": "Affliction rotation option (26 Nov 2026): Wrack is channelled only while the player's health is above this fraction; below it Drain Life is the filler (heals, so Life Tap can keep paying for the casts). 0 = always Wrack (the earlier behaviour)."
+  },
   "fire_filler": {
     "value": "searing_pain",
     "options": [

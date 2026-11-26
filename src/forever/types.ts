@@ -70,6 +70,7 @@ export interface Params {
   pet_initial_threat_per_level: number;
   corruption_min_ttk_sec: number;
   aff_use_immolate: boolean;
+  wrack_min_hp_pct: number;
   fire_filler: 'searing_pain' | 'shadow_bolt_r1';
   session_pulls: number;
   drain_dmg_mult: number;

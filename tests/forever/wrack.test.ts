@@ -3,6 +3,7 @@ import { loadVariant } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { simulatePull, type PullConfig } from '../../src/forever/fight';
 import { getSpell, rankAt } from '../../src/forever/spells';
+import { rotationFor, type RotationCtx } from '../../src/forever/rotations';
 import type { Params } from '../../src/forever/types';
 
 // Wrack, checked against:
@@ -163,5 +164,31 @@ describe('Wrack speeds up DoT ticks without shortening them', () => {
       return ticks / apps;
     };
     expect(perApp('AFF_WRACK')).toBeGreaterThan(perApp('AFF_DRAINTANK'));
+  });
+});
+
+describe('wrack_min_hp_pct: Wrack only above a health floor, Drain Life below', () => {
+  const ctx = (hpPct: number, over: Partial<Params>, id = 'AFF_WRACK', mobs = 1): RotationCtx => ({
+    params: loadParams(over), variant: loadVariant(id), mobsInPull: mobs, petAlive: true, hasShadowTrance: false, hpPct,
+    known: () => true, talentRank: () => 0, targetHasDot: () => true, targetDotRemainingMs: () => 10000, targetHasCurse: () => true,
+    targetBrandRemainingMs: () => 0, targetBrandCharges: () => 0, targetHp: () => 5000, estTtkSec: () => 20,
+    drainSoulKillSec: () => 99, drainSoulExpected: () => 0, fillerExpected: () => 0,
+  });
+  const first = (c: RotationCtx): string => rotationFor('affliction')(c)[0]!.spellId;
+  it('0 (default) keeps Wrack at any health', () => {
+    expect(first(ctx(5, {}))).toBe('wrack');
+  });
+  it('0.5: Drain Life at 40% health, Wrack at 60%', () => {
+    expect(first(ctx(40, { wrack_min_hp_pct: 0.5 }))).toBe('drain_life');
+    expect(first(ctx(60, { wrack_min_hp_pct: 0.5 }))).toBe('wrack');
+  });
+  it('applies to the single-mob Wrack of the Drain Life builds too', () => {
+    expect(first(ctx(40, { wrack_min_hp_pct: 0.5 }, 'DT_SS'))).toBe('drain_life');
+    expect(first(ctx(60, { wrack_min_hp_pct: 0.5 }, 'DT_SS'))).toBe('wrack');
+  });
+  it('in the fight, Drain Life shows up in an AFF_WRACK pull only with the floor set', () => {
+    const casts = (over: Partial<Params>): number => SEEDS.reduce((s, seed) => s + simulatePull(cfg('AFF_WRACK', 50, {}, over), seed).trace.filter((l) => l.includes('cast drain_life ')).length, 0);
+    expect(casts({})).toBe(0);
+    expect(casts({ wrack_min_hp_pct: 0.7 })).toBeGreaterThan(0);
   });
 });

@@ -538,7 +538,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   // ---- rotation context ---------------------------------------------------------------------
   const rotation = rotationFor(variant.rotation);
   const makeCtx = (m: Mob): RotationCtx => ({
-    params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance,
+    params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance, hpPct: (hp / maxHp) * 100,
     known, talentRank: (id) => rk(ranks, id),
     targetHasDot: (id) => m.dots.some((d) => d.id === id && dotActive(d)),
     targetDotRemainingMs: (id) => { const d = m.dots.find((x) => x.id === id && dotActive(x)); return d ? Math.max(0, d.expiresAt - t) : 0; },

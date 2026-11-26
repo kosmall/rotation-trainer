@@ -16,6 +16,8 @@ export interface RotationCtx {
   mobsInPull: number;
   petAlive: boolean;
   hasShadowTrance: boolean;
+  /** Player health, percent of maximum (the fight always sets it; random test states may leave it out). */
+  hpPct?: number;
   /** Spell learned at this level and, for talent spells, taken. */
   known(spellId: string): boolean;
   talentRank(id: string): number;
@@ -78,7 +80,8 @@ export function affliction(ctx: RotationCtx): Candidate[] {
   if ((ctx.params.aff_use_immolate || ctx.variant.immolate) && ctx.known('immolate') && !ctx.targetHasDot('immolate') && longEnough) out.push({ spellId: 'immolate', rankWant: 'max' });
   out.push(...drainSoulFinisher(ctx));
   const filler = ctx.variant.filler;
-  const wrackOk = ctx.known('wrack');
+  const hpFloor = ctx.params.wrack_min_hp_pct;
+  const wrackOk = ctx.known('wrack') && (hpFloor <= 0 || (ctx.hpPct ?? 0) > hpFloor * 100);
   if (filler === 'wrack' && wrackOk) out.push({ spellId: 'wrack', rankWant: 'max' });
   if (filler === 'drain_life') {
     if (wrackOk && ctx.mobsInPull === 1) out.push({ spellId: 'wrack', rankWant: 'max' });
