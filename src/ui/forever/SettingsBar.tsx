@@ -5,7 +5,7 @@ import type { ForeverRun } from './useForeverRun';
 const PROFILE_LABEL: Record<string, string> = { quest: 'questowy', average: 'przeciętny', good: 'dobry' };
 
 /** The one main setting (the character's level) plus collapsed advanced options and the Run button. */
-export function SettingsBar({ settings, onChange, run, onRun, runLabel = 'Uruchom symulację' }: { settings: Settings; onChange(s: Settings): void; run: ForeverRun; onRun(): void; runLabel?: string }) {
+export function SettingsBar({ settings, hasGear = false, onChange, run, onRun, runLabel = 'Uruchom symulację' }: { settings: Settings; hasGear?: boolean; onChange(s: Settings): void; run: ForeverRun; onRun(): void; runLabel?: string }) {
   const set = (patch: Partial<Settings>) => onChange({ ...settings, ...patch });
   const running = run.status === 'running';
   return (
@@ -47,6 +47,7 @@ export function SettingsBar({ settings, onChange, run, onRun, runLabel = 'Urucho
                   {PROFILE_LABEL[p] ?? p}
                 </option>
               ))}
+              {hasGear && <option value="mine">mój sprzęt (zaimportowany)</option>}
             </select>
           </label>
           <label>

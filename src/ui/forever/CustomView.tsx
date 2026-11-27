@@ -4,6 +4,8 @@ import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '.
 import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
 import { FILLER_NAME, FILLERS as GENE_FILLERS, MIN_TTKS, type RotationGenes } from '../../forever/rotation-genes';
 import { isAddonExport, parseAddonExport } from '../../forever/web/addon-import';
+import { fetchGear, gearIdsOf, type MyGear } from '../../forever/web/gear';
+import { GearList } from './GearList';
 import { paramsOf, type RankingResult, type Settings } from '../../forever/web/api';
 import { FILLER_NAMES, PET_NAMES, TITLES } from './buildFacts';
 import { RotationFlow } from './RotationsView';
@@ -12,9 +14,10 @@ import { TalentTrees } from './TalentTrees';
 import type { ForeverRun } from './useForeverRun';
 
 /** Where the player builds their own talent order and picks a rotation template; the build joins the simulations. */
-export function CustomView({ state, onChange, settings, run, ranking, onRun }: { state: CustomState; onChange(s: CustomState): void; settings: Settings; run: ForeverRun; ranking: RankingResult | undefined; onRun(): void }) {
+export function CustomView({ state, onChange, settings, run, ranking, onRun, gear, onGear, itemFetcher }: { state: CustomState; onChange(s: CustomState): void; settings: Settings; run: ForeverRun; ranking: RankingResult | undefined; onRun(): void; gear: MyGear | null; onGear(g: MyGear | null): void; itemFetcher: (id: number) => Promise<unknown> }) {
   const [message, setMessage] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
   const [io, setIo] = useState('');
   const [fromBuiltIn, setFromBuiltIn] = useState(VARIANT_IDS[0] as string);
 
@@ -285,6 +288,13 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
                 const { build: b, points, gameLevel } = parseAddonExport(raw);
                 add({ ...b, name: uniqueName(b.name, names) });
                 setInfo(`Zaimportowano ${points} punktów${gameLevel === null ? '' : ` (level w grze ${gameLevel})`}. Kolejność punktów jest ustalona z góry drzewa, popraw ją strzałkami, jeśli trzeba.`);
+                const ids = gearIdsOf(raw);
+                if (ids) {
+                  setFetching(true);
+                  fetchGear(ids, itemFetcher)
+                    .then(onGear)
+                    .finally(() => setFetching(false));
+                }
               } else {
                 const b = parseBuild(raw);
                 add({ ...b, name: uniqueName(b.name, names) });
@@ -300,6 +310,12 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
           Importuj jako nowy
         </button>
       </div>
+      {fetching && (
+        <p role="status" className="fv-note">
+          Pobieram staty itemów z Wowhead…
+        </p>
+      )}
+      {gear && <GearList gear={gear} onRemove={() => onGear(null)} />}
     </>
   );
 }

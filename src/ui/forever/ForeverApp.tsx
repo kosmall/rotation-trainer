@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_SETTINGS, normalizeSettings, paramsOf, type DuelOutcome, type EpOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
+import { DEFAULT_SETTINGS, MY_GEAR, normalizeSettings, paramsOf, type DuelOutcome, type EpOutcome, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
+import type { JobRequest } from '../../forever/web/api';
 import type { JobRunner } from '../../forever/web/client';
 import { customVariant, VARIANT_IDS } from '../../forever/builds';
+import { loadGear, saveGear, totalsOf, wowheadFetcher, type MyGear } from '../../forever/web/gear';
 import { customId, loadCustom, saveCustom, type CustomState } from '../../forever/web/custom';
 import { CustomView } from './CustomView';
 import { FOREVER_VIEWS, FOREVER_VIEW_TITLES, routeHref, type ForeverView } from '../shell/router';
@@ -37,7 +39,7 @@ function loadSettings(): Settings {
 }
 
 /** The WoW Forever simulator: settings (character level), run, and the results/builds/rotations/compare views. */
-export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { view: ForeverView; runner?: JobRunner; discoverPool?: PoolFactory; discoverTuning?: DiscoverTuning }) {
+export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFetcher = wowheadFetcher }: { view: ForeverView; runner?: JobRunner; discoverPool?: PoolFactory; discoverTuning?: DiscoverTuning; itemFetcher?: (id: number) => Promise<unknown> }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [buildId, setBuildId] = useState(VARIANT_IDS[0] as string);
   // the Rotations tab keeps its own choice; the button in the Builds tab sets it
@@ -48,6 +50,9 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { vie
   const discovery = useDiscover(discoverPool, discoverTuning);
   const [custom, setCustom] = useState<CustomState>(() => loadCustom(storage()));
   useEffect(() => saveCustom(storage(), custom), [custom]);
+  const [gear, setGear] = useState<MyGear | null>(() => loadGear(storage()));
+  useEffect(() => saveGear(storage(), gear), [gear]);
+  const gearTotals = useMemo(() => (gear ? totalsOf(gear) : undefined), [gear]);
   // Builds the views can show by id (the registry makes `loadVariant` know them); an illegal build is left out.
   const customData = useMemo(
     () =>
@@ -71,9 +76,12 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { vie
     }
   }, [settings]);
 
-  const s = normalizeSettings(settings);
-  const simParams = useMemo(() => paramsOf(normalizeSettings(settings)), [settings]);
-  const runRanking = useCallback(() => run.run({ kind: 'ranking', settings: s, custom: includedData }), [run, s, includedData]);
+  // "mój sprzęt" without items (removed) falls back to the average profile
+  const normalized = normalizeSettings(settings);
+  const s = normalized.profile === MY_GEAR && !gear ? { ...normalized, profile: 'average' } : normalized;
+  const go = useCallback((req: JobRequest) => run.run(s.profile === MY_GEAR && gearTotals ? { ...req, gear: gearTotals } : req), [run, s.profile, gearTotals]);
+  const simParams = useMemo(() => paramsOf(normalizeSettings(settings), gearTotals), [settings, gearTotals]);
+  const runRanking = useCallback(() => go({ kind: 'ranking', settings: s, custom: includedData }), [go, s, includedData]);
   const ranking = run.results.ranking as RankingResult | undefined;
   const sweep = run.results.sweep as SweepResult | undefined;
   const duel = run.results.duel as DuelOutcome | undefined;
@@ -89,7 +97,7 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { vie
           </a>
         ))}
       </nav>
-      <SettingsBar settings={s} onChange={setSettings} run={run} onRun={view === 'compare' || view === 'custom' || view === 'ep' || view === 'discover' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : view === 'custom' ? 'Uruchom (użyj Sprawdź)' : view === 'ep' ? 'Uruchom (użyj Policz EP)' : view === 'discover' ? 'Uruchom (użyj Szukaj)' : 'Uruchom symulację'} />
+      <SettingsBar settings={s} hasGear={gear !== null} onChange={setSettings} run={run} onRun={view === 'compare' || view === 'custom' || view === 'ep' || view === 'discover' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : view === 'custom' ? 'Uruchom (użyj Sprawdź)' : view === 'ep' ? 'Uruchom (użyj Policz EP)' : view === 'discover' ? 'Uruchom (użyj Szukaj)' : 'Uruchom symulację'} />
       {view === 'sim' && customData.length > 0 && (
         <fieldset className="fv-panel">
           <legend>Własne buildy w rankingu</legend>
@@ -105,25 +113,28 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { vie
           ))}
         </fieldset>
       )}
-      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => run.run({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
+      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => go({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
       {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} onOpenRotation={setRotationId} />}
       {view === 'rotations' && <RotationsView ids={allIds} params={simParams} id={rotationId} onIdChange={setRotationId} />}
-      {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
+      {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => go({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
       {view === 'discover' && (
         <DiscoverView settings={s} discovery={discovery} existingNames={custom.builds.map((b) => b.name)} onSave={(b) => setCustom({ ...custom, builds: [...custom.builds, b], active: b.name })} />
       )}
-      {view === 'ep' && <EpView settings={s} run={run} outcome={ep} ids={allIds} initial={buildId} onRun={(builds) => run.run({ kind: 'ep', settings: s, builds, custom: customData.filter((c) => builds.includes(customId(c.name))) })} />}
+      {view === 'ep' && <EpView settings={s} run={run} outcome={ep} ids={allIds} initial={buildId} onRun={(builds) => go({ kind: 'ep', settings: s, builds, custom: customData.filter((c) => builds.includes(customId(c.name))) })} />}
       {view === 'custom' && (
         <CustomView
           state={custom}
           onChange={setCustom}
           settings={s}
           run={run}
+          gear={gear}
+          onGear={setGear}
+          itemFetcher={itemFetcher}
           ranking={ranking}
           onRun={() => {
             const active = customData.find((b) => b.name === custom.active);
             const list = [...includedData, ...(active && !includedData.includes(active) ? [active] : [])];
-            run.run({ kind: 'ranking', settings: s, custom: list });
+            go({ kind: 'ranking', settings: s, custom: list });
           }}
         />
       )}
