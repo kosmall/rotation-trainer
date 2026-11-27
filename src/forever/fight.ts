@@ -221,8 +221,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const spEff = (spellId?: string): number => stats.spellPower + demonicKnowledgeSp(level, ranks, petAlive) + (spellId !== undefined && getSpell(spellId).school === 'shadow' ? params.shadow_spell_power_bonus : 0);
   const mults = () => schoolMults(ranks, demons, petAlive);
 
+  /** Curse of the Elements raises all magic damage the target takes, the demon's too. */
+  const curseMult = (m: Mob): number => (t < m.curseUntil ? 1 + m.curseVal : 1);
   const targetMult = (m: Mob, school: 'shadow' | 'fire'): number => {
-    let x = t < m.curseUntil ? 1 + m.curseVal : 1;
+    let x = curseMult(m);
     if (school === 'shadow' && t < m.vulnUntil) x *= 1 + effectNum('improved_shadow_bolt', 'shadowTakenPerRank') * rk(ranks, 'improved_shadow_bolt');
     return x;
   };
@@ -423,7 +425,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (m.brandCharges > 0 && t < m.brandUntil) {
       m.brandCharges--;
       res.brandHits++;
-      const d = brandDamage(level, spEff(), rk(ranks, 'demonic_brand'), params) * petTalentMult * (petKind ? petMd(brandSchool(petKind)) : 1);
+      const d = brandDamage(level, spEff(), rk(ranks, 'demonic_brand'), params) * petTalentMult * (petKind ? petMd(brandSchool(petKind)) : 1) * curseMult(m);
       log(t, `pet brand ${d.toFixed(3)}`);
       dealToMob(m, d, false, 1);
     }
@@ -653,7 +655,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       if (fr && pet.mana >= fr.mana) {
         pet.mana -= fr.mana;
         if (rng.next() < params.pet_hit_chance) {
-          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * petMd('fire') * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp'));
+          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * petMd('fire') * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp')) * curseMult(m);
           log(t, `pet firebolt ${d.toFixed(3)}`);
           dealToMob(m, d, false, 1);
           if (m.alive) brandHit(m);
@@ -679,7 +681,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const lr = petRank(pd.lashRanks);
     if (lr && pet.mana >= lr.mana) {
       pet.mana -= lr.mana;
-      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad'));
+      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * curseMult(m);
       log(t, `pet lash ${d.toFixed(3)}`);
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);

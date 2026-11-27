@@ -60,6 +60,9 @@ HP; Wrack is a 6 s channel of 60 per tick, not a 2 s cast; Fel Concentration 23%
   Demonologist also raises the demon's own spells (spells 23759/23761: Imp Fire, Succubus Shadow).
 - Demonic Sacrifice (Wowhead Forever spell 18788, read 26 Nov): Imp +15% Shadow, Voidwalker 2%
   mana per 4 s, Succubus +15% Fire, Felhunter 3% health per 4 s. Confirmed; it differs from Classic.
+- Curse of the Elements: until 27 Nov only rank 1 (+4%) was in the data. **Used: Wowhead Forever
+  ranks 4/6/8/10% for 50/100/150/200 mana at levels 20/30/40/50**; it raises the demon's magic
+  damage too (not its melee).
 - Pet critical strikes are **not modelled** (the 25 Nov hotfix fixed pet melee crit, so pets do
   crit); no chance found. Demonology results are a little low because of it.
 - Life Tap: wiki "30 health -> 30 mana" at rank 1; guide summary "cost = base + Spirit, 1.2 mana

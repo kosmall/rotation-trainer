@@ -33,7 +33,8 @@ describe('stat delta in player stats', () => {
 });
 
 describe('stat delta in a cell', () => {
-  const cfg = { variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: loadParams({ session_pulls: 8 }) };
+  // Curse of the Elements off: its mana makes AFF_WRACK die now and then, and one death outweighs 40 spell power in a sample this small.
+  const cfg = { variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: loadParams({ session_pulls: 8, use_curse_of_elements: false }) };
   it('an empty delta gives identical metrics, spell power shortens the kill', () => {
     const none = runCell(cfg, 12, 1).metrics;
     expect(runCell({ ...cfg, statDelta: {} }, 12, 1).metrics).toEqual(none);

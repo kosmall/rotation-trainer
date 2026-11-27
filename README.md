@@ -91,6 +91,11 @@ npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out re
 npm run forever:ep -- --all --levels 50                                                            # wszystkie buildy
 ```
 
+**Buildy `_NOCOE`** (`AFF_DRAINTANK_NOCOE`, `DT_SS_NOCOE`, `DT_SS_WRACK_70_NOCOE`, `DT_SS_WRACK_50_NOCOE`,
+`DEMO_PACT_R1_NOCOE`, `DEMO_PACT_VIDEO_NOCOE`) to te same talenty, pety i rotacja co bez przyrostka, tylko bez Curse
+of the Elements (pole `"coe": false` w `builds.json`). Rangi klątwy: +4/6/8/10% za 50/100/150/200 many od levelu
+20/30/40/50 (Wowhead Forever); klątwa wzmacnia też magiczne obrażenia peta.
+
 Jak to liczy: build to **kolejność 51 punktów** (level 10 = punkt 1); na levelu L ma pierwsze `L - 9`
 punktów (opcjonalny perk `talented_legacy_perk` dodaje punkty, `respec_level` przełącza buildy DEMO z
 `pre_respec_build`). **Level jest parametrem symulacji.** Sesja to kilka pulli pod rząd (mana i HP

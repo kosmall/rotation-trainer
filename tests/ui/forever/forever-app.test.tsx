@@ -33,7 +33,7 @@ describe('ForeverApp', () => {
     fireEvent.change(screen.getByLabelText('Level postaci (liczba)'), { target: { value: '45' } });
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
     const table = await screen.findByRole('table', { name: 'Ranking buildów' });
-    expect(table.querySelectorAll('tbody tr')).toHaveLength(16);
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(22);
     expect(screen.getByText(/Level 45/)).toBeTruthy();
     expect(screen.getByText('najlepszy')).toBeTruthy();
   });

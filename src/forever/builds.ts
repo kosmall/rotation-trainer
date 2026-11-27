@@ -15,6 +15,8 @@ export interface BuildVariant {
   immolate?: boolean;
   /** Affliction: Wrack only while the player's health is above this fraction, Drain Life below (overrides the parameter `wrack_min_hp_pct`). */
   wrack_min_hp_pct?: number;
+  /** false: the build never casts Curse of the Elements (overrides the parameter `use_curse_of_elements`). */
+  coe?: boolean;
   /** The demon by level and pull size: the first rule that applies wins over `pet`. */
   pet_rules?: PetRule[];
   pre_respec_build: string | null;
@@ -193,6 +195,7 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
     respec_level: Number(obj.respec_level ?? 40),
     ...(typeof obj.wrack_min_hp_pct === 'number' ? { wrack_min_hp_pct: obj.wrack_min_hp_pct } : {}),
     ...(genes ? { genes } : {}),
+    ...(obj.coe === false ? { coe: false } : {}),
     ...(Array.isArray(obj.pet_rules) ? { pet_rules: obj.pet_rules as PetRule[] } : {}),
   };
 }

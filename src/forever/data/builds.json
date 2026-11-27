@@ -661,6 +661,18 @@
    "respec_level": 40
   },
   {
+   "id": "AFF_DRAINTANK_NOCOE",
+   "order": "AFF_DRAINTANK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "drain_life",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "coe": false
+  },
+  {
    "id": "AFF_DRAINTANK_IMMO",
    "order": "AFF_DRAINTANK",
    "pet": "voidwalker",
@@ -682,6 +694,18 @@
    "rank": "max",
    "pre_respec_build": null,
    "respec_level": 40
+  },
+  {
+   "id": "DT_SS_NOCOE",
+   "order": "DT_SS",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "drain_life",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "coe": false
   },
   {
    "id": "DT_SS_IMMO",
@@ -708,6 +732,19 @@
    "wrack_min_hp_pct": 0.7
   },
   {
+   "id": "DT_SS_WRACK_70_NOCOE",
+   "order": "DT_SS_WRACK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "wrack",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "wrack_min_hp_pct": 0.7,
+   "coe": false
+  },
+  {
    "id": "DT_SS_WRACK_50",
    "order": "DT_SS_WRACK",
    "pet": "voidwalker",
@@ -718,6 +755,19 @@
    "pre_respec_build": null,
    "respec_level": 40,
    "wrack_min_hp_pct": 0.5
+  },
+  {
+   "id": "DT_SS_WRACK_50_NOCOE",
+   "order": "DT_SS_WRACK",
+   "pet": "voidwalker",
+   "sacrificed": null,
+   "rotation": "affliction",
+   "filler": "wrack",
+   "rank": "max",
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "wrack_min_hp_pct": 0.5,
+   "coe": false
   },
   {
    "id": "DT_SS_WRACK_50_PET",
@@ -749,6 +799,18 @@
    "rank": 1,
    "pre_respec_build": null,
    "respec_level": 40
+  },
+  {
+   "id": "DEMO_PACT_R1_NOCOE",
+   "order": "DEMO_PACT_BANE2",
+   "pet": "succubus",
+   "sacrificed": "imp",
+   "rotation": "demonology",
+   "filler": "shadow_bolt",
+   "rank": 1,
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "coe": false
   },
   {
    "id": "DEMO_PACT_R1_PET",
@@ -783,6 +845,18 @@
    "rank": 1,
    "pre_respec_build": null,
    "respec_level": 40
+  },
+  {
+   "id": "DEMO_PACT_VIDEO_NOCOE",
+   "order": "DEMO_PACT_BANE5",
+   "pet": "succubus",
+   "sacrificed": "imp",
+   "rotation": "demonology",
+   "filler": "shadow_bolt",
+   "rank": 1,
+   "pre_respec_build": null,
+   "respec_level": 40,
+   "coe": false
   },
   {
    "id": "DEMO_PACT_R2",

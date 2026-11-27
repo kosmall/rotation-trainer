@@ -63,7 +63,7 @@ function brandRefresh(ctx: RotationCtx): Candidate[] {
 function dotsCommon(ctx: RotationCtx, withAgony: boolean): Candidate[] {
   const out: Candidate[] = [];
   const longEnough = ctx.estTtkSec() >= ctx.params.corruption_min_ttk_sec;
-  if (ctx.params.use_curse_of_elements && !skipLongDots(ctx) && !ctx.targetHasCurse() && ctx.known('curse_of_elements') && longEnough)
+  if (ctx.params.use_curse_of_elements && ctx.variant.coe !== false && !skipLongDots(ctx) && !ctx.targetHasCurse() && ctx.known('curse_of_elements') && longEnough)
     out.push({ spellId: 'curse_of_elements', rankWant: 'max' });
   if (withAgony && !skipLongDots(ctx) && !ctx.targetHasDot('bane_of_agony') && ctx.known('bane_of_agony') && longEnough)
     out.push({ spellId: 'bane_of_agony', rankWant: 'max' });

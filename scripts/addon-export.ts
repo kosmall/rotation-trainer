@@ -38,7 +38,7 @@ const SPELL_IDS: Record<string, number[]> = {
   drain_soul: [1120, 8288, 8289, 11675],
   siphon_life: [18265, 18879, 18880, 18881],
   life_tap: [1454, 1455, 1456, 11687, 11688, 11689],
-  curse_of_elements: [440892],
+  curse_of_elements: [440892, 1311676, 1311677, 1311680],
   wrack: [],
   eureka: [1259821],
 };

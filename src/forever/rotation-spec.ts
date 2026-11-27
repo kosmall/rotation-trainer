@@ -130,7 +130,7 @@ function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
       all({ op: 'talent_rank_at_least', id: 'demonic_brand', rank: 1 }, { op: 'pet_alive' }, knows('searing_pain'), { op: 'brand_needs_refresh', marginSec: BRAND_MARGIN_SEC }),
     );
   const dots = (withAgony: boolean): void => {
-    if (p.use_curse_of_elements) step('curse_of_elements', 'curse_of_elements', 'max', all(skip, not({ op: 'target_has_curse' }), knows('curse_of_elements'), longEnough));
+    if (p.use_curse_of_elements && v.coe !== false) step('curse_of_elements', 'curse_of_elements', 'max', all(skip, not({ op: 'target_has_curse' }), knows('curse_of_elements'), longEnough));
     if (withAgony) step('bane_of_agony', 'bane_of_agony', 'max', all(skip, lacksDot('bane_of_agony'), knows('bane_of_agony'), longEnough));
     step('corruption', 'corruption', 'max', all(lacksDot('corruption'), knows('corruption'), longEnough));
   };

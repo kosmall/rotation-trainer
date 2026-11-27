@@ -580,14 +580,31 @@
    "onGcd": true,
    "baseCastMs": 0,
    "durationMs": 300000,
-   "source": "warcraft.wiki.gg Curse_of_the_Elements (Forever): 4 ranks, level 20, 50 mana, instant, 5 min; rank 1 reduces Magic resistances by 30 and increases Magic damage taken by 4%. Ranks 2-4 NOT found (Wowhead ids unknown).",
-   "verify": true,
+   "source": "Wowhead Forever spells 440892, 1311676, 1311677, 1311680 (https://www.wowhead.com/forever/spell=<id>, read 27 Nov 2026): instant, 5 min, one curse per warlock; Magic damage taken +4/6/8/10% for 50/100/150/200 mana at levels 20/30/40/50. The resistance reduction is not modelled (mobs have no resistance here).",
    "ranks": [
     {
      "rank": 1,
      "level": 20,
      "mana": 50,
      "damageTaken": 0.04
+    },
+    {
+     "rank": 2,
+     "level": 30,
+     "mana": 100,
+     "damageTaken": 0.06
+    },
+    {
+     "rank": 3,
+     "level": 40,
+     "mana": 150,
+     "damageTaken": 0.08
+    },
+    {
+     "rank": 4,
+     "level": 50,
+     "mana": 200,
+     "damageTaken": 0.1
     }
    ]
   }
