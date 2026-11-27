@@ -1,8 +1,14 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { GEAR_STORAGE_KEY, fetchGear, gearIdsOf, loadGear, parseTooltip, saveGear, totalsOf, type MyGear } from '../../src/forever/web/gear';
-
-const fx = (id: number): unknown => JSON.parse(readFileSync(`tests/forever/fixtures/items/${id}.json`, 'utf8'));
+import i253981 from './fixtures/items/253981.json';
+import i7057 from './fixtures/items/7057.json';
+import i5246 from './fixtures/items/5246.json';
+import i280766 from './fixtures/items/280766.json';
+import i271096 from './fixtures/items/271096.json';
+import i271670 from './fixtures/items/271670.json';
+import i4505 from './fixtures/items/4505.json';
+const FIXTURES: Record<number, unknown> = { 253981: i253981, 7057: i7057, 5246: i5246, 280766: i280766, 271096: i271096, 271670: i271670, 4505: i4505 };
+const fx = (id: number): unknown => FIXTURES[id] ?? { error: 'Entity not found' };
 const PAYLOAD = { class: 'warlock', gear: { items: [{ id: 253981 }, { id: 281321 }, { id: 7057 }, null, null, { id: 271096 }, null, null, { id: 4505 }, null, { id: 271670 }, null, { id: 280766 }, null, null, null, { id: 5246 }] } };
 
 describe('item tooltips', () => {
