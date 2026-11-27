@@ -117,7 +117,8 @@ export function loadGear(storage: Store | null): MyGear | null {
     if (!raw) return null;
     const o = JSON.parse(raw) as { items?: unknown };
     if (!Array.isArray(o.items)) return null;
-    const items = o.items.filter((i): i is GearItem => !!i && typeof i.id === 'number' && SLOTS.includes(i.slot) && !!i.stats);
+    const okStats = (x: unknown): boolean => !!x && typeof x === 'object' && (Object.keys(ZERO) as (keyof ItemStats)[]).every((k) => Number.isFinite((x as Record<string, unknown>)[k]));
+    const items = o.items.filter((i): i is GearItem => !!i && typeof i.id === 'number' && SLOTS.includes(i.slot) && okStats(i.stats) && Array.isArray(i.unmodelled) && i.unmodelled.every((u: unknown) => typeof u === 'string'));
     return items.length > 0 ? { items } : null;
   } catch {
     return null;

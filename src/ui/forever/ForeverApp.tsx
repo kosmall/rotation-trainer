@@ -117,8 +117,9 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFet
       {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} onOpenRotation={setRotationId} />}
       {view === 'rotations' && <RotationsView ids={allIds} params={simParams} id={rotationId} onIdChange={setRotationId} />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => go({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
+      {view === 'discover' && s.profile === MY_GEAR && <p className="fv-note">Szukaj nie używa mojego sprzętu (liczy na profilu „przeciętny”): wyszukiwanie działa w osobnych workerach bez Twoich itemów.</p>}
       {view === 'discover' && (
-        <DiscoverView settings={s} discovery={discovery} existingNames={custom.builds.map((b) => b.name)} onSave={(b) => setCustom({ ...custom, builds: [...custom.builds, b], active: b.name })} />
+        <DiscoverView settings={s.profile === MY_GEAR ? { ...s, profile: 'average' } : s} discovery={discovery} existingNames={custom.builds.map((b) => b.name)} onSave={(b) => setCustom({ ...custom, builds: [...custom.builds, b], active: b.name })} />
       )}
       {view === 'ep' && <EpView settings={s} run={run} outcome={ep} ids={allIds} initial={buildId} onRun={(builds) => go({ kind: 'ep', settings: s, builds, custom: customData.filter((c) => builds.includes(customId(c.name))) })} />}
       {view === 'custom' && (

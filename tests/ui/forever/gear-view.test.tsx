@@ -82,4 +82,31 @@ describe('my gear', () => {
     await screen.findByRole('table', { name: 'Moje itemy' });
     expect(options()).toContain('mine');
   });
+
+  it('a removal while items are still being fetched is not undone by the late answer', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const slow = async (id: number) => {
+      await gate;
+      return fetcher(id);
+    };
+    render(<ForeverApp view="custom" runner={runner} itemFetcher={slow} />);
+    await importPayload();
+    await screen.findByText(/Pobieram staty itemów/);
+    fireEvent.click(screen.getByRole('button', { name: 'Zrezygnuj z pobierania' }));
+    release();
+    await waitFor(() => expect(screen.queryByText(/Pobieram staty itemów/)).toBeNull());
+    expect(screen.queryByRole('table', { name: 'Moje itemy' })).toBeNull();
+    expect(options()).toEqual(['quest', 'average', 'good']);
+  });
+
+  it('the search tab does not use my gear and says so', async () => {
+    render(<ForeverApp view="custom" runner={runner} itemFetcher={fetcher} />);
+    await importPayload();
+    await screen.findByRole('table', { name: 'Moje itemy' });
+    fireEvent.change(screen.getByLabelText('Sprzęt'), { target: { value: 'mine' } });
+    cleanup();
+    render(<ForeverApp view="discover" runner={runner} itemFetcher={fetcher} />);
+    expect((await screen.findByText(/Szukaj nie używa mojego sprzętu/)).textContent).toMatch(/przeciętny/);
+  });
 });

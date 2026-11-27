@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
 import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
@@ -18,6 +18,8 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
   const [message, setMessage] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
+  // numbers the item imports; an answer that is not the newest (or came after a removal) is dropped
+  const fetchSeq = useRef(0);
   const [io, setIo] = useState('');
   const [fromBuiltIn, setFromBuiltIn] = useState(VARIANT_IDS[0] as string);
 
@@ -290,10 +292,11 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
                 setInfo(`Zaimportowano ${points} punktów${gameLevel === null ? '' : ` (level w grze ${gameLevel})`}. Kolejność punktów jest ustalona z góry drzewa, popraw ją strzałkami, jeśli trzeba.`);
                 const ids = gearIdsOf(raw);
                 if (ids) {
+                  const mine = ++fetchSeq.current;
                   setFetching(true);
                   fetchGear(ids, itemFetcher)
-                    .then(onGear)
-                    .finally(() => setFetching(false));
+                    .then((g) => fetchSeq.current === mine && onGear(g))
+                    .finally(() => fetchSeq.current === mine && setFetching(false));
                 }
               } else {
                 const b = parseBuild(raw);
@@ -312,10 +315,29 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
       </div>
       {fetching && (
         <p role="status" className="fv-note">
-          Pobieram staty itemów z Wowhead…
+          Pobieram staty itemów z Wowhead…{' '}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              fetchSeq.current++;
+              setFetching(false);
+            }}
+          >
+            Zrezygnuj z pobierania
+          </button>
         </p>
       )}
-      {gear && <GearList gear={gear} onRemove={() => onGear(null)} />}
+      {gear && (
+        <GearList
+          gear={gear}
+          onRemove={() => {
+            fetchSeq.current++;
+            setFetching(false);
+            onGear(null);
+          }}
+        />
+      )}
     </>
   );
 }

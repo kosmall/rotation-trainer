@@ -71,5 +71,8 @@ describe('gear', () => {
     expect(loadGear(st)).toBeNull();
     saveGear(st, null);
     expect(loadGear(st)).toBeNull();
+    // an item without numeric stats or without the effects list is dropped, not carried as NaN
+    st.setItem(GEAR_STORAGE_KEY, JSON.stringify({ items: [{ id: 1, slot: 'head', name: 'x', stats: { stamina: 'a' }, unmodelled: [] }, { id: 2, slot: 'neck', name: 'y', stats: gear.items[0]!.stats }] }));
+    expect(loadGear(st)).toBeNull();
   });
 });
