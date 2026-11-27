@@ -1,3 +1,5 @@
+> **Uwaga (27 XI 2026): ten raport jest nieaktualny.** Liczby i wnioski poniżej pochodzą z 26 XI, z modelu, w którym demon zaczynał każdy pull z pełnym HP i maną. Od 27 XI HP i mana peta są przenoszone między pullami, reguła Succubusa na 20-29 została usunięta (patrz `builds.json`). Aktualne tabele są w sekcji na końcu. Wnioski z 26 XI o Succubusie nie obowiązują. Wnioski o AFF_WRACK zmieniły się wyraźnie (poziom 40: 91 → 77 kph w nowych tabelach); DT_SS prawie bez zmian.
+
 # Wrack: weryfikacja implementacji i porównanie AFF_WRACK z DT_SS
 
 Data: 26 XI 2026. Tabele odtwarza `npm run forever:wrack-study` (120 sesji na komórkę, duele po 200 sesji, 95% CI z par).
@@ -269,3 +271,232 @@ Gear good, 1 mob: +1.1 / -0.2 / -0.4 / +0.2 / +1.1.
 - **Próg 50% wygrywa tylko na poziomach ok. 48–54,** i to o ok. 1 kph.
 - **Próg 70% wygrywa na pozostałych poziomach.** Na 56–60 przewaga przy 2–3 mobach to 4–11 kph. Przy progu 50% na tych poziomach przerw na jedzenie jest 2–3 razy więcej (3–12 na godzinę wobec 1–7), bo Life Tap zjada więcej HP, niż Drain Life zdąży odbudować.
 - **Rekomendacja:** DT_SS_WRACK_70 jako domyślny. DT_SS_WRACK_50 daje mały zysk tylko w środku zakresu poziomów.
+
+
+## Aktualizacja 27 XI 2026: tabele po przeniesieniu HP i many peta
+
+Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
+
+### 1 mob, average, domyślne parametry
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 76.5 (30.7, 18) | 110.0 (19.2, 32) | 105.5 (19.0, 30) | 111.0 (17.6, 29) | 108.2 (17.9, 24) |
+| W_DL | 103.3 (23.3, 15) | 111.3 (22.4, 12) | 113.5 (21.3, 12) | 120.4 (20.7, 6) | 119.6 (21.0, 4) |
+| DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 108.2 (18.1, 24) |
+| DW_WRACK | 95.5 (23.6, 21) | 117.4 (18.4, 27) | 109.8 (19.2, 25) | 114.8 (17.3, 26) | 108.2 (18.1, 24) |
+
+### 1 mob, quest
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 62.1 (38.9, 17) | 93.0 (24.2, 29) | 85.6 (24.8, 25) | 97.0 (20.8, 28) | 96.5 (20.6, 25) |
+| W_DL | 85.4 (28.8, 16) | 96.8 (26.3, 15) | 99.2 (25.3, 12) | 106.1 (23.9, 9) | 106.6 (23.9, 7) |
+| DT_SS | 109.7 (24.3, 2) | 108.3 (25.3, 0) | 119.2 (22.2, 0) | 117.1 (22.5, 1) | 92.0 (22.1, 23) |
+| DW_WRACK | 89.7 (25.3, 25) | 98.2 (24.4, 24) | 92.4 (23.4, 23) | 98.0 (21.4, 24) | 92.0 (22.1, 23) |
+
+### 1 mob, good
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 106.9 (19.1, 26) | 121.8 (16.5, 29) | 121.7 (15.9, 27) | 123.4 (15.4, 25) | 122.3 (15.3, 22) |
+| W_DL | 114.7 (20.7, 11) | 123.0 (19.9, 8) | 126.4 (18.8, 9) | 133.8 (18.5, 2) | 132.4 (18.8, 2) |
+| DT_SS | 124.7 (20.9, 0) | 124.4 (20.9, 0) | 135.6 (18.5, 0) | 137.0 (18.3, 0) | 124.7 (14.7, 23) |
+| DW_WRACK | 115.2 (17.6, 24) | 127.4 (16.0, 26) | 124.9 (15.7, 24) | 129.1 (14.6, 23) | 124.9 (14.6, 23) |
+
+### 2 moby, average
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 67.7 (30.2, 10) | 83.3 (26.6, 15) | 83.8 (25.3, 15) | 100.3 (21.4, 20) | 111.5 (19.1, 23) |
+| W_DL | 93.9 (25.7, 13) | 107.3 (23.9, 13) | 110.6 (22.6, 13) | 122.6 (21.5, 9) | 123.5 (21.5, 7) |
+| DT_SS | 115.8 (23.7, 7) | 126.1 (23.1, 2) | 140.0 (21.2, 0) | 141.6 (21.1, 1) | 135.3 (21.5, 3) |
+| DW_WRACK | 90.7 (24.3, 18) | 125.3 (19.0, 29) | 102.8 (22.5, 21) | 98.5 (22.8, 18) | 103.9 (20.7, 21) |
+| DW_DL | 110.8 (23.3, 8) | 117.4 (23.1, 6) | 138.7 (21.4, 0) | 143.3 (21.1, 0) | 135.3 (21.5, 3) |
+
+### 3 moby, average
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 108.1 (19.9, 34) | 114.7 (19.0, 34) | 101.7 (19.2, 26) | 84.8 (21.1, 14) | 70.9 (24.3, 3) |
+| W_DL | 76.9 (25.8, 4) | 89.6 (24.6, 6) | 90.0 (23.3, 6) | 108.5 (22.2, 6) | 113.5 (22.0, 6) |
+| DT_SS | 102.5 (23.9, 7) | 116.7 (23.4, 7) | 123.3 (21.9, 4) | 124.4 (21.8, 5) | 121.6 (22.1, 6) |
+| DW_WRACK | 69.9 (24.7, 6) | 74.8 (23.9, 8) | 67.6 (26.1, 0) | 64.4 (28.5, 0) | 65.2 (28.7, 1) |
+| DW_DL | 99.8 (24.0, 5) | 110.3 (23.9, 6) | 122.5 (22.0, 4) | 133.3 (21.5, 2) | 121.6 (22.1, 6) |
+
+### 1 mob, average, wrack_min_hp_pct=0.4
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 98.4 (22.7, 23) | 112.1 (20.0, 25) | 111.4 (19.8, 22) | 119.0 (18.8, 16) | 118.2 (18.6, 15) |
+| DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 122.4 (18.5, 12) |
+| DW_WRACK | 113.5 (21.4, 11) | 119.7 (20.8, 9) | 126.5 (19.3, 7) | 129.2 (18.9, 5) | 122.4 (18.5, 12) |
+
+### 1 mob, average, wrack_min_hp_pct=0.55
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 100.1 (22.9, 20) | 112.1 (20.5, 22) | 113.4 (20.0, 18) | 121.4 (19.5, 10) | 120.1 (19.6, 10) |
+| DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 124.7 (19.4, 5) |
+| DW_WRACK | 116.3 (21.9, 5) | 119.9 (22.0, 0) | 127.7 (20.2, 0) | 131.1 (19.5, 0) | 124.7 (19.4, 5) |
+
+### 1 mob, average, wrack_min_hp_pct=0.7
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 103.5 (22.6, 17) | 112.2 (21.3, 17) | 116.1 (20.2, 15) | 122.8 (19.8, 7) | 121.3 (20.1, 6) |
+| DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 126.9 (19.8, 3) |
+| DW_WRACK | 119.5 (21.8, 2) | 120.9 (21.8, 0) | 128.1 (20.1, 0) | 130.8 (19.5, 0) | 126.9 (19.8, 3) |
+
+### 1 mob, average, wrack_min_hp_pct=0.85
+
+| build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
+|---|---:|---:|---:|---:|---:|
+| AFF_WRACK | 103.7 (23.3, 14) | 113.0 (21.9, 12) | 115.6 (20.8, 12) | 121.8 (20.5, 5) | 120.8 (20.8, 4) |
+| DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 126.9 (20.2, 1) |
+| DW_WRACK | 120.7 (21.8, 0) | 119.1 (22.2, 0) | 126.0 (20.6, 0) | 127.7 (20.2, 0) | 126.9 (20.2, 1) |
+
+### Duel: DT_SS (a) vs DW_DL (b), average, 1 mob(y), wrack_min_hp_pct=0.6
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  119.1 |  117.6 |    1.3 (0.8..1.9)            |      a | 22.1/21.8 | 1212/1180 | 0.1/0.7 | 0.6/3.8
+   42 |  116.3 |  119.7 |   -3.4 (-3.5..-3.2)          |      b | 22.9/22.0 | 1212/1195 | 0.0/0.1 | 0.0/0.3
+   44 |  119.6 |  119.5 |    0.1 (-0.0..0.3)           |      ~ | 22.1/21.9 | 1279/1261 | 0.0/0.2 | 0.0/1.1
+   46 |  122.8 |  126.2 |   -3.4 (-3.5..-3.2)          |      b | 21.3/20.5 | 1441/1360 | 0.0/0.0 | 0.0/0.0
+   48 |  126.5 |  127.0 |   -0.5 (-0.7..-0.4)          |      b | 20.4/20.3 | 1542/1478 | 0.0/0.0 | 0.0/0.2
+   50 |  126.7 |  127.6 |   -1.0 (-1.1..-0.8)          |      b | 20.4/20.2 | 1604/1513 | 0.0/0.0 | 0.0/0.0
+   52 |  123.6 |  129.1 |   -5.5 (-5.7..-5.4)          |      b | 21.1/19.9 | 1613/1485 | 0.0/0.0 | 0.0/0.0
+   54 |  128.4 |  131.6 |   -3.2 (-3.4..-3.0)          |      b | 20.0/19.3 | 1778/1613 | 0.0/0.0 | 0.0/0.1
+   56 |  127.2 |  129.5 |   -2.4 (-3.1..-1.7)          |      b | 20.1/19.4 | 1879/1692 | 0.2/0.4 | 0.9/1.8
+   58 |  126.1 |  126.1 |    0.0 (0.0..0.0)            |      ~ | 19.3/19.3 | 1857/1857 | 1.2/1.2 | 5.3/5.3
+Crossover: from level 42 the winner is DW_DL.
+```
+
+### Duel: DT_SS (a) vs DW_DL (b), average, 2 mob(y), wrack_min_hp_pct=0.6
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  115.9 |  110.5 |    5.4 (4.3..6.5)            |      a | 23.7/23.3 | 1204/1208 | 2.6/4.4 | 6.8/8.0
+   42 |  122.9 |  115.1 |    7.8 (7.3..8.3)            |      a | 23.4/23.1 | 1211/1211 | 1.8/4.0 | 2.5/4.9
+   44 |  123.4 |  115.3 |    8.1 (7.5..8.7)            |      a | 23.1/22.9 | 1274/1273 | 1.9/4.1 | 4.2/7.1
+   46 |  136.8 |  131.2 |    5.5 (5.2..5.9)            |      a | 21.6/21.7 | 1441/1439 | 0.8/1.7 | 0.0/1.0
+   48 |  137.1 |  135.3 |    1.9 (1.1..2.6)            |      a | 21.3/21.5 | 1531/1544 | 0.8/0.9 | 1.8/2.1
+   50 |  140.1 |  138.7 |    1.3 (1.1..1.5)            |      a | 21.2/21.4 | 1587/1597 | 0.5/0.6 | 0.1/0.1
+   52 |  139.3 |  139.4 |   -0.1 (-0.2..-0.1)          |      b | 21.4/21.4 | 1609/1609 | 0.4/0.4 | 0.0/0.0
+   54 |  145.6 |  145.4 |    0.2 (0.0..0.3)            |      a | 20.7/20.7 | 1748/1766 | 0.0/0.0 | 0.0/0.0
+   56 |  137.8 |  144.0 |   -6.0 (-7.1..-5.0)          |      b | 21.1/20.8 | 1872/1861 | 0.6/0.1 | 2.9/0.6
+   58 |  134.8 |  134.8 |    0.0 (0.0..0.0)            |      ~ | 21.2/21.2 | 1990/1990 | 0.9/0.9 | 4.5/4.5
+Crossover: from level 52 the winner is DW_DL.
+```
+
+### Duel: DT_SS (a) vs DW_DL (b), average, 3 mob(y), wrack_min_hp_pct=0.6
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  102.6 |   99.9 |    2.6 (1.4..3.7)            |      a | 23.9/24.0 | 1236/1265 | 4.3/1.2 | 6.6/4.6
+   42 |  108.5 |  108.1 |    0.4 (-0.5..1.3)           |      ~ | 24.0/23.9 | 1243/1261 | 3.7/1.0 | 5.4/3.6
+   44 |  113.2 |  105.2 |    7.9 (7.0..8.9)            |      a | 23.3/23.8 | 1282/1327 | 4.8/1.9 | 7.7/5.2
+   46 |  122.3 |  117.3 |    5.0 (4.0..6.1)            |      a | 22.2/22.3 | 1444/1462 | 3.3/2.9 | 3.9/3.9
+   48 |  122.4 |  120.8 |    1.7 (0.5..2.9)            |      a | 21.8/22.0 | 1540/1549 | 3.6/3.7 | 6.4/6.0
+   50 |  123.8 |  122.7 |    1.1 (0.0..2.1)            |      a | 21.8/22.0 | 1594/1602 | 3.4/3.4 | 3.9/3.8
+   52 |  132.2 |  132.5 |   -0.2 (-0.6..0.2)           |      ~ | 21.8/21.8 | 1604/1605 | 2.7/2.7 | 1.0/1.1
+   54 |  132.9 |  131.9 |    1.0 (0.1..1.9)            |      a | 21.3/21.3 | 1754/1769 | 2.5/2.6 | 2.8/3.3
+   56 |  121.2 |  129.3 |   -8.0 (-9.3..-6.7)          |      b | 21.9/21.5 | 1881/1862 | 2.9/2.6 | 5.8/3.8
+   58 |  121.0 |  121.0 |    0.0 (0.0..0.0)            |      ~ | 22.0/22.0 | 1995/1995 | 3.1/3.1 | 6.8/6.8
+Crossover: from level 56 the winner is DW_DL.
+```
+
+### Duel: DT_SS vs DW_DL, quest, 1 mob, wrack_min_hp_pct=0.6
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  109.3 |  105.8 |    3.2 (2.1..4.3)            |      a | 24.4/24.5 | 1210/1186 | 0.5/1.3 | 2.5/6.8
+   45 |  108.1 |  109.6 |   -1.4 (-1.7..-1.2)          |      b | 25.3/24.7 | 1315/1295 | 0.0/0.2 | 0.0/1.1
+   50 |  119.1 |  119.0 |    0.1 (-0.3..0.4)           |      ~ | 22.2/22.2 | 1618/1570 | 0.0/0.1 | 0.0/0.4
+   55 |  117.3 |  120.2 |   -2.9 (-3.1..-2.6)          |      b | 22.5/21.9 | 1905/1713 | 0.2/0.0 | 1.1/0.1
+   58 |  110.4 |  110.4 |    0.0 (0.0..0.0)            |      ~ | 22.2/22.2 | 1927/1927 | 2.2/2.2 | 9.7/9.7
+Crossover: from level 45 the winner is DW_DL.
+```
+
+### Duel: DT_SS vs DW_DL, good, 1 mob, wrack_min_hp_pct=0.6
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  124.6 |  126.0 |   -1.4 (-1.7..-1.2)          |      b | 20.9/20.3 | 1210/1178 | 0.0/0.2 | 0.0/1.1
+   45 |  124.4 |  129.0 |   -4.6 (-4.8..-4.5)          |      b | 20.9/19.9 | 1268/1233 | 0.0/0.0 | 0.0/0.0
+   50 |  135.6 |  139.1 |   -3.5 (-3.7..-3.3)          |      b | 18.6/17.9 | 1486/1404 | 0.0/0.0 | 0.0/0.0
+   55 |  136.9 |  142.0 |   -5.1 (-5.3..-4.9)          |      b | 18.3/17.4 | 1666/1492 | 0.0/0.0 | 0.0/0.0
+   58 |  139.3 |  139.3 |    0.0 (0.0..0.0)            |      ~ | 17.2/17.2 | 1743/1743 | 0.6/0.6 | 2.9/2.9
+No crossover: the winner does not change over these levels.
+```
+
+### Duel: DT_SS vs DW_DL, average, 1 mob, wrack_min_hp_pct=0.6, {"mob_hp_mult":1.5}
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |   86.4 |   90.0 |   -3.7 (-3.9..-3.4)          |      b | 33.7/31.4 | 1583/1483 | 0.0/0.6 | 0.0/0.2
+   45 |   83.7 |   89.2 |   -5.5 (-5.7..-5.4)          |      b | 35.0/31.9 | 1680/1590 | 0.0/0.5 | 0.0/0.2
+   50 |   97.3 |  101.8 |   -4.5 (-4.6..-4.4)          |      b | 29.0/27.3 | 2043/1870 | 0.0/0.1 | 0.0/0.3
+   55 |   99.7 |  105.0 |   -5.3 (-5.5..-5.2)          |      b | 28.1/26.3 | 2264/1907 | 0.0/0.0 | 0.0/0.1
+   58 |  102.2 |  102.2 |    0.0 (0.0..0.0)            |      ~ | 25.8/25.8 | 2225/2225 | 1.0/1.0 | 3.8/3.8
+No crossover: the winner does not change over these levels.
+```
+
+### Duel: DT_SS vs DW_DL, average, 1 mob, wrack_min_hp_pct=0.6, {"mob_hp_mult":2}
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |   70.7 |   67.2 |    3.1 (2.5..3.8)            |      a | 42.9/41.4 | 2056/1958 | 0.0/3.0 | 0.0/4.5
+   45 |   69.2 |   69.8 |   -0.6 (-1.0..-0.2)          |      b | 44.0/40.3 | 2273/2114 | 0.0/3.0 | 0.0/7.6
+   50 |   76.5 |   71.6 |    4.3 (3.2..5.4)            |      a | 38.3/37.1 | 2709/2409 | 0.6/3.0 | 2.3/10.0
+   55 |   77.6 |   80.8 |   -3.2 (-3.5..-2.9)          |      b | 38.0/36.1 | 3021/2590 | 0.3/0.4 | 1.0/1.4
+   58 |   75.6 |   75.6 |    0.0 (0.0..0.0)            |      ~ | 34.9/34.9 | 2830/2830 | 3.0/3.0 | 8.0/8.0
+Crossover: from level 45 the winner is DW_DL.
+```
+
+### Duel: DT_SS vs DW_DL, average, 1 mob, wrack_min_hp_pct=0.6, {"mob_dmg_mult":1.5}
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  119.1 |  113.2 |    5.6 (4.8..6.4)            |      a | 22.1/21.5 | 1212/1172 | 0.1/1.9 | 0.6/7.2
+   45 |  118.6 |  115.7 |    2.8 (2.6..3.1)            |      a | 22.4/22.1 | 1279/1263 | 0.0/0.9 | 0.0/1.3
+   50 |  126.1 |  126.8 |   -0.7 (-0.8..-0.5)          |      b | 20.5/20.4 | 1595/1525 | 0.0/0.0 | 0.0/0.1
+   55 |  124.6 |  129.0 |   -4.4 (-4.7..-4.1)          |      b | 20.5/19.8 | 1824/1662 | 0.4/0.1 | 2.1/0.5
+   58 |  120.8 |  120.8 |    0.0 (0.0..0.0)            |      ~ | 19.0/19.0 | 1832/1832 | 2.5/2.5 | 10.9/10.9
+Crossover: from level 50 the winner is DW_DL.
+```
+
+### Duel: DT_SS vs DW_DL, average, 1 mob, wrack_min_hp_pct=0.6, {"break_hp_pct":0.5}
+
+```
+DT_SS (a) vs DW_DL (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  118.9 |  117.0 |    1.9 (1.6..2.1)            |      a | 22.1/20.9 | 1213/1160 | 0.2/1.9 | 1.4/13.7
+   45 |  118.6 |  119.5 |   -0.9 (-1.0..-0.7)          |      b | 22.4/21.1 | 1279/1238 | 0.0/1.0 | 0.0/10.2
+   50 |  126.7 |  126.6 |    0.1 (-0.1..0.2)           |      ~ | 20.4/19.4 | 1604/1472 | 0.0/1.0 | 0.0/8.6
+   55 |  126.6 |  129.3 |   -2.7 (-2.9..-2.4)          |      b | 20.2/19.0 | 1826/1556 | 0.2/0.8 | 1.3/6.2
+   58 |  124.9 |  124.9 |    0.0 (0.0..0.0)            |      ~ | 18.4/18.4 | 1782/1782 | 2.5/2.5 | 15.1/15.1
+Crossover: from level 45 the winner is DW_DL.
+```
+
+### Duel: DT_SS vs AFF_WRACK, average, 1 mob, wrack_min_hp_pct=0.6
+
+```
+DT_SS (a) vs AFF_WRACK (b) - kills per hour; differences are a - b with paired 95% CI
+level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
+   40 |  119.1 |  101.4 |   17.3 (16.4..18.2)          |      a | 22.1/22.6 | 1212/1184 | 0.1/4.6 | 0.6/20.1
+   45 |  118.6 |  112.1 |    6.3 (5.7..6.9)            |      a | 22.4/20.7 | 1279/1286 | 0.0/3.3 | 0.0/20.5
+   50 |  126.7 |  114.1 |   12.3 (11.5..13.1)          |      a | 20.4/20.2 | 1604/1481 | 0.0/3.2 | 0.0/16.8
+   55 |  127.0 |  122.0 |    5.0 (4.6..5.4)            |      a | 20.3/19.6 | 1825/1702 | 0.1/1.9 | 0.3/9.1
+   58 |  126.1 |  121.5 |    4.8 (4.1..5.5)            |      a | 19.3/19.4 | 1857/1850 | 1.2/2.2 | 5.3/9.2
+No crossover: the winner does not change over these levels.
+```
