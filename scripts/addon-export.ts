@@ -70,20 +70,32 @@ const lua = (v: unknown, indent = 0): string => {
 };
 
 const params = loadParams({ ...POLICIES.BEST_1MOB!.params, eureka_policy: eurekaPolicy });
-const spells: Record<string, { name: string; ids: number[]; durationSec?: number }> = {};
+const spells: Record<string, { name: string; ids: number[]; durationSec?: number; rankDurationSec?: Record<number, number> }> = {};
 for (const id of Object.keys(SPELL_IDS)) {
   let name = NAMES[id];
   if (!name) name = getSpell(id).name;
   // How long a DoT or curse of yours lasts on the target (the addon cannot read the target's auras when the client hides them).
+  // `durationSec` is the highest rank's; ranks that last differently (Corruption 1 and 2) are listed by their spell id.
   let durationSec: number | undefined;
+  let rankDurationSec: Record<number, number> | undefined;
+  const ids = SPELL_IDS[id] as number[];
+  let spell: ReturnType<typeof getSpell> | undefined;
   try {
-    const s = getSpell(id);
-    const ms = s.kind === 'dot' || s.kind === 'direct+dot' || s.kind === 'curse' ? (s.ranks[s.ranks.length - 1]?.durationMs ?? s.durationMs) : undefined;
-    if (ms !== undefined) durationSec = ms / 1000;
+    spell = getSpell(id);
   } catch {
     /* spells outside the model have no duration */
   }
-  spells[id] = { name, ids: SPELL_IDS[id] as number[], durationSec };
+  if (spell && (spell.kind === 'dot' || spell.kind === 'direct+dot' || spell.kind === 'curse')) {
+    const perRank = spell.ranks.map((r) => r.durationMs ?? spell.durationMs);
+    const ms = perRank[perRank.length - 1];
+    if (ms !== undefined) durationSec = ms / 1000;
+    const other = perRank.map((x, i) => [i, x] as const).filter(([, x]) => x !== undefined && x !== ms);
+    if (other.length > 0) {
+      if (perRank.length !== ids.length) throw new Error(`${id}: ${perRank.length} ranks but ${ids.length} spell ids, cannot tell which id lasts how long`);
+      rankDurationSec = Object.fromEntries(other.map(([i, x]) => [ids[i] as number, (x as number) / 1000]));
+    }
+  }
+  spells[id] = { name, ids, durationSec, rankDurationSec };
 }
 
 // The addon finds a talent of the game by its spell id (rank 1), or by its English name.
@@ -123,7 +135,7 @@ for (const id of VARIANT_IDS) {
   }
   builds[id] = {
     // the demon by level and pull size, in words for the settings window
-    petNote: v.pet_rules?.map((r) => `${r.pet}${r.fromLevel ? ` from ${r.fromLevel}` : ''}${r.toLevel ? ` to ${r.toLevel}` : ''}${r.maxMobs === 1 ? ' (1 mob)' : r.minMobs ? ` (${r.minMobs}${r.maxMobs === r.minMobs ? '' : '+'} mobs)` : ''}`).join(', '),
+    petNote: (v.pet_rules?.length ? v.pet_rules : undefined)?.map((r) => `${r.pet}${r.fromLevel ? ` from ${r.fromLevel}` : ''}${r.toLevel ? ` to ${r.toLevel}` : ''}${r.maxMobs === 1 ? ' (1 mob)' : r.minMobs ? ` (${r.minMobs}${r.maxMobs === r.minMobs ? '' : '+'} mobs)` : ''}`).join(', '),
     kind: spec.kind,
     pet: v.pet,
     talentOrder: v.order,
