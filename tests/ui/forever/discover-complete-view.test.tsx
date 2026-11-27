@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadParams } from '../../../src/forever/data/load';
 import { discover, inlineRunner, QUICK_BUDGET, type DiscoverOptions, type DiscoverResult } from '../../../src/forever/discover/engine';
@@ -56,12 +56,12 @@ describe('Odkrywanie: a finished completion is easy to find', () => {
     fireEvent.click(completeButton());
     const note = await screen.findByText(/Uzupełniono: #2/, undefined, { timeout: 60000 });
     expect(note.closest('[role=status]')).toBeTruthy();
-    expect(scrolled).toEqual([card(2)]);
+    await waitFor(() => expect(scrolled).toEqual([card(2)]));
     expect(card(2).className).toContain('fv-just');
     expect(screen.queryByRole('button', { name: 'Pokaż kompletny build #1' })).toBeNull();
     scrolled = [];
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż kompletny build #2' }));
-    expect(scrolled).toEqual([card(2)]);
+    await waitFor(() => expect(scrolled).toEqual([card(2)]));
   }, 90000);
 
   it('completing the same build again says so and scrolls again', async () => {
@@ -75,7 +75,7 @@ describe('Odkrywanie: a finished completion is easy to find', () => {
     // the note goes while it runs and comes back with the same build
     expect(screen.queryByText(/Uzupełniono: #1/)).toBeNull();
     await screen.findByText(/Uzupełniono: #1/, undefined, { timeout: 60000 });
-    expect(scrolled).toEqual([card(1)]);
+    await waitFor(() => expect(scrolled).toEqual([card(1)]));
   }, 120000);
 
   it('coming back to the tab does not scroll again', async () => {
@@ -139,7 +139,22 @@ describe('Odkrywanie: complete selected results to 59', () => {
     render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
     const card = screen.getByRole('article', { name: /^#1:/ });
     expect(card.textContent).toContain('Od levelu 40 rotacja się zmienia: filler Wrack above 70% HP');
-    expect(card.textContent).toContain('Bez zmiany rotacji: 141.5 kills/h');
+    expect(card.textContent).toContain('Bez zmian rotacji: 141.5 kills/h');
+  });
+
+  it('says when the curse is dropped', () => {
+    const t = result.top[0]!;
+    const done = {
+      rank: 1, label: t.label, combo: { ...t.combo, genes: { ...t.combo.genes, coe: false } }, baseRanks: t.ranks, fromLevel: 40, toLevel: 41,
+      path: ['suppression'], perLevel: [{ level: 41, pick: 'suppression', kph: 150 }], avgKph: 150, greedyPath: ['suppression'], greedyAvgKph: 140, searchCost: 1, greedySearchCost: 1,
+      noCurse: true, fixedAvgKph: 141.5,
+    };
+    store({ completions: [done] });
+    render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
+    const card = screen.getByRole('article', { name: /^#1:/ });
+    expect(card.textContent).toContain('bez Curse of the Elements');
+    expect(card.textContent).toContain('Bez zmian rotacji: 141.5 kills/h');
+    expect(card.textContent).not.toContain('rotacja się zmienia');
   });
 
   it('loads a stored discovery whose completions are unreadable', () => {

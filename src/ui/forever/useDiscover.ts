@@ -98,6 +98,7 @@ const isCompletion = (c: unknown): boolean =>
   typeof c.avgKph === 'number' &&
   typeof c.greedyAvgKph === 'number' &&
   (c.fixedAvgKph === undefined || typeof c.fixedAvgKph === 'number') &&
+  (c.noCurse === undefined || typeof c.noCurse === 'boolean') &&
   (c.switched === undefined || (isObj(c.switched) && typeof c.switched.filler === 'string' && typeof c.switched.level === 'number'));
 
 function loadSaved(): SavedDiscovery | null {

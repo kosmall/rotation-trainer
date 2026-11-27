@@ -2,8 +2,8 @@
 // target level that make the whole leveling path fastest. Cost of a path = Σ over its levels of
 // 1 / kills per hour (every level weighted the same). Start from the greedy path, then improve the
 // whole sequence with local search (replace a point, swap two, replace a block). A Drain Life build
-// that can still reach Wrack is also completed with Wrack as the filler (above a health floor), and
-// the fastest rotation wins. Framework-free.
+// that can still reach Wrack is also completed with Wrack as the filler (above a health floor), a
+// build with Curse of the Elements also without it, and the fastest rotation wins. Framework-free.
 
 import { createRng, type Rng } from '../../engine/rng';
 import { rotationId, type FillerGene } from '../rotation-genes';
@@ -87,21 +87,24 @@ function reachable(r: Ranks, id: string, points: number): boolean {
 }
 
 /**
- * The rotations a completion tries for a build: its own first, then, for a Drain Life build that can have Wrack by
- * the last level, the same effects and pets with Wrack above a health floor as the filler. Such a rotation also covers
- * the levels before Wrack (it drains), so a completed build keeps a single rotation.
+ * The rotations a completion tries for a build, its own first: for a Drain Life build that can have Wrack by the last
+ * level, the same effects and pets with Wrack above a health floor as the filler (such a rotation also covers the levels
+ * before Wrack, it drains, so a completed build keeps a single rotation); and for a build that casts Curse of the
+ * Elements, each of those without it.
  */
 export function rotationChoices(combo: Combo, ranks: Ranks, fromLevel: number, toLevel: number): Combo[] {
   const points = pointsAtLevel(toLevel) - pointsAtLevel(fromLevel);
-  if (combo.genes.filler !== 'drain_life' || !rankAt(SWITCH_TALENT, 'max', toLevel) || !reachable(ranks, SWITCH_TALENT, points)) return [combo];
+  const wrack = combo.genes.filler === 'drain_life' && !!rankAt(SWITCH_TALENT, 'max', toLevel) && reachable(ranks, SWITCH_TALENT, points);
+  const fillers: FillerGene[] = [combo.genes.filler, ...(wrack ? WRACK_SWITCHES : [])];
+  const curses = combo.genes.coe ? [true, false] : [false];
   const pets = combo.id.slice(combo.id.indexOf('|'));
-  return [
-    combo,
-    ...WRACK_SWITCHES.map((filler): Combo => {
-      const genes = { ...combo.genes, filler };
+  return curses.flatMap((coe) =>
+    fillers.map((filler): Combo => {
+      if (coe === combo.genes.coe && filler === combo.genes.filler) return combo;
+      const genes = { ...combo.genes, coe, filler };
       return { id: `${rotationId(genes)}${pets}`, genes, pets: combo.pets };
     }),
-  ];
+  );
 }
 
 /** The picks that lead to a talent as early as possible: it as soon as it is legal, until then its tree (the prerequisite before the gate opens without it). */
@@ -283,7 +286,9 @@ export interface CompletedBuild {
   greedySearchCost: number;
   /** Set when another filler won: from this level (Wrack taken) the rotation differs from the found one; `combo` carries it. */
   switched?: { filler: FillerGene; level: number };
-  /** Kills per hour with the found rotation kept, when a switch was tried. */
+  /** Set when leaving Curse of the Elements out won (over the whole path); `combo` carries it. */
+  noCurse?: boolean;
+  /** Kills per hour with the found rotation kept, when other rotations were tried. */
   fixedAvgKph?: number;
 }
 
@@ -292,7 +297,7 @@ export type CompleteBase = Omit<CompleteCtx, 'combo' | 'baseRanks' | 'sessions'>
 
 /**
  * For every row and each of its rotations: greedy paths, local-search restarts from the better one, and a final
- * evaluation. The found rotation wins unless a switched one, whose path really takes Wrack, is faster.
+ * evaluation. The found rotation wins unless another one is faster (a new filler only when its path really takes Wrack).
  */
 export async function completeBuilds(rows: readonly CompleteRowInput[], base: CompleteBase, b: CompleteBudget, run: CompleteRunner, progress?: (stage: string, done: number, total: number) => void): Promise<CompletedBuild[]> {
   type Path = Extract<CompleteResult, { kind: 'complete-path' }>;
@@ -313,8 +318,8 @@ export async function completeBuilds(rows: readonly CompleteRowInput[], base: Co
     'greedy',
     plans.flatMap((p): CompleteTask[] => {
       const free: CompleteTask = { kind: 'complete-greedy', row: p.row, choice: p.choice, ctx: ctxOf(p, b.sessions, base.seed) };
-      // a switched rotation also tries the straight way to its talent, which a greedy path may never find
-      return p.choice === 0 ? [free] : [free, { ...free, goal: SWITCH_TALENT }];
+      // a new filler also tries the straight way to its talent, which a greedy path may never find
+      return p.combo.genes.filler === p.input.combo.genes.filler ? [free] : [free, { ...free, goal: SWITCH_TALENT }];
     }),
   )) as Path[];
   const improveTasks = plans.flatMap((p) =>
@@ -352,8 +357,8 @@ export async function completeBuilds(rows: readonly CompleteRowInput[], base: Co
     for (let choice = 1; choice < list.length; choice++) {
       const found = best(row, choice);
       const at = found.path.indexOf(SWITCH_TALENT);
-      // without the talent the switched rotation plays like the found one: nothing to switch
-      if (!r.ranks[SWITCH_TALENT] && at < 0) continue;
+      // without the talent a new filler plays like the old one: the choice that keeps the filler covers that
+      if ((list[choice] as Combo).genes.filler !== r.combo.genes.filler && !r.ranks[SWITCH_TALENT] && at < 0) continue;
       const kph = finalKph(row, choice, 'best');
       if (harmonicKph(kph) > harmonicKph(chosen.kph))
         chosen = { choice, path: found.path, kph, cost: found.cost, greedyCost: cheapest(greedy, row, choice).cost, level: r.ranks[SWITCH_TALENT] ? base.fromLevel : base.fromLevel + 1 + at };
@@ -373,7 +378,8 @@ export async function completeBuilds(rows: readonly CompleteRowInput[], base: Co
       greedyAvgKph: harmonicKph(gk),
       searchCost: chosen.cost,
       greedySearchCost: chosen.greedyCost,
-      ...(chosen.choice > 0 ? { switched: { filler: combo.genes.filler, level: chosen.level } } : {}),
+      ...(combo.genes.filler !== r.combo.genes.filler ? { switched: { filler: combo.genes.filler, level: chosen.level } } : {}),
+      ...(combo.genes.coe !== r.combo.genes.coe ? { noCurse: true } : {}),
       ...(list.length > 1 ? { fixedAvgKph } : {}),
     };
   });
@@ -386,7 +392,7 @@ export interface CompleteEtaInput {
   stageElapsedSec: number;
   budget: CompleteBudget;
   rows: number;
-  /** Rotations tried over all rows (`rotationChoices`); the number of rows when no row can switch. */
+  /** Rotations tried over all rows (`rotationChoices`); the number of rows when there are no others. */
   choices?: number;
   pathLength: number;
 }
@@ -401,7 +407,8 @@ export function completeEtaSec(i: CompleteEtaInput): number | null {
   const order = ['greedy', 'improve', 'final'];
   const unit: Record<string, number> = { greedy: i.pathLength * GREEDY_CANDIDATES * b.sessions, improve: (b.maxSims / Math.max(1, b.restarts)) * b.sessions, final: i.pathLength * b.finalSessions };
   const choices = i.choices ?? i.rows;
-  const tasks: Record<string, number> = { greedy: 2 * choices - i.rows, improve: choices * b.restarts, final: choices + i.rows };
+  // the greedy stage comes first, so its own task count is always the measured `total`
+  const tasks: Record<string, number> = { greedy: choices, improve: choices * b.restarts, final: choices + i.rows };
   const at = order.indexOf(i.stage);
   if (at < 0) return null;
   const rate = (i.done * (unit[i.stage] as number)) / i.stageElapsedSec;

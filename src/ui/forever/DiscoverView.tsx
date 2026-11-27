@@ -127,7 +127,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               <button type="button" className="btn" disabled={running || picked.size === 0} onClick={() => d.complete([...picked].sort((a, b) => a - b), budget)}>
                 Uzupełnij do {d.toLevel} ({picked.size})
               </button>
-              <span className="fv-note">Zaznaczone buildy dostają talenty na levele {res.meta.level + 1}–{d.toLevel}: droga, która daje najkrótszy łączny czas levelowania. Pety i efekty rotacji bez zmian; filler Drain Life może zmienić się na Wrack, gdy build po niego sięgnie. Zakres jak wyżej.</span>
+              <span className="fv-note">Zaznaczone buildy dostają talenty na levele {res.meta.level + 1}–{d.toLevel}: droga, która daje najkrótszy łączny czas levelowania. Pety bez zmian. Rotacja może się zmienić, gdy to szybsze: Wrack zamiast Drain Life, gdy build po niego sięgnie, i bez Curse of the Elements. Zakres jak wyżej.</span>
             </div>
           )}
           {justDone && justDone.ranks.length > 0 && (
@@ -260,15 +260,25 @@ function CompletedCard({ c, just, onSave }: { c: CompletedBuild; just: boolean; 
           Zapisz
         </button>
       </p>
-      {c.switched ? (
+      {c.switched || c.noCurse ? (
         <p className="fv-note">
-          <b>
-            Od levelu {c.switched.level} rotacja się zmienia: filler {FILLER_NAME[c.switched.filler]}
-          </b>{' '}
-          (wcześniej sam Drain Life).{c.fixedAvgKph !== undefined ? ` Bez zmiany rotacji: ${f1(c.fixedAvgKph)} kills/h.` : ''}
+          {c.switched && (
+            <>
+              <b>
+                Od levelu {c.switched.level} rotacja się zmienia: filler {FILLER_NAME[c.switched.filler]}
+              </b>{' '}
+              (wcześniej sam Drain Life).{' '}
+            </>
+          )}
+          {c.noCurse && (
+            <>
+              <b>Rotacja bez Curse of the Elements</b> (na całej drodze).{' '}
+            </>
+          )}
+          {c.fixedAvgKph !== undefined ? `Bez zmian rotacji: ${f1(c.fixedAvgKph)} kills/h.` : ''}
         </p>
       ) : (
-        c.fixedAvgKph !== undefined && <p className="fv-note">Sprawdzono też Wracka jako filler: nie jest tu szybszy, rotacja zostaje.</p>
+        c.fixedAvgKph !== undefined && <p className="fv-note">Sprawdzono też inne warianty rotacji: żaden nie jest tu szybszy, rotacja zostaje.</p>
       )}
       <div className="fv-discover-details">
         <div>

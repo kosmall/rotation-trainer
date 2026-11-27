@@ -20,6 +20,7 @@ delete early.siphon_life;
 const demo = ranksAt(loadVariant('DEMO_PACT_R1'), 40);
 const params = loadParams({ session_pulls: 3 });
 const base = { fromLevel: 39, toLevel: 42, profile: 'average', mobs: 1 as const, params, seed: 2 };
+const cursed = { ...drain, genes: { ...drain.genes, coe: true }, id: `coe+${drain.id}` };
 const budget = { restarts: 1, sessions: 2, maxSims: 10, finalSessions: 3 };
 const row = { rank: 1, label: 'row', combo: drain, ranks: ready };
 const inline = async (tasks: CompleteTask[], onDone: (r: CompleteResult) => void) =>
@@ -52,6 +53,20 @@ describe('rotations a completion may switch to', () => {
     expect(ids(find('sb_r1'))).toEqual(['sb_r1']);
     // 31 points in Demonology: not enough are left for 31 in Affliction
     expect(ids(drain, demo, 40, 59)).toEqual(['drain_life']);
+  });
+});
+
+describe('rotations without Curse of the Elements', () => {
+  const shown = (combo = cursed, ranks = ready, from = 39, to = 59) => rotationChoices(combo, ranks, from, to).map((c) => `${c.genes.filler}${c.genes.coe ? '+coe' : ''}`);
+  it('a build with the curse also tries every rotation without it', () => {
+    expect(shown()).toEqual(['drain_life+coe', 'wrack_hp70+coe', 'wrack_hp50+coe', 'drain_life', 'wrack_hp70', 'wrack_hp50']);
+    expect(shown({ ...find('sb_r1'), genes: { ...find('sb_r1').genes, coe: true } })).toEqual(['sb_r1+coe', 'sb_r1']);
+    expect(shown(cursed, demo, 40, 59)).toEqual(['drain_life+coe', 'drain_life']);
+    const list = rotationChoices(cursed, ready, 39, 59);
+    expect(new Set(list.map((c) => c.id)).size).toBe(list.length);
+  });
+  it('a build without the curse never gets it added', () => {
+    expect(shown(drain)).toEqual(['drain_life', 'wrack_hp70', 'wrack_hp50']);
   });
 });
 
@@ -109,8 +124,49 @@ describe('completing with a rotation switch', () => {
     expect(casts(39, 'drain_life')).toBeGreaterThan(0);
     expect(casts(40, 'wrack')).toBeGreaterThan(0);
   }, 60000);
+  /** Scales the final runs of the chosen rotation variants; `path` is rigged cheap for the way to Wrack. */
+  const finals = (factor: (choice: number) => number) =>
+    rigged((r) => {
+      if (r.kind === 'complete-path' && r.from === 'goal') return { ...r, cost: 1e-9 };
+      if (r.kind === 'complete-final' && r.choice > 0) return { ...r, kph: r.kph.map((k) => k * factor(r.choice)) };
+      return r;
+    });
+  const cursedRow = { ...row, combo: cursed };
+
+  it('drops the curse when that is faster, with the filler kept', async () => {
+    // choice 3: the found filler without the curse
+    const [c] = await completeBuilds([cursedRow], base, budget, finals((i) => (i === 3 ? 3 : 0.1)));
+    expect(c!.noCurse).toBe(true);
+    expect(c!.switched).toBeUndefined();
+    expect(c!.combo.genes).toMatchObject({ coe: false, filler: 'drain_life' });
+    expect(c!.avgKph).toBeGreaterThan(c!.fixedAvgKph!);
+  }, 60000);
+  it('drops the curse and switches to Wrack together', async () => {
+    // choice 4: Wrack above 70% without the curse
+    const [c] = await completeBuilds([cursedRow], base, budget, finals((i) => (i === 4 ? 3 : 0.1)));
+    expect(c!.noCurse).toBe(true);
+    expect(c!.switched).toEqual({ filler: 'wrack_hp70', level: 40 });
+    expect(c!.combo.genes).toMatchObject({ coe: false, filler: 'wrack_hp70' });
+    expect(c!.path[0]).toBe('wrack');
+  }, 60000);
+  it('keeps the curse when nothing is faster', async () => {
+    const [c] = await completeBuilds([cursedRow], base, budget, finals(() => 0.1));
+    expect(c!.noCurse).toBeUndefined();
+    expect(c!.switched).toBeUndefined();
+    expect(c!.combo).toEqual(cursed);
+  }, 60000);
+  it('a Wrack variant whose path never takes Wrack is not chosen, with or without the curse', async () => {
+    const noWrack = rigged((r) => {
+      if (r.kind === 'complete-path' && (r.choice === 4 || r.choice === 5)) return { ...r, path: ['suppression', 'suppression', 'suppression'], cost: 1e-9 };
+      if (r.kind === 'complete-final' && r.choice > 0) return { ...r, kph: r.kph.map((k) => (r.choice >= 4 ? 10000 : k * 0.1)) };
+      return r;
+    });
+    const [c] = await completeBuilds([cursedRow], base, budget, noWrack);
+    expect(c!.combo).toEqual(cursed);
+  }, 60000);
   it('counts the extra rotations in the time estimate', () => {
     const i = { stage: 'greedy', done: 1, total: 5, stageElapsedSec: 10, budget: COMPLETE_FULL, rows: 1, pathLength: 20 };
     expect(completeEtaSec({ ...i, choices: 3 })).toBeGreaterThan(completeEtaSec(i)!);
+    expect(completeEtaSec({ ...i, choices: 6 })).toBeGreaterThan(completeEtaSec({ ...i, choices: 3 })!);
   });
 });
