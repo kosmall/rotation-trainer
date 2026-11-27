@@ -807,5 +807,5 @@ Workflow `.github/workflows/pages.yml` buduje aplikację (`npm test`, `npm run b
 
 ### Wybór peta w buildach
 
-Build może zmieniać demona zależnie od poziomu i liczby mobów (`pet_rules` w `src/forever/data/builds.json`; wygrywa pierwsza pasująca reguła). Buildy `*_PET` wynikają z porównania z poradnikami (26 listopada 2026, 150 sesji, trzy profile ekwipunku): w affliction Succubus na 20-29 przy 1 mobie, w demonology Voidwalker przy 3 mobach i przy 2 mobach do poziomu 39 (na przeciętnym ekwipunku; na questowym opłaca się dłużej, na dobrym krócej, od około 36); `AFF_WRACK_SH_PET` bierze też Soul Harvest zaraz po Improved Corruption (zysk na 15-19).
+Build może zmieniać demona zależnie od poziomu i liczby mobów (`pet_rules` w `src/forever/data/builds.json`; wygrywa pierwsza pasująca reguła). Reguły sprawdzono 27 listopada 2026 z przenoszonym między pullami HP i maną peta, na przeciętnym ekwipunku (150 sesji): w demonology Voidwalker przy 2 i 3 mobach na wszystkich zmierzonych poziomach (25-50), przy 1 mobie Succubus jak dotąd; w affliction i draintank Succubus na poziomach 20-29 przy 1 mobie już się nie opłaca, więc reguła została usunięta. Buildy `*_PET` nadal istnieją, ale na 20-29 ich demon jest taki sam jak w wersji bazowej. Pomiar Soul Harvest w `AFF_WRACK_SH_PET` (zysk na 15-19) pochodzi sprzed tej zmiany i nie był ponownie mierzony.
 
