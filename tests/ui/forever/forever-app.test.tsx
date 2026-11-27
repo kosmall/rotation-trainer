@@ -51,6 +51,27 @@ describe('ForeverApp', () => {
     expect(screen.getByRole('region', { name: 'Drzewo Affliction' })).toBeTruthy();
   });
 
+  it('a button on a build in the Builds tab opens its rotation in the Rotations tab', () => {
+    const { rerender } = render(<ForeverApp view="builds" runner={runner} />);
+    const select = () => screen.getByLabelText('Build') as HTMLSelectElement;
+    const open = (id: string) => {
+      rerender(<ForeverApp view="builds" runner={runner} />);
+      fireEvent.change(select(), { target: { value: id } });
+      const link = screen.getByRole('link', { name: 'Pokaż rotację' });
+      expect(link.getAttribute('href')).toBe('#/forever/rotations');
+      fireEvent.click(link);
+      rerender(<ForeverApp view="rotations" runner={runner} />);
+    };
+    open('DT_SS_NOCOE');
+    expect(select().value).toBe('DT_SS_NOCOE');
+    expect(screen.getByRole('list', { name: 'Diagram rotacji DT_SS_NOCOE' })).toBeTruthy();
+    // the button wins over an earlier choice made in the Rotations tab
+    fireEvent.change(select(), { target: { value: 'AFF_WRACK' } });
+    open('DEMO_FIRE');
+    expect(select().value).toBe('DEMO_FIRE');
+    expect(screen.getByRole('list', { name: 'Diagram rotacji DEMO_FIRE' })).toBeTruthy();
+  });
+
   it('marks Eureka! in the rotation diagram before the spells of the chosen timing', () => {
     const marks = () => document.querySelectorAll('.fv-flow .fv-eureka');
     const { unmount } = render(<ForeverApp view="rotations" runner={runner} />);

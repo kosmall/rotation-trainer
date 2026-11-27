@@ -793,7 +793,7 @@ npm run build    # produkcyjny build (tsc + vite)
 ```
 
 - **Symulacja**: ustaw level postaci (40-59) i uruchom; ranking 7 buildów (zabić/h, TTK, mana/HP na zabicie, picie, jedzenie, Life Tap, przerwy, zgony, GCD) z różnicą wobec najlepszego (sparowany przedział 95%) oraz krzywa kills/h po levelach 40-59.
-- **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów.
+- **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów. Przycisk „Pokaż rotację” otwiera rotację wybranego builda w zakładce Rotacje.
 - **Rotacje**: listy priorytetów rotacji używanych przez symulator.
 - **Porównanie**: dwa buildy head-to-head na wspólnych seedach, wykres 40-59.
 - **Własny build**: układasz talenty po swojemu (klik dodaje punkt, kolejność kliknięć to kolejność rozdawania), wybierasz szablon rotacji, pet i filler. Pierwsze wejście pokazuje puste drzewo, kolejne ostatnio edytowany build (zapis w localStorage). Build można zduplikować, skopiować z wbudowanego, wyeksportować i zaimportować jako JSON, dołączyć do rankingu i porównania.

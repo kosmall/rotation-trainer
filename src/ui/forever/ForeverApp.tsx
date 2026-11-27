@@ -40,6 +40,8 @@ function loadSettings(): Settings {
 export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { view: ForeverView; runner?: JobRunner; discoverPool?: PoolFactory; discoverTuning?: DiscoverTuning }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [buildId, setBuildId] = useState(VARIANT_IDS[0] as string);
+  // the Rotations tab keeps its own choice; the button in the Builds tab sets it
+  const [rotationId, setRotationId] = useState(VARIANT_IDS[0] as string);
   const [curveIds, setCurveIds] = useState<readonly string[]>([]);
   const curveSet = useMemo(() => new Set(curveIds), [curveIds]);
   const run = useForeverRun(runner);
@@ -104,8 +106,8 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning }: { vie
         </fieldset>
       )}
       {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => run.run({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
-      {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} />}
-      {view === 'rotations' && <RotationsView ids={allIds} params={simParams} />}
+      {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} onOpenRotation={setRotationId} />}
+      {view === 'rotations' && <RotationsView ids={allIds} params={simParams} id={rotationId} onIdChange={setRotationId} />}
       {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => run.run({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
       {view === 'discover' && (
         <DiscoverView settings={s} discovery={discovery} existingNames={custom.builds.map((b) => b.name)} onSave={(b) => setCustom({ ...custom, builds: [...custom.builds, b], active: b.name })} />

@@ -2,6 +2,7 @@ import { describeBuild, loadVariant, picksAt, VARIANT_IDS, type BuildVariant } f
 import { demonLearned, demonsAt } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Tree } from '../../forever/types';
+import { routeHref } from '../shell/router';
 import { FactRow, LoadoutRows, PET_NAMES, rotationIcon, rotationTitle, TREE_ICONS } from './buildFacts';
 import { IconTile } from './IconTile';
 import { TalentTrees } from './TalentTrees';
@@ -22,8 +23,8 @@ function petNote(v: BuildVariant, level: number, mobs: number): string {
   return standIn + noSacrifice;
 }
 
-/** One build: talent points per tree at the level, the order points were spent, the next pick. */
-export function BuildsView({ level, mobs = 1, ids = VARIANT_IDS, id, onIdChange: setId }: { level: number; mobs?: number; ids?: readonly string[]; id: string; onIdChange(id: string): void }) {
+/** One build: talent points per tree at the level, the order points were spent, the next pick; a button to its rotation. */
+export function BuildsView({ level, mobs = 1, ids = VARIANT_IDS, id, onIdChange: setId, onOpenRotation }: { level: number; mobs?: number; ids?: readonly string[]; id: string; onIdChange(id: string): void; onOpenRotation?(id: string): void }) {
   const v = loadVariant(ids.includes(id) ? id : (ids[0] as string));
   const snap = describeBuild(v, level);
   const picks = picksAt(v, level);
@@ -40,6 +41,11 @@ export function BuildsView({ level, mobs = 1, ids = VARIANT_IDS, id, onIdChange:
             ))}
           </select>
         </label>
+        {onOpenRotation && (
+          <a className="btn" href={routeHref({ mode: 'forever', view: 'rotations' })} onClick={() => onOpenRotation(v.id)} title="Pokaż rotację tego builda">
+            Pokaż rotację
+          </a>
+        )}
       </div>
       <dl className="fv-facts fv-facts-icons">
         <FactRow label="Rotacja" icons={<IconTile {...rotationIcon(v)} name={rotationTitle(v)} size={28} />}>

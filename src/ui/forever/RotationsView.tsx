@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { loadVariant, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { rotationSpec, type Cond, type RotationSpec, type SpecStep } from '../../forever/rotation-spec';
 import { petData } from '../../forever/stats';
@@ -196,8 +196,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
 }
 
 /** One build's rotation (chosen from a dropdown). */
-export function RotationsView({ ids = VARIANT_IDS, params }: { ids?: readonly string[]; params: Params }) {
-  const [id, setId] = useState(ids[0] as string);
+export function RotationsView({ ids = VARIANT_IDS, params, id, onIdChange: setId }: { ids?: readonly string[]; params: Params; id: string; onIdChange(id: string): void }) {
   const v = loadVariant(ids.includes(id) ? id : (ids[0] as string));
   return (
     <>
