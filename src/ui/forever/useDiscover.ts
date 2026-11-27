@@ -46,6 +46,8 @@ export interface DiscoverRun {
   job: 'search' | 'complete' | null;
   /** The level found builds are completed to. */
   toLevel: number;
+  /** The completion that has just finished (a new object every time, also for the same builds); null while anything runs. */
+  completed: { ranks: number[] } | null;
   run(s: Settings, budget: DiscoverBudget): void;
   /** Completes the results with these ranks to `toLevel` (settings of the shown result). */
   complete(ranks: readonly number[], budget: DiscoverBudget): void;
@@ -117,6 +119,7 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedDiscovery | null>(loadSaved);
   const [job, setJob] = useState<'search' | 'complete' | null>(null);
+  const [completed, setCompleted] = useState<{ ranks: number[] } | null>(null);
   const abort = useRef<AbortController | null>(null);
   const savedRef = useRef(saved);
   useEffect(() => {
@@ -155,6 +158,7 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       const options: DiscoverOptions = { ...base, ...(tuning.budget ? { budget: tuning.budget } : {}), ...(tuning.space ? { space: tuning.space } : {}) };
       setStatus('running');
       setJob('search');
+      setCompleted(null);
       setError(null);
       setProg({ stage: '', done: 0, total: 0, etaSec: null });
       const pool = makePool(options, ctl.signal);
@@ -198,6 +202,7 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       const current = (): boolean => abort.current === ctl && !ctl.signal.aborted;
       setStatus('running');
       setJob('complete');
+      setCompleted(null);
       setError(null);
       setProg({ stage: '', done: 0, total: 0, etaSec: null });
       let stageStart = { stage: '', at: Date.now() };
@@ -218,6 +223,7 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
           if (!latest || latest.result !== shown.result) return;
           const kept = (latest.completions ?? []).filter((c) => !done.some((d) => d.rank === c.rank));
           persist({ ...latest, completions: [...kept, ...done].sort((a, b) => a.rank - b.rank) });
+          setCompleted({ ranks: done.map((c) => c.rank).sort((a, b) => a - b) });
           setStatus('done');
         })
         .catch((e: unknown) => failWith(ctl, e))
@@ -227,5 +233,5 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
     [makePool, tuning.completeBudget, toLevel],
   );
 
-  return { status, ...prog, error, saved, job, toLevel, run, complete, cancel };
+  return { status, ...prog, error, saved, job, toLevel, completed, run, complete, cancel };
 }

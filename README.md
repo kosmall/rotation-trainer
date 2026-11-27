@@ -146,6 +146,11 @@ dobudować do 51), znaleziona rotacja i pety. Taki build jest od razu do wyboru 
 na każdym levelu; do rankingu i krzywej w Symulacji dołączasz go zaznaczeniem „Własne buildy w rankingu”. Wyjście z
 zakładki Odkrywanie przerywa trwające wyszukiwanie.
 
+**Uzupełnij do 59:** zaznaczone wyniki dostają talenty na kolejne levele (rotacja i pety bez zmian). Gotowe buildy
+są pod tabelą w sekcji „Kompletne buildy”: po zakończeniu strona przewija się do pierwszego z nich i go wyróżnia,
+pod przyciskiem pojawia się „Uzupełniono: #…”, a wiersz w tabeli dostaje przycisk „✓ do 59”, który tam przenosi.
+**Zapisz** na karcie zapisuje pełny build, **Zapisz** w wierszu tabeli tylko build z levelu wyszukiwania.
+
 **Rotacja z klocków we własnym buildzie:** w edytorze własnego buildu „Szablon rotacji” ma opcję **Własna (z
 klocków)**: utrzymywane efekty (Curse of the Elements, Bane of Agony, Corruption, Siphon Life, Immolate), próg „DoT-y
 gdy TTK ≥” (zawsze, 6 s, 12 s), Drain Soul na dobicie i filler (Shadow Bolt r1/r2/max, Searing Pain, Drain Life,

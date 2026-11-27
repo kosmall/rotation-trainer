@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { CustomBuildData } from '../../forever/builds';
 import type { TopRow } from '../../forever/discover/engine';
 import { sacrificeLive } from '../../forever/discover/space';
@@ -23,6 +23,10 @@ const STAGES: Record<string, string> = {
   'complete-final': 'uzupełniania 3/3: przeliczenie',
 };
 const f1 = (x: number): string => x.toFixed(1);
+
+const cardId = (rank: number): string => `fv-completed-${rank}`;
+/** The card of a completed build is far below the table of results. */
+const showCompleted = (rank: number): void => document.getElementById(cardId(rank))?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 
 function petText(row: TopRow): string {
   const pet = row.combo.pets.pet ? (PET_NAMES[row.combo.pets.pet] ?? row.combo.pets.pet) : 'brak';
@@ -52,6 +56,16 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
   const picked = new Set(pickedFor.from === res ? pickedFor.ranks : []);
   const togglePick = (rank: number): void => setPickedFor({ ranks: picked.has(rank) ? [...picked].filter((r) => r !== rank) : [...picked, rank], from: res });
   const canComplete = !!res && res.meta.level < d.toLevel;
+  const completedRanks = new Set((shown?.completions ?? []).map((c) => c.rank));
+  const justDone = d.completed;
+  // scroll to a build completed while the view is open (not again when the tab is opened later)
+  const scrolledFor = useRef(justDone);
+  useEffect(() => {
+    if (scrolledFor.current === justDone) return;
+    scrolledFor.current = justDone;
+    const first = justDone?.ranks[0];
+    if (first !== undefined) showCompleted(first);
+  }, [justDone]);
   const toggle = (rank: number): void => setOpenFor({ ranks: open.has(rank) ? [...open].filter((r) => r !== rank) : [...open, rank], from: res });
 
   return (
@@ -115,6 +129,14 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               <span className="fv-note">Zaznaczone buildy dostają talenty na levele {res.meta.level + 1}–{d.toLevel}: droga, która daje najkrótszy łączny czas levelowania (rotacja i pety bez zmian). Zakres jak wyżej.</span>
             </div>
           )}
+          {justDone && justDone.ranks.length > 0 && (
+            <p className="fv-note" role="status">
+              <b>{`Uzupełniono: ${justDone.ranks.map((r) => `#${r}`).join(', ')}.`}</b> Wynik jest pod tabelą, w sekcji „Kompletne buildy”.{' '}
+              <button type="button" className="btn" onClick={() => showCompleted(justDone.ranks[0] as number)}>
+                Pokaż
+              </button>
+            </p>
+          )}
           <div className="fv-scroll">
             <table className="fv-table" aria-label="Najlepsze znalezione buildy">
               <thead>
@@ -173,6 +195,11 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
                       >
                         Zapisz
                       </button>
+                      {completedRanks.has(t.rank) && (
+                        <button type="button" className="btn fv-done" aria-label={`Pokaż kompletny build #${t.rank}`} onClick={() => showCompleted(t.rank)}>
+                          ✓ do {d.toLevel}
+                        </button>
+                      )}
                     </td>
                   </tr>
                   {open.has(t.rank) && (
@@ -201,6 +228,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
             <CompletedCard
               key={c.rank}
               c={c}
+              just={!!justDone?.ranks.includes(c.rank)}
               onSave={() => {
                 const b = completedBuild(c, existingNames);
                 onSave(b);
@@ -215,14 +243,14 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
 }
 
 /** One completed build: the speed over the path, the points level by level and the trees at the last level. */
-function CompletedCard({ c, onSave }: { c: CompletedBuild; onSave(): void }) {
+function CompletedCard({ c, just, onSave }: { c: CompletedBuild; just: boolean; onSave(): void }) {
   const finalRanks: Ranks = { ...c.baseRanks };
   for (const id of c.path) finalRanks[id] = (finalRanks[id] ?? 0) + 1;
   const perTree = validatePicks([...canonicalPicks(c.baseRanks), ...c.path]).pointsPerTree;
   const saved = c.greedyAvgKph > 0 && c.avgKph > 0 ? (1 - c.greedyAvgKph / c.avgKph) * 100 : 0;
   return (
-    <article className="fv-completed">
-      <h3>
+    <article id={cardId(c.rank)} className={`fv-completed${just ? ' fv-just' : ''}`} aria-labelledby={`${cardId(c.rank)}-title`}>
+      <h3 id={`${cardId(c.rank)}-title`}>
         #{c.rank}: {c.label}
       </h3>
       <p>

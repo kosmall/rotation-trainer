@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadParams } from '../../../src/forever/data/load';
 import { discover, inlineRunner, QUICK_BUDGET, type DiscoverOptions, type DiscoverResult } from '../../../src/forever/discover/engine';
 import { validatePicks } from '../../../src/forever/talents';
@@ -29,6 +29,82 @@ afterEach(() => {
 });
 
 const store = (extra: Record<string, unknown> = {}) => window.localStorage.setItem(DISCOVER_STORAGE_KEY, JSON.stringify({ settings: { ...settings, sessions: 5 }, budget: 'quick', result, ...extra }));
+
+describe('Odkrywanie: a finished completion is easy to find', () => {
+  /** What was scrolled into view (jsdom has no scrolling of its own). */
+  let scrolled: Element[] = [];
+  const original = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    scrolled = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this);
+    });
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = original;
+  });
+
+  const app = () => render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
+  const completeButton = () => screen.getByRole('button', { name: /^Uzupełnij do 43/ });
+  const card = (rank: number) => screen.getByRole('article', { name: new RegExp(`^#${rank}:`) });
+
+  it('says what was completed, scrolls to the new build and marks its row', async () => {
+    store();
+    app();
+    expect(screen.queryByRole('button', { name: /^Pokaż kompletny build/ })).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Uzupełnij #2' }));
+    fireEvent.click(completeButton());
+    const note = await screen.findByText(/Uzupełniono: #2/, undefined, { timeout: 60000 });
+    expect(note.closest('[role=status]')).toBeTruthy();
+    expect(scrolled).toEqual([card(2)]);
+    expect(card(2).className).toContain('fv-just');
+    expect(screen.queryByRole('button', { name: 'Pokaż kompletny build #1' })).toBeNull();
+    scrolled = [];
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż kompletny build #2' }));
+    expect(scrolled).toEqual([card(2)]);
+  }, 90000);
+
+  it('completing the same build again says so and scrolls again', async () => {
+    store();
+    app();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Uzupełnij #1' }));
+    fireEvent.click(completeButton());
+    await screen.findByText(/Uzupełniono: #1/, undefined, { timeout: 60000 });
+    scrolled = [];
+    fireEvent.click(completeButton());
+    // the note goes while it runs and comes back with the same build
+    expect(screen.queryByText(/Uzupełniono: #1/)).toBeNull();
+    await screen.findByText(/Uzupełniono: #1/, undefined, { timeout: 60000 });
+    expect(scrolled).toEqual([card(1)]);
+  }, 120000);
+
+  it('coming back to the tab does not scroll again', async () => {
+    store();
+    const view = app();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Uzupełnij #1' }));
+    fireEvent.click(completeButton());
+    await screen.findByText(/Uzupełniono: #1/, undefined, { timeout: 60000 });
+    scrolled = [];
+    view.rerender(<ForeverApp view="builds" discoverPool={inline} discoverTuning={tuning} />);
+    view.rerender(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
+    expect(screen.getByRole('button', { name: 'Pokaż kompletny build #1' })).toBeTruthy();
+    expect(scrolled).toEqual([]);
+  }, 90000);
+
+  it('opening the view with stored completions marks the rows without scrolling or a note', async () => {
+    store();
+    const first = app();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Uzupełnij #1' }));
+    fireEvent.click(completeButton());
+    await screen.findByText(/Uzupełniono: #1/, undefined, { timeout: 60000 });
+    first.unmount();
+    scrolled = [];
+    app();
+    expect(screen.getByRole('button', { name: 'Pokaż kompletny build #1' })).toBeTruthy();
+    expect(screen.queryByText(/Uzupełniono:/)).toBeNull();
+    expect(scrolled).toEqual([]);
+  }, 90000);
+});
 
 describe('Odkrywanie: complete selected results to 59', () => {
   it('completes a ticked row and saves it as a full custom build', async () => {

@@ -112,3 +112,6 @@ th .fv-wh, li .fv-wh { display: inline; width: auto; height: auto; text-decorati
 @media (max-width: 760px) { .fv-detail-row .fv-discover-details { position: sticky; left: 8px; width: calc(100vw - 64px); } }
 .fv-completed { border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-top: 12px; margin-top: 12px; }
 .fv-completed h3 { margin: 0 0 4px; }
+.fv-completed { scroll-margin-top: 12px; }
+.fv-completed.fv-just { border: 2px solid var(--class, currentColor); border-radius: 8px; padding: 12px; }
+.fv-done { margin-left: 6px; white-space: nowrap; }
