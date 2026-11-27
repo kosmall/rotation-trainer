@@ -23,6 +23,7 @@ export const DEFAULT_AXES: SensitivityAxis[] = [
   { param: 'drain_dmg_mult', values: [0.7, 1, 1.3], note: 'Drain Life / Drain Soul damage' },
   { param: 'pet_dmg_mult', values: [0.7, 1, 1.3], note: 'pet damage tables' },
   { param: 'pet_ooc_regen_pct_per_sec', values: [0.01, 0.026, 0.05], note: 'demon health regained per second out of combat (Classic estimate, not found for Forever)' },
+  { param: 'pet_ooc_mana_per_sec', values: [0, 0.5, 1], note: 'demon mana regained per second out of combat (stand-in: the in-combat rate, not found for Forever)' },
   { param: 'use_drain_soul_finisher', values: [true, false], note: 'Drain Soul finisher for Soul Harvest on/off' },
   { param: 'break_hp_pct', values: [0.2, 0.3, 0.4], note: 'HP below which the warlock stops for food and water' },
   { param: 'agony_ramp', values: ['classic_thirds', 'flat'], note: 'shape of Bane of Agony damage over its 24 s (Forever ramp unconfirmed)' },

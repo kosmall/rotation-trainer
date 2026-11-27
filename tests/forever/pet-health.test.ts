@@ -89,3 +89,24 @@ describe('Health Funnel', () => {
     expect(cell(imp, { pet_ooc_regen_pct_per_sec: 1, pet_funnel_below_pct: 0.6 }).funnelSecPerKill).toBe(0);
   });
 });
+
+describe('a pull starts with the mana the demon has', () => {
+  const vw = loadVariant('AFF_WRACK_SH_PET'); // a Voidwalker at level 30 (pet_rules)
+  const pull = (startPetMana?: number) => simulatePull({ variant: vw, level: 30, profile: 'average', params: loadParams(), startPetMana }, 5);
+  it('is full by default, and a larger value is capped at the maximum', () => {
+    const r = pull();
+    expect(r.petMaxMana).toBeGreaterThan(0);
+    expect(pull(1e9).endPetMana).toBe(r.endPetMana);
+  });
+  it('an empty demon ends its pull with less mana than the first one did', () => {
+    const r = pull();
+    expect(pull(0).endPetMana).toBeLessThan(r.petMaxMana);
+    expect(r.endPetMana).toBeLessThanOrEqual(r.petMaxMana);
+  });
+  it('a demon without mana regeneration out of combat keeps the mana it ended with', () => {
+    const noRegen = runCell({ variant: vw, level: 30, profile: 'average', params: loadParams({ pet_ooc_mana_per_sec: 0 }), mobs: 1 }, 20, 1);
+    const regen = runCell({ variant: vw, level: 30, profile: 'average', params: loadParams({ pet_ooc_mana_per_sec: 5 }), mobs: 1 }, 20, 1);
+    expect(noRegen.metrics.killsPerHour).toBeGreaterThan(0);
+    expect(regen.metrics.killsPerHour).toBeGreaterThan(0);
+  });
+});

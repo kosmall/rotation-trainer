@@ -269,6 +269,11 @@
   "verify": true,
   "source": "Share of its maximum health the demon regains per second out of combat. Not found for Forever. Classic estimate: the cmangos emulator regenerates a player-controlled creature 13% of its health every 5 s (src/game/Entities/Creature.cpp, RegenerateHealth and REGEN_TIME_FULL_UNIT, read 27 Nov 2026)."
  },
+ "pet_ooc_mana_per_sec": {
+  "value": 0.5,
+  "verify": true,
+  "source": "Mana the demon regains per second out of combat. Not found for Forever. Stand-in: the in-combat rate the model already uses for a pet that is not an Imp (fight.ts, 0.5 per second). Imps have no mana regeneration in the model."
+ },
  "pet_funnel_below_pct": {
   "value": 0.7,
   "source": "Health Funnel is channelled between pulls when the demon's health is below this fraction (0 = never). A choice of the player; measured 27 Nov 2026 over all builds at levels 20-59 with 1 and 2 mobs: 0.7 (up to pet_funnel_to_pct 0.9) is within 0.4 kills per hour of the best tried rule, 0.5 loses up to 2.5 with 2 mobs, never funnelling loses 4-13."

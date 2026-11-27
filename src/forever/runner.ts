@@ -137,8 +137,13 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   // The demon's health between pulls: undefined = full (just summoned).
   let petHp: number | undefined;
   let petMax = 0;
+  // The demon's mana between pulls, same convention: undefined = full. An Imp has no mana regeneration (as in the fight).
+  let petMana: number | undefined;
+  let petMaxMana = 0;
+  let petKindLast: string | null = null;
   const petRegen = (sec: number): void => {
     if (petHp !== undefined) petHp = Math.min(petMax, petHp + petMax * params.pet_ooc_regen_pct_per_sec * sec);
+    if (petMana !== undefined && petKindLast !== 'imp') petMana = Math.min(petMaxMana, petMana + params.pet_ooc_mana_per_sec * sec);
   };
   for (let i = 0; i < params.session_pulls; i++) {
     // Between mobs: Life Tap by the rules first (it spends HP), then food and water if HP is below the break threshold.
@@ -187,7 +192,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     } else out.pullsWithoutBreak++;
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
     const r = simulatePull(
-      { ...pull, startPetHp: petHp, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
+      { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
       seed * 100003 + i,
     );
     out.eurekaUses += r.eurekaUses;
@@ -215,8 +220,11 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       out.petPulls++;
       out.petStartHpSum += petHp === undefined ? 1 : petHp / r.petMaxHp;
       petMax = r.petMaxHp;
-      // a demon that died is summoned again (the penalty below) with full health
+      petMaxMana = r.petMaxMana;
+      petKindLast = r.petKind;
+      // a demon that died is summoned again (the penalty below) with full health and mana
       petHp = r.petDied ? undefined : r.endPetHp;
+      petMana = r.petDied ? undefined : r.endPetMana;
     }
     if (r.playerDied) {
       out.deaths++;
@@ -225,6 +233,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       mana = stats.maxMana * params.rest_to_mana_pct;
       hp = stats.maxHp * params.rest_to_hp_pct;
       petHp = undefined;
+      petMana = undefined;
     }
     if (r.petDied) {
       out.petDeaths++;

@@ -30,6 +30,8 @@ export interface PullConfig {
   startHp?: number;
   /** The demon's health when the pull starts (default and at most: its maximum). */
   startPetHp?: number;
+  /** The demon's mana when the pull starts (default and at most: its maximum). */
+  startPetMana?: number;
   /** Soul Harvest time left from the previous kill (ms), carried into this pull. */
   startSoulHarvestMs?: number;
   /** Gnome Eureka!: cooldown left (ms) and buff time left (ms) when the pull starts. */
@@ -62,6 +64,10 @@ export interface PullResult {
   /** The demon's health when the pull ended (0 when it died) and its maximum (0 without a demon). */
   endPetHp: number;
   petMaxHp: number;
+  /** The demon's mana when the pull ended and its maximum (0 without a demon), and its kind. */
+  endPetMana: number;
+  petMaxMana: number;
+  petKind: PetKind | null;
   playerDied: boolean;
   timedOut: boolean;
   soulHarvestProcs: number;
@@ -171,6 +177,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     armor: petBase.armor,
   };
   pet.hp = Math.min(pet.maxHp, cfg.startPetHp ?? pet.maxHp);
+  const petMaxMana = pet.mana;
+  pet.mana = Math.min(petMaxMana, cfg.startPetMana ?? petMaxMana);
   const soulLink = rk(ranks, 'soul_link') > 0;
   // Talents that raise everything the demon does, the brand included (pet_dmg_mult is only for the estimated pet tables).
   const petTalentMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1);
@@ -218,7 +226,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const eurekaOn = (): boolean => t < eurekaUntil;
   let res: PullResult = {
     pullSec: 0, mobsKilled: 0, mobsInPull: nMobs, killTimesSec: [], manaSpent: 0, manaFromLifeTap: 0, lifeTapCount: 0, lifeTapHpSpent: 0, damageTaken: 0, healed: 0,
-    startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, endPetHp: 0, petMaxHp: pet.maxHp, playerDied: false, timedOut: false,
+    startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, endPetHp: 0, petMaxHp: pet.maxHp, endPetMana: 0, petMaxMana, petKind, playerDied: false, timedOut: false,
     soulHarvestProcs: 0, soulHarvestLeftMs: 0, eurekaUses: 0, eurekaCdLeftMs: 0, eurekaBuffLeftMs: 0, rates: { mobHp: 0, fillerDps: 0, petDps: 0, dpsEstimate: 0, dotsDps: 0, drainSoulDps: 0 }, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
   };
 
@@ -779,7 +787,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       const bonus = t < shUntil ? sh.bonus : 0;
       mana = Math.min(maxMana, mana + (combatRegenPerSec(stats.spirit, params, bonus) + sacManaPerMs * 1000) * (dt / 1000));
       if (sacHealPerMs > 0) healPlayer(sacHealPerMs * dt);
-      if (petAlive && petKind !== 'imp') pet.mana = Math.min(pet.mana + 0.5 * (dt / 1000), 1e9);
+      if (petAlive && petKind !== 'imp') pet.mana = Math.min(petMaxMana, pet.mana + 0.5 * (dt / 1000));
     }
     t = next;
     // 1. cast completion
@@ -849,5 +857,6 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   res.endHp = Math.max(0, hp);
   if (res.playerDied) res.endHp = 0;
   res.endPetHp = petAlive ? Math.max(0, pet.hp) : 0;
+  res.endPetMana = petAlive ? Math.max(0, pet.mana) : 0;
   return res;
 }
