@@ -3,6 +3,7 @@ import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
 import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
 import { FILLER_NAME, FILLERS as GENE_FILLERS, MIN_TTKS, type RotationGenes } from '../../forever/rotation-genes';
+import { isAddonExport, parseAddonExport } from '../../forever/web/addon-import';
 import { paramsOf, type RankingResult, type Settings } from '../../forever/web/api';
 import { FILLER_NAMES, PET_NAMES, TITLES } from './buildFacts';
 import { RotationFlow } from './RotationsView';
@@ -13,6 +14,7 @@ import type { ForeverRun } from './useForeverRun';
 /** Where the player builds their own talent order and picks a rotation template; the build joins the simulations. */
 export function CustomView({ state, onChange, settings, run, ranking, onRun }: { state: CustomState; onChange(s: CustomState): void; settings: Settings; run: ForeverRun; ranking: RankingResult | undefined; onRun(): void }) {
   const [message, setMessage] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [io, setIo] = useState('');
   const [fromBuiltIn, setFromBuiltIn] = useState(VARIANT_IDS[0] as string);
 
@@ -38,6 +40,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
 
   const update = (patch: Partial<CustomBuildData>, newActive?: string) => {
     setMessage(null);
+    setInfo(null);
     const next = { ...build, ...patch };
     onChange({ ...state, builds: state.builds.map((b) => (b === build ? next : b)), active: newActive ?? next.name, included: state.included.map((n) => (n === build.name ? next.name : n)) });
   };
@@ -144,6 +147,11 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
       {message && (
         <p role="alert" className="fv-error">
           {message}
+        </p>
+      )}
+      {info && (
+        <p role="status" className="fv-note">
+          {info}
         </p>
       )}
       {unmodelled.length > 0 && (
@@ -262,7 +270,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
       )}
 
       <h2>Eksport i import</h2>
-      <textarea className="fv-io" aria-label="Build jako JSON" value={io} onChange={(e) => setIo(e.target.value)} placeholder="Tu pojawi się JSON buildu albo wklej JSON do importu" />
+      <textarea className="fv-io" aria-label="Build jako JSON" value={io} onChange={(e) => setIo(e.target.value)} placeholder="Tu pojawi się JSON buildu albo wklej JSON do importu (też eksport z addonu wowsims)" />
       <div className="fv-row">
         <button type="button" className="btn" onClick={() => setIo(exportBuild(build))}>
           Eksportuj bieżący
@@ -272,10 +280,19 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun }: {
           className="btn"
           onClick={() => {
             try {
-              const b = parseBuild(JSON.parse(io));
-              add({ ...b, name: uniqueName(b.name, names) });
+              const raw: unknown = JSON.parse(io);
+              if (isAddonExport(raw)) {
+                const { build: b, points, gameLevel } = parseAddonExport(raw);
+                add({ ...b, name: uniqueName(b.name, names) });
+                setInfo(`Zaimportowano ${points} punktów${gameLevel === null ? '' : ` (level w grze ${gameLevel})`}. Kolejność punktów jest ustalona z góry drzewa, popraw ją strzałkami, jeśli trzeba.`);
+              } else {
+                const b = parseBuild(raw);
+                add({ ...b, name: uniqueName(b.name, names) });
+                setInfo(null);
+              }
               setMessage(null);
             } catch (e) {
+              setInfo(null);
               setMessage(`Import nie powiódł się: ${e instanceof Error ? e.message : String(e)}`);
             }
           }}

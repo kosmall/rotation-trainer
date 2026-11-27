@@ -67,6 +67,28 @@ describe('custom build tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Importuj jako nowy' }));
     await waitFor(() => expect((screen.getByLabelText('Nazwa') as HTMLInputElement).value).toBe('Własny build 2'));
   });
+
+  const paste = (o: object) => {
+    fireEvent.change(screen.getByLabelText('Build jako JSON'), { target: { value: JSON.stringify(o) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Importuj jako nowy' }));
+  };
+
+  it('imports the addon export', async () => {
+    render(<ForeverApp view="custom" runner={runner} />);
+    await screen.findByText(/Punkty:/);
+    paste({ class: 'warlock', flavor: 'forever', level: 33, name: 'Feliczita', spec: 'affliction', talents: '245212200300013', gear: { items: [{ id: 7057 }, null] } });
+    expect(await screen.findByText('25/51')).toBeTruthy();
+    expect((screen.getByLabelText('Nazwa') as HTMLInputElement).value).toBe('Feliczita (affliction)');
+    expect(screen.getByText(/Zaimportowano 25 punktów/)).toBeTruthy();
+  });
+
+  it('refuses a non-warlock export', async () => {
+    render(<ForeverApp view="custom" runner={runner} />);
+    await screen.findByText(/Punkty:/);
+    paste({ class: 'mage', spec: 'fire', talents: '2' });
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Import nie powiódł się/);
+    expect(screen.getByText('0/51')).toBeTruthy();
+  });
 });
 
 describe('custom build with a composed rotation', () => {
