@@ -99,3 +99,16 @@ th .fv-wh, li .fv-wh { display: inline; width: auto; height: auto; text-decorati
 .fv-warn { color: #c9791a; }
 .fv-legend p { margin: 4px 0; }
 .fv-panel .fv-row + .fv-row { margin-top: 10px; }
+
+/* Odkrywanie: an opened result (talent trees, rotation diagram, statistics) */
+.fv-toggle { background: none; border: 0; padding: 0 4px; cursor: pointer; color: inherit; font: inherit; }
+.fv-detail-row > td { white-space: normal; text-align: left; padding: 12px 8px 20px; }
+.fv-discover-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px 24px; align-items: start; }
+.fv-discover-details > div { min-width: 0; overflow-x: auto; }
+.fv-discover-details > .fv-discover-rotation { grid-column: 1 / -1; }
+.fv-discover-details h3 { margin: 0 0 8px; }
+.fv-stats th[scope='row'] { text-align: left; font-weight: 500; white-space: normal; }
+.fv-stats td { text-align: right; white-space: normal; }
+@media (max-width: 760px) { .fv-detail-row .fv-discover-details { position: sticky; left: 8px; width: calc(100vw - 64px); } }
+.fv-completed { border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-top: 12px; margin-top: 12px; }
+.fv-completed h3 { margin: 0 0 4px; }

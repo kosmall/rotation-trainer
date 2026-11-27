@@ -1,10 +1,11 @@
 // Build discovery in the web app: search options from the app settings, the worker count, and a
 // found result saved as a custom build that carries its composed rotation. Framework-free.
 
-import type { CustomBuildData } from '../builds';
+import type { BuildVariant, CustomBuildData } from '../builds';
+import type { CompletedBuild } from '../discover/complete';
 import { DEFAULT_BUDGET, QUICK_BUDGET, type Budget, type DiscoverOptions, type TopRow } from '../discover/engine';
 import { rotationLabel } from '../rotation-genes';
-import { sacrificeLive } from '../discover/space';
+import { playedGenes, sacrificeLive } from '../discover/space';
 import { canonicalPicks } from '../discover/talent-search';
 import { paramsOf, type Settings } from './api';
 import { uniqueName } from './custom';
@@ -73,4 +74,35 @@ export function discoverEtaSec(i: EtaInput): number | null {
 export function fullRotationNote(row: TopRow): string | null {
   const full = rotationLabel(row.combo.genes);
   return full === row.label ? null : `Zapisany build na innych levelach gra pełną rotację: ${full}`;
+}
+
+/** A found result as a build variant for the views (talent facts, rotation diagram) as played at its level; not registered. */
+export function rowVariant(row: TopRow, level: number): BuildVariant {
+  return {
+    id: `#${row.rank} ${row.label}`,
+    order: 'custom:discover',
+    pet: row.combo.pets.pet,
+    sacrificed: sacrificeLive(row.combo, row.ranks) ? row.combo.pets.sacrificed : null,
+    rotation: 'affliction',
+    filler: 'drain_life',
+    rank: 'max',
+    pre_respec_build: null,
+    respec_level: 40,
+    // what is played at the found level (steps that cannot fire there are left out)
+    genes: playedGenes(row.combo, level, row.ranks),
+  };
+}
+
+/** A completed build as a custom build: the found points in row order, then the path; the genes and the pets as simulated. */
+export function completedBuild(c: CompletedBuild, existing: readonly string[]): CustomBuildData {
+  return {
+    name: uniqueName(`L${c.fromLevel}→${c.toLevel} #${c.rank} ${c.label}`.slice(0, 36).trim(), existing),
+    picks: [...canonicalPicks(c.baseRanks), ...c.path],
+    rotation: 'affliction',
+    filler: 'drain_life',
+    rank: 'max',
+    pet: c.combo.pets.pet,
+    sacrificed: c.combo.pets.sacrificed,
+    genes: { ...c.combo.genes },
+  };
 }

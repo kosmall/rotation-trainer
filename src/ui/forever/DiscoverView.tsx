@@ -1,19 +1,27 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import type { CustomBuildData } from '../../forever/builds';
 import type { TopRow } from '../../forever/discover/engine';
-import { verifyFor } from '../../forever/discover/report';
-import { liveSteps, sacrificeLive } from '../../forever/discover/space';
-import { TALENTS, TALENT_BY_ID } from '../../forever/talents';
-import type { Tree } from '../../forever/types';
+import { sacrificeLive } from '../../forever/discover/space';
 import { paramsOf, type Settings } from '../../forever/web/api';
-import { discoveredBuild, fullRotationNote, type DiscoverBudget } from '../../forever/web/discover';
+import type { CompletedBuild } from '../../forever/discover/complete';
+import { canonicalPicks } from '../../forever/discover/talent-search';
+import { TALENT_BY_ID, validatePicks, type Ranks } from '../../forever/talents';
+import { completedBuild, discoveredBuild, type DiscoverBudget } from '../../forever/web/discover';
+import { TalentTrees } from './TalentTrees';
 import { routeHref } from '../shell/router';
-import { PET_NAMES, spellName } from './buildFacts';
-import { describeCond } from './RotationsView';
+import { PET_NAMES } from './buildFacts';
+import { DiscoverDetails } from './DiscoverDetails';
 import type { DiscoverRun } from './useDiscover';
 
-const STAGES: Record<string, string> = { screen: '1/3: przegląd wszystkich kombinacji', search: '2/3: dokładne szukanie talentów', final: '3/3: przeliczenie najlepszych', insensitivity: '3/3: talenty bez wpływu' };
-const TREE_NAMES: Record<Tree, string> = { aff: 'Affliction', demo: 'Demonology', destro: 'Destruction' };
+const STAGES: Record<string, string> = {
+  screen: '1/3: przegląd wszystkich kombinacji',
+  search: '2/3: dokładne szukanie talentów',
+  final: '3/3: przeliczenie najlepszych',
+  insensitivity: '3/3: talenty bez wpływu',
+  'complete-greedy': 'uzupełniania 1/3: droga zachłanna',
+  'complete-improve': 'uzupełniania 2/3: poprawianie całej drogi',
+  'complete-final': 'uzupełniania 3/3: przeliczenie',
+};
 const f1 = (x: number): string => x.toFixed(1);
 
 function petText(row: TopRow): string {
@@ -27,6 +35,10 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
   const [budget, setBudget] = useState<DiscoverBudget>('full');
   // the saved note belongs to the result it was saved from
   const [savedNote, setSavedNote] = useState<{ name: string; from: unknown } | null>(null);
+  // results ticked for completion (by rank); a new result clears them
+  const [pickedFor, setPickedFor] = useState<{ ranks: number[]; from: unknown }>({ ranks: [], from: null });
+  // results opened in the table (by rank); a new result closes them
+  const [openFor, setOpenFor] = useState<{ ranks: number[]; from: unknown }>({ ranks: [], from: null });
   const d = discovery;
   // leaving the view (another Forever tab) stops a running search
   const cancel = d.cancel;
@@ -36,6 +48,11 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
   const res = shown?.result;
   const best = res?.baseline[0];
   const params = shown ? paramsOf(shown.settings) : null;
+  const open = new Set(openFor.from === res ? openFor.ranks : []);
+  const picked = new Set(pickedFor.from === res ? pickedFor.ranks : []);
+  const togglePick = (rank: number): void => setPickedFor({ ranks: picked.has(rank) ? [...picked].filter((r) => r !== rank) : [...picked, rank], from: res });
+  const canComplete = !!res && res.meta.level < d.toLevel;
+  const toggle = (rank: number): void => setOpenFor({ ranks: open.has(rank) ? [...open].filter((r) => r !== rank) : [...open, rank], from: res });
 
   return (
     <>
@@ -90,6 +107,14 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               Zapisano: <b>{savedNote.name}</b>. <a href={routeHref({ mode: 'forever', view: 'custom' })}>Otwórz w zakładce Własny build</a>
             </p>
           )}
+          {canComplete && (
+            <div className="fv-row">
+              <button type="button" className="btn" disabled={running || picked.size === 0} onClick={() => d.complete([...picked].sort((a, b) => a - b), budget)}>
+                Uzupełnij do {d.toLevel} ({picked.size})
+              </button>
+              <span className="fv-note">Zaznaczone buildy dostają talenty na levele {res.meta.level + 1}–{d.toLevel}: droga, która daje najkrótszy łączny czas levelowania (rotacja i pety bez zmian). Zakres jak wyżej.</span>
+            </div>
+          )}
           <div className="fv-scroll">
             <table className="fv-table" aria-label="Najlepsze znalezione buildy">
               <thead>
@@ -109,8 +134,13 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               </thead>
               <tbody>
                 {res.top.map((t) => (
-                  <tr key={t.rank} className={t.rank === 1 ? 'fv-best' : undefined}>
+                  <Fragment key={t.rank}>
+                  <tr className={t.rank === 1 ? 'fv-best' : undefined}>
                     <td>
+                      {canComplete && <input type="checkbox" className="fv-pick" aria-label={`Uzupełnij #${t.rank}`} checked={picked.has(t.rank)} disabled={running} onChange={() => togglePick(t.rank)} />}
+                      <button type="button" className="fv-toggle" aria-expanded={open.has(t.rank)} aria-label={`Szczegóły #${t.rank}`} onClick={() => toggle(t.rank)}>
+                        {open.has(t.rank) ? '▾' : '▸'}
+                      </button>{' '}
                       {t.rank}
                       {t.tiedWithFirst ? ' ≈#1' : ''}
                     </td>
@@ -145,45 +175,88 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
                       </button>
                     </td>
                   </tr>
+                  {open.has(t.rank) && (
+                    <tr className="fv-detail-row">
+                      <td colSpan={11}>
+                        <DiscoverDetails row={t} level={res.meta.level} params={params} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
-          {res.top.map((t) => (
-            <details key={t.rank} className="fv-adv">
-              <summary>
-                #{t.rank}: {t.label}, {petText(t)}
-              </summary>
-              <ul>
-                {(['aff', 'demo', 'destro'] as Tree[]).map((tree) => {
-                  const list = TALENTS.filter((x) => x.tree === tree && (t.ranks[x.id] ?? 0) > 0).map((x) => `${x.name} ${t.ranks[x.id]}${x.status === 'modelled' ? '' : '*'}`);
-                  return list.length ? (
-                    <li key={tree}>
-                      <b>
-                        {TREE_NAMES[tree]} ({t.perTree[tree]}):
-                      </b>{' '}
-                      {list.join(', ')}
-                    </li>
-                  ) : null;
-                })}
-                <li>Punkty bez modelowanego efektu (*): {t.freePoints}</li>
-                {t.insensitive && <li>Bez wpływu na wynik (punkt w martwym talencie nic istotnie nie kosztuje): {t.insensitive.length ? t.insensitive.map((id) => TALENT_BY_ID.get(id)?.name ?? id).join(', ') : 'brak'}</li>}
-              </ul>
-              <ol className="fv-steps">
-                {liveSteps(t.combo, res.meta.level, t.ranks, params).map((s) => (
-                  <li key={s.id}>
-                    {spellName(s.spell)}
-                    {s.rank === 'max' ? '' : ` r${s.rank}`}: {describeCond(s.when)}
-                    {s.filler ? ' (filler)' : ''}
-                  </li>
-                ))}
-              </ol>
-              {fullRotationNote(t) && <p className="fv-note">{fullRotationNote(t)}</p>}
-              <p className="fv-note">Opiera się na szacunkach: {verifyFor(t, res.meta.level).join(', ') || 'brak'}</p>
-            </details>
+        </section>
+      )}
+      {res && shown?.completions && shown.completions.length > 0 && (
+        <section className="fv-panel" aria-label="Kompletne buildy">
+          <h2>Kompletne buildy (do {d.toLevel})</h2>
+          {savedNote && savedNote.from === shown.completions && (
+            <p className="fv-note" role="status">
+              Zapisano: <b>{savedNote.name}</b>. <a href={routeHref({ mode: 'forever', view: 'custom' })}>Otwórz w zakładce Własny build</a>
+            </p>
+          )}
+          {shown.completions.map((c) => (
+            <CompletedCard
+              key={c.rank}
+              c={c}
+              onSave={() => {
+                const b = completedBuild(c, existingNames);
+                onSave(b);
+                setSavedNote({ name: b.name, from: shown.completions });
+              }}
+            />
           ))}
         </section>
       )}
     </>
+  );
+}
+
+/** One completed build: the speed over the path, the points level by level and the trees at the last level. */
+function CompletedCard({ c, onSave }: { c: CompletedBuild; onSave(): void }) {
+  const finalRanks: Ranks = { ...c.baseRanks };
+  for (const id of c.path) finalRanks[id] = (finalRanks[id] ?? 0) + 1;
+  const perTree = validatePicks([...canonicalPicks(c.baseRanks), ...c.path]).pointsPerTree;
+  const saved = c.greedyAvgKph > 0 && c.avgKph > 0 ? (1 - c.greedyAvgKph / c.avgKph) * 100 : 0;
+  return (
+    <article className="fv-completed">
+      <h3>
+        #{c.rank}: {c.label}
+      </h3>
+      <p>
+        Średnio <b>{f1(c.avgKph)} kills/h</b> na levelach {c.fromLevel + 1}–{c.toLevel} (droga zachłanna: {f1(c.greedyAvgKph)} kills/h; czas levelowania {saved >= 0 ? 'krótszy' : 'dłuższy'} o {f1(Math.abs(saved))}%).{' '}
+        <button type="button" className="btn" aria-label={`Zapisz kompletny build #${c.rank}`} onClick={onSave}>
+          Zapisz
+        </button>
+      </p>
+      <div className="fv-discover-details">
+        <div>
+          <table className="fv-table fv-stats" aria-label={`Droga #${c.rank}`}>
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th className="fv-text">Talent</th>
+                <th>Kills/h</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.perLevel.map((p) => (
+                <tr key={p.level}>
+                  <td>{p.level}</td>
+                  <td className="fv-text">{TALENT_BY_ID.get(p.pick)?.name ?? p.pick}</td>
+                  <td>{f1(p.kph)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h4>Talenty na levelu {c.toLevel}</h4>
+          <TalentTrees ranks={finalRanks} perTree={perTree} />
+        </div>
+      </div>
+    </article>
   );
 }

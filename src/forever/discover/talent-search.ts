@@ -34,6 +34,10 @@ const ORDER: readonly TalentDef[] = (() => {
   return out;
 })();
 
+const ORDER_INDEX: ReadonlyMap<string, number> = new Map(ORDER.map((t, i) => [t.id, i]));
+/** Position of a talent in the legal spending order (rows first): ties go to the lower row. */
+export const canonicalIndex = (id: string): number => ORDER_INDEX.get(id) ?? Number.MAX_SAFE_INTEGER;
+
 export function canonicalPicks(r: Ranks): string[] {
   const out: string[] = [];
   for (const t of ORDER) for (let i = 0; i < (r[t.id] ?? 0); i++) out.push(t.id);
@@ -89,6 +93,16 @@ function canTake(t: TalentDef, r: Ranks, perTree: Record<Tree, number>): boolean
   if (perTree[t.tree] < 5 * t.row) return false;
   if (t.requires && (r[t.requires.talent] ?? 0) < t.requires.rank) return false;
   return true;
+}
+
+/** Talents that can take one more point after these ranks (row gate, prerequisite, max rank), in spending order. */
+export function legalNext(r: Ranks): string[] {
+  const perTree: Record<Tree, number> = { aff: 0, demo: 0, destro: 0 };
+  for (const [id, n] of Object.entries(r)) {
+    const t = TALENT_BY_ID.get(id);
+    if (t) perTree[t.tree] += n;
+  }
+  return ORDER.filter((t) => canTake(t, r, perTree)).map((t) => t.id);
 }
 
 /** The required talents with their prerequisites, as [talent, rank] goals. */

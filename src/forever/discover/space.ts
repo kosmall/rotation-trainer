@@ -101,12 +101,17 @@ export function sacrificeLive(c: Combo, ranks: Ranks): boolean {
 
 /** The label of what a combination really plays at a level with these talents (dead steps left out). */
 export function playedLabel(c: Combo, level: number, ranks: Ranks): string {
+  return rotationLabel(playedGenes(c, level, ranks));
+}
+
+/** The genes of what a combination really plays at a level with these talents (effects that cannot fire turned off). */
+export function playedGenes(c: Combo, level: number, ranks: Ranks): RotationGenes {
   const live = new Set(liveSteps(c, level, ranks).map((s) => s.id));
   const g = c.genes;
   let filler = g.filler;
   if (WRACK_FLOOR[filler] !== undefined && !live.has('filler_wrack')) filler = 'sb_max';
   if (filler === 'wrack_single_then_drain_life' && !live.has('filler_wrack_single_mob')) filler = 'drain_life';
-  return rotationLabel({
+  return ({
     ...g,
     coe: g.coe && live.has('curse_of_elements'),
     agony: g.agony && live.has('bane_of_agony'),
