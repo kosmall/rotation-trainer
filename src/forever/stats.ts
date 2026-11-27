@@ -172,11 +172,34 @@ export function healthRegenPerSec(spirit: number): number {
   return (spirit * 0.12 + 1.5) / 2;
 }
 
-/** Mana regeneration per second while fighting: none inside the five-second rule, doubled-or-more by Soul Harvest. */
-export function combatRegenPerSec(spirit: number, params: Params, soulHarvestBonus: number): number {
+/** The part of Soul Harvest that changes mana regeneration (see `soulHarvest` in effects.ts). */
+export interface RegenBuff { bonus: number; castingShare: number }
+
+/**
+ * Mana regeneration per second while fighting (always inside the five-second rule): `fsr_regen_fraction`
+ * of base, or under Soul Harvest base x (1 + bonus) x castingShare (2/2: 200% of base, 1/2: 75%).
+ */
+export function combatRegenPerSec(spirit: number, params: Params, soulHarvest: RegenBuff | null): number {
   const base = spiritManaRegenPerSec(spirit);
-  if (soulHarvestBonus > 0) return base * (1 + soulHarvestBonus);
+  if (soulHarvest && soulHarvest.bonus > 0) return base * (1 + soulHarvest.bonus) * Math.max(soulHarvest.castingShare, params.fsr_regen_fraction);
   return base * params.fsr_regen_fraction;
+}
+
+/**
+ * Mana regenerated on the walk to the next mob (`transition_sec`), with Soul Harvest running for the
+ * first `shLeftSec` of it. The first `fsr_sec` are inside the five-second rule (regen as in combat),
+ * the rest is normal Spirit regen, raised by the Soul Harvest bonus while it still runs.
+ */
+export function walkManaRegen(spirit: number, params: Params, soulHarvest: RegenBuff, shLeftSec: number): number {
+  const base = spiritManaRegenPerSec(spirit);
+  const total = params.transition_sec;
+  const fsr = Math.min(params.fsr_sec, total);
+  const sh = Math.max(0, Math.min(shLeftSec, total));
+  const shInFsr = Math.min(sh, fsr);
+  const shAfterFsr = Math.max(0, sh - fsr);
+  const inFsr = combatRegenPerSec(spirit, params, soulHarvest) * shInFsr + combatRegenPerSec(spirit, params, null) * (fsr - shInFsr);
+  const afterFsr = base * (total - fsr) + base * soulHarvest.bonus * shAfterFsr;
+  return inFsr + afterFsr;
 }
 
 export function petData(kind: string): Record<string, unknown> {

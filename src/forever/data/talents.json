@@ -65,9 +65,9 @@
    "effect": {
     "regenBonusAtMax": 1.0,
     "durationMs": 10000,
-    "regenContinuesWhileCasting": true
+    "castingShareAtMax": 1.0
    },
-   "source": "Confirmed: 50%/100% regen for 10 s after a kill under Drain Soul, same share continues while casting (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
+   "source": "Confirmed: 50%/100% regen for 10 s after a kill under Drain Soul, same share continues while casting (rank 1: \"increases your Mana regeneration by 50% for 10 sec and allows 50% of normal Mana regeneration to continue while casting\"; guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); allthings.how/?p=331629 (max rank, updated 11 Nov 2026))"
   },
   {
    "id": "improved_drains",

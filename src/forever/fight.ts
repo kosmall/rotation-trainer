@@ -769,8 +769,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     // Regen over the interval.
     const dt = Math.max(0, next - t);
     if (dt > 0) {
-      const bonus = t < shUntil ? sh.bonus : 0;
-      mana = Math.min(maxMana, mana + (combatRegenPerSec(stats.spirit, params, bonus) + sacManaPerMs * 1000) * (dt / 1000));
+      mana = Math.min(maxMana, mana + (combatRegenPerSec(stats.spirit, params, t < shUntil ? sh : null) + sacManaPerMs * 1000) * (dt / 1000));
       if (sacHealPerMs > 0) healPlayer(sacHealPerMs * dt);
       if (petAlive && petKind !== 'imp') pet.mana = Math.min(pet.mana + 0.5 * (dt / 1000), 1e9);
     }
