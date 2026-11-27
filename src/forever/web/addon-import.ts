@@ -2,7 +2,7 @@
 // Framework-free. Items, race, level and professions of the export are ignored here.
 
 import type { CustomBuildData } from '../builds';
-import { TALENTS, validatePicks } from '../talents';
+import { MAX_TALENT_POINTS, TALENTS, validatePicks } from '../talents';
 
 /** True for the addon's JSON (it has `class` and `talents`), false for the app's own build format. */
 export function isAddonExport(raw: unknown): boolean {
@@ -31,9 +31,10 @@ export function parseAddonExport(raw: unknown): { build: CustomBuildData; points
     if (rank > t.maxRank) throw new Error(`${t.name}: rank ${rank} is above its maximum ${t.maxRank}`);
     for (let k = 0; k < rank; k++) picks.push(t.id);
   }
+  if (picks.length > MAX_TALENT_POINTS) throw new Error(`talents spend ${picks.length} points, at most ${MAX_TALENT_POINTS}`);
   const check = validatePicks(picks);
   if (!check.ok) throw new Error(`illegal talents: ${check.errors[0]}`);
-  const spec = typeof o.spec === 'string' && o.spec in BY_SPEC ? o.spec : 'affliction';
+  const spec = typeof o.spec === 'string' && Object.hasOwn(BY_SPEC, o.spec) ? o.spec : 'affliction';
   const who = typeof o.name === 'string' && o.name.trim() ? o.name.trim() : 'Import z addonu';
   const name = `${who} (${typeof o.spec === 'string' && o.spec ? o.spec : spec})`.slice(0, 40);
   return {

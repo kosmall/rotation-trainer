@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validatePicks } from '../../src/forever/talents';
+import { TALENTS, validatePicks } from '../../src/forever/talents';
 import { isAddonExport, parseAddonExport } from '../../src/forever/web/addon-import';
 import { emptyBuild } from '../../src/forever/web/custom';
 
@@ -41,6 +41,10 @@ describe('addon export import', () => {
     expect(() => parseAddonExport({ ...SAMPLE, talents: '9' })).toThrow(/Improved Life Tap/);
     expect(() => parseAddonExport({ ...SAMPLE, talents: '1'.repeat(53) })).toThrow(/52/);
     expect(() => parseAddonExport(null)).toThrow();
+  });
+  it('rejects more than 51 points and ignores inherited spec keys', () => {
+    expect(() => parseAddonExport({ ...SAMPLE, talents: TALENTS.map((t) => t.maxRank).join('') })).toThrow(/51/);
+    expect(parseAddonExport({ ...SAMPLE, spec: 'constructor', talents: '' }).build.rotation).toBe('affliction');
   });
   it('empty or missing talents give an empty build; missing name falls back', () => {
     const r = parseAddonExport({ class: 'warlock', spec: 'affliction' });
