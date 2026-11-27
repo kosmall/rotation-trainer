@@ -130,7 +130,7 @@ describe('ForeverApp', () => {
     window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ level: 30, mobs: 2 }));
     render(<ForeverApp view="builds" runner={runner} />);
     fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'DEMO_PACT_R1_PET' } });
-    expect(screen.getByText(/zamiast niego: Voidwalker przy 3\+ mobach, Voidwalker do levelu 39 przy 2 mobach; na levelu 30 przy 2 mobach, walczy Voidwalker/)).toBeTruthy();
+    expect(screen.getByText(/zamiast niego: Voidwalker przy 3\+ mobach, Voidwalker przy 2 mobach; na levelu 30 przy 2 mobach, walczy Voidwalker/)).toBeTruthy();
   });
 
   it('lists builds, rotations and assumptions', () => {

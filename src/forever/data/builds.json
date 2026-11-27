@@ -628,14 +628,7 @@
    "rank": "max",
    "pre_respec_build": null,
    "respec_level": 40,
-   "pet_rules": [
-    {
-     "pet": "succubus",
-     "fromLevel": 20,
-     "toLevel": 29,
-     "maxMobs": 1
-    }
-   ]
+   "pet_rules": []
   },
   {
    "id": "AFF_WRACK_IMMO",
@@ -780,14 +773,7 @@
    "pre_respec_build": null,
    "respec_level": 40,
    "wrack_min_hp_pct": 0.5,
-   "pet_rules": [
-    {
-     "pet": "succubus",
-     "fromLevel": 20,
-     "toLevel": 29,
-     "maxMobs": 1
-    }
-   ]
+   "pet_rules": []
   },
   {
    "id": "DEMO_PACT_R1",
@@ -830,8 +816,7 @@
     {
      "pet": "voidwalker",
      "minMobs": 2,
-     "maxMobs": 2,
-     "toLevel": 39
+     "maxMobs": 2
     }
    ]
   },
