@@ -53,7 +53,7 @@ describe('Odkrywanie: complete selected results to 59', () => {
   }, 90000);
 
   it('loads a stored discovery whose completions are unreadable', () => {
-    store({ completions: [{ rank: 1 }] });
+    store({ completions: [{ rank: 1, label: 'x', combo: { genes: {} }, baseRanks: {}, path: [], perLevel: [{ level: 41 }], avgKph: 1, greedyAvgKph: 1, fromLevel: 40, toLevel: 59 }] });
     render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
     expect(screen.getByRole('table', { name: 'Najlepsze znalezione buildy' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Kompletne buildy' })).toBeNull();

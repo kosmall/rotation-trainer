@@ -36,7 +36,7 @@ describe('Odkrywanie: row details', () => {
     expect(within(panel).getByRole('region', { name: 'Drzewo Demonology' })).toBeTruthy();
     expect(within(panel).getByRole('list', { name: /^Diagram rotacji/ })).toBeTruthy();
     const stats = within(panel).getByRole('table', { name: 'Statystyki #1' });
-    for (const label of ['Kills/h', 'TTK', 'Mana na zabicie', 'HP na zabicie', 'Picie na zabicie', 'Life Tap na zabicie', 'Przerwy na godzinę', 'Wykorzystanie GCD', 'Śmierci na godzinę', 'Śmierci peta na godzinę', 'Najbliższy znany']) {
+    for (const label of ['Kills/h', 'Odchylenie kills/h między sesjami', 'TTK', 'Mana na zabicie', 'HP na zabicie', 'Picie na zabicie', 'Life Tap na zabicie', 'Przerwy na godzinę', 'Wykorzystanie GCD', 'Śmierci na godzinę', 'Śmierci peta na godzinę', 'Najbliższy znany']) {
       expect(within(stats).getByRole('rowheader', { name: label })).toBeTruthy();
     }
     expect(within(panel).getByText(/Opiera się na szacunkach/)).toBeTruthy();

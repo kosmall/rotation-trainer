@@ -243,7 +243,7 @@ export async function completeBuilds(rows: readonly CompleteRowInput[], base: Co
   const improveTasks: CompleteTask[] = [];
   rows.forEach((r, row) => {
     for (let k = 0; k < b.restarts; k++)
-      improveTasks.push({ kind: 'complete-improve', row, ctx: ctxOf(r, b.sessions, base.seed), start: (greedy[row] as { path: string[] }).path, maxSims: Math.max(1, Math.floor(b.maxSims / b.restarts)), seed: base.seed * 1000 + row * 10 + k });
+      improveTasks.push({ kind: 'complete-improve', row, ctx: ctxOf(r, b.sessions, base.seed), start: (greedy[row] as { path: string[] }).path, maxSims: Math.max(1, Math.floor(b.maxSims / b.restarts)), seed: base.seed * 1000 + r.rank * 10 + k });
   });
   const improved = (await stage('improve', improveTasks)) as Extract<CompleteResult, { kind: 'complete-path' }>[];
   const best = rows.map((_, row) => {
@@ -260,9 +260,14 @@ export async function completeBuilds(rows: readonly CompleteRowInput[], base: Co
     ]),
   )) as Extract<CompleteResult, { kind: 'complete-final' }>[];
   return rows.map((r, row) => {
-    const kph = finals.find((f) => f.row === row && f.which === 'best')?.kph ?? [];
+    let kph = finals.find((f) => f.row === row && f.which === 'best')?.kph ?? [];
     const gk = finals.find((f) => f.row === row && f.which === 'greedy')?.kph ?? [];
-    const path = (best[row] as { path: string[] }).path;
+    let path = (best[row] as { path: string[] }).path;
+    // the search picked on few sessions; when greedy wins on the final ones, greedy is kept
+    if (gk.length === kph.length && harmonicKph(gk) > harmonicKph(kph)) {
+      path = (greedy[row] as { path: string[] }).path;
+      kph = gk;
+    }
     return {
       rank: r.rank,
       label: r.label,
@@ -279,4 +284,32 @@ export async function completeBuilds(rows: readonly CompleteRowInput[], base: Co
       greedySearchCost: (greedy[row] as { cost: number }).cost,
     };
   });
+}
+
+export interface CompleteEtaInput {
+  stage: string;
+  done: number;
+  total: number;
+  stageElapsedSec: number;
+  budget: CompleteBudget;
+  rows: number;
+  pathLength: number;
+}
+
+/** Candidate points tried per level by the greedy path (a rough mean). */
+const GREEDY_CANDIDATES = 20;
+
+/** Seconds left in the whole completion, in simulated sessions priced at the current stage's speed. Null before there is a speed. */
+export function completeEtaSec(i: CompleteEtaInput): number | null {
+  if (i.done <= 0 || i.stageElapsedSec <= 0) return null;
+  const b = i.budget;
+  const order = ['greedy', 'improve', 'final'];
+  const unit: Record<string, number> = { greedy: i.pathLength * GREEDY_CANDIDATES * b.sessions, improve: (b.maxSims / Math.max(1, b.restarts)) * b.sessions, final: i.pathLength * b.finalSessions };
+  const tasks: Record<string, number> = { greedy: i.rows, improve: i.rows * b.restarts, final: 2 * i.rows };
+  const at = order.indexOf(i.stage);
+  if (at < 0) return null;
+  const rate = (i.done * (unit[i.stage] as number)) / i.stageElapsedSec;
+  let left = (i.total - i.done) * (unit[i.stage] as number);
+  for (const s of order.slice(at + 1)) left += (tasks[s] as number) * (unit[s] as number);
+  return rate > 0 ? left / rate : null;
 }

@@ -5,7 +5,7 @@ import type { Settings } from '../../forever/web/api';
 import { VARIANT_IDS } from '../../forever/builds';
 import { enumerateCombos } from '../../forever/discover/space';
 import { discoverEtaSec, discoverOptions, workerCount, type DiscoverBudget } from '../../forever/web/discover';
-import { completeBuilds, COMPLETE_FULL, COMPLETE_QUICK, type CompleteBudget, type CompletedBuild, type CompleteResult, type CompleteTask } from '../../forever/discover/complete';
+import { completeBuilds, completeEtaSec, COMPLETE_FULL, COMPLETE_QUICK, type CompleteBudget, type CompletedBuild, type CompleteResult, type CompleteTask } from '../../forever/discover/complete';
 import type { Runner } from '../../forever/discover/engine';
 import { discoverPool, type Pool } from '../../forever/web/discover-client';
 import type { AnyResult, AnyTask } from '../../forever/web/discover-tasks';
@@ -80,7 +80,21 @@ function isShowable(o: unknown): o is SavedDiscovery {
 }
 
 const isCompletion = (c: unknown): boolean =>
-  isObj(c) && typeof c.rank === 'number' && typeof c.label === 'string' && isObj(c.combo) && isObj(c.combo.genes) && isObj(c.baseRanks) && Array.isArray(c.path) && Array.isArray(c.perLevel) && typeof c.avgKph === 'number' && typeof c.greedyAvgKph === 'number';
+  isObj(c) &&
+  typeof c.rank === 'number' &&
+  typeof c.label === 'string' &&
+  typeof c.fromLevel === 'number' &&
+  typeof c.toLevel === 'number' &&
+  isObj(c.combo) &&
+  isObj(c.combo.genes) &&
+  isObj(c.combo.pets) &&
+  isObj(c.baseRanks) &&
+  Array.isArray(c.path) &&
+  c.path.every((p) => typeof p === 'string') &&
+  Array.isArray(c.perLevel) &&
+  c.perLevel.every((p) => isObj(p) && typeof p.level === 'number' && typeof p.pick === 'string' && typeof p.kph === 'number') &&
+  typeof c.avgKph === 'number' &&
+  typeof c.greedyAvgKph === 'number';
 
 function loadSaved(): SavedDiscovery | null {
   try {
@@ -105,9 +119,12 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
   const [job, setJob] = useState<'search' | 'complete' | null>(null);
   const abort = useRef<AbortController | null>(null);
   const savedRef = useRef(saved);
-  savedRef.current = saved;
+  useEffect(() => {
+    savedRef.current = saved;
+  }, [saved]);
   const toLevel = tuning.toLevel ?? COMPLETE_TO_LEVEL;
   const persist = (next: SavedDiscovery): void => {
+    savedRef.current = next;
     setSaved(next);
     try {
       window.localStorage.setItem(DISCOVER_STORAGE_KEY, JSON.stringify(next));
@@ -184,14 +201,15 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       setError(null);
       setProg({ stage: '', done: 0, total: 0, etaSec: null });
       let stageStart = { stage: '', at: Date.now() };
+      const cb = tuning.completeBudget ?? (budget === 'full' ? COMPLETE_FULL : COMPLETE_QUICK);
+      const n = Math.max(0, toLevel - shown.result.meta.level);
       const progress = (stage: string, done: number, total: number): void => {
         if (!current()) return;
         const now = Date.now();
         if (stage !== stageStart.stage) stageStart = { stage, at: now };
-        const rate = done / Math.max(0.001, (now - stageStart.at) / 1000);
-        setProg({ stage: `complete-${stage}`, done, total, etaSec: done > 0 && done < total ? (total - done) / rate : null });
+        const etaSec = completeEtaSec({ stage, done, total, stageElapsedSec: (now - stageStart.at) / 1000, budget: cb, rows: rows.length, pathLength: n });
+        setProg({ stage: `complete-${stage}`, done, total, etaSec });
       };
-      const cb = tuning.completeBudget ?? (budget === 'full' ? COMPLETE_FULL : COMPLETE_QUICK);
       const base = { fromLevel: shown.result.meta.level, toLevel, profile: options.profile, mobs: options.mobs, params: options.params, seed: options.seed };
       completeBuilds(rows, base, cb, pool.runner.bind(pool) as unknown as (t: CompleteTask[], d: (r: CompleteResult) => void) => Promise<CompleteResult[]>, progress)
         .then((done) => {

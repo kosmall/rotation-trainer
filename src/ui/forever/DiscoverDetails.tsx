@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { TopRow } from '../../forever/discover/engine';
 import { verifyFor } from '../../forever/discover/report';
 import type { CellMetrics } from '../../forever/runner';
@@ -13,6 +14,7 @@ const pct = (x: number): string => `${(x * 100).toFixed(1)}%`;
 
 /** Every statistic of a result: label and value (Polish labels, like the rest of the Forever app). */
 const STATS: readonly [string, (m: CellMetrics) => string][] = [
+  ['Odchylenie kills/h między sesjami', (m) => n1(m.killsPerHourStd)],
   ['TTK', (m) => `${n1(m.ttkMean)} s (odch. ${n1(m.ttkStd)} s)`],
   ['Mana na zabicie', (m) => n1(m.manaPerKill)],
   ['Mana netto na zabicie (bez Life Tapa)', (m) => n1(m.netManaPerKill)],
@@ -39,6 +41,7 @@ const STATS: readonly [string, (m: CellMetrics) => string][] = [
 export function DiscoverDetails({ row, level, params }: { row: TopRow; level: number; params: Params }) {
   const g = row.gainVsBest;
   const note = fullRotationNote(row);
+  const variant = useMemo(() => rowVariant(row, level), [row, level]);
   const names = (ids: readonly string[]): string => ids.map((id) => TALENT_BY_ID.get(id)?.name ?? id).join(', ');
   return (
     <section className="fv-discover-details" aria-label={`Szczegóły wyniku #${row.rank}`}>
@@ -85,7 +88,7 @@ export function DiscoverDetails({ row, level, params }: { row: TopRow; level: nu
         <p className="fv-note">Opiera się na szacunkach: {verifyFor(row, level).join(', ') || 'brak'}</p>
       </div>
       <div className="fv-discover-rotation">
-        <RotationFlow v={rowVariant(row)} params={params} />
+        <RotationFlow v={variant} params={params} />
         {note && <p className="fv-note">{note}</p>}
       </div>
     </section>

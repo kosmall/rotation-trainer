@@ -5,7 +5,7 @@ import type { BuildVariant, CustomBuildData } from '../builds';
 import type { CompletedBuild } from '../discover/complete';
 import { DEFAULT_BUDGET, QUICK_BUDGET, type Budget, type DiscoverOptions, type TopRow } from '../discover/engine';
 import { rotationLabel } from '../rotation-genes';
-import { sacrificeLive } from '../discover/space';
+import { playedGenes, sacrificeLive } from '../discover/space';
 import { canonicalPicks } from '../discover/talent-search';
 import { paramsOf, type Settings } from './api';
 import { uniqueName } from './custom';
@@ -76,8 +76,8 @@ export function fullRotationNote(row: TopRow): string | null {
   return full === row.label ? null : `Zapisany build na innych levelach gra pełną rotację: ${full}`;
 }
 
-/** A found result as a build variant for the views (talent facts, rotation diagram); not registered. */
-export function rowVariant(row: TopRow): BuildVariant {
+/** A found result as a build variant for the views (talent facts, rotation diagram) as played at its level; not registered. */
+export function rowVariant(row: TopRow, level: number): BuildVariant {
   return {
     id: `#${row.rank} ${row.label}`,
     order: 'custom:discover',
@@ -88,7 +88,8 @@ export function rowVariant(row: TopRow): BuildVariant {
     rank: 'max',
     pre_respec_build: null,
     respec_level: 40,
-    genes: { ...row.combo.genes },
+    // what is played at the found level (steps that cannot fire there are left out)
+    genes: playedGenes(row.combo, level, row.ranks),
   };
 }
 
