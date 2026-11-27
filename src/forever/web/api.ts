@@ -7,10 +7,11 @@ import { loadParams } from '../data/load';
 import { duelLevel, pairedDiff, type DuelResult, type MetricDiff } from '../duel';
 import { planEp, type EpResult } from '../ep';
 import { runCell, type CellMetrics } from '../runner';
-import { PROFILE_IDS } from '../stats';
+import { MY_GEAR, PROFILE_IDS, registerGearProfile } from '../stats';
+import type { GearTotals } from './gear';
 import type { EurekaPolicy, Params } from '../types';
 
-export { customId };
+export { customId, MY_GEAR };
 export const MIN_LEVEL = 10;
 export const MAX_LEVEL = 59;
 
@@ -65,7 +66,7 @@ export function normalizeSettings(s: Partial<Settings>): Settings {
   const num = (v: unknown, fb: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fb);
   return {
     level: Math.min(MAX_LEVEL, Math.max(MIN_LEVEL, Math.round(num(s.level, d.level)))),
-    profile: s.profile !== undefined && PROFILE_IDS.includes(s.profile) ? s.profile : d.profile,
+    profile: s.profile !== undefined && (s.profile === MY_GEAR || PROFILE_IDS.includes(s.profile)) ? s.profile : d.profile,
     mobs: s.mobs === 2 ? 2 : 1,
     policy: s.policy !== undefined && s.policy in POLICIES ? s.policy : d.policy,
     spellstone: s.spellstone === true,
@@ -78,16 +79,23 @@ export function normalizeSettings(s: Partial<Settings>): Settings {
 export const SPELLSTONE_PARAMS: Partial<Params> = { haste_pct: 2, shadow_spell_power_bonus: 21 };
 
 /** Parameter overrides of the settings: the Life Tap policy and the Spellstone. */
-export function overridesOf(s: Settings): Partial<Params> {
-  return { ...(POLICIES[s.policy]?.params ?? {}), ...(s.spellstone ? SPELLSTONE_PARAMS : {}), eureka_policy: s.eureka };
+export function overridesOf(s: Settings, gear?: GearTotals): Partial<Params> {
+  const o: Partial<Params> = { ...(POLICIES[s.policy]?.params ?? {}), ...(s.spellstone ? SPELLSTONE_PARAMS : {}), eureka_policy: s.eureka };
+  // Shadow spell power of the player's items joins the Spellstone's bonus (the engine adds it to Shadow spells only).
+  if (s.profile === MY_GEAR && gear && gear.shadowSpellPower > 0) o.shadow_spell_power_bonus = (o.shadow_spell_power_bonus ?? 0) + gear.shadowSpellPower;
+  return o;
 }
 
-export function paramsOf(s: Settings): Params {
-  return loadParams(overridesOf(s));
+export function paramsOf(s: Settings, gear?: GearTotals): Params {
+  return loadParams(overridesOf(s, gear));
 }
 
 /** `custom`: the user's builds that the job may use (the worker has no access to the browser storage); ranking and sweep run all of them. */
-export type JobRequest =
+export type JobRequest = JobBody & {
+  /** Totals of the player's items: required when the settings use the profile `mine` (the worker has no access to the browser storage). */
+  gear?: GearTotals;
+};
+type JobBody =
   | { kind: 'ranking'; settings: Settings; custom?: readonly CustomBuildData[] }
   | { kind: 'sweep'; settings: Settings; builds: readonly string[]; custom?: readonly CustomBuildData[] }
   | { kind: 'duel'; settings: Settings; a: string; b: string; sweep: boolean; custom?: readonly CustomBuildData[] }
@@ -144,7 +152,12 @@ function checkBuild(id: string, custom: readonly string[]): string {
 
 export function planJob(req: JobRequest): Job {
   const s = normalizeSettings(req.settings);
-  const params = paramsOf(s);
+  if (s.profile === MY_GEAR) {
+    if (!req.gear) throw new Error('gear: the profile "mine" needs the totals of your items');
+    registerGearProfile(req.gear);
+  }
+  const overrides = overridesOf(s, req.gear);
+  const params = loadParams(overrides);
   const customIds = (req.custom ?? []).map((c) => customVariant(c).id);
   const cfg = (build: string, level: number) => ({ variant: loadVariant(checkBuild(build, customIds)), level, profile: s.profile, params, mobs: s.mobs });
   switch (req.kind) {
@@ -179,7 +192,7 @@ export function planJob(req: JobRequest): Job {
     }
     case 'ep': {
       if (req.builds.length === 0) throw new Error('ep needs at least one build');
-      const plans = req.builds.map((b) => planEp(loadVariant(checkBuild(b, customIds)), s.level, { profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overridesOf(s) }));
+      const plans = req.builds.map((b) => planEp(loadVariant(checkBuild(b, customIds)), s.level, { profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overrides }));
       const starts = plans.map((_, k) => plans.slice(0, k).reduce((n, p) => n + p.total, 0));
       const total = plans.reduce((n, p) => n + p.total, 0);
       return {
@@ -196,7 +209,7 @@ export function planJob(req: JobRequest): Job {
       checkBuild(req.a, customIds);
       checkBuild(req.b, customIds);
       const levels = req.sweep ? LEVELS : [s.level];
-      const o = { levels, profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overridesOf(s) };
+      const o = { levels, profile: s.profile, mobs: s.mobs, sessions: s.sessions, seed: s.seed, params: overrides };
       return {
         total: levels.length,
         run: (i) => duelLevel(loadVariant(req.a), loadVariant(req.b), levels[i] as number, o),

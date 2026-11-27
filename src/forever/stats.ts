@@ -4,6 +4,7 @@ import type { PetRule } from './builds';
 import type { Params, PetKind, StatDelta } from './types';
 import type { Ranks } from './talents';
 import { effectNum } from './effects';
+import type { GearTotals } from './web/gear';
 
 type Pair = [number, number];
 interface BaseRow { hp: number; mana: number }
@@ -26,6 +27,13 @@ const LV = levelsJson as unknown as {
 };
 
 export const PROFILE_IDS: readonly string[] = ['quest', 'average', 'good'];
+
+/** The profile id of the player's own items (their totals are registered per job, see `registerGearProfile`). */
+export const MY_GEAR = 'mine';
+let myGear: GearTotals | null = null;
+export function registerGearProfile(totals: GearTotals | null): void {
+  myGear = totals;
+}
 
 const clampLevel = (level: number): string => (Math.round(level) === 1 ? '1' : String(Math.min(60, Math.max(10, Math.round(level)))));
 
@@ -69,6 +77,10 @@ export interface PlayerStats {
 }
 
 const prof = (profile: string, key: string, level: number): number => {
+  if (profile === MY_GEAR) {
+    if (!myGear) throw new Error('my gear: no items were given to the job');
+    return (myGear as unknown as Record<string, number>)[key] ?? 0;
+  }
   const p = (LV.profiles as Record<string, Record<string, Pair>>)[profile];
   if (!p || !p[key]) throw new Error(`unknown gear profile ${profile}`);
   const [at40, per] = p[key] as Pair;
