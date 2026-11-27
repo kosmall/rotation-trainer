@@ -35,6 +35,10 @@ export interface Params {
   drink_to_mana_pct: number;
   break_hp_pct: number;
   lt_safety_hp_pct: number;
+  /** The demon between pulls: share of its health regained per second, and when Health Funnel starts and stops (fractions). */
+  pet_ooc_regen_pct_per_sec: number;
+  pet_funnel_below_pct: number;
+  pet_funnel_to_pct: number;
   rest_to_mana_pct: number;
   rest_to_hp_pct: number;
   eat_and_drink_together: boolean;

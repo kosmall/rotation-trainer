@@ -238,10 +238,12 @@
    "row": 0,
    "col": 0,
    "maxRank": 2,
-   "status": "unmodelled",
-   "reason": "Health Funnel is not used",
-   "verify": true,
-   "source": "Wowhead Forever (user-provided max-rank text); per-rank scaling assumed linear"
+   "status": "modelled",
+   "effect": {
+    "funnelHealPerRank": 0.2,
+    "funnelCostPerRank": 0.15
+   },
+   "source": "Wowhead Forever spell 18703 (https://www.wowhead.com/forever/spell=18703, read 27 Nov 2026): at 2/2 Health Funnel transfers 40% more health for 30% less; per-rank scaling assumed linear. Used by the Health Funnel between pulls."
   },
   {
    "id": "improved_imp",

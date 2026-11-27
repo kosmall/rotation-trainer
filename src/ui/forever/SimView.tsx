@@ -26,6 +26,9 @@ export function RankingTable({ ranking, highlight, onOpenBuild, selected, onTogg
               <th scope="col">Przestój</th>
               <th scope="col">Przerwy/h</th>
               <th scope="col">Zgony/h</th>
+              <th scope="col" title="Średnie zdrowie demona na początku pulla">Demon HP</th>
+              <th scope="col">Zgony demona/h</th>
+              <th scope="col" title="Czas Health Funnel między pullami na zabitego moba">Funnel s</th>
               <th scope="col">GCD</th>
             </tr>
           </thead>
@@ -61,6 +64,9 @@ export function RankingTable({ ranking, highlight, onOpenBuild, selected, onTogg
                   <td>{f(100 * m.downtimeShare, 0)}%</td>
                   <td>{f(m.breaksPerHour)}</td>
                   <td>{f(m.deathsPerHour, 2)}</td>
+                  <td>{m.petHpStartPct == null ? '–' : `${f(m.petHpStartPct, 0)}%`}</td>
+                  <td>{f(m.petDeathsPerHour, 2)}</td>
+                  <td>{m.funnelSecPerKill == null ? '–' : f(m.funnelSecPerKill)}</td>
                   <td>{f(100 * m.gcdUtil, 0)}%</td>
                 </tr>
               );

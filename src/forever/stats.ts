@@ -3,6 +3,7 @@ import levelsJson from './data/levels.json';
 import type { PetRule } from './builds';
 import type { Params, PetKind, StatDelta } from './types';
 import type { Ranks } from './talents';
+import { effectNum } from './effects';
 
 type Pair = [number, number];
 interface BaseRow { hp: number; mana: number }
@@ -213,4 +214,22 @@ export function petBaseAt(kind: string, level: number): PetBase {
   if (!row) return { hp: 0, mana: 0, armor: 0, meleeAvg: 0 };
   const hp = (row.hp + (kind === 'voidwalker' ? 40 : 0)) * (kind === 'felhunter' ? 1 : 1.15);
   return { hp, mana: row.mana, armor: row.armor, meleeAvg: BASE.petMeleeAvgPerSwing[kind]?.[L] ?? 0 };
+}
+
+export interface HealthFunnel {
+  healPerSec: number;
+  costBase: number;
+  costPerSec: number;
+  channelSec: number;
+}
+
+/** The Health Funnel rank known at a level (Improved Health Funnel applied), or undefined before level 12. */
+export function healthFunnelAt(level: number, ranks: Readonly<Record<string, number>>): HealthFunnel | undefined {
+  const data = (levelsJson as unknown as { healthFunnel: { channelSec: number; ranks: (Omit<HealthFunnel, 'channelSec'> & { level: number })[] } }).healthFunnel;
+  const r = [...data.ranks].reverse().find((x) => x.level <= level);
+  if (!r) return undefined;
+  const talent = ranks['improved_health_funnel'] ?? 0;
+  const heal = 1 + effectNum('improved_health_funnel', 'funnelHealPerRank') * talent;
+  const cost = 1 - effectNum('improved_health_funnel', 'funnelCostPerRank') * talent;
+  return { healPerSec: r.healPerSec * heal, costBase: r.costBase * cost, costPerSec: r.costPerSec * cost, channelSec: data.channelSec };
 }

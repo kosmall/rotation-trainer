@@ -7,7 +7,7 @@ import type { CellMetrics } from '../../src/forever/runner';
 const m = (kph: number): CellMetrics => ({
   variant: 'x', level: 40, profile: 'average', sessions: 200, kills: 1000, killsPerHour: kph, killsPerHourStd: 5, ttkMean: 21.5, ttkStd: 3, manaPerKill: 0, netManaPerKill: 0, hpPerKill: 0,
   drinkSecPerKill: 0, eatSecPerKill: 0, lifeTapSecPerKill: 0, restSecPerKill: 0, downtimeShare: 0.123, breaksPerHour: 0, killsPerBreak: 0, breakFreePullPct: 0, gcdUtil: 0,
-  gcdWasteSecPerKill: 0, gcdWasteShare: 0, deathsPerHour: 0.5, petDeathsPerHour: 0, threatSwitchesPerKill: 0, timeoutPct: 0, eurekaPerHour: 0,
+  gcdWasteSecPerKill: 0, gcdWasteShare: 0, deathsPerHour: 0.5, petDeathsPerHour: 0, petHpStartPct: null, funnelSecPerKill: 0, threatSwitchesPerKill: 0, timeoutPct: 0, eurekaPerHour: 0,
 });
 const [wrackCombo] = enumerateCombos(40, { fillers: ['wrack'], minTtk: [6], pets: ['succubus'], sacrifice: false, maxDots: 0 }).filter((c) => !c.genes.drainSoulFinisher);
 const [sbCombo] = enumerateCombos(40, { fillers: ['sb_r1'], minTtk: [6], pets: ['succubus'], sacrifice: false, maxDots: 0 }).filter((c) => !c.genes.drainSoulFinisher);

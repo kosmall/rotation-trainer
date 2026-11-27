@@ -264,6 +264,54 @@
    }
   ]
  },
+ "healthFunnel": {
+  "_source": "Wowhead Forever spells 755, 3698, 3699, 3700, 11693, 11694, 11695 (https://www.wowhead.com/forever/spell=<id>, read 27 Nov 2026): 10 s channel; the demon gains healPerSec every second, the warlock pays costBase health plus costPerSec every second.",
+  "channelSec": 10,
+  "ranks": [
+   {
+    "level": 12,
+    "healPerSec": 12,
+    "costBase": 11,
+    "costPerSec": 5
+   },
+   {
+    "level": 20,
+    "healPerSec": 24,
+    "costBase": 15,
+    "costPerSec": 10
+   },
+   {
+    "level": 28,
+    "healPerSec": 43,
+    "costBase": 24,
+    "costPerSec": 17
+   },
+   {
+    "level": 36,
+    "healPerSec": 64,
+    "costBase": 39,
+    "costPerSec": 25
+   },
+   {
+    "level": 44,
+    "healPerSec": 89,
+    "costBase": 45,
+    "costPerSec": 35
+   },
+   {
+    "level": 52,
+    "healPerSec": 119,
+    "costBase": 62,
+    "costPerSec": 47
+   },
+   {
+    "level": 60,
+    "healPerSec": 153,
+    "costBase": 79,
+    "costPerSec": 61
+   }
+  ]
+ },
  "demonArmor": {
   "source": "seemeta.com Forever abilities: Demon Armor ranks at levels 20/30/40/50/60: armor 210/300/390/480/570",
   "ranks": [

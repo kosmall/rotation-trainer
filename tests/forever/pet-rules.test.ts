@@ -4,11 +4,12 @@ import { loadParams } from '../../src/forever/data/load';
 import { runCell } from '../../src/forever/runner';
 import { demonsAt } from '../../src/forever/stats';
 import { POLICIES } from '../../src/forever/web/api';
+import type { Params } from '../../src/forever/types';
 
 const petsAt = (build: string, mobs: number, levels: number[]) => levels.map((l) => demonsAt(loadVariant(build), l, mobs).pet);
 // the Life Tap policy of the study (the one the app picks by default for the pull size)
-const kph = (build: string, level: number, mobs: 1 | 2 | 3) =>
-  runCell({ variant: loadVariant(build), level, profile: 'average', params: loadParams(POLICIES[mobs === 1 ? 'BEST_1MOB' : 'BEST_2MOB']!.params), mobs }, 150, 11).metrics.killsPerHour;
+const kph = (build: string, level: number, mobs: 1 | 2 | 3, over: Partial<Params> = {}) =>
+  runCell({ variant: loadVariant(build), level, profile: 'average', params: loadParams({ ...POLICIES[mobs === 1 ? 'BEST_1MOB' : 'BEST_2MOB']!.params, ...over }), mobs }, 150, 11).metrics.killsPerHour;
 
 describe('builds that change the demon by level and pull size', () => {
   it('affliction takes the Succubus only on single mob pulls at 20-29', () => {
@@ -37,8 +38,12 @@ describe('builds that change the demon by level and pull size', () => {
   });
 
   it('are better where the study found them better', () => {
-    expect(kph('DT_SS_WRACK_50_PET', 22, 1)).toBeGreaterThan(kph('DT_SS_WRACK_50', 22, 1));
-    expect(kph('AFF_WRACK_SH_PET', 18, 1)).toBeGreaterThan(kph('AFF_WRACK', 18, 1));
+    // The study that chose the Succubus rules had the demon full at every pull. With the health carried over (Classic
+    // regeneration estimate) the Succubus no longer pays at those levels, so these two hold only with instant regeneration.
+    const full = { pet_ooc_regen_pct_per_sec: 1 };
+    expect(kph('DT_SS_WRACK_50_PET', 22, 1, full)).toBeGreaterThan(kph('DT_SS_WRACK_50', 22, 1, full));
+    expect(kph('AFF_WRACK_SH_PET', 18, 1, full)).toBeGreaterThan(kph('AFF_WRACK', 18, 1, full));
+    expect(kph('DT_SS_WRACK_50_PET', 22, 1)).toBeLessThan(kph('DT_SS_WRACK_50', 22, 1));
     expect(kph('DEMO_PACT_R1_PET', 24, 2)).toBeGreaterThan(kph('DEMO_PACT_R1', 24, 2) + 30);
     expect(kph('DEMO_PACT_R1_PET', 50, 3)).toBeGreaterThan(kph('DEMO_PACT_R1', 50, 3) + 30);
   });

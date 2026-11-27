@@ -91,6 +91,12 @@ npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out re
 npm run forever:ep -- --all --levels 50                                                            # wszystkie buildy
 ```
 
+**Zdrowie demona między pullami:** przenosi się na następny pull. Poza walką demon odzyskuje 2,6% zdrowia na sekundę
+(`pet_ooc_regen_pct_per_sec`, szacunek z emulatora Classic, dla Forever nieznaleziony), a poniżej 70% warlock leczy go
+między pullami Health Funnel (`pet_funnel_below_pct`, `pet_funnel_to_pct`; kosztuje czas i zdrowie). Martwy demon
+wraca z pełnym zdrowiem po karze za przywołanie. Ranking pokazuje zdrowie demona na starcie pulla, jego zgony i czas
+Health Funnel.
+
 **Buildy `_NOCOE`** (`AFF_DRAINTANK_NOCOE`, `DT_SS_NOCOE`, `DT_SS_WRACK_70_NOCOE`, `DT_SS_WRACK_50_NOCOE`,
 `DEMO_PACT_R1_NOCOE`, `DEMO_PACT_VIDEO_NOCOE`) to te same talenty, pety i rotacja co bez przyrostka, tylko bez Curse
 of the Elements (pole `"coe": false` w `builds.json`). Rangi klątwy: +4/6/8/10% za 50/100/150/200 many od levelu

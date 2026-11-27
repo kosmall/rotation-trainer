@@ -31,6 +31,9 @@ const STATS: readonly [string, (m: CellMetrics) => string][] = [
   ['Strata GCD na zabicie', (m) => `${n2(m.gcdWasteSecPerKill)} s (${pct(m.gcdWasteShare)})`],
   ['Śmierci na godzinę', (m) => n2(m.deathsPerHour)],
   ['Śmierci peta na godzinę', (m) => n2(m.petDeathsPerHour)],
+  // results stored before the demon's health was simulated have neither number
+  ['Zdrowie peta na starcie pulla', (m) => (m.petHpStartPct == null ? '–' : `${n1(m.petHpStartPct)}%`)],
+  ['Health Funnel na zabicie', (m) => (m.funnelSecPerKill == null ? '–' : `${n1(m.funnelSecPerKill)} s`)],
   ['Przejęcia aggro na zabicie', (m) => n2(m.threatSwitchesPerKill)],
   ['Pulle przerwane limitem czasu', (m) => `${n1(m.timeoutPct)}%`],
   ['Eureka! na godzinę', (m) => n1(m.eurekaPerHour)],
