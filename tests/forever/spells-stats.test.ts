@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
 import { castMsOf, downrankFactor, getSpell, rankAt } from '../../src/forever/spells';
-import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf, maxHealthOf, maxManaOf, manaBaseOffset } from '../../src/forever/stats';
+import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, walkManaRegen, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf, maxHealthOf, maxManaOf, manaBaseOffset } from '../../src/forever/stats';
 
 const sb = getSpell('shadow_bolt');
 const r1 = rankAt('shadow_bolt', 1, 40)!;
@@ -87,10 +87,28 @@ describe('stats and Life Tap', () => {
     expect(mobAt(5).hp).toBe(mobAt(10).hp);
     expect(mobAt(70).hp).toBe(mobAt(60).hp);
   });
-  it('Soul Harvest lifts regen to 100% of base while casting', () => {
+  it('Soul Harvest while casting: 2/2 gives 200% of base (+100%, all kept), 1/2 gives 75% (+50%, half kept)', () => {
     const p = loadParams();
-    expect(combatRegenPerSec(100, p, 0)).toBe(0);
-    expect(combatRegenPerSec(100, p, 1)).toBeCloseTo(spiritManaRegenPerSec(100) * 2, 6);
+    const base = spiritManaRegenPerSec(100);
+    expect(combatRegenPerSec(100, p, null)).toBe(0);
+    expect(combatRegenPerSec(100, p, { bonus: 1, castingShare: 1 })).toBeCloseTo(base * 2, 6);
+    expect(combatRegenPerSec(100, p, { bonus: 0.5, castingShare: 0.5 })).toBeCloseTo(base * 0.75, 6);
+  });
+  it('walk between mobs: Soul Harvest also regenerates inside the five-second rule, and only its real overlap counts', () => {
+    const p = { ...loadParams(), transition_sec: 8, fsr_sec: 5 };
+    const base = spiritManaRegenPerSec(100);
+    const r2 = { bonus: 1, castingShare: 1 };
+    const r1 = { bonus: 0.5, castingShare: 0.5 };
+    // No Soul Harvest: regen only after the five-second rule (3 s).
+    expect(walkManaRegen(100, p, r2, 0)).toBeCloseTo(base * 3, 6);
+    // Whole walk under the buff: 5 s casting rule at (1+b)*share, then 3 s at (1+b).
+    expect(walkManaRegen(100, p, r2, 10)).toBeCloseTo(base * (5 * 2 + 3 * 2), 6);
+    expect(walkManaRegen(100, p, r1, 10)).toBeCloseTo(base * (5 * 0.75 + 3 * 1.5), 6);
+    // Buff ends 1 s after the five-second rule: 5 s at (1+b)*share, 1 s at (1+b), 2 s at base.
+    expect(walkManaRegen(100, p, r2, 6)).toBeCloseTo(base * (5 * 2 + 1 * 2 + 2), 6);
+    // Buff ends inside the five-second rule: 3 s at (1+b)*share, then 3 s at base.
+    expect(walkManaRegen(100, p, r1, 3)).toBeCloseTo(base * (3 * 0.75 + 3), 6);
+    expect(walkManaRegen(100, p, r1, 10)).toBeLessThan(walkManaRegen(100, p, r2, 10));
   });
 });
 

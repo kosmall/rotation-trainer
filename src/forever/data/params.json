@@ -172,7 +172,7 @@
   "fsr_regen_fraction": {
     "value": 0.0,
     "verify": true,
-    "source": "Share of Spirit regen that continues while casting (Classic: 0). Soul Harvest lifts it to 100%."
+    "source": "Share of Spirit regen that continues while casting (Classic: 0). Soul Harvest lifts it to 50% (1/2) or 100% (2/2) of its raised regen while the buff runs."
   },
   "sb_filler_lifetap_when_oom": {
     "value": true,
