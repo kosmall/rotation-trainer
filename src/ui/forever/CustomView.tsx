@@ -52,6 +52,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
   const add = (b: CustomBuildData) => onChange({ builds: [...state.builds, b], active: b.name, included: state.included });
   const setPicks = (picks: string[], what: string) => {
     if (picks.length > MAX_TALENT_POINTS || !validatePicks(picks).ok) {
+      setInfo(null);
       setMessage(`Nie można: ${what}. Kolejne punkty wymagają tego talentu albo odpowiedniej liczby punktów w drzewie.`);
       return;
     }
@@ -71,7 +72,13 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
       <div className="fv-row">
         <label>
           Build{' '}
-          <select value={build.name} onChange={(e) => onChange({ ...state, active: e.target.value })}>
+          <select
+            value={build.name}
+            onChange={(e) => {
+              setInfo(null);
+              onChange({ ...state, active: e.target.value });
+            }}
+          >
             {names.map((n) => (
               <option key={n}>{n}</option>
             ))}
@@ -295,7 +302,11 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
                   const mine = ++fetchSeq.current;
                   setFetching(true);
                   fetchGear(ids, itemFetcher)
-                    .then((g) => fetchSeq.current === mine && onGear(g))
+                    .then((g) => {
+                      if (fetchSeq.current !== mine) return;
+                      if (g.items.every((i) => i.error)) setMessage(`Nie udało się pobrać żadnego itemu z Wowhead (${g.items[0]?.error ?? 'brak odpowiedzi'}). Poprzedni sprzęt został bez zmian.`);
+                      else onGear(g);
+                    })
                     .finally(() => fetchSeq.current === mine && setFetching(false));
                 }
               } else {

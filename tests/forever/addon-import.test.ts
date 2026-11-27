@@ -52,6 +52,11 @@ describe('addon export import', () => {
     expect(r.build.picks).toEqual([]);
     expect(r.build.name).toBe('Import z addonu (affliction)');
   });
+  it('a long character name keeps the spec suffix within 40 characters', () => {
+    const r = parseAddonExport({ ...SAMPLE, spec: 'destruction', name: 'A'.repeat(60), talents: '' });
+    expect(r.build.name).toHaveLength(40);
+    expect(r.build.name.endsWith(' (destruction)')).toBe(true);
+  });
   it('detects an export', () => {
     expect(isAddonExport(SAMPLE)).toBe(true);
     expect(isAddonExport(emptyBuild('x'))).toBe(false);

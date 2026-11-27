@@ -109,4 +109,32 @@ describe('my gear', () => {
     render(<ForeverApp view="discover" runner={runner} itemFetcher={fetcher} />);
     expect((await screen.findByText(/Szukaj nie używa mojego sprzętu/)).textContent).toMatch(/przeciętny/);
   });
+
+  it('keeps the previous gear when no item could be fetched', async () => {
+    render(<ForeverApp view="custom" runner={runner} itemFetcher={fetcher} />);
+    await importPayload();
+    await screen.findByRole('table', { name: 'Moje itemy' });
+    cleanup();
+    render(<ForeverApp view="custom" runner={runner} itemFetcher={async () => { throw new Error('offline'); }} />);
+    await importPayload();
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Nie udało się pobrać żadnego itemu/);
+    expect(within(screen.getByRole('table', { name: 'Moje itemy' })).getByText('Filigreed Shadow Circlet')).toBeTruthy();
+  });
+
+  it('forgets the stored "mój sprzęt" setting when the gear is removed', async () => {
+    render(<ForeverApp view="custom" runner={runner} itemFetcher={fetcher} />);
+    await importPayload();
+    await screen.findByRole('table', { name: 'Moje itemy' });
+    fireEvent.change(screen.getByLabelText('Sprzęt'), { target: { value: 'mine' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń mój sprzęt' }));
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('wow-forever-sim:settings:v1') ?? '{}').profile).toBe('average'));
+  });
+
+  it('the import message goes away when another build is chosen', async () => {
+    render(<ForeverApp view="custom" runner={runner} itemFetcher={fetcher} />);
+    await importPayload();
+    await screen.findByText(/Zaimportowano 25 punktów/);
+    fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'Własny build' } });
+    expect(screen.queryByText(/Zaimportowano 25 punktów/)).toBeNull();
+  });
 });

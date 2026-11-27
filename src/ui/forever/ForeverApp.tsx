@@ -52,6 +52,9 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFet
   useEffect(() => saveCustom(storage(), custom), [custom]);
   const [gear, setGear] = useState<MyGear | null>(() => loadGear(storage()));
   useEffect(() => saveGear(storage(), gear), [gear]);
+  useEffect(() => {
+    if (gear === null) setSettings((st) => (st.profile === MY_GEAR ? { ...st, profile: 'average' } : st));
+  }, [gear]);
   const gearTotals = useMemo(() => (gear ? totalsOf(gear) : undefined), [gear]);
   // Builds the views can show by id (the registry makes `loadVariant` know them); an illegal build is left out.
   const customData = useMemo(

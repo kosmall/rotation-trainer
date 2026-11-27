@@ -36,7 +36,8 @@ export function parseAddonExport(raw: unknown): { build: CustomBuildData; points
   if (!check.ok) throw new Error(`illegal talents: ${check.errors[0]}`);
   const spec = typeof o.spec === 'string' && Object.hasOwn(BY_SPEC, o.spec) ? o.spec : 'affliction';
   const who = typeof o.name === 'string' && o.name.trim() ? o.name.trim() : 'Import z addonu';
-  const name = `${who} (${typeof o.spec === 'string' && o.spec ? o.spec : spec})`.slice(0, 40);
+  const suffix = ` (${typeof o.spec === 'string' && o.spec ? o.spec : spec})`;
+  const name = `${who.slice(0, Math.max(1, 40 - suffix.length))}${suffix}`.slice(0, 40);
   return {
     build: { name, picks, ...(BY_SPEC[spec] as Omit<CustomBuildData, 'name' | 'picks'>) },
     points: picks.length,
