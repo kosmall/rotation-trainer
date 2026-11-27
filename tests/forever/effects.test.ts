@@ -91,9 +91,9 @@ describe('multipliers of the demon', () => {
 });
 
 describe('Soul Harvest', () => {
-  it('2/2: +100% regen for 10 s; 1/2: half the bonus; 0: none', () => {
-    expect(soulHarvest({ soul_harvest: 2 })).toEqual({ bonus: 1, durationMs: 10000 });
-    expect(soulHarvest({ soul_harvest: 1 }).bonus).toBe(0.5);
-    expect(soulHarvest({}).bonus).toBe(0);
+  it('2/2: +100% regen and 100% kept while casting for 10 s; 1/2: +50% and 50%; 0: none', () => {
+    expect(soulHarvest({ soul_harvest: 2 })).toEqual({ bonus: 1, castingShare: 1, durationMs: 10000 });
+    expect(soulHarvest({ soul_harvest: 1 })).toEqual({ bonus: 0.5, castingShare: 0.5, durationMs: 10000 });
+    expect(soulHarvest({})).toEqual({ bonus: 0, castingShare: 0, durationMs: 0 });
   });
 });

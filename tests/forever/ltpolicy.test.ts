@@ -42,7 +42,9 @@ describe('Life Tap policies', () => {
   });
   it('a longer five-second rule leaves less regeneration between mobs', () => {
     const base = loadParams({ session_pulls: 12 });
-    const run = (fsr: number) => runCell({ variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: { ...base, fsr_sec: fsr } }, 6, 1).metrics.killsPerHour;
+    // 60 sessions: the demon keeps its health between pulls, so with a handful of sessions one run of deaths
+    // outweighs the regeneration (at 6 sessions the sign of the difference depended on the seed).
+    const run = (fsr: number) => runCell({ variant: loadVariant('AFF_WRACK'), level: 50, profile: 'average', params: { ...base, fsr_sec: fsr } }, 60, 1).metrics.killsPerHour;
     expect(run(0)).toBeGreaterThanOrEqual(run(8) - 1e-9);
   });
   it('drink_to_mana_pct keeps drinking after the meal', () => {

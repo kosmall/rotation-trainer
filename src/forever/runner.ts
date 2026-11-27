@@ -6,7 +6,7 @@ import { simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
 import { soulHarvest } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
-import { gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec } from './stats';
+import { gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec, walkManaRegen } from './stats';
 import type { DataRotation } from './rotation-spec';
 import type { Ranks } from './talents';
 import type { Params, StatDelta } from './types';
@@ -131,7 +131,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   let eurekaCdMs = 0;
   let eurekaBuffMs = 0;
   let lastPullEndSec = 0;
-  const shBonus = soulHarvest(ranks).bonus;
+  const sh = soulHarvest(ranks);
   const ltGain = ltRank ? lifeTapGain(ltRank.base ?? 0, stats.spirit, ranks, params) : 0;
   const funnel = healthFunnelAt(level, ranks);
   // The demon's health between pulls: undefined = full (just summoned).
@@ -242,12 +242,10 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     }
     out.transitionSec += params.transition_sec;
     out.totalSec += params.transition_sec;
-    // Soul Harvest keeps running after the kill: doubled regeneration on the way to the next mob.
-    const boosted = Math.min(r.soulHarvestLeftMs / 1000, params.transition_sec);
+    // Spirit mana regeneration resumes `fsr_sec` after the last cast (Classic five-second rule); Soul Harvest
+    // keeps running after the kill and regenerates inside that rule too. Health regenerates out of combat.
     shCarryMs = Math.max(0, r.soulHarvestLeftMs - params.transition_sec * 1000);
-    // Spirit mana regeneration resumes `fsr_sec` after the last cast (Classic five-second rule); health regenerates out of combat.
-    const regenSec = Math.max(0, params.transition_sec - params.fsr_sec);
-    mana = Math.min(stats.maxMana, mana + spiritManaRegenPerSec(stats.spirit) * (regenSec + shBonus * Math.min(boosted, regenSec)));
+    mana = Math.min(stats.maxMana, mana + walkManaRegen(stats.spirit, params, sh, r.soulHarvestLeftMs / 1000));
     hp = Math.min(stats.maxHp, hp + healthRegenPerSec(stats.spirit) * params.transition_sec);
     petRegen(params.transition_sec);
   }

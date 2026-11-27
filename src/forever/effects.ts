@@ -70,11 +70,23 @@ export function summonDemon(state: DemonState, kind: PetKind, hasPact: boolean):
   return { out: kind, sacrificed: keep ? state.sacrificed : null };
 }
 
-/** Soul Harvest regen bonus (+100% at 2/2, linear in rank) and duration in ms. */
-export function soulHarvest(ranks: Ranks): { bonus: number; durationMs: number } {
+export interface SoulHarvestEffect {
+  /** Mana regeneration increase while the buff runs (0.5 at 1/2, 1 at 2/2). */
+  bonus: number;
+  /** Share of that regeneration kept while casting, i.e. inside the five-second rule (0.5 at 1/2, 1 at 2/2). */
+  castingShare: number;
+}
+
+/** Soul Harvest after a kill under Drain Soul: +50%/+100% regen and 50%/100% of it kept while casting, for 10 s. */
+export function soulHarvest(ranks: Ranks): SoulHarvestEffect & { durationMs: number } {
   const r = rank(ranks, 'soul_harvest');
-  if (r === 0) return { bonus: 0, durationMs: 0 };
-  return { bonus: effectNum('soul_harvest', 'regenBonusAtMax') * (r / 2), durationMs: effectNum('soul_harvest', 'durationMs') };
+  if (r === 0) return { bonus: 0, castingShare: 0, durationMs: 0 };
+  const f = r / 2;
+  return {
+    bonus: effectNum('soul_harvest', 'regenBonusAtMax') * f,
+    castingShare: effectNum('soul_harvest', 'castingShareAtMax') * f,
+    durationMs: effectNum('soul_harvest', 'durationMs'),
+  };
 }
 
 export interface SchoolMults {
