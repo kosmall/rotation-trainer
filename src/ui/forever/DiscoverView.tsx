@@ -5,6 +5,7 @@ import { sacrificeLive } from '../../forever/discover/space';
 import { paramsOf, type Settings } from '../../forever/web/api';
 import type { CompletedBuild } from '../../forever/discover/complete';
 import { canonicalPicks } from '../../forever/discover/talent-search';
+import { FILLER_NAME } from '../../forever/rotation-genes';
 import { TALENT_BY_ID, validatePicks, type Ranks } from '../../forever/talents';
 import { completedBuild, discoveredBuild, type DiscoverBudget } from '../../forever/web/discover';
 import { TalentTrees } from './TalentTrees';
@@ -126,7 +127,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
               <button type="button" className="btn" disabled={running || picked.size === 0} onClick={() => d.complete([...picked].sort((a, b) => a - b), budget)}>
                 Uzupełnij do {d.toLevel} ({picked.size})
               </button>
-              <span className="fv-note">Zaznaczone buildy dostają talenty na levele {res.meta.level + 1}–{d.toLevel}: droga, która daje najkrótszy łączny czas levelowania (rotacja i pety bez zmian). Zakres jak wyżej.</span>
+              <span className="fv-note">Zaznaczone buildy dostają talenty na levele {res.meta.level + 1}–{d.toLevel}: droga, która daje najkrótszy łączny czas levelowania. Pety i efekty rotacji bez zmian; filler Drain Life może zmienić się na Wrack, gdy build po niego sięgnie. Zakres jak wyżej.</span>
             </div>
           )}
           {justDone && justDone.ranks.length > 0 && (
@@ -259,6 +260,16 @@ function CompletedCard({ c, just, onSave }: { c: CompletedBuild; just: boolean; 
           Zapisz
         </button>
       </p>
+      {c.switched ? (
+        <p className="fv-note">
+          <b>
+            Od levelu {c.switched.level} rotacja się zmienia: filler {FILLER_NAME[c.switched.filler]}
+          </b>{' '}
+          (wcześniej sam Drain Life).{c.fixedAvgKph !== undefined ? ` Bez zmiany rotacji: ${f1(c.fixedAvgKph)} kills/h.` : ''}
+        </p>
+      ) : (
+        c.fixedAvgKph !== undefined && <p className="fv-note">Sprawdzono też Wracka jako filler: nie jest tu szybszy, rotacja zostaje.</p>
+      )}
       <div className="fv-discover-details">
         <div>
           <table className="fv-table fv-stats" aria-label={`Droga #${c.rank}`}>

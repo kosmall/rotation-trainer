@@ -38,7 +38,7 @@ describe('completing selected rows', () => {
     expect(stages).toEqual(expect.arrayContaining(['greedy', 'improve', 'final']));
   });
   it('runs through the discovery pool too', async () => {
-    const tasks: CompleteTask[] = [{ kind: 'complete-greedy', row: 0, ctx: { ...base, combo: rows[0]!.combo, baseRanks: ranks, sessions: 2 } }];
+    const tasks: CompleteTask[] = [{ kind: 'complete-greedy', row: 0, choice: 0, ctx: { ...base, combo: rows[0]!.combo, baseRanks: ranks, sessions: 2 } }];
     const pool = discoverPool<CompleteTask, CompleteResult>(discoverOptions({ ...DEFAULT_SETTINGS, level: 40 }, 'quick'), 1, new AbortController().signal, () => null);
     expect(await pool.runner(tasks, () => undefined)).toEqual(await inline(tasks, () => undefined));
   });

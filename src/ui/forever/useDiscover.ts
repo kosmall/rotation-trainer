@@ -5,7 +5,7 @@ import type { Settings } from '../../forever/web/api';
 import { VARIANT_IDS } from '../../forever/builds';
 import { enumerateCombos } from '../../forever/discover/space';
 import { discoverEtaSec, discoverOptions, workerCount, type DiscoverBudget } from '../../forever/web/discover';
-import { completeBuilds, completeEtaSec, COMPLETE_FULL, COMPLETE_QUICK, type CompleteBudget, type CompletedBuild, type CompleteResult, type CompleteTask } from '../../forever/discover/complete';
+import { completeBuilds, completeEtaSec, rotationChoices, COMPLETE_FULL, COMPLETE_QUICK, type CompleteBudget, type CompletedBuild, type CompleteResult, type CompleteTask } from '../../forever/discover/complete';
 import type { Runner } from '../../forever/discover/engine';
 import { discoverPool, type Pool } from '../../forever/web/discover-client';
 import type { AnyResult, AnyTask } from '../../forever/web/discover-tasks';
@@ -96,7 +96,9 @@ const isCompletion = (c: unknown): boolean =>
   Array.isArray(c.perLevel) &&
   c.perLevel.every((p) => isObj(p) && typeof p.level === 'number' && typeof p.pick === 'string' && typeof p.kph === 'number') &&
   typeof c.avgKph === 'number' &&
-  typeof c.greedyAvgKph === 'number';
+  typeof c.greedyAvgKph === 'number' &&
+  (c.fixedAvgKph === undefined || typeof c.fixedAvgKph === 'number') &&
+  (c.switched === undefined || (isObj(c.switched) && typeof c.switched.filler === 'string' && typeof c.switched.level === 'number'));
 
 function loadSaved(): SavedDiscovery | null {
   try {
@@ -208,11 +210,12 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       let stageStart = { stage: '', at: Date.now() };
       const cb = tuning.completeBudget ?? (budget === 'full' ? COMPLETE_FULL : COMPLETE_QUICK);
       const n = Math.max(0, toLevel - shown.result.meta.level);
+      const choices = rows.reduce((a, r) => a + rotationChoices(r.combo, r.ranks, shown.result.meta.level, toLevel).length, 0);
       const progress = (stage: string, done: number, total: number): void => {
         if (!current()) return;
         const now = Date.now();
         if (stage !== stageStart.stage) stageStart = { stage, at: now };
-        const etaSec = completeEtaSec({ stage, done, total, stageElapsedSec: (now - stageStart.at) / 1000, budget: cb, rows: rows.length, pathLength: n });
+        const etaSec = completeEtaSec({ stage, done, total, stageElapsedSec: (now - stageStart.at) / 1000, budget: cb, rows: rows.length, choices, pathLength: n });
         setProg({ stage: `complete-${stage}`, done, total, etaSec });
       };
       const base = { fromLevel: shown.result.meta.level, toLevel, profile: options.profile, mobs: options.mobs, params: options.params, seed: options.seed };

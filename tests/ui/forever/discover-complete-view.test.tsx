@@ -128,6 +128,20 @@ describe('Odkrywanie: complete selected results to 59', () => {
     expect(JSON.parse(window.localStorage.getItem(DISCOVER_STORAGE_KEY) ?? '{}').completions).toHaveLength(1);
   }, 90000);
 
+  it('says from which level the rotation changes and what staying would give', () => {
+    const t = result.top[0]!;
+    const done = {
+      rank: 1, label: t.label, combo: { ...t.combo, genes: { ...t.combo.genes, filler: 'wrack_hp70' } }, baseRanks: t.ranks, fromLevel: 40, toLevel: 41,
+      path: ['suppression'], perLevel: [{ level: 41, pick: 'suppression', kph: 150 }], avgKph: 150, greedyPath: ['suppression'], greedyAvgKph: 140, searchCost: 1, greedySearchCost: 1,
+      switched: { filler: 'wrack_hp70', level: 40 }, fixedAvgKph: 141.5,
+    };
+    store({ completions: [done] });
+    render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);
+    const card = screen.getByRole('article', { name: /^#1:/ });
+    expect(card.textContent).toContain('Od levelu 40 rotacja się zmienia: filler Wrack above 70% HP');
+    expect(card.textContent).toContain('Bez zmiany rotacji: 141.5 kills/h');
+  });
+
   it('loads a stored discovery whose completions are unreadable', () => {
     store({ completions: [{ rank: 1, label: 'x', combo: { genes: {} }, baseRanks: {}, path: [], perLevel: [{ level: 41 }], avgKph: 1, greedyAvgKph: 1, fromLevel: 40, toLevel: 59 }] });
     render(<ForeverApp view="discover" discoverPool={inline} discoverTuning={tuning} />);

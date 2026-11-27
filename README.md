@@ -151,7 +151,10 @@ dobudować do 51), znaleziona rotacja i pety. Taki build jest od razu do wyboru 
 na każdym levelu; do rankingu i krzywej w Symulacji dołączasz go zaznaczeniem „Własne buildy w rankingu”. Wyjście z
 zakładki Odkrywanie przerywa trwające wyszukiwanie.
 
-**Uzupełnij do 59:** zaznaczone wyniki dostają talenty na kolejne levele (rotacja i pety bez zmian). Gotowe buildy
+**Uzupełnij do 59:** zaznaczone wyniki dostają talenty na kolejne levele (pety i efekty rotacji bez zmian). Build z
+fillerem Drain Life, który zdąży wziąć Wracka, jest liczony także z Wrackiem jako fillerem (powyżej 70% albo 50% HP;
+do wzięcia talentu i poniżej progu gra Drain Life), z dodatkową drogą prowadzącą prosto do Wracka. Wygrywa szybsza
+rotacja: karta mówi, od którego levelu się zmienia i ile dałoby zostanie przy starej. Gotowe buildy
 są pod tabelą w sekcji „Kompletne buildy”: po zakończeniu strona przewija się do pierwszego z nich i go wyróżnia,
 pod przyciskiem pojawia się „Uzupełniono: #…”, a wiersz w tabeli dostaje przycisk „✓ do 59”, który tam przenosi.
 **Zapisz** na karcie zapisuje pełny build, **Zapisz** w wierszu tabeli tylko build z levelu wyszukiwania.
