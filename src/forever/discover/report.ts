@@ -115,7 +115,7 @@ export function renderDiscoverReport(r: DiscoverResult, runSec: number): string 
   L.push(`- Gear profile: ${m.profile}; mobs per pull: ${m.mobs}; seed: ${m.seed}; Talented perk: ${m.perk}`);
   const changed = Object.entries(m.changedParams);
   L.push(`- Changed parameters: ${changed.length ? changed.map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(', ') : 'none (params.json defaults)'}`);
-  L.push(`- Searched: ${m.combos} rotation × pet combinations screened, ${m.searched} searched in depth, ${m.evaluations} simulations; run time ${duration(runSec)}`);
+  L.push(`- Searched: ${m.combos} rotation × pet combinations screened${m.mixed ? ` plus ${m.mixed} mixed variants (second filler, other effect floors) of the best ones` : ''}, ${m.searched} searched in depth, ${m.evaluations} simulations; run time ${duration(runSec)}`);
   L.push(`- Data and settings hash: \`${m.hash}\``, '');
   L.push('How to read: **✓** the difference to the best known build is significant (95% CI on paired sessions), **~** it is within the noise; **≈#1** the row is not significantly worse than row 1. "Nearest known" is the known build with the fewest talent points moved (in brackets).', '');
 

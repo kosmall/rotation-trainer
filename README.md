@@ -134,8 +134,15 @@ npm run forever:discover -- --level 45 --param wrack_dmg_mult=1.3 --mobs 2 --pro
   pet i pet poświęcony w Demonic Sacrifice. Na levelu 40: 1728 rotacji × 21 ustawień petów = 36 288 kombinacji.
   Sprzęt (`--profile`), liczba mobów (`--mobs`), polityka Life Tapa, Eureka! i inne parametry są wejściem, nie są
   przeszukiwane.
+- **Mieszanie (etap `mix`):** po długim szukaniu bierze 24 najlepsze rotacje (`--mix-bases`; `0` wyłącza) i
+  sprawdza ich ~45 sąsiadów: **drugi filler** włączany warunkiem (mana < 30%/50%, HP ≤ 50%/70%, TTK ≤ 5 s albo
+  ≥ 15 s, więcej niż 1 mob w pullu, walka dłuższa niż 20 s, pet martwy) oraz **osobne progi TTK dla każdego
+  DoT-a** (np. Corruption zawsze, Siphon Life od 12 s; także grupy: tanie efekty od razu, wolne późno). Warianty
+  przechodzą ten sam `screen` i najlepsze `--mix-keep` (60) długie szukanie. Druga runda miesza zwycięzców
+  pierwszej (drugi filler i progi składają się razem). Warianty, które grają tak samo na tym levelu, są
+  pomijane. W raporcie: „plus N mixed variants”, rotacja opisana np. „…→ Shadow Bolt; Drain Life when mana < 30%”.
 - **Etapy:** krótkie szukanie talentów dla każdej kombinacji (`screen`), długie dla najlepszych 200 i najlepszych 3
-  z każdego fillera (`search`), na koniec 60 najlepszych różnych wyników i wszystkie znane buildy na 200 sesjach z
+  z każdego fillera (`search`), mieszanie (`mix`, patrz wyżej), na koniec 60 najlepszych różnych wyników i wszystkie znane buildy na 200 sesjach z
   tymi samymi ziarnami (`final`). Flagi: `--screen-sessions`, `--search-sessions`, `--final-sessions`, `--keep`,
   `--workers`, `--top`, `--seed`, `--perk`.
 - **Wznawianie:** stan zapisuje się w `reports/.forever_discover_L<level>.state.json`; to samo polecenie po
@@ -168,8 +175,8 @@ pod przyciskiem pojawia się „Uzupełniono: #…”, a wiersz w tabeli dostaje
 
 **Rotacja z klocków we własnym buildzie:** w edytorze własnego buildu „Szablon rotacji” ma opcję **Własna (z
 klocków)**: utrzymywane efekty (Curse of the Elements, Bane of Agony, Corruption, Siphon Life, Immolate), próg „DoT-y
-gdy TTK ≥” (zawsze, 6 s, 12 s), Drain Soul na dobicie i filler (Shadow Bolt r1/r2/max, Searing Pain, Drain Life,
-Wrack bez progu albo od 50%/70% HP, Wrack tylko na pojedynczych mobach). To te same klocki, z których składa
+gdy TTK ≥” (zawsze, 6 s, 12 s; osobno dla każdego efektu), Drain Soul na dobicie i filler (Shadow Bolt r1/r2/max, Searing Pain, Drain Life,
+Wrack bez progu albo od 50%/70% HP, Wrack tylko na pojedynczych mobach) oraz opcjonalny **drugi filler** z warunkiem (mana, HP, TTK, pack, czas walki, pet). To te same klocki, z których składa
 rotacje wyszukiwarka; Buildy i Rotacje pokazują je jako „Własna rotacja: …”.
 
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w

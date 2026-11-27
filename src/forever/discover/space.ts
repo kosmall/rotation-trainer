@@ -3,7 +3,7 @@
 // Framework-free.
 
 import type { Cond, SpecStep } from '../rotation-spec';
-import { buildRotation, DOT_KEYS, FILLERS, MIN_TTKS, rotationId, rotationLabel, WRACK_FLOOR, type FillerGene, type MinTtk, type RotationGenes } from '../rotation-genes';
+import { ALT_FILLERS, ALT_WHENS, buildRotation, DOT_KEYS, FILLERS, MIN_TTKS, rotationId, rotationLabel, WRACK_FLOOR, type DotKey, type FillerGene, type MinTtk, type RotationGenes } from '../rotation-genes';
 
 export { buildRotation, FILLERS, MIN_TTKS, rotationId, rotationLabel, type FillerGene, type MinTtk, type RotationGenes };
 import { getSpell, rankAt } from '../spells';
@@ -73,7 +73,7 @@ export function requiredRanks(c: Combo): Ranks {
     // summoning a demon after the sacrifice ends it, unless the build has Demonic Pact
     if (c.pets.pet !== null) r.demonic_pact = 1;
   }
-  if (WRACK_FLOOR[c.genes.filler] !== undefined) r.wrack = 1;
+  if (WRACK_FLOOR[c.genes.filler] !== undefined || c.genes.alt?.filler === 'wrack') r.wrack = 1;
   if (c.genes.siphon) r.siphon_life = 1;
   if (c.genes.drainSoulFinisher) r.soul_harvest = 1;
   return r;
@@ -111,8 +111,18 @@ export function playedGenes(c: Combo, level: number, ranks: Ranks): RotationGene
   let filler = g.filler;
   if (WRACK_FLOOR[filler] !== undefined && !live.has('filler_wrack')) filler = 'sb_max';
   if (filler === 'wrack_single_then_drain_life' && !live.has('filler_wrack_single_mob')) filler = 'drain_life';
+  let alt = g.alt;
+  if (alt && !live.has(alt.filler === 'wrack' || WRACK_FLOOR[alt.filler] !== undefined ? 'alt_filler_wrack' : `alt_filler_${altKind(alt.filler)}`)) alt = undefined;
+  let dotTtk = g.dotTtk;
+  if (dotTtk) {
+    const kept = Object.fromEntries(Object.entries(dotTtk).filter(([k]) => g[k as DotKey] && live.has(DOT_STEP[k as DotKey])));
+    dotTtk = Object.keys(kept).length ? (kept as RotationGenes['dotTtk']) : undefined;
+  }
+  const { alt: _a, dotTtk: _d, ...rest } = g;
   return ({
-    ...g,
+    ...rest,
+    ...(alt ? { alt } : {}),
+    ...(dotTtk ? { dotTtk } : {}),
     coe: g.coe && live.has('curse_of_elements'),
     agony: g.agony && live.has('bane_of_agony'),
     corruption: g.corruption && live.has('corruption'),
@@ -121,6 +131,53 @@ export function playedGenes(c: Combo, level: number, ranks: Ranks): RotationGene
     drainSoulFinisher: g.drainSoulFinisher && live.has('drain_soul_finisher'),
     filler,
   });
+}
+
+const DOT_STEP: Record<DotKey, string> = { coe: 'curse_of_elements', agony: 'bane_of_agony', corruption: 'corruption', siphon: 'siphon_life', immolate: 'immolate' };
+/** The id part of the step of a (non-Wrack) filler. */
+const altKind = (f: FillerGene): string => (f === 'searing_pain' ? 'searing_pain' : f === 'drain_life' ? 'drain_life' : 'shadow_bolt');
+
+/**
+ * The neighbours of a rotation that mix things: a second filler that takes over under a condition
+ * (mana, health, time to kill, pack size, fight length, pet), and other time-to-kill floors for single
+ * effects or for groups of them. Variants that play the same at this level and talents are left out.
+ */
+export function mixVariants(base: Combo, level: number, ranks: Ranks): Combo[] {
+  const g = base.genes;
+  const variants: RotationGenes[] = [];
+  for (const when of ALT_WHENS) {
+    if (when === 'pet_dead' && base.pets.pet === null) continue;
+    for (const filler of ALT_FILLERS) {
+      if (filler === g.filler || (g.alt?.when === when && g.alt.filler === filler)) continue;
+      // a filler that is already a mix of Wrack and Drain Life gains nothing from either of them as the second one
+      if ((filler === 'wrack' || filler === 'drain_life') && (WRACK_FLOOR[g.filler] !== undefined || g.filler === 'wrack_single_then_drain_life') && g.filler !== 'wrack') continue;
+      variants.push({ ...g, alt: { when, filler } });
+    }
+  }
+  const active = DOT_KEYS.filter((k) => g[k]);
+  const put = (patch: Partial<Record<DotKey, MinTtk>>): void => {
+    variants.push({ ...g, dotTtk: { ...g.dotTtk, ...patch } });
+  };
+  for (const k of active) for (const v of MIN_TTKS) if (v !== (g.dotTtk?.[k] ?? g.minTtkSec)) put({ [k]: v });
+  // groups: the cheap, strong effects at once and the slow ones late (or the other way round)
+  const quick = active.filter((k) => k === 'corruption' || k === 'agony');
+  const slow = active.filter((k) => k === 'coe' || k === 'siphon' || k === 'immolate');
+  if (quick.length && slow.length) {
+    put({ ...Object.fromEntries(quick.map((k) => [k, 0])), ...Object.fromEntries(slow.map((k) => [k, 12])) });
+    put({ ...Object.fromEntries(quick.map((k) => [k, 6])), ...Object.fromEntries(slow.map((k) => [k, 0])) });
+    put({ ...Object.fromEntries(quick.map((k) => [k, 12])), ...Object.fromEntries(slow.map((k) => [k, 0])) });
+  }
+  const seen = new Set([effectiveKey(base, level, ranks)]);
+  const out: Combo[] = [];
+  for (const genes of variants) {
+    const c: Combo = { id: `${rotationId(genes)}|${base.pets.pet ?? 'none'}>${base.pets.sacrificed ?? '-'}`, genes, pets: base.pets };
+    if (c.id === base.id) continue;
+    const key = effectiveKey(c, level, { ...ranks, ...requiredRanks(c) });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /** The steps of a combination's rotation that can ever be cast at a level with these talents. */
