@@ -48,6 +48,40 @@ describe('fight core', () => {
   });
 });
 
+describe('damage of the demon in the fight', () => {
+  /** The first logged hit of a kind ("firebolt", "lash", "melee", "brand") with exactly these talents. */
+  const hit = (pet: 'imp' | 'succubus' | 'voidwalker', kind: string, talents: Record<string, number>): number => {
+    const variant: BuildVariant = { ...loadVariant('DEMO_PACT_R1'), pet, sacrificed: null, pet_rules: undefined };
+    for (let seed = 1; seed <= 20; seed++) {
+      const r = simulatePull({ variant, level: 50, profile: 'average', params: loadParams(), trace: true, ranks: { demonic_brand: 3, ...talents } }, seed);
+      const line = r.trace.find((l) => l.includes(` pet ${kind} `));
+      if (line) return Number(line.split(` pet ${kind} `)[1]);
+    }
+    throw new Error(`no ${kind} hit of the ${pet}`);
+  };
+  const ratio = (pet: 'imp' | 'succubus' | 'voidwalker', kind: string, talents: Record<string, number>): number => hit(pet, kind, talents) / hit(pet, kind, {});
+
+  it('Unholy Power raises the pet\'s attacks and the brand', () => {
+    expect(ratio('imp', 'firebolt', { unholy_power: 5 })).toBeCloseTo(1.1, 3);
+    expect(ratio('imp', 'brand', { unholy_power: 5 })).toBeCloseTo(1.1, 3);
+    expect(ratio('voidwalker', 'brand', { unholy_power: 5 })).toBeCloseTo(1.1, 3);
+  });
+  it('Master Demonologist raises Firebolt, Lash of Pain and their brands, not melee or the Voidwalker', () => {
+    const md = { master_demonologist: 5 };
+    expect(ratio('imp', 'firebolt', md)).toBeCloseTo(1.1, 3);
+    expect(ratio('imp', 'brand', md)).toBeCloseTo(1.1, 3);
+    expect(ratio('succubus', 'lash', md)).toBeCloseTo(1.1, 3);
+    expect(ratio('succubus', 'brand', md)).toBeCloseTo(1.1, 3);
+    expect(ratio('succubus', 'melee', md)).toBeCloseTo(1, 3);
+    expect(ratio('voidwalker', 'brand', md)).toBeCloseTo(1, 3);
+  });
+  it('the time-to-kill estimate counts the same bonus', () => {
+    const variant: BuildVariant = { ...loadVariant('DEMO_FIRE'), pet: 'imp' };
+    const dps = (ranks: Record<string, number>) => simulatePull({ variant, level: 50, profile: 'average', params: loadParams(), ranks }, 1).rates.petDps;
+    expect(dps({ master_demonologist: 5 }) / dps({})).toBeCloseTo(1.1, 3);
+  });
+});
+
 describe('GCD and Bane in the fight', () => {
   it('Shadow Bolt r1 with Bane 5/5 wastes 0.3 s of GCD per cast; with Bane 2/5 it fits the GCD exactly', () => {
     const video = simulatePull(cfg('DEMO_PACT_VIDEO', 50), 4);

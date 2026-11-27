@@ -1,5 +1,6 @@
 import buildsJson from './data/builds.json';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks, type Ranks } from './talents';
+import { parseGenes, type RotationGenes } from './rotation-genes';
 import type { PetKind, Tree } from './types';
 
 export interface BuildVariant {
@@ -14,10 +15,14 @@ export interface BuildVariant {
   immolate?: boolean;
   /** Affliction: Wrack only while the player's health is above this fraction, Drain Life below (overrides the parameter `wrack_min_hp_pct`). */
   wrack_min_hp_pct?: number;
+  /** false: the build never casts Curse of the Elements (overrides the parameter `use_curse_of_elements`). */
+  coe?: boolean;
   /** The demon by level and pull size: the first rule that applies wins over `pet`. */
   pet_rules?: PetRule[];
   pre_respec_build: string | null;
   respec_level: number;
+  /** A rotation composed from spells (build discovery, custom builds); when set the fight plays it instead of the `rotation` template. */
+  genes?: RotationGenes;
 }
 
 /** A demon used instead of the build's `pet` between two levels and for some pull sizes (all bounds inclusive, optional). */
@@ -77,6 +82,8 @@ export interface CustomBuildData {
   rank: BuildVariant['rank'];
   pet: PetKind | null;
   sacrificed: PetKind | null;
+  /** A rotation composed from spells; when set it replaces the rotation template. */
+  genes?: RotationGenes;
 }
 
 /** The id a custom build is simulated under (a star keeps it apart from the built-in ids). */
@@ -96,7 +103,7 @@ export function customVariant(d: CustomBuildData): BuildVariant {
   }
   const orderId = `custom:${id}`;
   registerOrder(orderId, runs);
-  const v: BuildVariant = { id, order: orderId, pet: d.pet, sacrificed: d.sacrificed, rotation: d.rotation, filler: d.filler, rank: d.rank, pre_respec_build: null, respec_level: 40 };
+  const v: BuildVariant = { id, order: orderId, pet: d.pet, sacrificed: d.sacrificed, rotation: d.rotation, filler: d.filler, rank: d.rank, pre_respec_build: null, respec_level: 40, ...(d.genes ? { genes: { ...d.genes } } : {}) };
   CUSTOM_VARIANTS.set(id, v);
   return { ...v };
 }
@@ -174,6 +181,8 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
   if (picks.length !== MAX_TALENT_POINTS) throw new Error(`a build needs exactly ${MAX_TALENT_POINTS} points (level 10 to 60), got ${picks.length}`);
   const check = validatePicks(picks);
   if (!check.ok) throw new Error(`invalid talent order: ${check.errors.join('; ')}`);
+  const genes = obj.genes === undefined ? undefined : parseGenes(obj.genes);
+  if (obj.genes !== undefined && !genes) throw new Error('invalid rotation genes');
   return {
     id,
     order: orderId,
@@ -185,6 +194,8 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
     pre_respec_build: (obj.pre_respec_build ?? null) as string | null,
     respec_level: Number(obj.respec_level ?? 40),
     ...(typeof obj.wrack_min_hp_pct === 'number' ? { wrack_min_hp_pct: obj.wrack_min_hp_pct } : {}),
+    ...(genes ? { genes } : {}),
+    ...(obj.coe === false ? { coe: false } : {}),
     ...(Array.isArray(obj.pet_rules) ? { pet_rules: obj.pet_rules as PetRule[] } : {}),
   };
 }

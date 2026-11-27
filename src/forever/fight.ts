@@ -4,10 +4,11 @@
 import { createRng, type Rng } from '../engine/rng';
 import type { BuildVariant } from './builds';
 import { ranksAt } from './builds';
-import { brandAttacks, brandDamage, demonicKnowledgeSp, effectNum, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
+import { brandAttacks, brandDamage, brandSchool, demonicKnowledgeSp, effectNum, petSchoolMult, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
 import { estimateOf, evaluateSteps, type DataRotation } from './rotation-spec';
+import { buildRotation } from './rotation-genes';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
 import type { Ranks } from './talents';
@@ -27,6 +28,10 @@ export interface PullConfig {
   statDelta?: StatDelta;
   startMana?: number;
   startHp?: number;
+  /** The demon's health when the pull starts (default and at most: its maximum). */
+  startPetHp?: number;
+  /** The demon's mana when the pull starts (default and at most: its maximum). */
+  startPetMana?: number;
   /** Soul Harvest time left from the previous kill (ms), carried into this pull. */
   startSoulHarvestMs?: number;
   /** Gnome Eureka!: cooldown left (ms) and buff time left (ms) when the pull starts. */
@@ -56,6 +61,13 @@ export interface PullResult {
   castWasteMs: number;
   castCount: number;
   petDied: boolean;
+  /** The demon's health when the pull ended (0 when it died) and its maximum (0 without a demon). */
+  endPetHp: number;
+  petMaxHp: number;
+  /** The demon's mana when the pull ended and its maximum (0 without a demon), and its kind. */
+  endPetMana: number;
+  petMaxMana: number;
+  petKind: PetKind | null;
   playerDied: boolean;
   timedOut: boolean;
   soulHarvestProcs: number;
@@ -129,6 +141,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const { variant, level, params } = cfg;
   const rng: Rng = createRng(seed);
   const ranks = cfg.ranks ?? ranksAt(variant, level);
+  // a rotation given as data, or the rotation composed from the variant's genes
+  const dataRotationCfg = cfg.rotation ?? (variant.genes ? buildRotation(variant.genes, params) : undefined);
   const stats = playerStatsFor(level, cfg.profile, ranks, cfg.statDelta);
   const nMobs = cfg.mobs ?? params.mobs_per_pull;
   const mobBase = mobAt(level);
@@ -162,9 +176,14 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     nextTorment: 0,
     armor: petBase.armor,
   };
-  pet.hp = pet.maxHp;
+  pet.hp = Math.min(pet.maxHp, cfg.startPetHp ?? pet.maxHp);
+  const petMaxMana = pet.mana;
+  pet.mana = Math.min(petMaxMana, cfg.startPetMana ?? petMaxMana);
   const soulLink = rk(ranks, 'soul_link') > 0;
-  const petDmgMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1) * params.pet_dmg_mult;
+  // Talents that raise everything the demon does, the brand included (pet_dmg_mult is only for the estimated pet tables).
+  const petTalentMult = (1 + effectNum('unholy_power', 'petDmgMultPerRank') * rk(ranks, 'unholy_power')) * (soulLink ? 1 + effectNum('soul_link', 'dmgMult') : 1);
+  const petDmgMult = petTalentMult * params.pet_dmg_mult;
+  const petMd = (school: 'shadow' | 'fire'): number => (petKind ? petSchoolMult(ranks, petKind, school) : 1);
 
   // ---- player ---------------------------------------------------------------------------
   const maxMana = stats.maxMana;
@@ -207,7 +226,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const eurekaOn = (): boolean => t < eurekaUntil;
   let res: PullResult = {
     pullSec: 0, mobsKilled: 0, mobsInPull: nMobs, killTimesSec: [], manaSpent: 0, manaFromLifeTap: 0, lifeTapCount: 0, lifeTapHpSpent: 0, damageTaken: 0, healed: 0,
-    startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, playerDied: false, timedOut: false,
+    startMana, endMana: 0, startHp, endHp: 0, maxMana, maxHp, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, petDied: false, endPetHp: 0, petMaxHp: pet.maxHp, endPetMana: 0, petMaxMana, petKind, playerDied: false, timedOut: false,
     soulHarvestProcs: 0, soulHarvestLeftMs: 0, eurekaUses: 0, eurekaCdLeftMs: 0, eurekaBuffLeftMs: 0, rates: { mobHp: 0, fillerDps: 0, petDps: 0, dpsEstimate: 0, dotsDps: 0, drainSoulDps: 0 }, nightfallProcs: 0, brandHits: 0, threatSwitches: 0, playerDamage: 0, petDamage: 0, trace,
   };
 
@@ -215,8 +234,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const spEff = (spellId?: string): number => stats.spellPower + demonicKnowledgeSp(level, ranks, petAlive) + (spellId !== undefined && getSpell(spellId).school === 'shadow' ? params.shadow_spell_power_bonus : 0);
   const mults = () => schoolMults(ranks, demons, petAlive);
 
+  /** Curse of the Elements raises all magic damage the target takes, the demon's too. */
+  const curseMult = (m: Mob): number => (t < m.curseUntil ? 1 + m.curseVal : 1);
   const targetMult = (m: Mob, school: 'shadow' | 'fire'): number => {
-    let x = t < m.curseUntil ? 1 + m.curseVal : 1;
+    let x = curseMult(m);
     if (school === 'shadow' && t < m.vulnUntil) x *= 1 + effectNum('improved_shadow_bolt', 'shadowTakenPerRank') * rk(ranks, 'improved_shadow_bolt');
     return x;
   };
@@ -417,7 +438,9 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (m.brandCharges > 0 && t < m.brandUntil) {
       m.brandCharges--;
       res.brandHits++;
-      dealToMob(m, brandDamage(level, spEff(), rk(ranks, 'demonic_brand'), params), false, 1);
+      const d = brandDamage(level, spEff(), rk(ranks, 'demonic_brand'), params) * petTalentMult * (petKind ? petMd(brandSchool(petKind)) : 1) * curseMult(m);
+      log(t, `pet brand ${d.toFixed(3)}`);
+      dealToMob(m, d, false, 1);
     }
   };
 
@@ -489,7 +512,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return best;
   };
   // ---- estimates for rotation rules ---------------------------------------------------------
-  const est = cfg.rotation?.estimate ?? estimateOf(variant, params);
+  const est = dataRotationCfg?.estimate ?? estimateOf(variant, params);
   const fillerRank = (): { id: string; r: SpellRank } => {
     const id = est.filler === 'wrack' && !known('wrack') ? 'shadow_bolt' : est.filler;
     const r = rankAt(id, id === 'shadow_bolt' ? est.fillerRank : 'max', level) ?? (rankAt('shadow_bolt', 'max', level) as SpellRank);
@@ -509,7 +532,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (!pd || !petAlive) return 0;
     if (petKind === 'imp') {
       const fr = petRank(pd.fireboltRanks);
-      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult) / ((pd.fireboltCastMs as number) / 1000) : 0;
+      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult * petMd('fire')) / ((pd.fireboltCastMs as number) / 1000) : 0;
     }
     return (petBase.meleeAvg / ((pd.swingMs as number) / 1000)) * petDmgMult * params.pet_hit_chance;
   };
@@ -541,7 +564,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   }
 
   // ---- rotation context ---------------------------------------------------------------------
-  const dataRotation = cfg.rotation;
+  const dataRotation = dataRotationCfg;
   const rotation: (ctx: RotationCtx) => Candidate[] = dataRotation ? (ctx) => evaluateSteps(dataRotation, ctx) : rotationFor(variant.rotation);
   const makeCtx = (m: Mob): RotationCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance, hpPct: (hp / maxHp) * 100,
@@ -645,7 +668,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       if (fr && pet.mana >= fr.mana) {
         pet.mana -= fr.mana;
         if (rng.next() < params.pet_hit_chance) {
-          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp'));
+          const d = (fr.dmg + dk * fr.coeff) * petDmgMult * petMd('fire') * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp')) * curseMult(m);
+          log(t, `pet firebolt ${d.toFixed(3)}`);
           dealToMob(m, d, false, 1);
           if (m.alive) brandHit(m);
         }
@@ -655,6 +679,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     }
     if (rng.next() < params.pet_hit_chance) {
       const d = petBase.meleeAvg * (1 - mobArmorRed) * petDmgMult;
+      log(t, `pet melee ${d.toFixed(3)}`);
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);
     }
@@ -669,7 +694,8 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const lr = petRank(pd.lashRanks);
     if (lr && pet.mana >= lr.mana) {
       pet.mana -= lr.mana;
-      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad'));
+      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * curseMult(m);
+      log(t, `pet lash ${d.toFixed(3)}`);
       dealToMob(m, d, false, 1);
       if (m.alive) brandHit(m);
     }
@@ -761,7 +787,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       const bonus = t < shUntil ? sh.bonus : 0;
       mana = Math.min(maxMana, mana + (combatRegenPerSec(stats.spirit, params, bonus) + sacManaPerMs * 1000) * (dt / 1000));
       if (sacHealPerMs > 0) healPlayer(sacHealPerMs * dt);
-      if (petAlive && petKind !== 'imp') pet.mana = Math.min(pet.mana + 0.5 * (dt / 1000), 1e9);
+      if (petAlive && petKind !== 'imp') pet.mana = Math.min(petMaxMana, pet.mana + 0.5 * (dt / 1000));
     }
     t = next;
     // 1. cast completion
@@ -830,5 +856,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   res.endMana = mana;
   res.endHp = Math.max(0, hp);
   if (res.playerDied) res.endHp = 0;
+  res.endPetHp = petAlive ? Math.max(0, pet.hp) : 0;
+  res.endPetMana = petAlive ? Math.max(0, pet.mana) : 0;
   return res;
 }

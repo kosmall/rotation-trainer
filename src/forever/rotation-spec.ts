@@ -7,6 +7,10 @@
 import type { BuildVariant } from './builds';
 import type { Candidate, RotationCtx } from './rotations';
 import type { EurekaPolicy, Params } from './types';
+import { all, knows, lacksDot, not, T } from './conds';
+import { buildRotation } from './rotation-genes';
+
+export { all, knows, lacksDot, not, T };
 
 /** A condition on the state of the fight. Everything an addon has to read is named by `reads`. */
 export type Cond =
@@ -90,14 +94,6 @@ export const EUREKA_SPELLS: readonly string[] = ['shadow_bolt', 'immolate', 'sea
 const EUREKA_NOT_AFFECTED = ['corruption', 'bane_of_agony', 'siphon_life', 'life_tap', 'curse_of_elements'];
 const BRAND_MARGIN_SEC = 1.5;
 
-export const T: Cond = { op: 'true' };
-export const all = (...of: (Cond | null)[]): Cond => {
-  const list = of.filter((c): c is Cond => c !== null && c.op !== 'true');
-  return list.length === 0 ? T : list.length === 1 ? (list[0] as Cond) : { op: 'all', of: list };
-};
-export const not = (of: Cond): Cond => ({ op: 'not', of });
-export const knows = (spell: string): Cond => ({ op: 'knows', spell });
-export const lacksDot = (spell: string): Cond => not({ op: 'target_has_dot', spell });
 
 function eurekaWhen(policy: EurekaPolicy, p: Params): Cond {
   const ready: Cond = { op: 'cooldown_ready', spell: 'eureka' };
@@ -118,6 +114,7 @@ function eurekaWhen(policy: EurekaPolicy, p: Params): Cond {
 
 /** Steps of a rotation kind, in priority order (mirrors rotations.ts). */
 function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
+  if (v.genes) return buildRotation(v.genes, p).steps;
   const out: SpecStep[] = [];
   const longEnough: Cond = { op: 'ttk_at_least', sec: p.corruption_min_ttk_sec };
   const skip: Cond | null = p.skip_agony_if_ttk_below > 0 ? { op: 'ttk_at_least', sec: p.skip_agony_if_ttk_below } : null;
@@ -133,7 +130,7 @@ function stepsOf(v: BuildVariant, p: Params): SpecStep[] {
       all({ op: 'talent_rank_at_least', id: 'demonic_brand', rank: 1 }, { op: 'pet_alive' }, knows('searing_pain'), { op: 'brand_needs_refresh', marginSec: BRAND_MARGIN_SEC }),
     );
   const dots = (withAgony: boolean): void => {
-    if (p.use_curse_of_elements) step('curse_of_elements', 'curse_of_elements', 'max', all(skip, not({ op: 'target_has_curse' }), knows('curse_of_elements'), longEnough));
+    if (p.use_curse_of_elements && v.coe !== false) step('curse_of_elements', 'curse_of_elements', 'max', all(skip, not({ op: 'target_has_curse' }), knows('curse_of_elements'), longEnough));
     if (withAgony) step('bane_of_agony', 'bane_of_agony', 'max', all(skip, lacksDot('bane_of_agony'), knows('bane_of_agony'), longEnough));
     step('corruption', 'corruption', 'max', all(lacksDot('corruption'), knows('corruption'), longEnough));
   };
@@ -356,7 +353,8 @@ export function estimateOf(v: BuildVariant, p: Params): RotationEstimate {
   return { filler, fillerRank: fire ? 1 : v.rank, dotSpells };
 }
 
-/** A build's built-in rotation as data (plays exactly like the rotation code). */
+/** A build's rotation as data: its composed rotation, or the built-in one (plays exactly like the rotation code). */
 export function dataRotationOf(v: BuildVariant, p: Params): DataRotation {
+  if (v.genes) return buildRotation(v.genes, p);
   return { steps: rotationSpec(v, p).steps, estimate: estimateOf(v, p) };
 }

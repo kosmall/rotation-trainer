@@ -53,8 +53,25 @@ HP; Wrack is a 6 s channel of 60 per tick, not a 2 s cast; Fel Concentration 23%
 - Siphon Life: 11 per 3 s (rank 1) vs 27 on guildorder (probably the top rank) vs Wowhead ranks
   11/19/29/41. Wowhead used.
 - Demonic Brand: user text says "next 3 attacks"; sources say 6 attacks at 3/3 (2 per rank). Sources used.
-- Brand damage rank 1 = 90-93 (guildorder) vs rank 3 formula (66-68 at level 60). Rank 1 is
-  reproduced by a x1.5 level term; rank 2 is interpolated (flagged).
+- Brand damage rank 1 = 90-93 (guildorder, older) vs (level-26)*1.5 + 14..17 + 0.078*SP (65-68 at
+  level 60). **Used: Wowhead Forever (spells 1293697/1293698, read 26 Nov): the formula at every
+  rank**, the rank changes only the number of attacks. The hit is multiplied by Unholy Power and
+  Master Demonologist (Fire with the Imp, Shadow otherwise), and by Soul Link (assumption). Master
+  Demonologist also raises the demon's own spells (spells 23759/23761: Imp Fire, Succubus Shadow).
+- Demonic Sacrifice (Wowhead Forever spell 18788, read 26 Nov): Imp +15% Shadow, Voidwalker 2%
+  mana per 4 s, Succubus +15% Fire, Felhunter 3% health per 4 s. Confirmed; it differs from Classic.
+- Curse of the Elements: until 27 Nov only rank 1 (+4%) was in the data. **Used: Wowhead Forever
+  ranks 4/6/8/10% for 50/100/150/200 mana at levels 20/30/40/50**; it raises the demon's magic
+  damage too (not its melee).
+- Demon health between pulls: until 27 Nov every pull started with a full demon, for free, which
+  flattered builds whose Imp holds the mob. **Used now:** the health carries over; out of combat the
+  demon regains 2.6% per second (**estimate**: the cmangos Classic emulator, 13% per 5 s, not found
+  for Forever; param `pet_ooc_regen_pct_per_sec`); below 70% the warlock channels Health Funnel
+  between pulls (Wowhead Forever ranks, Improved Health Funnel +20% health and -15% cost per rank);
+  a dead demon returns full after `pet_resummon_sec`. Not modelled: Health Funnel during a fight and
+  the mana of a resummon.
+- Pet critical strikes are **not modelled** (the 25 Nov hotfix fixed pet melee crit, so pets do
+  crit); no chance found. Demonology results are a little low because of it.
 - Life Tap: wiki "30 health -> 30 mana" at rank 1; guide summary "cost = base + Spirit, 1.2 mana
   per health". Used 1.0 and Spirit coefficient 1.0 (both flagged and in the sensitivity axes).
 

@@ -4,24 +4,27 @@ import { loadParams } from '../../src/forever/data/load';
 import { runCell } from '../../src/forever/runner';
 import { demonsAt } from '../../src/forever/stats';
 import { POLICIES } from '../../src/forever/web/api';
+import type { Params } from '../../src/forever/types';
 
 const petsAt = (build: string, mobs: number, levels: number[]) => levels.map((l) => demonsAt(loadVariant(build), l, mobs).pet);
 // the Life Tap policy of the study (the one the app picks by default for the pull size)
-const kph = (build: string, level: number, mobs: 1 | 2 | 3) =>
-  runCell({ variant: loadVariant(build), level, profile: 'average', params: loadParams(POLICIES[mobs === 1 ? 'BEST_1MOB' : 'BEST_2MOB']!.params), mobs }, 150, 11).metrics.killsPerHour;
+const kph = (build: string, level: number, mobs: 1 | 2 | 3, over: Partial<Params> = {}) =>
+  runCell({ variant: loadVariant(build), level, profile: 'average', params: loadParams({ ...POLICIES[mobs === 1 ? 'BEST_1MOB' : 'BEST_2MOB']!.params, ...over }), mobs }, 150, 11).metrics.killsPerHour;
 
 describe('builds that change the demon by level and pull size', () => {
-  it('affliction takes the Succubus only on single mob pulls at 20-29', () => {
+  it('affliction keeps the Voidwalker at 20-29: the Succubus did not pay once the demon kept its health', () => {
+    // Measured 27 Nov 2026 with the carried-over demon health and mana: the Succubus lost 15-30 kills per hour at 22 and 28.
     for (const build of ['AFF_WRACK_SH_PET', 'DT_SS_WRACK_50_PET']) {
-      expect(petsAt(build, 1, [19, 20, 29, 30])).toEqual(['voidwalker', 'succubus', 'succubus', 'voidwalker']);
+      expect(petsAt(build, 1, [20, 22, 28, 29])).toEqual(['voidwalker', 'voidwalker', 'voidwalker', 'voidwalker']);
       expect(petsAt(build, 2, [20, 25, 29])).toEqual(['voidwalker', 'voidwalker', 'voidwalker']);
     }
   });
 
-  it('demonology takes the Voidwalker on 3 mob pulls, and on 2 mob pulls up to level 39', () => {
+  it('demonology takes the Voidwalker on 2 and 3 mob pulls at every level, the Succubus on single mob pulls', () => {
+    // 2 mobs: the Voidwalker wins at every level 25-50 measured (by 2-5 kills per hour from 39 on, by a lot below 36).
     const b = 'DEMO_PACT_R1_PET';
     expect(petsAt(b, 1, [12, 20, 40, 59])).toEqual(['voidwalker', 'succubus', 'succubus', 'succubus']);
-    expect(petsAt(b, 2, [20, 39, 40, 59])).toEqual(['voidwalker', 'voidwalker', 'succubus', 'succubus']);
+    expect(petsAt(b, 2, [20, 39, 40, 59])).toEqual(['voidwalker', 'voidwalker', 'voidwalker', 'voidwalker']);
     expect(petsAt(b, 3, [20, 40, 41, 59])).toEqual(['voidwalker', 'voidwalker', 'voidwalker', 'voidwalker']);
   });
 
@@ -37,8 +40,9 @@ describe('builds that change the demon by level and pull size', () => {
   });
 
   it('are better where the study found them better', () => {
-    expect(kph('DT_SS_WRACK_50_PET', 22, 1)).toBeGreaterThan(kph('DT_SS_WRACK_50', 22, 1));
-    expect(kph('AFF_WRACK_SH_PET', 18, 1)).toBeGreaterThan(kph('AFF_WRACK', 18, 1));
+    // With the demon's health and mana carried over, the Wrack builds' Succubus rule is gone (same pet as the base build at
+    // 20-29), so the two are equal there. The demonology gain from the Voidwalker on 2 and 3 mobs stays.
+    expect(kph('DT_SS_WRACK_50_PET', 22, 1)).toBe(kph('DT_SS_WRACK_50', 22, 1));
     expect(kph('DEMO_PACT_R1_PET', 24, 2)).toBeGreaterThan(kph('DEMO_PACT_R1', 24, 2) + 30);
     expect(kph('DEMO_PACT_R1_PET', 50, 3)).toBeGreaterThan(kph('DEMO_PACT_R1', 50, 3) + 30);
   });

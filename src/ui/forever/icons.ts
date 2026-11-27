@@ -78,4 +78,18 @@ export const PET_ICONS: Readonly<Record<string, string>> = {
 };
 
 /** Talent icons the TBC talent tree does not have: stored in public/icons/forever/ (the talents folder is checked against the TBC tree). */
-export const FOREVER_ONLY_TALENT_ICONS: ReadonlySet<string> = new Set(['spell_fire_firearmor', 'spell_shadow_summonfelhunter', 'spell_fire_burnout']);
+export const FOREVER_ONLY_TALENT_ICONS: ReadonlySet<string> = new Set([
+  'ability_deathknight_hemorrhagicfever',
+  'ability_demonhunter_chaoticimprint_fire',
+  'ability_warlock_baneofhavoc',
+  'inv_ability_soulharvesterwarlock_demonicsoul',
+  'inv_elemental_primal_shadow',
+  'spell_fire_burnout',
+  'spell_fire_fireball02',
+  'spell_fire_firearmor',
+  'spell_fire_meteorstorm',
+  'spell_shadow_felmending',
+  'spell_shadow_focusedpower',
+  'spell_shadow_summonfelhunter',
+  'spell_shadow_unstableaffliction_2',
+]);

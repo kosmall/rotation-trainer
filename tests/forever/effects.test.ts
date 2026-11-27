@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
-import { brandAttacks, brandDamage, demonicKnowledgeSp, sacrificeDemon, schoolMults, soulHarvest, summonDemon } from '../../src/forever/effects';
+import { brandAttacks, brandDamage, brandSchool, demonicKnowledgeSp, petSchoolMult, sacrificeDemon, schoolMults, soulHarvest, summonDemon } from '../../src/forever/effects';
 
 describe('Demonic Brand damage', () => {
   it('fixed_60 at 3/3 and 0 SP is (60-26)*1.5 + 15.5 = 66.5; +0.078 per spell power', () => {
@@ -8,12 +8,17 @@ describe('Demonic Brand damage', () => {
     expect(brandDamage(40, 0, 3, p)).toBeCloseTo(66.5, 6);
     expect(brandDamage(40, 100, 3, p)).toBeCloseTo(74.3, 6);
   });
-  it('level_scaled uses the caster level; rank 1 reproduces the 90-93 tooltip at level 60; rank 0 is nothing', () => {
+  it('level_scaled uses the caster level; rank 0 is nothing', () => {
     const p = loadParams({ brand_scale: 'level_scaled' });
     expect(brandDamage(40, 0, 3, p)).toBeCloseTo(14 * 1.5 + 15.5, 6);
-    expect(brandDamage(60, 0, 1, p)).toBeGreaterThanOrEqual(90);
-    expect(brandDamage(60, 0, 1, p)).toBeLessThanOrEqual(93);
     expect(brandDamage(40, 0, 0, p)).toBe(0);
+  });
+  it('an attack deals the same at every rank: the rank only changes the number of attacks (Wowhead)', () => {
+    const p = loadParams({ brand_scale: 'level_scaled' });
+    for (const rank of [1, 2, 3]) {
+      expect(brandDamage(60, 0, rank, p)).toBeCloseTo(34 * 1.5 + 15.5, 6);
+      expect(brandDamage(40, 100, rank, p)).toBeCloseTo(14 * 1.5 + 15.5 + 7.8, 6);
+    }
   });
   it('2 attacks per rank: 6 at 3/3', () => {
     expect(brandAttacks(1)).toBe(2);
@@ -62,6 +67,26 @@ describe('school multipliers', () => {
     expect(demonicKnowledgeSp(50, { demonic_knowledge: 3 }, true)).toBe(50);
     expect(demonicKnowledgeSp(50, { demonic_knowledge: 3 }, false)).toBe(0);
     expect(demonicKnowledgeSp(48, { demonic_knowledge: 1 }, true)).toBe(16);
+  });
+});
+
+describe('multipliers of the demon', () => {
+  const md = { master_demonologist: 5 };
+  it('Master Demonologist raises the Imp\'s Fire damage and the Succubus\'s Shadow damage', () => {
+    expect(petSchoolMult(md, 'imp', 'fire')).toBeCloseTo(1.1, 6);
+    expect(petSchoolMult(md, 'succubus', 'shadow')).toBeCloseTo(1.1, 6);
+    expect(petSchoolMult({ master_demonologist: 2 }, 'imp', 'fire')).toBeCloseTo(1.04, 6);
+  });
+  it('other schools and demons get nothing', () => {
+    expect(petSchoolMult(md, 'imp', 'shadow')).toBe(1);
+    expect(petSchoolMult(md, 'succubus', 'physical')).toBe(1);
+    expect(petSchoolMult(md, 'voidwalker', 'shadow')).toBe(1);
+    expect(petSchoolMult(md, 'felhunter', 'shadow')).toBe(1);
+    expect(petSchoolMult({}, 'imp', 'fire')).toBe(1);
+  });
+  it('the brand is Fire with the Imp and Shadow with the other demons', () => {
+    expect(brandSchool('imp')).toBe('fire');
+    for (const pet of ['voidwalker', 'succubus', 'felhunter'] as const) expect(brandSchool(pet)).toBe('shadow');
   });
 });
 

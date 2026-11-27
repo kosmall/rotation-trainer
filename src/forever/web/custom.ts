@@ -1,6 +1,9 @@
 // Custom builds of the web app: validation, import/export and the storage format. Framework-free.
 
 import { customId, customVariant, type BuildVariant, type CustomBuildData } from '../builds';
+import { parseGenes, type RotationGenes } from '../rotation-genes';
+
+export { parseGenes };
 import { TALENT_BY_ID } from '../talents';
 import type { PetKind } from '../types';
 
@@ -17,6 +20,9 @@ export const FILLERS: Readonly<Record<BuildVariant['rotation'], readonly string[
   demonology: ['shadow_bolt'],
   fire: ['searing_pain', 'shadow_bolt'],
 };
+
+/** The rotation a build starts with when switched to a rotation composed from spells. */
+export const DEFAULT_GENES: RotationGenes = { coe: true, agony: true, corruption: true, siphon: false, immolate: false, minTtkSec: 6, drainSoulFinisher: true, filler: 'drain_life' };
 
 /** A new empty build. */
 export function emptyBuild(name: string): CustomBuildData {
@@ -35,7 +41,8 @@ export function parseBuild(raw: unknown): CustomBuildData {
   const rank = o.rank === 1 || o.rank === 2 || o.rank === 'max' ? o.rank : rotation === 'demonology' ? 1 : 'max';
   const pet = o.pet === null ? null : PETS.includes(o.pet as never) ? (o.pet as PetKind) : 'succubus';
   const sacrificed = PETS.includes(o.sacrificed as never) ? (o.sacrificed as PetKind) : null;
-  const data: CustomBuildData = { name, picks: o.picks as string[], rotation, filler, rank, pet, sacrificed };
+  const genes = parseGenes(o.genes);
+  const data: CustomBuildData = { name, picks: o.picks as string[], rotation, filler, rank, pet, sacrificed, ...(genes ? { genes } : {}) };
   customVariant(data); // validates the order
   return data;
 }

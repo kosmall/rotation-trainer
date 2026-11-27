@@ -33,7 +33,7 @@ describe('ForeverApp', () => {
     fireEvent.change(screen.getByLabelText('Level postaci (liczba)'), { target: { value: '45' } });
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
     const table = await screen.findByRole('table', { name: 'Ranking buildów' });
-    expect(table.querySelectorAll('tbody tr')).toHaveLength(16);
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(22);
     expect(screen.getByText(/Level 45/)).toBeTruthy();
     expect(screen.getByText('najlepszy')).toBeTruthy();
   });
@@ -49,6 +49,27 @@ describe('ForeverApp', () => {
     rerender(<ForeverApp view="builds" runner={runner} />);
     expect((screen.getByLabelText('Build') as HTMLSelectElement).value).toBe(id);
     expect(screen.getByRole('region', { name: 'Drzewo Affliction' })).toBeTruthy();
+  });
+
+  it('a button on a build in the Builds tab opens its rotation in the Rotations tab', () => {
+    const { rerender } = render(<ForeverApp view="builds" runner={runner} />);
+    const select = () => screen.getByLabelText('Build') as HTMLSelectElement;
+    const open = (id: string) => {
+      rerender(<ForeverApp view="builds" runner={runner} />);
+      fireEvent.change(select(), { target: { value: id } });
+      const link = screen.getByRole('link', { name: 'Pokaż rotację' });
+      expect(link.getAttribute('href')).toBe('#/forever/rotations');
+      fireEvent.click(link);
+      rerender(<ForeverApp view="rotations" runner={runner} />);
+    };
+    open('DT_SS_NOCOE');
+    expect(select().value).toBe('DT_SS_NOCOE');
+    expect(screen.getByRole('list', { name: 'Diagram rotacji DT_SS_NOCOE' })).toBeTruthy();
+    // the button wins over an earlier choice made in the Rotations tab
+    fireEvent.change(select(), { target: { value: 'AFF_WRACK' } });
+    open('DEMO_FIRE');
+    expect(select().value).toBe('DEMO_FIRE');
+    expect(screen.getByRole('list', { name: 'Diagram rotacji DEMO_FIRE' })).toBeTruthy();
   });
 
   it('marks Eureka! in the rotation diagram before the spells of the chosen timing', () => {
@@ -130,7 +151,7 @@ describe('ForeverApp', () => {
     window.localStorage.setItem('wow-forever-sim:settings:v1', JSON.stringify({ level: 30, mobs: 2 }));
     render(<ForeverApp view="builds" runner={runner} />);
     fireEvent.change(screen.getByLabelText('Build'), { target: { value: 'DEMO_PACT_R1_PET' } });
-    expect(screen.getByText(/zamiast niego: Voidwalker przy 3\+ mobach, Voidwalker do levelu 39 przy 2 mobach; na levelu 30 przy 2 mobach, walczy Voidwalker/)).toBeTruthy();
+    expect(screen.getByText(/zamiast niego: Voidwalker przy 3\+ mobach, Voidwalker przy 2 mobach; na levelu 30 przy 2 mobach, walczy Voidwalker/)).toBeTruthy();
   });
 
   it('lists builds, rotations and assumptions', () => {

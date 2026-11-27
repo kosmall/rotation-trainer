@@ -255,10 +255,10 @@ export function buildReport(o: ReportOptions = DEFAULT_REPORT_OPTIONS): string {
   p('## 8. What is not modelled');
   p();
   for (const line of [
-    'Pet resurrection costs (shards), Soul Shards in general, Health Funnel, Fear/crowd control and kiting, movement, line of sight and travel time of spells.',
+    'Pet resurrection costs (shards and mana), Soul Shards in general, Health Funnel during a fight (it is used between pulls only), Fear/crowd control and kiting, movement, line of sight and travel time of spells.',
     'Gold cost and time of the respec, vendor trips, bags and repairs; elites, rares, quest mobs with special mechanics.',
     'Threat is simplified to two numbers per mob (player and pet) with the 110%/130% overtake rule; Demonic Brand, Searing Pain and Voidwalker Torment feed it.',
-    'Pet HP and mana are refilled before every pull; a dead pet costs `pet_resummon_sec`.',
+    'Pet HP and mana carry over between pulls: they regenerate out of combat (`pet_ooc_regen_pct_per_sec` and `pet_ooc_mana_per_sec`, estimates; an Imp has no mana regeneration), Health Funnel heals the demon below `pet_funnel_below_pct`, and a dead pet comes back at full health and mana after `pet_resummon_sec`.',
     'Mob HP is fixed per level (no variance), same level as the player, melee only, one swing every 2 s.',
     'Damage multipliers combine multiplicatively (the game may add some of them).',
     'Haste is off by default (`haste_pct` 0); when set it shortens casts and the GCD (confirmed: in Forever haste always shortens the GCD, floor `min_gcd_ms`).',

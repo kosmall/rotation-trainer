@@ -19,17 +19,33 @@ export function brandAttacks(brandRank: number): number {
 }
 
 /**
- * Demonic Brand damage per marked pet attack. Rank 3: (levelRef - 26) x 1.5 + avg(14, 17) + 0.078 x SP
- * (Wowhead, via timesaver.gg). Rank 1 reproduces the 90-93 tooltip when the level term is x1.5
- * (assumption); rank 2 is halfway (assumption). levelRef is 60 (`fixed_60`) or the caster level.
+ * Demonic Brand damage per marked pet attack before the demon's multipliers: (levelRef - 26) x 1.5 +
+ * avg(14, 17) + 0.078 x SP at every rank (Wowhead Forever spells 1293697/1293698: the rank only changes
+ * the number of attacks and the threat). levelRef is the caster level (`level_scaled`, as the Wowhead
+ * tooltip marks it) or 60 (`fixed_60`).
  */
 export function brandDamage(level: number, spellPower: number, brandRank: number, params: Params): number {
   if (brandRank <= 0) return 0;
   const e = (k: string) => effectNum('demonic_brand', k);
   const levelRef = params.brand_scale === 'fixed_60' ? 60 : level;
   const levelTerm = Math.max(0, levelRef - e('levelBase')) * e('perLevel');
-  const mult = 1 + (e('rank1Mult') - 1) * ((3 - Math.min(3, brandRank)) / 2);
-  return (levelTerm * mult + (e('min') + e('max')) / 2 + e('spCoeff') * spellPower) * params.brand_mult;
+  return (levelTerm + (e('min') + e('max')) / 2 + e('spCoeff') * spellPower) * params.brand_mult;
+}
+
+/** The school of a Demonic Brand hit: Fire with the Imp, Shadow with the other demons. */
+export function brandSchool(pet: PetKind): 'shadow' | 'fire' {
+  return pet === 'imp' ? 'fire' : 'shadow';
+}
+
+/**
+ * Master Demonologist on the demon's own damage (it grants the effect to the warlock and the demon):
+ * the Imp's Fire and the Succubus's Shadow damage; physical attacks and the other demons get nothing.
+ */
+export function petSchoolMult(ranks: Ranks, pet: PetKind, school: 'shadow' | 'fire' | 'physical'): number {
+  const md = rank(ranks, 'master_demonologist') / 5;
+  if (pet === 'imp' && school === 'fire') return 1 + effectNum('master_demonologist', 'impFireMult') * md;
+  if (pet === 'succubus' && school === 'shadow') return 1 + effectNum('master_demonologist', 'succubusShadowMult') * md;
+  return 1;
 }
 
 export interface DemonState {

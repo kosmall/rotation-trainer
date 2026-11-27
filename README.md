@@ -91,6 +91,17 @@ npm run forever:ep -- --builds DEMO_PACT_R1,AFF_WRACK --levels 45,50,55 --out re
 npm run forever:ep -- --all --levels 50                                                            # wszystkie buildy
 ```
 
+**Zdrowie demona między pullami:** przenosi się na następny pull. Poza walką demon odzyskuje 2,6% zdrowia na sekundę
+(`pet_ooc_regen_pct_per_sec`, szacunek z emulatora Classic, dla Forever nieznaleziony), a poniżej 70% warlock leczy go
+między pullami Health Funnel (`pet_funnel_below_pct`, `pet_funnel_to_pct`; kosztuje czas i zdrowie). Martwy demon
+wraca z pełnym zdrowiem po karze za przywołanie. Ranking pokazuje zdrowie demona na starcie pulla, jego zgony i czas
+Health Funnel.
+
+**Buildy `_NOCOE`** (`AFF_DRAINTANK_NOCOE`, `DT_SS_NOCOE`, `DT_SS_WRACK_70_NOCOE`, `DT_SS_WRACK_50_NOCOE`,
+`DEMO_PACT_R1_NOCOE`, `DEMO_PACT_VIDEO_NOCOE`) to te same talenty, pety i rotacja co bez przyrostka, tylko bez Curse
+of the Elements (pole `"coe": false` w `builds.json`). Rangi klątwy: +4/6/8/10% za 50/100/150/200 many od levelu
+20/30/40/50 (Wowhead Forever); klątwa wzmacnia też magiczne obrażenia peta.
+
 Jak to liczy: build to **kolejność 51 punktów** (level 10 = punkt 1); na levelu L ma pierwsze `L - 9`
 punktów (opcjonalny perk `talented_legacy_perk` dodaje punkty, `respec_level` przełącza buildy DEMO z
 `pre_respec_build`). **Level jest parametrem symulacji.** Sesja to kilka pulli pod rząd (mana i HP
@@ -135,6 +146,31 @@ npm run forever:discover -- --level 45 --param wrack_dmg_mult=1.3 --mobs 2 --pro
   pet. W szczegółach: talenty, kroki rotacji, talenty bez wpływu na wynik (dla top 5) i **„Leans on estimates”**,
   czyli wartości szacunkowe (`verify: true`), na których wynik stoi. „Odkrycie” oparte na zgadywanej liczbie
   widać od razu.
+
+**W aplikacji:** zakładka **Odkrywanie** (`#/forever/discover`) robi to samo w przeglądarce, na tym samym silniku
+i z tymi samymi wynikami co CLI. Level, sprzęt, liczba mobów, polityka Life Tapa, Spellstone i Eureka! są brane z
+paska ustawień, a **Zakres** to **Pełne** (~15 min) albo **Szybkie** (~1-3 min). Liczy na `min(8, liczba rdzeni)` Web
+Workerach; **Przerwij** zatrzymuje wszystkie. Ostatni wynik zostaje zapamiętany (bez wznawiania po odświeżeniu
+strony). **Zapisz** przy wierszu dodaje wynik jako **własny build**: punkty w kolejności rzędów drzewka (poniżej
+levelu wyszukiwania build ma pierwsze N z nich, powyżej punkty są niewydane; w edytorze można je przestawić i
+dobudować do 51), znaleziona rotacja i pety. Taki build jest od razu do wyboru w Porównaniu, EP, Buildach i Rotacjach
+na każdym levelu; do rankingu i krzywej w Symulacji dołączasz go zaznaczeniem „Własne buildy w rankingu”. Wyjście z
+zakładki Odkrywanie przerywa trwające wyszukiwanie.
+
+**Uzupełnij do 59:** zaznaczone wyniki dostają talenty na kolejne levele (pety bez zmian). Build z fillerem Drain
+Life, który zdąży wziąć Wracka, jest liczony także z Wrackiem jako fillerem (powyżej 70% albo 50% HP; do wzięcia
+talentu i poniżej progu gra Drain Life), z dodatkową drogą prowadzącą prosto do Wracka. Build rzucający Curse of the
+Elements jest liczony (w każdym z tych wariantów) także bez klątwy. Wygrywa najszybsza rotacja: karta mówi, od
+którego levelu zmienia się filler, czy klątwa wypada (wtedy na całej drodze) i ile dałoby zostanie przy starej. Gotowe buildy
+są pod tabelą w sekcji „Kompletne buildy”: po zakończeniu strona przewija się do pierwszego z nich i go wyróżnia,
+pod przyciskiem pojawia się „Uzupełniono: #…”, a wiersz w tabeli dostaje przycisk „✓ do 59”, który tam przenosi.
+**Zapisz** na karcie zapisuje pełny build, **Zapisz** w wierszu tabeli tylko build z levelu wyszukiwania.
+
+**Rotacja z klocków we własnym buildzie:** w edytorze własnego buildu „Szablon rotacji” ma opcję **Własna (z
+klocków)**: utrzymywane efekty (Curse of the Elements, Bane of Agony, Corruption, Siphon Life, Immolate), próg „DoT-y
+gdy TTK ≥” (zawsze, 6 s, 12 s), Drain Soul na dobicie i filler (Shadow Bolt r1/r2/max, Searing Pain, Drain Life,
+Wrack bez progu albo od 50%/70% HP, Wrack tylko na pojedynczych mobach). To te same klocki, z których składa
+rotacje wyszukiwarka; Buildy i Rotacje pokazują je jako „Własna rotacja: …”.
 
 Testy: `npx vitest run tests/forever`. Spis zamodelowanych i niezamodelowanych talentów jest w
 `talents.json` (`status`, `reason`); raport: `reports/forever_leveling_40plus.md`.
@@ -757,7 +793,7 @@ npm run build    # produkcyjny build (tsc + vite)
 ```
 
 - **Symulacja**: ustaw level postaci (40-59) i uruchom; ranking 7 buildów (zabić/h, TTK, mana/HP na zabicie, picie, jedzenie, Life Tap, przerwy, zgony, GCD) z różnicą wobec najlepszego (sparowany przedział 95%) oraz krzywa kills/h po levelach 40-59.
-- **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów.
+- **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów. Przycisk „Pokaż rotację” otwiera rotację wybranego builda w zakładce Rotacje.
 - **Rotacje**: listy priorytetów rotacji używanych przez symulator.
 - **Porównanie**: dwa buildy head-to-head na wspólnych seedach, wykres 40-59.
 - **Własny build**: układasz talenty po swojemu (klik dodaje punkt, kolejność kliknięć to kolejność rozdawania), wybierasz szablon rotacji, pet i filler. Pierwsze wejście pokazuje puste drzewo, kolejne ostatnio edytowany build (zapis w localStorage). Build można zduplikować, skopiować z wbudowanego, wyeksportować i zaimportować jako JSON, dołączyć do rankingu i porównania.
@@ -771,5 +807,5 @@ Workflow `.github/workflows/pages.yml` buduje aplikację (`npm test`, `npm run b
 
 ### Wybór peta w buildach
 
-Build może zmieniać demona zależnie od poziomu i liczby mobów (`pet_rules` w `src/forever/data/builds.json`; wygrywa pierwsza pasująca reguła). Buildy `*_PET` wynikają z porównania z poradnikami (26 listopada 2026, 150 sesji, trzy profile ekwipunku): w affliction Succubus na 20-29 przy 1 mobie, w demonology Voidwalker przy 3 mobach i przy 2 mobach do poziomu 39 (na przeciętnym ekwipunku; na questowym opłaca się dłużej, na dobrym krócej, od około 36); `AFF_WRACK_SH_PET` bierze też Soul Harvest zaraz po Improved Corruption (zysk na 15-19).
+Build może zmieniać demona zależnie od poziomu i liczby mobów (`pet_rules` w `src/forever/data/builds.json`; wygrywa pierwsza pasująca reguła). Reguły sprawdzono 27 listopada 2026 z przenoszonym między pullami HP i maną peta, na przeciętnym ekwipunku (150 sesji): w demonology Voidwalker przy 2 i 3 mobach na wszystkich zmierzonych poziomach (25-50), przy 1 mobie Succubus jak dotąd; w affliction i draintank Succubus na poziomach 20-29 przy 1 mobie już się nie opłaca, więc reguła została usunięta. Buildy `*_PET` nadal istnieją, ale na 20-29 ich demon jest taki sam jak w wersji bazowej. Pomiar Soul Harvest w `AFF_WRACK_SH_PET` (zysk na 15-19) pochodzi sprzed tej zmiany i nie był ponownie mierzony.
 

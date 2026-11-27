@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { loadVariant, VARIANT_IDS, type BuildVariant } from '../../forever/builds';
 import { rotationSpec, type Cond, type RotationSpec, type SpecStep } from '../../forever/rotation-spec';
 import { petData } from '../../forever/stats';
 import { TALENT_BY_ID } from '../../forever/talents';
 import type { Params, PetKind } from '../../forever/types';
-import { LoadoutRows, spellName, TITLES, wrackFloor } from './buildFacts';
+import { LoadoutRows, rotationTitle, spellName, wrackFloor } from './buildFacts';
 import { IconTile } from './IconTile';
 
 /** Before the build's own demon is learned another one stands in. */
@@ -96,7 +96,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
   const floor = wrackFloor(v, params);
   return (
     <section className="fv-panel">
-      <h2>{TITLES[v.rotation]}</h2>
+      <h2>{rotationTitle(v)}</h2>
       <dl className="fv-facts fv-facts-icons">
         <LoadoutRows v={v} params={params} petNote={v.pet ? standInNote(v.pet) : ''} />
       </dl>
@@ -196,8 +196,7 @@ export function RotationFlow({ v, params }: { v: BuildVariant; params: Params })
 }
 
 /** One build's rotation (chosen from a dropdown). */
-export function RotationsView({ ids = VARIANT_IDS, params }: { ids?: readonly string[]; params: Params }) {
-  const [id, setId] = useState(ids[0] as string);
+export function RotationsView({ ids = VARIANT_IDS, params, id, onIdChange: setId }: { ids?: readonly string[]; params: Params; id: string; onIdChange(id: string): void }) {
   const v = loadVariant(ids.includes(id) ? id : (ids[0] as string));
   return (
     <>

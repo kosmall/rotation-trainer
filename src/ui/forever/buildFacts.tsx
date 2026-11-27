@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { BuildVariant } from '../../forever/builds';
+import { FILLER_NAME, rotationLabel, WRACK_FLOOR, type FillerGene } from '../../forever/rotation-genes';
 import { getSpell } from '../../forever/spells';
 import type { Params, Tree } from '../../forever/types';
 import { IconTile } from './IconTile';
@@ -38,8 +39,19 @@ export function FactRow({ label, icons, children }: { label: string; icons?: Rea
   );
 }
 
+/** The rotation of a build in words: the template title, or the composed rotation. */
+export function rotationTitle(v: BuildVariant): string {
+  return v.genes ? `Własna rotacja: ${rotationLabel(v.genes)}` : TITLES[v.rotation];
+}
+
+/** The icon of a build's rotation: its tree, or the filler of a composed rotation. */
+export function rotationIcon(v: BuildVariant): { kind: 'spell' | 'talent' | 'pet'; id: string } {
+  return v.genes ? { kind: 'spell', id: GENE_FILLER_SPELL[v.genes.filler] } : ROTATION_ICONS[v.rotation];
+}
+
 /** The health floor (fraction) above which a Wrack-filler build channels Wrack (Drain Life below it); 0 = always Wrack. */
 export function wrackFloor(v: BuildVariant, params?: Params): number {
+  if (v.genes) return WRACK_FLOOR[v.genes.filler] ?? 0;
   return v.filler === 'wrack' ? (v.wrack_min_hp_pct ?? params?.wrack_min_hp_pct ?? 0) : 0;
 }
 
@@ -53,6 +65,18 @@ export function petRulesText(v: BuildVariant): string {
     })
     .join(', ');
 }
+
+const GENE_FILLER_SPELL: Record<FillerGene, string> = {
+  sb_r1: 'shadow_bolt',
+  sb_r2: 'shadow_bolt',
+  sb_max: 'shadow_bolt',
+  searing_pain: 'searing_pain',
+  drain_life: 'drain_life',
+  wrack: 'wrack',
+  wrack_hp50: 'wrack',
+  wrack_hp70: 'wrack',
+  wrack_single_then_drain_life: 'wrack',
+};
 
 const pctText = (f: number): string => `${String(Math.round(f * 1000) / 10).replace('.', ',')}%`;
 
@@ -68,12 +92,20 @@ export function LoadoutRows({ v, petNote = '', params }: { v: BuildVariant; petN
         {v.pet_rules ? `; zamiast niego: ${petRulesText(v)}` : ''}
         {petNote}
       </FactRow>
-      <FactRow label="Shadow Bolt" icons={<IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />}>
-        {v.rotation === 'fire' ? 'ranga 1' : v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`}
-      </FactRow>
-      <FactRow label="Filler" icons={fillerSpells?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}>
-        {floor > 0 ? `Wrack, gdy HP powyżej ${pctText(floor)}; przy niższym HP Drain Life` : (FILLER_NAMES[v.filler] ?? v.filler)}
-      </FactRow>
+      {v.genes ? (
+        <FactRow label="Filler" icons={<IconTile kind="spell" id={GENE_FILLER_SPELL[v.genes.filler]} name={spellName(GENE_FILLER_SPELL[v.genes.filler])} size={28} />}>
+          {FILLER_NAME[v.genes.filler]}
+        </FactRow>
+      ) : (
+        <>
+          <FactRow label="Shadow Bolt" icons={<IconTile kind="spell" id="shadow_bolt" name="Shadow Bolt" size={28} />}>
+            {v.rotation === 'fire' ? 'ranga 1' : v.rank === 'max' ? 'najwyższa ranga' : `ranga ${v.rank}`}
+          </FactRow>
+          <FactRow label="Filler" icons={fillerSpells?.map((sp) => <IconTile key={sp} kind="spell" id={sp} name={spellName(sp)} size={28} />)}>
+            {floor > 0 ? `Wrack, gdy HP powyżej ${pctText(floor)}; przy niższym HP Drain Life` : (FILLER_NAMES[v.filler] ?? v.filler)}
+          </FactRow>
+        </>
+      )}
       <FactRow label="Talenty">
         {v.order.startsWith('custom:') ? 'własna kolejność' : v.order}
         {v.pre_respec_build ? ` (do respeca na levelu ${v.respec_level}: ${v.pre_respec_build})` : ''}

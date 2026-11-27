@@ -6,7 +6,7 @@ import { simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
 import { soulHarvest } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
-import { gcdMs, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec } from './stats';
+import { gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec } from './stats';
 import type { DataRotation } from './rotation-spec';
 import type { Ranks } from './talents';
 import type { Params, StatDelta } from './types';
@@ -85,6 +85,11 @@ export interface SessionResult {
   transitionSec: number;
   resummonSec: number;
   deathSec: number;
+  /** Time spent channelling Health Funnel between pulls (part of restSec). */
+  funnelSec: number;
+  /** The demon's health fraction at the start of each pull, summed, and the pulls with a demon. */
+  petStartHpSum: number;
+  petPulls: number;
   breaks: number;
   pullsWithoutBreak: number;
   deaths: number;
@@ -114,7 +119,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   const ltRank = rankAt('life_tap', 'max', level);
   const out: SessionResult = {
     seed, totalSec: 0, kills: 0, pulls: 0, pullSec: 0, restSec: 0, drinkSec: 0, eatSec: 0, lifeTapSec: 0, transitionSec: 0, resummonSec: 0, deathSec: 0, breaks: 0,
-    pullsWithoutBreak: 0, deaths: 0, petDeaths: 0, manaSpent: 0, manaFromLifeTap: 0, damageTaken: 0, healed: 0, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, ttkPerMob: [],
+    pullsWithoutBreak: 0, deaths: 0, petDeaths: 0, funnelSec: 0, petStartHpSum: 0, petPulls: 0, manaSpent: 0, manaFromLifeTap: 0, damageTaken: 0, healed: 0, gcdBusyMs: 0, castWasteMs: 0, castCount: 0, ttkPerMob: [],
     threatSwitches: 0, timeouts: 0, eurekaUses: 0,
   };
   let mana = stats.maxMana * params.rest_to_mana_pct;
@@ -128,6 +133,18 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   let lastPullEndSec = 0;
   const shBonus = soulHarvest(ranks).bonus;
   const ltGain = ltRank ? lifeTapGain(ltRank.base ?? 0, stats.spirit, ranks, params) : 0;
+  const funnel = healthFunnelAt(level, ranks);
+  // The demon's health between pulls: undefined = full (just summoned).
+  let petHp: number | undefined;
+  let petMax = 0;
+  // The demon's mana between pulls, same convention: undefined = full. An Imp has no mana regeneration (as in the fight).
+  let petMana: number | undefined;
+  let petMaxMana = 0;
+  let petKindLast: string | null = null;
+  const petRegen = (sec: number): void => {
+    if (petHp !== undefined) petHp = Math.min(petMax, petHp + petMax * params.pet_ooc_regen_pct_per_sec * sec);
+    if (petMana !== undefined && petKindLast !== 'imp') petMana = Math.min(petMaxMana, petMana + params.pet_ooc_mana_per_sec * sec);
+  };
   for (let i = 0; i < params.session_pulls; i++) {
     // Between mobs: Life Tap by the rules first (it spends HP), then food and water if HP is below the break threshold.
     let taps = 0;
@@ -146,6 +163,22 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       out.restSec += paid;
       out.totalSec += paid;
     }
+    // Health Funnel a hurt demon: one channel, standing still, paid with health (food restores it in the next break).
+    if (funnel && petHp !== undefined && petHp < petMax * params.pet_funnel_below_pct) {
+      const floor = stats.maxHp * params.lt_safety_hp_pct;
+      let sec = 0;
+      while (sec < funnel.channelSec && petHp < petMax * params.pet_funnel_to_pct) {
+        const cost = funnel.costPerSec + (sec === 0 ? funnel.costBase : 0);
+        if (hp - cost < floor) break;
+        hp -= cost;
+        petHp = Math.min(petMax, petHp + funnel.healPerSec);
+        petRegen(1);
+        sec++;
+      }
+      out.funnelSec += sec;
+      out.restSec += sec;
+      out.totalSec += sec;
+    }
     if (needsBreak(hp, stats.maxHp, params, mana, stats.maxMana)) {
       const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + (params.drink_adds_spirit_regen ? spiritManaRegenPerSec(stats.spirit) : 0), foodPerSec: stats.foodHpPerSec, params });
       mana = plan.mana;
@@ -155,10 +188,11 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       out.eatSec += plan.eatSec;
       out.breaks++;
       out.totalSec += plan.restSec;
+      petRegen(plan.restSec);
     } else out.pullsWithoutBreak++;
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
     const r = simulatePull(
-      { ...pull, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
+      { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
       seed * 100003 + i,
     );
     out.eurekaUses += r.eurekaUses;
@@ -182,12 +216,24 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     if (r.mobsKilled > 0) out.ttkPerMob.push(r.pullSec / r.mobsKilled);
     mana = r.endMana;
     hp = r.endHp;
+    if (r.petMaxHp > 0) {
+      out.petPulls++;
+      out.petStartHpSum += petHp === undefined ? 1 : petHp / r.petMaxHp;
+      petMax = r.petMaxHp;
+      petMaxMana = r.petMaxMana;
+      petKindLast = r.petKind;
+      // a demon that died is summoned again (the penalty below) with full health and mana
+      petHp = r.petDied ? undefined : r.endPetHp;
+      petMana = r.petDied ? undefined : r.endPetMana;
+    }
     if (r.playerDied) {
       out.deaths++;
       out.deathSec += params.death_penalty_sec;
       out.totalSec += params.death_penalty_sec;
       mana = stats.maxMana * params.rest_to_mana_pct;
       hp = stats.maxHp * params.rest_to_hp_pct;
+      petHp = undefined;
+      petMana = undefined;
     }
     if (r.petDied) {
       out.petDeaths++;
@@ -203,6 +249,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     const regenSec = Math.max(0, params.transition_sec - params.fsr_sec);
     mana = Math.min(stats.maxMana, mana + spiritManaRegenPerSec(stats.spirit) * (regenSec + shBonus * Math.min(boosted, regenSec)));
     hp = Math.min(stats.maxHp, hp + healthRegenPerSec(stats.spirit) * params.transition_sec);
+    petRegen(params.transition_sec);
   }
   return out;
 }
@@ -233,6 +280,9 @@ export interface CellMetrics {
   gcdWasteShare: number;
   deathsPerHour: number;
   petDeathsPerHour: number;
+  /** The demon's mean health at the start of a pull, percent; null without a demon. */
+  petHpStartPct: number | null;
+  funnelSecPerKill: number;
   threatSwitchesPerKill: number;
   timeoutPct: number;
   eurekaPerHour: number;
@@ -275,6 +325,8 @@ export function aggregate(cfg: CellConfig, sessions: readonly SessionResult[]): 
     gcdWasteShare: sum((s) => s.gcdBusyMs) > 0 ? sum((s) => s.castWasteMs) / sum((s) => s.gcdBusyMs) : 0,
     deathsPerHour: total > 0 ? (3600 * sum((s) => s.deaths)) / total : 0,
     petDeathsPerHour: total > 0 ? (3600 * sum((s) => s.petDeaths)) / total : 0,
+    petHpStartPct: sum((s) => s.petPulls) > 0 ? (100 * sum((s) => s.petStartHpSum)) / sum((s) => s.petPulls) : null,
+    funnelSecPerKill: perKill(sum((s) => s.funnelSec)),
     threatSwitchesPerKill: perKill(sum((s) => s.threatSwitches)),
     timeoutPct: pulls > 0 ? (100 * sum((s) => s.timeouts)) / pulls : 0,
     eurekaPerHour: total > 0 ? (3600 * sum((s) => s.eurekaUses)) / total : 0,
