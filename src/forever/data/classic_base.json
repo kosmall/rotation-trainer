@@ -610,7 +610,7 @@
   "13": {
    "hp": 240,
    "armor": 608,
-   "swing": -10.9,
+   "swing": 19.9,
    "medianHp": 273,
    "medianSwing": 21,
    "samples": 7
@@ -722,7 +722,7 @@
   "27": {
    "hp": 816,
    "armor": 1097,
-   "swing": 30.6,
+   "swing": 44.2,
    "medianHp": 840,
    "medianSwing": 44,
    "samples": 6
@@ -762,7 +762,7 @@
   "32": {
    "hp": 1131,
    "armor": 1270,
-   "swing": 50.5,
+   "swing": 51,
    "medianHp": 1162,
    "medianSwing": 50.5,
    "samples": 24
@@ -770,7 +770,7 @@
   "33": {
    "hp": 1199,
    "armor": 1304,
-   "swing": 48.4,
+   "swing": 51.5,
    "medianHp": 1221,
    "medianSwing": 52,
    "samples": 7
@@ -992,7 +992,7 @@
    "samples": 208
   }
  },
- "mobNote": "hp = classlevelstats(class 1).hp x (1.15 + 0.01 x (level-40)); swing = weighted line through the median melee damage per swing of normal mobs (Classic); armor = classlevelstats(class 1).armor; attack speed 2.0 s. Forever raised higher-level creature health by an unknown factor: see param mob_hp_mult.",
+ "mobNote": "hp = classlevelstats(class 1).hp x (1.15 + 0.01 x (level-40)); swing = weighted line through the median melee damage per swing of normal mobs (Classic; below level 38 the real median where 8+ mobs exist, otherwise interpolated between the neighbouring levels with 8+ mobs, and never lower than the previous level: audit A2-003); armor = classlevelstats(class 1).armor; attack speed 2.0 s. Forever raised higher-level creature health by an unknown factor: see param mob_hp_mult.",
  "pet": {
   "imp": {
    "1": {

@@ -230,3 +230,16 @@ Source: Wowhead Forever spell 1259821, read in the browser (the plain page reque
   (`pull_start`) gives about half (it opens with Corruption and Bane, which it does not modify); keeping it for
   the end of the fight (`ttk`) or using it 9+ s in loses a third to nine tenths of the gain. Over a whole session
   the gain is 0.3-1 kills per hour (under 1%): it is a small bonus, one use per about five pulls.
+
+## 11. Audit corrections (28 Nov 2026)
+
+- **Mob damage per swing (audit A2-003).** The data in `classic_base.json` (`mob.<level>.swing`) was negative at
+  level 13 (-10.9) and below the previous level at 27, 32 and 33, because levels with fewer than 8 sampled mobs
+  fell back to the line fitted on levels 38-60 (section 8), which is far off below level 38. **Rule now (in
+  `scripts/forever-extract-classic.py`, `repair_swings`):** below level 38 a level with fewer than 8 sampled mobs
+  takes the linear interpolation between the nearest levels with 8+ mobs on each side (their real medians), and a
+  running maximum keeps the series non-decreasing. Changed values, nothing else: level 13 -10.9 -> 19.9,
+  level 27 30.6 -> 44.2, level 32 50.5 -> 51 (the real median 50.5 is below level 31's 51), level 33 48.4 -> 51.5.
+  Levels 38-60 (including the snapshot levels 40, 50, 59) are unchanged. The test is in
+  `tests/forever/spells-stats.test.ts` (positive and non-decreasing over 10-60). This is a Classic-derived
+  stand-in like the rest of the series (section 8), not a Forever measurement.

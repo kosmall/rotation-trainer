@@ -80,6 +80,12 @@ describe('stats and Life Tap', () => {
     expect(g.spellPower).toBeGreaterThan(q.spellPower);
     expect(g.maxMana).toBeGreaterThan(q.maxMana);
   });
+  it('mob damage per swing is positive and never drops from one level to the next (A2-003)', () => {
+    for (let L = 10; L <= 60; L++) {
+      expect(mobAt(L).swing, `level ${L}`).toBeGreaterThan(0);
+      if (L > 10) expect(mobAt(L).swing, `level ${L} vs ${L - 1}`).toBeGreaterThanOrEqual(mobAt(L - 1).swing);
+    }
+  });
   it('mobs get tougher with level and clamp outside the table', () => {
     expect(mobAt(50).hp).toBeGreaterThan(mobAt(40).hp);
     expect(mobAt(41).hp).toBeGreaterThan(mobAt(40).hp);

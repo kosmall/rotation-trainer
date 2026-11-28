@@ -96,6 +96,36 @@ for L in LV:
     # below level 38 the line (fitted on 38-60) is far off (negative at 10), so the swing is the median of the real mobs when there are 8+ samples
     mob[str(L)] = dict(hp=round(base['hp'] * mult), armor=base['armor'], swing=round(med[L]['dmg'] if L < 38 and med.get(L, {}).get('n', 0) >= 8 else icpt + slope * L, 1), medianHp=med.get(L, {}).get('hp'), medianSwing=med.get(L, {}).get('dmg'), samples=med.get(L, {}).get('n', 0))
 
+# BEGIN swing repair (audit A2-003)
+def repair_swings(mob, lv, min_samples=8, line_from=38):
+    """Makes the damage per swing positive and non-decreasing in level (rule documented in docs/forever-data-ledger.md section 11).
+
+    1. Below level `line_from`, a level with fewer than `min_samples` mobs used to fall back to the line fitted on levels
+       38-60, which is far off there (-10.9 at level 13, 30.6 at 27, 48.4 at 33). Such a level now takes the linear
+       interpolation, by level, between the nearest levels on each side that have `min_samples` or more mobs (their real medians).
+    2. A swing may never be lower than the previous level's: a running maximum is applied over the whole range
+       (only level 32 is affected: the real median is 50.5 against 51 at level 31).
+    Levels that already are positive and not lower than the previous level keep their value.
+    """
+    solid = [L for L in lv if L < line_from and mob[str(L)]['samples'] >= min_samples]
+    for L in lv:
+        m = mob[str(L)]
+        if L < line_from and m['samples'] < min_samples:
+            lo = max((x for x in solid if x < L), default=None)
+            hi = min((x for x in solid if x > L), default=None)
+            if lo is not None and hi is not None:
+                a0, a1 = mob[str(lo)]['swing'], mob[str(hi)]['swing']
+                m['swing'] = round(a0 + (a1 - a0) * (L - lo) / (hi - lo), 1)
+    prev = None
+    for L in lv:
+        m = mob[str(L)]
+        if prev is not None and m['swing'] < prev:
+            m['swing'] = prev
+        prev = m['swing']
+    return mob
+# END swing repair
+mob = repair_swings(mob, LV)
+
 # --- pets
 i = C.index("INSERT INTO `pet_levelstats` VALUES"); j = C.index(";\n", i)
 pets = {'416': 'imp', '1860': 'voidwalker', '1863': 'succubus', '417': 'felhunter'}
@@ -125,7 +155,7 @@ out = dict(
     warlock={str(L): warlock[L] for L in [1] + LV},
     gnomeWarlockBase={str(L): gnome[L] for L in [1] + LV},
     mob=mob,
-    mobNote="hp = classlevelstats(class 1).hp x (1.15 + 0.01 x (level-40)); swing = weighted line through the median melee damage per swing of normal mobs (Classic); armor = classlevelstats(class 1).armor; attack speed 2.0 s. Forever raised higher-level creature health by an unknown factor: see param mob_hp_mult.",
+    mobNote="hp = classlevelstats(class 1).hp x (1.15 + 0.01 x (level-40)); swing = weighted line through the median melee damage per swing of normal mobs (Classic; below level 38 the real median where 8+ mobs exist, otherwise interpolated between the neighbouring levels with 8+ mobs, and never lower than the previous level: audit A2-003); armor = classlevelstats(class 1).armor; attack speed 2.0 s. Forever raised higher-level creature health by an unknown factor: see param mob_hp_mult.",
     pet=pet,
     petTemplate=pet_tpl,
     petMeleeAvgPerSwing=pet_melee,
