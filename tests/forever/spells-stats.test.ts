@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { loadParams } from '../../src/forever/data/load';
+import { loadParams, walkVerify } from '../../src/forever/data/load';
+import spellsJson from '../../src/forever/data/spells.json';
+import levelsJson from '../../src/forever/data/levels.json';
 import { castMsOf, downrankFactor, getSpell, rankAt } from '../../src/forever/spells';
 import { gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, mobAt, playerStatsFor, combatRegenPerSec, walkManaRegen, spiritManaRegenPerSec, healthRegenPerSec, healthFromStamina, manaFromIntellect, petBaseAt, demonArmorOf, maxHealthOf, maxManaOf, manaBaseOffset } from '../../src/forever/stats';
 
@@ -178,5 +180,20 @@ describe('Classic base data and formulas (cmangos)', () => {
     expect(petBaseAt('voidwalker', 40).hp).toBeCloseTo((2052 + 40) * 1.15, 6);
     expect(demonArmorOf(45, {})).toBe(390);
     expect(demonArmorOf(45, { demonic_aegis: 2 })).toBeCloseTo(390 * 1.3, 6);
+  });
+});
+
+describe('unconfirmed data is flagged for the owner (A2-008, A2-010)', () => {
+  it('Immolate (derived direct damage, single-source rank levels) carries verify with a reason', () => {
+    const immolate = spellsJson.spells.find((x: { id: string }) => x.id === 'immolate') as { verify?: boolean; source: string };
+    expect(immolate.verify).toBe(true);
+    expect(immolate.source).toMatch(/DERIVED/);
+  });
+  it('the guessed food durations of levels 1-24 are flagged, the tooltip rows are not', () => {
+    const flagged = walkVerify(levelsJson.consumables, 'consumables', []).map((i) => i.path);
+    expect(flagged).toEqual(['consumables.food[0]', 'consumables.food[1]', 'consumables.food[2]']);
+    expect(levelsJson.consumables.food.slice(0, 3).map((f) => f.fromLevel)).toEqual([1, 5, 15]);
+    const src = levelsJson.consumables.source;
+    expect(src.split('could not be parsed').length - 1).toBe(1); // the sentence is no longer duplicated
   });
 });

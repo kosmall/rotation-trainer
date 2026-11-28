@@ -210,7 +210,7 @@
   "source_unconfirmed": "Pet health, mana, armor and melee damage come from classic_base.json (WoW Classic pet_levelstats and the cmangos pet damage formula) with Forever's rules applied: +2 health per point of the master's Stamina, +15% base health (hotfix 10 Nov), Voidwalker +40 (6 Nov). These are NOT Forever tooltips. Pet abilities (Firebolt, Lash of Pain): Wowhead Forever."
  },
  "consumables": {
-  "source": "Wowhead Forever item pages (tooltips, fetched 25 Nov 2026): vendor drinks Sweet Nectar 1708 (req 25): 1345 mana over 27 s; Moonberry Juice 1645 / Bottled Winterspring Water 19300 (req 35): 1915 over 30 s; Morning Glory Dew 8766 (req 45): 2821 over 30 s. Vendor food: req 25 (e.g. Stormwind Brie 1707): 841 health over 27 s; req 35 (Cured Ham Steak 4599): 1338 over 30 s; req 45 (Roasted Quail 8952, Homemade Cherry Pie 8950): 2065 over 30 s. Levels 1-24 (Wowhead Forever item tooltips, 25 Nov 2026; food durations 18/21/24 s are the Classic ones, the tooltip text could not be parsed for them): Refreshing Spring Water 159: 151 mana over 18 s; Ice Cold Milk 1179 (req 5): 437 over 21 s; Melon Juice 1205 (req 15): 835 over 24 s; Tough Hunk of Bread 4540: 61 health over 18 s; Freshly Baked Bread 4541 (req 5): 243 over 21 s; Moist Cornbread 4542 (req 15): 552 over 24 s. Levels 1-24 (Wowhead Forever item tooltips, 25 Nov 2026; the food durations 18/21/24 s are the Classic ones, the tooltip text could not be parsed for them): Refreshing Spring Water 159: 151 mana over 18 s; Ice Cold Milk 1179 (req 5): 437 over 21 s; Melon Juice 1205 (req 15): 835 over 24 s; Tough Hunk of Bread 4540: 61 health over 18 s; Freshly Baked Bread 4541 (req 5): 243 over 21 s; Moist Cornbread 4542 (req 15): 552 over 24 s. Best vendor item for the level; Alterac Manna Biscuit (req 51) is not general vendor stock. Whether drinking adds Spirit regeneration on top of the tooltip is unknown (assumed not).",
+  "source": "Wowhead Forever item pages (tooltips, fetched 25 Nov 2026): vendor drinks Sweet Nectar 1708 (req 25): 1345 mana over 27 s; Moonberry Juice 1645 / Bottled Winterspring Water 19300 (req 35): 1915 over 30 s; Morning Glory Dew 8766 (req 45): 2821 over 30 s. Vendor food: req 25 (e.g. Stormwind Brie 1707): 841 health over 27 s; req 35 (Cured Ham Steak 4599): 1338 over 30 s; req 45 (Roasted Quail 8952, Homemade Cherry Pie 8950): 2065 over 30 s. Levels 1-24 (Wowhead Forever item tooltips, 25 Nov 2026; food durations 18/21/24 s are the Classic ones, the tooltip text could not be parsed for them): Refreshing Spring Water 159: 151 mana over 18 s; Ice Cold Milk 1179 (req 5): 437 over 21 s; Melon Juice 1205 (req 15): 835 over 24 s; Tough Hunk of Bread 4540: 61 health over 18 s; Freshly Baked Bread 4541 (req 5): 243 over 21 s; Moist Cornbread 4542 (req 15): 552 over 24 s. UNCONFIRMED: the food durations 18/21/24 s of the levels 1-24 rows (61/18, 243/21, 552/24) are Classic guesses and are flagged `verify` on those food rows; the drink rows are tooltips. Best vendor item for the level; Alterac Manna Biscuit (req 51) is not general vendor stock. Whether drinking adds Spirit regeneration on top of the tooltip is unknown (assumed not).",
   "drink": [
    {
     "fromLevel": 1,
@@ -240,15 +240,21 @@
   "food": [
    {
     "fromLevel": 1,
-    "hpPerSec": 3.4
+    "hpPerSec": 3.4,
+    "verify": true,
+    "reason": "Food duration (18/21/24 s) is the Classic one: the Forever tooltip text could not be parsed; hp/s = tooltip health / assumed duration"
    },
    {
     "fromLevel": 5,
-    "hpPerSec": 11.6
+    "hpPerSec": 11.6,
+    "verify": true,
+    "reason": "Food duration (18/21/24 s) is the Classic one: the Forever tooltip text could not be parsed; hp/s = tooltip health / assumed duration"
    },
    {
     "fromLevel": 15,
-    "hpPerSec": 23
+    "hpPerSec": 23,
+    "verify": true,
+    "reason": "Food duration (18/21/24 s) is the Classic one: the Forever tooltip text could not be parsed; hp/s = tooltip health / assumed duration"
    },
    {
     "fromLevel": 25,

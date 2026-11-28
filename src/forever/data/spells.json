@@ -242,7 +242,8 @@
    "durationMs": 15000,
    "coeffDirect": 0.2,
    "coeffTick": 0.13,
-   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 348,707,1094,2941,11665,11667,11668,25309 (mana, 2 s cast, DoT tick per 3 s over 15 s, SP mods 0.2 direct / 0.13 per tick). Direct damage per rank = rankedboost 'damage at 60' total (verbatim table) minus 5 DoT ticks; rank 1 = 10.8 (wiki tooltip). Rank levels: rankedboost.",
+   "source": "https://www.wowhead.com/forever/spell=<id> (WoW Forever spell pages, fetched 2026-11-25) ids 348,707,1094,2941,11665,11667,11668,25309 (mana, 2 s cast, DoT tick per 3 s over 15 s, SP mods 0.2 direct / 0.13 per tick). Direct damage per rank = rankedboost 'damage at 60' total (verbatim table) minus 5 DoT ticks; rank 1 = 10.8 (wiki tooltip). Rank levels: rankedboost. UNCONFIRMED: ranks 2-8 direct damage is DERIVED (rankedboost total minus 5 DoT ticks, a single table), not read from a tooltip; rank levels are single-source (ledger section 4 item 13).",
+   "verify": true,
    "ranks": [
     {
      "rank": 1,
