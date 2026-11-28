@@ -39,6 +39,50 @@ describe('ForeverApp', () => {
     expect(within(table).getByText('najlepszy')).toBeTruthy();
   });
 
+  it('lets the level be typed digit by digit (A5-007): 4 then 5 gives 45, not a clamped 10 then 105', () => {
+    render(<ForeverApp view="sim" runner={runner} />);
+    const input = screen.getByLabelText('Level postaci (liczba)') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '4' } });
+    expect(input.value).toBe('4');
+    fireEvent.change(input, { target: { value: '45' } });
+    expect(input.value).toBe('45');
+    expect(screen.getByText('45', { selector: 'b' })).toBeTruthy();
+    fireEvent.blur(input);
+    expect(input.value).toBe('45');
+  });
+
+  it('clamps an out-of-range level on blur or Enter and never stores an invalid one', () => {
+    render(<ForeverApp view="sim" runner={runner} />);
+    const input = screen.getByLabelText('Level postaci (liczba)') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '99' } });
+    expect(input.value).toBe('99');
+    expect(screen.getByText(/Level postaci:/, { selector: 'label' }).textContent).not.toContain('99');
+    fireEvent.blur(input);
+    expect(input.value).toBe('59');
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('10');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('10');
+  });
+
+  it('lets the session count be typed digit by digit (100, not 500) and follows the slider', () => {
+    const { container } = render(<ForeverApp view="sim" runner={runner} />);
+    const sessions = screen.getByLabelText('Sesje') as HTMLInputElement;
+    for (const v of ['1', '10', '100']) {
+      fireEvent.change(sessions, { target: { value: v } });
+      expect(sessions.value).toBe(v);
+    }
+    fireEvent.blur(sessions);
+    expect(sessions.value).toBe('100');
+    const level = screen.getByLabelText('Level postaci (liczba)') as HTMLInputElement;
+    fireEvent.change(level, { target: { value: '4' } });
+    fireEvent.change(container.querySelector('input[type="range"]') as HTMLInputElement, { target: { value: '30' } });
+    expect(level.value).toBe('30');
+  });
+
   it('clicking a build in the ranking opens its talent trees in the Builds tab', async () => {
     const { rerender } = render(<ForeverApp view="sim" runner={runner} />);
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
