@@ -4,9 +4,9 @@
 import { ranksAt, type BuildVariant, type PicksOptions } from './builds';
 import { grantDemonicEnergiesMana, simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
-import { soulHarvest } from './effects';
+import { effectNum, rank as rk, soulHarvest, sacrificeDemon, summonDemon, type DemonState } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
-import { gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec, walkManaRegen } from './stats';
+import { demonsAt, gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec, walkManaRegen } from './stats';
 import type { DataRotation } from './rotation-spec';
 import type { Ranks } from './talents';
 import type { Params, StatDelta } from './types';
@@ -168,6 +168,20 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     if (petHp !== undefined) petHp = Math.min(petMax, petHp + petMax * params.pet_ooc_regen_pct_per_sec * sec);
     if (petMana !== undefined && petKindLast !== 'imp') petMana = Math.min(petMaxMana, petMana + params.pet_ooc_mana_per_sec * sec);
   };
+  // Demonic Sacrifice: the buff of a sacrificed Voidwalker (mana) or Felhunter (health) ticks all the time, as in the fight.
+  const own = demonsAt(variant, level, cfg.mobs ?? params.mobs_per_pull);
+  let demons: DemonState = { out: null, sacrificed: null };
+  if (own.sacrificed && rk(ranks, 'demonic_sacrifice') > 0) demons = sacrificeDemon({ out: own.sacrificed, sacrificed: null });
+  if (own.pet) demons = summonDemon(demons, own.pet, rk(ranks, 'demonic_pact') > 0);
+  const sacOn = rk(ranks, 'demonic_sacrifice') > 0;
+  const sacManaPerSec = sacOn && demons.sacrificed === 'voidwalker' ? (effectNum('demonic_sacrifice', 'voidwalkerManaPctPer4s') * stats.maxMana) / 4 : 0;
+  const sacHpPerSec = sacOn && demons.sacrificed === 'felhunter' ? (effectNum('demonic_sacrifice', 'felhunterHealPctPer4s') * stats.maxHp) / 4 : 0;
+  /** Out-of-combat time during which only the sacrifice regenerates (the walk, drinking and eating have their own rates). */
+  const sacRegen = (sec: number): void => {
+    if (sec <= 0) return;
+    mana = Math.min(stats.maxMana, mana + sacManaPerSec * sec);
+    hp = Math.min(stats.maxHp, hp + sacHpPerSec * sec);
+  };
   /** Life Tap time of the current walk to the next mob: the first `transition_sec` of it is free (the tap is instant, cast while walking). */
   let walkTapSec = 0;
   /** Between mobs: Life Tap by the rules (it spends HP). Returns the number of taps. */
@@ -190,6 +204,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       out.lifeTapSec += tapSec;
       out.restSec += paid;
       out.totalSec += paid;
+      sacRegen(paid);
     }
     return taps;
   };
@@ -207,6 +222,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
         hp -= cost;
         petHp = Math.min(petMax, petHp + funnel.healPerSec);
         petRegen(1);
+        sacRegen(1);
         sec++;
       }
       out.funnelSec += sec;
@@ -224,6 +240,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
         out.breaks++;
         out.totalSec += plan.restSec;
         petRegen(plan.restSec);
+        sacRegen(plan.restSec);
         // The break leaves HP full and mana lower than the between-mobs rule wants: tap again on the way to the next mob.
         tapBetweenMobs();
       } else out.pullsWithoutBreak++; // already at the targets: no break to take
@@ -287,6 +304,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     const shAtWalkSec = Math.max(0, r.soulHarvestLeftMs / 1000 - (r.playerDied ? params.death_penalty_sec : 0) - (r.petDied ? params.pet_resummon_sec : 0));
     mana = Math.min(stats.maxMana, mana + walkManaRegen(stats.spirit, params, sh, shAtWalkSec));
     hp = Math.min(stats.maxHp, hp + healthRegenPerSec(stats.spirit) * params.transition_sec);
+    sacRegen(params.transition_sec);
     petRegen(params.transition_sec);
   }
   return out;
