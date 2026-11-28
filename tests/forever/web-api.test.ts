@@ -80,10 +80,14 @@ describe('Major Spellstone option', () => {
   });
   it('DEMO_FIRE gains kills per hour from the Spellstone once there are enough sessions to see it', () => {
     const base = { ...DEFAULT_SETTINGS, level: 50 };
-    const kph = (spellstone: boolean) =>
-      runCell({ variant: loadVariant('DEMO_FIRE'), level: 50, profile: 'average', params: paramsOf({ ...base, spellstone }), mobs: 1 }, 300, 1).metrics.killsPerHour;
+    // Mean over three seeds: a single seed at a few sessions can flip the sign (audit review of the Spellstone test).
+    const kph = (spellstone: boolean) => {
+      const xs = [1, 2, 3].map((seed) => runCell({ variant: loadVariant('DEMO_FIRE'), level: 50, profile: 'average', params: paramsOf({ ...base, spellstone }), mobs: 1 }, 150, seed).metrics.killsPerHour);
+      return xs.reduce((x, y) => x + y, 0) / xs.length;
+    };
     expect(kph(true)).toBeGreaterThan(kph(false));
   });
+
 });
 
 describe('ep job', () => {

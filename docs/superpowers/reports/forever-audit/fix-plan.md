@@ -1,6 +1,6 @@
 # Fix plan (Task 3)
 
-Findings: 84 total (A1 18, A2 17, A3 19, A4 15, A5 19). Confirmed: 49. needs-owner: 35 (none fixed; they go to the report). The two `high` findings were re-checked by the orchestrator against the code (A1-001: `manaPct`/`combatSec` are never set in `fight.ts` `makeCtx`, so `evalCond` falls back to its defaults; A5-001: the copy path stores no `coe/immolate/wrack_min_hp_pct/pet_rules`, repro in the finding).
+Findings: 88 total (A1 18, A2 17, A3 19, A4 15, A5 19). Confirmed: 51. needs-owner: 37 (none fixed; they go to the report). The two `high` findings were re-checked by the orchestrator against the code (A1-001: `manaPct`/`combatSec` are never set in `fight.ts` `makeCtx`, so `evalCond` falls back to its defaults; A5-001: the copy path stores no `coe/immolate/wrack_min_hp_pct/pet_rules`, repro in the finding).
 
 Duplicates merged: A3-001 = A4-002 (one fix); A3-002 = A4-003; A3-014 = A4-007; A2-007 = A3-009 = A4-015 (one fix); A3-018 = A4-011 = A5-009 (one fix); A2-011 = A4-001 (one fix); A5-017 and A1-010 estimate fixes touch `rotation-spec.ts` (one fix).
 

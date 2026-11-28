@@ -12,5 +12,5 @@ Branch: claude/youthful-hopper-op9tox (merged origin/claude/peaceful-goldberg-kb
 - [x] Task 2 audit wave (A1-A5 done; A1 and A5 agents hit the weekly API limit right after writing their final files, files complete)
 - [x] Task 3 dedup and fix plan (fix-plan.md)
 - [x] Task 4 fix waves 1-3 merged (HEAD d4e3154), typecheck clean, 192 files / 2290 tests green
-- [ ] Task 5 diff review
-- [ ] Task 6 verification and report
+- [x] Task 5 diff review (review.md: no block items)
+- [x] Task 6 verification and report (REPORT.md)

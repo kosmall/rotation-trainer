@@ -1,1 +1,5 @@
 run.txt
+ep.txt
+duel-demopact-vs-aff-wrack.txt
+duel-dtss-vs-aff-draintank.txt
+discover.txt
