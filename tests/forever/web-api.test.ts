@@ -3,7 +3,7 @@ import { customId, VARIANT_IDS, picksAt } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
 import { loadVariant } from '../../src/forever/builds';
 import { runCell } from '../../src/forever/runner';
-import { DEFAULT_SETTINGS, normalizeSettings, overridesOf, POLICIES, runJob } from '../../src/forever/web/api';
+import { DEFAULT_SETTINGS, normalizeSettings, overridesOf, paramsOf, POLICIES, runJob } from '../../src/forever/web/api';
 import { runOnMainThread } from '../../src/forever/web/client';
 
 const S = { ...DEFAULT_SETTINGS, level: 45, sessions: 8 };
@@ -74,8 +74,15 @@ describe('Major Spellstone option', () => {
       // casts spend it sooner, so the Imp goes dry and the demonology build with it (DEMO_FIRE): a modelling consequence, open
       // until the Imp's mana regeneration is known (see params pet_ooc_mana_per_sec).
       if (id !== 'DEMO_FIRE') expect(w.ttkMean, `${id} time to kill`).toBeLessThan(m.ttkMean);
-      if (!id.endsWith('_IMMO') && id !== 'DEMO_PACT_MAXRANK') expect(w.killsPerHour, `${id} kills per hour`).toBeGreaterThan(m.killsPerHour);
+      // DEMO_FIRE is checked below with more sessions: at 40 sessions its Spellstone gain is within the noise (audit F-runner).
+      if (!id.endsWith('_IMMO') && id !== 'DEMO_PACT_MAXRANK' && id !== 'DEMO_FIRE') expect(w.killsPerHour, `${id} kills per hour`).toBeGreaterThan(m.killsPerHour);
     }
+  });
+  it('DEMO_FIRE gains kills per hour from the Spellstone once there are enough sessions to see it', () => {
+    const base = { ...DEFAULT_SETTINGS, level: 50 };
+    const kph = (spellstone: boolean) =>
+      runCell({ variant: loadVariant('DEMO_FIRE'), level: 50, profile: 'average', params: paramsOf({ ...base, spellstone }), mobs: 1 }, 300, 1).metrics.killsPerHour;
+    expect(kph(true)).toBeGreaterThan(kph(false));
   });
 });
 
