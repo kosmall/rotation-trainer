@@ -115,3 +115,25 @@ describe('custom build with a composed rotation', () => {
     expect((await screen.findAllByText(/Własna rotacja: Agony → Drain Life/)).length).toBeGreaterThan(0);
   });
 });
+
+describe('copy of a built-in build (A5-001)', () => {
+  const saved = () => JSON.parse(window.localStorage.getItem(CUSTOM_STORAGE_KEY) ?? '{}').builds as Record<string, unknown>[];
+  const copy = async (id: string) => {
+    render(<ForeverApp view="custom" runner={runner} />);
+    await screen.findByText(/Punkty:/);
+    fireEvent.change(screen.getByLabelText(/Zacznij od wbudowanego/), { target: { value: id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Kopiuj do nowego buildu' }));
+    await screen.findByText('51/51');
+  };
+  it('keeps the flags of the built-in build', async () => {
+    await copy('DT_SS_NOCOE');
+    expect(saved().at(-1)).toMatchObject({ name: 'DT_SS_NOCOE (kopia)', coe: false });
+  });
+  it('changing the pet drops the pet rules that would override it', async () => {
+    await copy('DEMO_PACT_R1_PET');
+    expect((saved().at(-1) as { pet_rules: unknown[] }).pet_rules).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText('Pet'), { target: { value: 'imp' } });
+    expect(saved().at(-1)).toMatchObject({ pet: 'imp' });
+    expect(saved().at(-1)).not.toHaveProperty('pet_rules');
+  });
+});

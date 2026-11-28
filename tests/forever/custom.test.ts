@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { customId, customVariant, loadVariant, picksAt } from '../../src/forever/builds';
+import { VARIANT_IDS, customId, customVariant, loadVariant, picksAt } from '../../src/forever/builds';
+import { loadParams } from '../../src/forever/data/load';
+import { runCell } from '../../src/forever/runner';
 import { DEFAULT_SETTINGS, runJob } from '../../src/forever/web/api';
-import { CUSTOM_STORAGE_KEY, emptyBuild, loadCustom, parseBuild, saveCustom, uniqueName, type CustomBuildData } from '../../src/forever/web/custom';
+import { CUSTOM_STORAGE_KEY, copyOfBuiltIn, emptyBuild, exportBuild, loadCustom, parseBuild, saveCustom, uniqueName, type CustomBuildData } from '../../src/forever/web/custom';
 
 const aff = (): CustomBuildData => {
   const v = loadVariant('AFF_WRACK');
@@ -61,5 +63,41 @@ describe('custom builds', () => {
     mem.set(CUSTOM_STORAGE_KEY, '{oops');
     expect(loadCustom(st).builds).toEqual([]);
     expect(loadCustom(null).builds).toEqual([]);
+  });
+
+  // A5-001: the copy of a built-in build must play exactly the build it was copied from.
+  describe('copy of a built-in build (A5-001)', () => {
+    const params = loadParams({ session_pulls: 3 });
+    const raw = (variant: ReturnType<typeof loadVariant>, level: number, mobs: 1 | 2) => runCell({ variant, level, profile: 'average', params, mobs }, 2, 11).raw;
+    it('copy equals original for every VARIANT_ID at levels 30/45/55, mobs 1 and 2', () => {
+      for (const id of VARIANT_IDS) {
+        const copy = customVariant(copyOfBuiltIn(id, `Kopia ${id}`));
+        for (const level of [30, 45, 55]) for (const mobs of [1, 2] as const) expect(raw(copy, level, mobs), `${id} L${level} m${mobs}`).toEqual(raw(loadVariant(id), level, mobs));
+      }
+    });
+    it('the flags of the built-in build are kept in the build data and survive export/import', () => {
+      const d = copyOfBuiltIn('DEMO_PACT_R1_PET', 'P');
+      expect(d.pet_rules).toEqual(loadVariant('DEMO_PACT_R1_PET').pet_rules);
+      expect(copyOfBuiltIn('DT_SS_NOCOE', 'N').coe).toBe(false);
+      expect(copyOfBuiltIn('AFF_WRACK_IMMO', 'I').immolate).toBe(true);
+      expect(copyOfBuiltIn('DT_SS_WRACK_70', 'W').wrack_min_hp_pct).toBe(loadVariant('DT_SS_WRACK_70').wrack_min_hp_pct);
+      for (const id of VARIANT_IDS) {
+        const c = copyOfBuiltIn(id, 'X');
+        expect(parseBuild(JSON.parse(exportBuild(c))), id).toEqual(c);
+      }
+    });
+    it('a build without the new fields (older stored data) still loads and is a plain build', () => {
+      const old = aff();
+      const back = parseBuild(JSON.parse(JSON.stringify(old)));
+      expect(back).toEqual(old);
+      expect(customVariant(back)).not.toHaveProperty('coe');
+    });
+    it('rejects bad values of the new fields', () => {
+      expect(() => parseBuild({ ...aff(), coe: 'no' })).toThrow(/coe/);
+      expect(() => parseBuild({ ...aff(), immolate: 1 })).toThrow(/immolate/);
+      expect(() => parseBuild({ ...aff(), wrack_min_hp_pct: 70 })).toThrow(/wrack_min_hp_pct/);
+      expect(() => parseBuild({ ...aff(), pet_rules: [{ pet: 'dog' }] })).toThrow(/pet_rules/);
+      expect(() => customVariant({ ...aff(), name: 'Z', rotation: 'afliction' as never })).toThrow(/rotation/);
+    });
   });
 });
