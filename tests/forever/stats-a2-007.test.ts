@@ -1,8 +1,6 @@
 // A2-007 / A3-009 / A4-015: the talent constants of stats.ts come from talents.json (one source), and the
 // simulator's effective values stay exactly what they were (ledger section 1: +3% Stamina per rank Demonic
 // Embrace, +5% mana per rank Fel Vitality, +15% Demon Armor per rank Demonic Aegis, +10% Life Tap mana per rank).
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadParams } from '../../src/forever/data/load';
 import { effectNum } from '../../src/forever/effects';
@@ -63,15 +61,8 @@ describe('every numeric talent effect key is read by code (A3-009)', () => {
     suppression: ['threatReducePerRank'], // threat reduction is not modelled (only the hit part is)
     master_demonologist: ['felhunterMagicReduce'], // Felhunter damage reduction is not modelled
   };
-  const walk = (dir: string, out: string[] = []): string[] => {
-    for (const f of readdirSync(dir)) {
-      const p = join(dir, f);
-      if (statSync(p).isDirectory()) walk(p, out);
-      else if (/\.(ts|tsx)$/.test(f)) out.push(p);
-    }
-    return out;
-  };
-  const code = [...walk('src'), ...walk('scripts')].map((f) => readFileSync(f, 'utf8')).join('\n');
+  const files = import.meta.glob(['../../src/**/*.{ts,tsx}', '../../scripts/**/*.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+  const code = Object.values(files).join('\n');
   it('no numeric effect key is unread unless it is listed as documented-only', () => {
     const unread: string[] = [];
     for (const t of TALENTS) {
