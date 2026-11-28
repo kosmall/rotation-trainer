@@ -24,4 +24,27 @@ describe('rotation genes on a build variant', () => {
     expect(customVariant({ ...emptyBuild('G'), picks: ['suppression'], genes }).genes).toEqual(genes);
     expect(loadVariant(customId('G')).genes).toEqual(genes);
   });
+
+  // A5-008: pin that genes equal the template rotation for the affliction/demonology variants (DEMO_FIRE is 0.1-0.2% off and is not listed).
+  it('mimicking genes play exactly like the template rotation', () => {
+    const g = (o: Partial<RotationGenes>): RotationGenes => ({ coe: true, agony: true, corruption: true, siphon: true, immolate: false, minTtkSec: 6, drainSoulFinisher: true, filler: 'wrack', ...o });
+    const mimic: Record<string, RotationGenes> = {
+      AFF_WRACK: g({}),
+      AFF_DRAINTANK: g({ filler: 'wrack_single_then_drain_life' }),
+      AFF_DRAINTANK_NOCOE: g({ filler: 'wrack_single_then_drain_life', coe: false }),
+      AFF_WRACK_IMMO: g({ immolate: true }),
+      DT_SS_WRACK_50: g({ filler: 'wrack_hp50' }),
+      DT_SS_WRACK_70_NOCOE: g({ filler: 'wrack_hp70', coe: false }),
+      DEMO_PACT_R1: g({ agony: false, siphon: false, filler: 'sb_r1' }),
+      DEMO_PACT_R2: g({ agony: false, siphon: false, filler: 'sb_r2' }),
+      DEMO_PACT_MAXRANK: g({ agony: false, siphon: false, filler: 'sb_max' }),
+    };
+    for (const [id, genes] of Object.entries(mimic)) {
+      const v = loadVariant(id);
+      for (const level of [30, 45]) {
+        const run = (variant: typeof v) => runCell({ variant, level, profile: 'average', params: p }, 3, 5).raw;
+        expect(run({ ...v, genes }), `${id} L${level}`).toEqual(run(v));
+      }
+    }
+  });
 });
