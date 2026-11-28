@@ -134,10 +134,10 @@ export function maxManaOf(level: number, intellect: number, racialMult = 1): num
 export function playerStatsFor(level: number, profile: string, ranks: Ranks, delta: StatDelta = {}): PlayerStats {
   const L = clampLevel(level);
   const base = BASE.gnomeWarlockBase[L] as StatRow;
-  const sta = (base.sta + prof(profile, 'stamina', level) + (delta.stamina ?? 0)) * (1 + 0.03 * (ranks['demonic_embrace'] ?? 0));
+  const sta = (base.sta + prof(profile, 'stamina', level) + (delta.stamina ?? 0)) * (1 + effectNum('demonic_embrace', 'staminaMultPerRank') * (ranks['demonic_embrace'] ?? 0));
   const int = base.int + prof(profile, 'intellect', level) + (delta.intellect ?? 0);
   const maxHp = maxHealthOf(level, sta);
-  const maxMana = Math.round(maxManaOf(level, int, BASE.foreverObserved.gnomeMaxManaMult) * (1 + 0.05 * (ranks['fel_vitality'] ?? 0)));
+  const maxMana = Math.round(maxManaOf(level, int, BASE.foreverObserved.gnomeMaxManaMult) * (1 + effectNum('fel_vitality', 'playerManaPerRank') * (ranks['fel_vitality'] ?? 0)));
   return {
     level,
     maxHp,
@@ -157,7 +157,7 @@ export function playerStatsFor(level: number, profile: string, ranks: Ranks, del
 export function demonArmorOf(level: number, ranks: Ranks): number {
   let armor = 0;
   for (const [lv, a] of LV.demonArmor.ranks) if (level >= lv) armor = a;
-  return armor * (1 + 0.15 * (ranks['demonic_aegis'] ?? 0));
+  return armor * (1 + effectNum('demonic_aegis', 'demonArmorMultPerRank') * (ranks['demonic_aegis'] ?? 0));
 }
 
 /** Physical damage reduction from armor (Classic formula, capped at 75%). */
@@ -172,7 +172,7 @@ export function lifeTapHealthCost(rankBase: number, spirit: number, params: Para
 
 /** Mana gained by Life Tap: health cost x conversion x (1 + Improved Life Tap). */
 export function lifeTapGain(rankBase: number, spirit: number, ranks: Ranks, params: Params): number {
-  return lifeTapHealthCost(rankBase, spirit, params) * params.life_tap_mana_per_health * (1 + 0.1 * (ranks['improved_life_tap'] ?? 0));
+  return lifeTapHealthCost(rankBase, spirit, params) * params.life_tap_mana_per_health * (1 + effectNum('improved_life_tap', 'gainMultPerRank') * (ranks['improved_life_tap'] ?? 0));
 }
 
 /** Spirit mana regeneration per second outside the five-second rule: warlock (Spirit/5 + 15) per 2 s tick (Classic, cmangos). */

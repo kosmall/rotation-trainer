@@ -249,3 +249,17 @@ Source: Wowhead Forever spell 1259821, read in the browser (the plain page reque
   Levels 38-60 (including the snapshot levels 40, 50, 59) are unchanged. The test is in
   `tests/forever/spells-stats.test.ts` (positive and non-decreasing over 10-60). This is a Classic-derived
   stand-in like the rest of the series (section 8), not a Forever measurement.
+
+- **Talent constants in `stats.ts` (audit A2-007, A3-009, A4-015).** `stats.ts` now reads Demonic Embrace
+  (+3% Stamina per rank, key `staminaMultPerRank`), Fel Vitality (+5% maximum mana per rank, `playerManaPerRank`),
+  Demonic Aegis (+15% Demon Armor per rank, `demonArmorMultPerRank`) and Improved Life Tap (+10% Life Tap mana per
+  rank, `gainMultPerRank`) from `talents.json` instead of hard-coding them; the values are the section 1 values and
+  the simulator's numbers do not change (pinned in `tests/forever/stats-a2-007.test.ts`). **Data key corrected:**
+  Demonic Embrace carried `maxHpMultPerRank 0.015` ("HP effect is an assumption: Stamina taken as half of max HP"),
+  which no code read and which contradicted the code and section 1; replaced by `staminaMultPerRank 0.03`. Two keys
+  that no code reads stay as documentation of unmodelled effects, now listed in the test: Suppression
+  `threatReducePerRank` (-4% threat) and Master Demonologist `felhunterMagicReduce`. Not in this ledger before and
+  still unconfirmed by a second source: the Health Funnel table (`levels.json` `healthFunnel`, Wowhead spell 755,
+  read 27 Nov), Demon Armor ranks (`levels.json` `demonArmor`, seemeta.com 210/300/390/480/570) and the Voidwalker
+  order `(Classic hp + 40) x 1.15` (`petBaseAt`; +40 before the +15% gives 46 hp more than after it, negligible;
+  Felhunter has no +15%).

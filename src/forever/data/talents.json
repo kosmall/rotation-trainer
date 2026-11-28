@@ -267,10 +267,10 @@
    "maxRank": 5,
    "status": "modelled",
    "effect": {
-    "maxHpMultPerRank": 0.015
+    "staminaMultPerRank": 0.03
    },
    "verify": true,
-   "source": "Confirmed: +3% Stamina per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip)). The HP effect is an assumption: Stamina taken as half of max HP."
+   "source": "Confirmed: +3% Stamina per rank (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip)); the sim multiplies the real Stamina (health follows through the Classic Stamina conversion). Open: the TBC version also lowers Spirit, not modelled (no Forever text)."
   },
   {
    "id": "unholy_power",
