@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
+import { customVariant, VARIANT_IDS } from '../../forever/builds';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
-import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
+import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, copyOfBuiltIn, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
 import { ALT_FILLERS, ALT_WHEN_NAME, ALT_WHENS, DOT_KEYS, FILLER_NAME, FILLERS as GENE_FILLERS, MIN_TTKS, type AltWhen, type DotKey, type FillerGene, type MinTtk, type RotationGenes } from '../../forever/rotation-genes';
 import { isAddonExport, parseAddonExport } from '../../forever/web/addon-import';
 import { fetchGear, gearIdsOf, type MyGear } from '../../forever/web/gear';
@@ -99,7 +99,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
         <button type="button" className="btn" onClick={() => add(emptyBuild(uniqueName('Własny build', names)))}>
           Nowy (pusty)
         </button>
-        <button type="button" className="btn" onClick={() => add({ ...build, picks: [...build.picks], name: uniqueName(`${build.name} (kopia)`, names) })}>
+        <button type="button" className="btn" onClick={() => add({ ...build, picks: [...build.picks], ...(build.pet_rules ? { pet_rules: build.pet_rules.map((r) => ({ ...r })) } : {}), name: uniqueName(`${build.name} (kopia)`, names) })}>
           Duplikuj
         </button>
         <button
@@ -127,9 +127,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
           type="button"
           className="btn"
           onClick={() => {
-            const v = loadVariant(fromBuiltIn);
-            const picks = picksAt(v, 60);
-            add({ name: uniqueName(`${fromBuiltIn} (kopia)`, names), picks, rotation: v.rotation, filler: v.filler, rank: v.rank, pet: v.pet, sacrificed: v.sacrificed });
+            add(copyOfBuiltIn(fromBuiltIn, uniqueName(`${fromBuiltIn} (kopia)`, names)));
           }}
         >
           Kopiuj do nowego buildu
@@ -239,7 +237,7 @@ export function CustomView({ state, onChange, settings, run, ranking, onRun, gea
         )}
         <label>
           Pet
-          <select value={build.pet ?? ''} onChange={(e) => update({ pet: e.target.value === '' ? null : (e.target.value as CustomBuildData['pet']) })}>
+          <select value={build.pet ?? ''} onChange={(e) => update({ pet: e.target.value === '' ? null : (e.target.value as CustomBuildData['pet']), pet_rules: undefined })}>
             <option value="">brak</option>
             {PETS.map((p) => (
               <option key={p} value={p}>

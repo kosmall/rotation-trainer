@@ -51,6 +51,7 @@ export function expandOrder(runs: readonly [string, number][]): string[] {
 }
 
 const CUSTOM_ORDERS = new Map<string, [string, number][]>();
+let inlineOrders = 0;
 
 /** Registers an inline order (a custom build from a file) under a unique id. */
 export function registerOrder(id: string, runs: [string, number][]): void {
@@ -64,6 +65,66 @@ export function loadOrder(id: string): string[] {
 }
 
 const CUSTOM_VARIANTS = new Map<string, BuildVariant>();
+
+export const PET_KINDS: readonly PetKind[] = ['imp', 'voidwalker', 'succubus', 'felhunter'];
+export const ROTATION_NAMES: readonly BuildVariant['rotation'][] = ['affliction', 'demonology', 'fire'];
+/** Fillers a rotation template offers (the first is the default). */
+export const ROTATION_FILLERS: Readonly<Record<BuildVariant['rotation'], readonly string[]>> = {
+  affliction: ['wrack', 'drain_life'],
+  demonology: ['shadow_bolt'],
+  fire: ['searing_pain', 'shadow_bolt'],
+};
+const KNOWN_FILLERS: readonly string[] = [...new Set(Object.values(ROTATION_FILLERS).flat())];
+
+const list = (xs: readonly (string | number)[]): string => xs.map((x) => JSON.stringify(x)).join(', ');
+const show = (x: unknown): string => (typeof x === 'string' ? JSON.stringify(x) : String(JSON.stringify(x) ?? x));
+
+/** The scalar fields every build form (a file, the web editor) has; throws a readable error on a bad value. */
+function checkCore(o: { rotation: unknown; filler: unknown; rank: unknown; pet: unknown; sacrificed: unknown }): Pick<BuildVariant, 'rotation' | 'filler' | 'rank' | 'pet' | 'sacrificed'> {
+  if (!ROTATION_NAMES.includes(o.rotation as never)) throw new Error(`invalid "rotation" ${show(o.rotation)}: expected one of ${list(ROTATION_NAMES)}`);
+  if (typeof o.filler !== 'string' || !KNOWN_FILLERS.includes(o.filler)) throw new Error(`invalid "filler" ${show(o.filler)}: expected one of ${list(KNOWN_FILLERS)}`);
+  if (o.rank !== 1 && o.rank !== 2 && o.rank !== 'max') throw new Error(`invalid "rank" ${show(o.rank)}: expected 1, 2 or "max"`);
+  if (o.pet !== null && !PET_KINDS.includes(o.pet as never)) throw new Error(`invalid "pet" ${show(o.pet)}: expected one of ${list(PET_KINDS)} or null`);
+  if (o.sacrificed !== null && !PET_KINDS.includes(o.sacrificed as never)) throw new Error(`invalid "sacrificed" ${show(o.sacrificed)}: expected one of ${list(PET_KINDS)} or null`);
+  return { rotation: o.rotation as BuildVariant['rotation'], filler: o.filler, rank: o.rank, pet: o.pet as PetKind | null, sacrificed: o.sacrificed as PetKind | null };
+}
+
+/** The optional per-build flags (`immolate`, `coe`, `wrack_min_hp_pct`, `pet_rules`); absent ones stay absent. */
+export type BuildFlags = Pick<BuildVariant, 'immolate' | 'coe' | 'wrack_min_hp_pct' | 'pet_rules'>;
+
+export function checkFlags(o: Partial<Record<keyof BuildFlags, unknown>>): BuildFlags {
+  const out: BuildFlags = {};
+  if (o.immolate !== undefined) {
+    if (typeof o.immolate !== 'boolean') throw new Error(`invalid "immolate" ${show(o.immolate)}: expected true or false`);
+    out.immolate = o.immolate;
+  }
+  if (o.coe !== undefined) {
+    if (typeof o.coe !== 'boolean') throw new Error(`invalid "coe" ${show(o.coe)}: expected true or false`);
+    out.coe = o.coe;
+  }
+  if (o.wrack_min_hp_pct !== undefined) {
+    const w = o.wrack_min_hp_pct;
+    if (typeof w !== 'number' || !Number.isFinite(w) || w < 0 || w > 1) throw new Error(`invalid "wrack_min_hp_pct" ${show(w)}: expected a fraction from 0 to 1`);
+    out.wrack_min_hp_pct = w;
+  }
+  if (o.pet_rules !== undefined) {
+    if (!Array.isArray(o.pet_rules)) throw new Error('invalid "pet_rules": expected a list of rules');
+    out.pet_rules = o.pet_rules.map((r, i): PetRule => {
+      const bad = (why: string): Error => new Error(`invalid "pet_rules"[${i}]: ${why}`);
+      if (r === null || typeof r !== 'object') throw bad('expected an object');
+      const x = r as Record<string, unknown>;
+      if (!PET_KINDS.includes(x.pet as never)) throw bad(`"pet" ${show(x.pet)} is not one of ${list(PET_KINDS)}`);
+      const rule: PetRule = { pet: x.pet as PetKind };
+      for (const k of ['fromLevel', 'toLevel', 'minMobs', 'maxMobs'] as const) {
+        if (x[k] === undefined) continue;
+        if (typeof x[k] !== 'number' || !Number.isFinite(x[k])) throw bad(`"${k}" must be a number`);
+        rule[k] = x[k] as number;
+      }
+      return rule;
+    });
+  }
+  return out;
+}
 
 export function loadVariant(id: string): BuildVariant {
   const v = RAW.variants.find((x) => x.id === id) ?? CUSTOM_VARIANTS.get(id);
@@ -84,6 +145,11 @@ export interface CustomBuildData {
   sacrificed: PetKind | null;
   /** A rotation composed from spells; when set it replaces the rotation template. */
   genes?: RotationGenes;
+  /** The flags a built-in build can carry; a copy of a built-in build keeps them. */
+  immolate?: boolean;
+  coe?: boolean;
+  wrack_min_hp_pct?: number;
+  pet_rules?: PetRule[];
 }
 
 /** The id a custom build is simulated under (a star keeps it apart from the built-in ids). */
@@ -94,6 +160,8 @@ export function customVariant(d: CustomBuildData): BuildVariant {
   if (d.picks.length > MAX_TALENT_POINTS) throw new Error(`at most ${MAX_TALENT_POINTS} points, got ${d.picks.length}`);
   const check = validatePicks(d.picks);
   if (!check.ok) throw new Error(`invalid talent order: ${check.errors.join('; ')}`);
+  const core = checkCore(d);
+  const flags = checkFlags(d);
   const id = customId(d.name);
   const runs: [string, number][] = [];
   for (const t of d.picks) {
@@ -103,7 +171,7 @@ export function customVariant(d: CustomBuildData): BuildVariant {
   }
   const orderId = `custom:${id}`;
   registerOrder(orderId, runs);
-  const v: BuildVariant = { id, order: orderId, pet: d.pet, sacrificed: d.sacrificed, rotation: d.rotation, filler: d.filler, rank: d.rank, pre_respec_build: null, respec_level: 40, ...(d.genes ? { genes: { ...d.genes } } : {}) };
+  const v: BuildVariant = { id, order: orderId, ...core, pre_respec_build: null, respec_level: 40, ...flags, ...(d.genes ? { genes: { ...d.genes } } : {}) };
   CUSTOM_VARIANTS.set(id, v);
   return { ...v };
 }
@@ -174,7 +242,8 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
   let orderId: string;
   if (typeof obj.order === 'string') orderId = obj.order;
   else if (Array.isArray(obj.order)) {
-    orderId = `custom:${id}`;
+    // unique per call: two builds without an id (or with the same one) must not share a talent order
+    orderId = `custom:${id}#${++inlineOrders}`;
     registerOrder(orderId, obj.order as [string, number][]);
   } else throw new Error('build needs an "order" (order id or [[talent, points], ...])');
   const picks = loadOrder(orderId);
@@ -183,19 +252,19 @@ export function variantFromJson(obj: Record<string, unknown>): BuildVariant {
   if (!check.ok) throw new Error(`invalid talent order: ${check.errors.join('; ')}`);
   const genes = obj.genes === undefined ? undefined : parseGenes(obj.genes);
   if (obj.genes !== undefined && !genes) throw new Error('invalid rotation genes');
+  const core = checkCore({ rotation: obj.rotation ?? 'demonology', filler: obj.filler ?? 'shadow_bolt', rank: obj.rank ?? 1, pet: obj.pet ?? 'succubus', sacrificed: obj.sacrificed ?? null });
+  const pre = obj.pre_respec_build ?? null;
+  if (pre !== null && (typeof pre !== 'string' || !(CUSTOM_ORDERS.has(pre) || pre in RAW.orders))) throw new Error(`invalid "pre_respec_build" ${show(pre)}: not a known talent order`);
+  const rl = obj.respec_level ?? 40;
+  const respecLevel = typeof rl === 'number' ? rl : typeof rl === 'string' && rl.trim() !== '' ? Number(rl) : NaN;
+  if (!Number.isFinite(respecLevel)) throw new Error(`invalid "respec_level" ${show(rl)}: expected a level number`);
   return {
     id,
     order: orderId,
-    pet: (obj.pet ?? 'succubus') as BuildVariant['pet'],
-    sacrificed: (obj.sacrificed ?? null) as BuildVariant['sacrificed'],
-    rotation: (obj.rotation ?? 'demonology') as BuildVariant['rotation'],
-    filler: String(obj.filler ?? 'shadow_bolt'),
-    rank: (obj.rank ?? 1) as BuildVariant['rank'],
-    pre_respec_build: (obj.pre_respec_build ?? null) as string | null,
-    respec_level: Number(obj.respec_level ?? 40),
-    ...(typeof obj.wrack_min_hp_pct === 'number' ? { wrack_min_hp_pct: obj.wrack_min_hp_pct } : {}),
+    ...core,
+    pre_respec_build: pre,
+    respec_level: respecLevel,
+    ...checkFlags(obj),
     ...(genes ? { genes } : {}),
-    ...(obj.coe === false ? { coe: false } : {}),
-    ...(Array.isArray(obj.pet_rules) ? { pet_rules: obj.pet_rules as PetRule[] } : {}),
   };
 }

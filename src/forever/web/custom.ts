@@ -1,6 +1,6 @@
 // Custom builds of the web app: validation, import/export and the storage format. Framework-free.
 
-import { customId, customVariant, type BuildVariant, type CustomBuildData } from '../builds';
+import { PET_KINDS, ROTATION_FILLERS, ROTATION_NAMES, checkFlags, customId, customVariant, loadVariant, picksAt, type BuildVariant, type CustomBuildData } from '../builds';
 import { parseGenes, type RotationGenes } from '../rotation-genes';
 
 export { parseGenes };
@@ -11,15 +11,11 @@ export const CUSTOM_STORAGE_KEY = 'wow-forever-sim:custom:v1';
 
 export type { CustomBuildData };
 
-export const PETS: readonly PetKind[] = ['imp', 'voidwalker', 'succubus', 'felhunter'];
-export const ROTATIONS: readonly BuildVariant['rotation'][] = ['affliction', 'demonology', 'fire'];
+export const PETS: readonly PetKind[] = PET_KINDS;
+export const ROTATIONS: readonly BuildVariant['rotation'][] = ROTATION_NAMES;
 
 /** Fillers a rotation template offers (the first is the default). */
-export const FILLERS: Readonly<Record<BuildVariant['rotation'], readonly string[]>> = {
-  affliction: ['wrack', 'drain_life'],
-  demonology: ['shadow_bolt'],
-  fire: ['searing_pain', 'shadow_bolt'],
-};
+export const FILLERS: Readonly<Record<BuildVariant['rotation'], readonly string[]>> = ROTATION_FILLERS;
 
 /** The rotation a build starts with when switched to a rotation composed from spells. */
 export const DEFAULT_GENES: RotationGenes = { coe: true, agony: true, corruption: true, siphon: false, immolate: false, minTtkSec: 6, drainSoulFinisher: true, filler: 'drain_life' };
@@ -42,9 +38,17 @@ export function parseBuild(raw: unknown): CustomBuildData {
   const pet = o.pet === null ? null : PETS.includes(o.pet as never) ? (o.pet as PetKind) : 'succubus';
   const sacrificed = PETS.includes(o.sacrificed as never) ? (o.sacrificed as PetKind) : null;
   const genes = parseGenes(o.genes);
-  const data: CustomBuildData = { name, picks: o.picks as string[], rotation, filler, rank, pet, sacrificed, ...(genes ? { genes } : {}) };
+  const flags = checkFlags(o); // immolate, coe, wrack_min_hp_pct, pet_rules: absent in older stored builds
+  const data: CustomBuildData = { name, picks: o.picks as string[], rotation, filler, rank, pet, sacrificed, ...flags, ...(genes ? { genes } : {}) };
   customVariant(data); // validates the order
   return data;
+}
+
+/** A custom build that plays exactly like the built-in build `id` (talent order, rotation template and its flags). */
+export function copyOfBuiltIn(id: string, name: string): CustomBuildData {
+  const v = loadVariant(id);
+  const flags = checkFlags({ ...v, ...(v.pet_rules ? { pet_rules: v.pet_rules.map((r) => ({ ...r })) } : {}) });
+  return { name, picks: picksAt(v, 60), rotation: v.rotation, filler: v.filler, rank: v.rank, pet: v.pet, sacrificed: v.sacrificed, ...flags };
 }
 
 export const exportBuild = (b: CustomBuildData): string => JSON.stringify(b, null, 2);
