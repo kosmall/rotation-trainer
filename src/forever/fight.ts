@@ -716,10 +716,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const lr = petRank(pd.lashRanks);
     if (lr && pet.mana >= lr.mana) {
       pet.mana -= lr.mana;
-      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * curseMult(m);
-      log(t, `pet lash ${d.toFixed(3)}`);
-      dealToMob(m, d, false, 1);
-      if (m.alive) brandHit(m);
+      // the same hit roll as Firebolt and the melee swing (the mana is spent either way)
+      if (rng.next() < params.pet_hit_chance) {
+        const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * curseMult(m);
+        log(t, `pet lash ${d.toFixed(3)}`);
+        dealToMob(m, d, false, 1);
+        if (m.alive) brandHit(m);
+      }
     }
     pet.nextLash = t + (pd.lashCdMs as number);
   };
