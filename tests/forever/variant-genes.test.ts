@@ -56,7 +56,7 @@ describe('rotation genes and parameter overrides (A5-005)', () => {
   const pp = (o: Partial<Params> = {}) => loadParams({ session_pulls: 5, ...o });
   const raw = (variant: ReturnType<typeof loadVariant>, params: Params, level: number) => runCell({ variant, level, profile: 'average', params }, 3, 5).raw;
 
-  // Pinned on the code before the fix: without an override the genes play exactly as they did.
+  // Pinned without an override: the A5-005 fix does not change a genes build's results (checked by running the old rotation-genes.ts on the same code: identical). Re-pinned after the F-runner fixes (A1-003/004/008, A3-001), which legitimately move every build.
   it('pins the results of genes without overrides', () => {
     const cases: Record<string, RotationGenes> = {
       mimic: g({}),
@@ -65,10 +65,10 @@ describe('rotation genes and parameter overrides (A5-005)', () => {
       demo_alt: g({ agony: false, siphon: false, filler: 'sb_r1', drainSoulFinisher: false, alt: { when: 'late', filler: 'drain_life' }, dotTtk: { corruption: 12 } }),
     };
     const pinned: Record<string, number> = {
-      'mimic|30|5': 105.53506731583867, 'mimic|30|1234': 112.07512356692794, 'mimic|45|5': 122.49164800827505, 'mimic|45|1234': 121.94978661009594, 'mimic|55|5': 108.66972990917762, 'mimic|55|1234': 119.87931424235843,
-      'imm_hp70_t0|30|5': 106.34847318320092, 'imm_hp70_t0|30|1234': 106.53118501575513, 'imm_hp70_t0|45|5': 121.16617681797187, 'imm_hp70_t0|45|1234': 117.37093506296713, 'imm_hp70_t0|55|5': 126.10973799817106, 'imm_hp70_t0|55|1234': 125.36506697181332,
-      'draintank_t12|30|5': 117.00975081256772, 'draintank_t12|30|1234': 114.44583994073948, 'draintank_t12|45|5': 126.9597070459818, 'draintank_t12|45|1234': 139.00945868090048, 'draintank_t12|55|5': 123.70896503202165, 'draintank_t12|55|1234': 150.73272854152128,
-      'demo_alt|30|5': 78.269564967747, 'demo_alt|30|1234': 74.8270943410417, 'demo_alt|45|5': 91.63469244688427, 'demo_alt|45|1234': 90.19840993177564, 'demo_alt|55|5': 96.2566844919786, 'demo_alt|55|1234': 96.98275862068967,
+      'mimic|30|5': 106.36657872665893, 'mimic|30|1234': 112.07512356692794, 'mimic|45|5': 123.26054737590115, 'mimic|45|1234': 123.7665735925775, 'mimic|55|5': 108.88885810919327, 'mimic|55|1234': 120.68305881633468,
+      'imm_hp70_t0|30|5': 106.98054080402432, 'imm_hp70_t0|30|1234': 106.32143412002586, 'imm_hp70_t0|45|5': 121.43866308693724, 'imm_hp70_t0|45|1234': 117.7548516475804, 'imm_hp70_t0|55|5': 126.55305947520675, 'imm_hp70_t0|55|1234': 124.56977217484575,
+      'draintank_t12|30|5': 117.00975081256772, 'draintank_t12|30|1234': 114.44583994073948, 'draintank_t12|45|5': 128.46993906710915, 'draintank_t12|45|1234': 139.18861176957301, 'draintank_t12|55|5': 123.99302148311183, 'draintank_t12|55|1234': 150.73272854152128,
+      'demo_alt|30|5': 78.13366523469689, 'demo_alt|30|1234': 74.87897374875335, 'demo_alt|45|5': 91.57253525351733, 'demo_alt|45|1234': 90.4249707255972, 'demo_alt|55|5': 96.2566844919786, 'demo_alt|55|1234': 96.98275862068967,
     };
     const got: Record<string, number> = {};
     for (const [n, genes] of Object.entries(cases))
