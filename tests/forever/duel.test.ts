@@ -54,4 +54,24 @@ describe('duel', () => {
     expect(formatSummary(r)).toContain('DEMO_PACT_R1 (a) vs AFF_WRACK (b)');
     expect(formatDetail(r.results[0]!, r.a, r.b)).toContain('breaks per hour');
   });
+  it('labels which estimator each number is (A5-004)', () => {
+    const r = duelBuilds('DEMO_PACT_R1', 'AFF_WRACK', { ...opts, levels: [50] });
+    const summary = formatSummary(r);
+    expect(summary).toContain('kph a/b are pooled');
+    expect(summary).toContain('diff is the mean of per-session differences');
+    const x = r.results[0]!;
+    const detail = formatDetail(x, r.a, r.b);
+    expect(detail).toContain('pooled');
+    expect(detail).toContain('mean of per-session differences');
+    // the matching estimator is printed: the difference of the two pooled values
+    expect(detail).toContain(`pooled a - b ${(x.a.killsPerHour - x.b.killsPerHour).toFixed(1)}`);
+  });
+  it('shows no kills per break when there were no breaks (A5-018)', () => {
+    const r = duelBuilds('DT_SS_NOCOE', 'DT_SS_NOCOE', { levels: [40], profile: 'average', sessions: 4, seed: 1, params: { session_pulls: 3 } });
+    const x = r.results[0]!;
+    const noBreaks = { ...x, a: { ...x.a, breaksPerHour: 0, killsPerBreak: 77 }, b: { ...x.b, breaksPerHour: 0, killsPerBreak: 77 } };
+    const line = formatDetail(noBreaks, r.a, r.b).split('\n').find((l) => l.startsWith('kills per break'))!;
+    expect(line).not.toContain('77');
+    expect(line).toContain('-');
+  });
 });

@@ -36,7 +36,7 @@ function RankTable({ title, rows, levels, nameOf }: { title: string; rows: reado
 export function SweepChart({ title, levels, series, valueName, higherIsBetter = true, decimals = 1 }: { title: string; levels: readonly number[]; series: readonly SweepSeries[]; valueName: string; higherIsBetter?: boolean; decimals?: number }) {
   // the statistics count the highest value as the best: turn the values around when less is better
   const scored = higherIsBetter ? series : series.map((s) => ({ ...s, values: s.values.map((v) => -v) }));
-  const summary = summarize(scored, levels.length);
+  const summary = summarize(scored, levels.length, decimals);
   const labelOf = new Map(series.map((s) => [s.id, s.label]));
   return (
     <div className="fv-chart">
@@ -57,7 +57,7 @@ export function SweepChart({ title, levels, series, valueName, higherIsBetter = 
           </thead>
           <tbody>
             {levels.map((l, i) => {
-              const top = new Set(extremesAt(scored, i).best);
+              const top = new Set(extremesAt(scored, i, decimals).best);
               return (
                 <tr key={l}>
                   <th scope="row">{l}</th>

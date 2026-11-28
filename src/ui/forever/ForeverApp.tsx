@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, MY_GEAR, normalizeSettings, paramsOf, type DuelOutcom
 import type { JobRequest } from '../../forever/web/api';
 import type { JobRunner } from '../../forever/web/client';
 import { customVariant, VARIANT_IDS } from '../../forever/builds';
-import { loadGear, saveGear, totalsOf, wowheadFetcher, type MyGear } from '../../forever/web/gear';
+import { loadGear, saveGear, totalsOf, wowheadFetcher, type GearTotals, type MyGear } from '../../forever/web/gear';
 import { customId, loadCustom, saveCustom, type CustomState } from '../../forever/web/custom';
 import { CustomView } from './CustomView';
 import { FOREVER_VIEWS, FOREVER_VIEW_TITLES, routeHref, type ForeverView } from '../shell/router';
@@ -82,7 +82,16 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFet
   // "mój sprzęt" without items (removed) falls back to the average profile
   const normalized = normalizeSettings(settings);
   const s = normalized.profile === MY_GEAR && !gear ? { ...normalized, profile: 'average' } : normalized;
-  const go = useCallback((req: JobRequest) => run.run(s.profile === MY_GEAR && gearTotals ? { ...req, gear: gearTotals } : req), [run, s.profile, gearTotals]);
+  // totals of the player's items at the time each kind of job was started: a result header names them even after the items change
+  const [ranGear, setRanGear] = useState<Partial<Record<JobRequest['kind'], GearTotals>>>({});
+  const go = useCallback(
+    (req: JobRequest) => {
+      const used = req.settings.profile === MY_GEAR && gearTotals ? gearTotals : undefined;
+      setRanGear((g) => ({ ...g, [req.kind]: used }));
+      run.run(used ? { ...req, gear: used } : req);
+    },
+    [run, gearTotals],
+  );
   const simParams = useMemo(() => paramsOf(normalizeSettings(settings), gearTotals), [settings, gearTotals]);
   const runRanking = useCallback(() => go({ kind: 'ranking', settings: s, custom: includedData }), [go, s, includedData]);
   const ranking = run.results.ranking as RankingResult | undefined;
@@ -118,10 +127,10 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFet
           ))}
         </details>
       )}
-      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => go({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
+      {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} gear={ranGear.ranking} sweepGear={ranGear.sweep} onSweep={(builds) => go({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
       {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} onOpenRotation={setRotationId} />}
       {view === 'rotations' && <RotationsView ids={allIds} params={simParams} id={rotationId} onIdChange={setRotationId} />}
-      {view === 'compare' && <CompareView settings={s} run={run} duel={duel} ids={allIds} onRun={(a, b, sw) => go({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
+      {view === 'compare' && <CompareView settings={s} run={run} duel={duel} gear={ranGear.duel} ids={allIds} onRun={(a, b, sw) => go({ kind: 'duel', settings: s, a, b, sweep: sw, custom: customData.filter((c) => [a, b].includes(customId(c.name))) })} />}
       {view === 'discover' && s.profile === MY_GEAR && <p className="fv-note">Szukaj nie używa mojego sprzętu (liczy na profilu „przeciętny”): wyszukiwanie działa w osobnych workerach bez Twoich itemów.</p>}
       {view === 'discover' && (
         <DiscoverView settings={s.profile === MY_GEAR ? { ...s, profile: 'average' } : s} discovery={discovery} existingNames={custom.builds.map((b) => b.name)} onSave={(b) => setCustom({ ...custom, builds: [...custom.builds, b], active: b.name })} />

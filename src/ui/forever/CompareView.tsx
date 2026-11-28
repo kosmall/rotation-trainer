@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { VARIANT_IDS } from '../../forever/builds';
 import { MAX_LEVEL, MIN_LEVEL, type DuelOutcome, type Settings } from '../../forever/web/api';
+import type { GearTotals } from '../../forever/web/gear';
 import { DUEL_METRICS, type DuelMetric } from './charts/chartModel';
 import { DiffChart } from './charts/DiffChart';
 import { SweepChart } from './SweepChart';
+import { settingsText, shapingDiffs } from './SimView';
 import type { ForeverRun } from './useForeverRun';
 
 const f = (x: number, d = 1) => x.toFixed(d);
 const side = (s: 'a' | 'b' | 'tie', a: string, b: string) => (s === 'a' ? a : s === 'b' ? b : 'remis (różnica nieistotna)');
 
-export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: { settings: Settings; run: ForeverRun; duel: DuelOutcome | undefined; onRun(a: string, b: string, sweep: boolean): void; ids?: readonly string[] }) {
+export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS, gear }: { settings: Settings; run: ForeverRun; duel: DuelOutcome | undefined; onRun(a: string, b: string, sweep: boolean): void; ids?: readonly string[]; gear?: GearTotals }) {
   const [a, setA] = useState(VARIANT_IDS[0] as string);
   const [b, setB] = useState(VARIANT_IDS[2] as string);
   const [sweep, setSweep] = useState(true);
@@ -17,6 +19,7 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
   const metric = DUEL_METRICS[metricId] as DuelMetric;
   const running = run.status === 'running';
   const at = duel?.at;
+  const differs = duel ? shapingDiffs(duel.settings, settings) : [];
   const rows: { name: string; a: number; b: number; d: { mean: number; ci95: [number, number]; significant: boolean }; dec: number }[] = at
     ? [
         { name: 'Zabić/h', a: at.a.killsPerHour, b: at.b.killsPerHour, d: at.diff.killsPerHour, dec: 1 },
@@ -59,8 +62,9 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
       {duel && at && (
         <>
           <p className="fv-note">
-            Level {duel.settings.level}, {duel.settings.sessions} sesji, seed {duel.settings.seed}. Różnica = A − B z przedziałem 95% (sparowane).
+            {settingsText(duel.settings, gear)}. Różnica = A − B z przedziałem 95% (sparowane).
             {duel.settings.level !== settings.level ? ' (Wynik dla innego levelu niż obecne ustawienie.)' : ''}
+            {differs.length > 0 ? ` (Obecne ustawienia różnią się od tych, z którymi policzono wynik: ${differs.join(', ')}.)` : ''}
           </p>
           <p className="fv-verdict">
             Więcej zabić/h: <b>{side(at.verdict.moreKillsPerHour, duel.a, duel.b)}</b> · szybsze zabicie: {side(at.verdict.fasterKill, duel.a, duel.b)} · mniej many: {side(at.verdict.lessMana, duel.a, duel.b)} · mniej przerw: {side(at.verdict.fewerBreaks, duel.a, duel.b)}
@@ -87,6 +91,9 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
               ))}
             </tbody>
           </table>
+          <p className="fv-note">
+            Zabić/h w kolumnach {duel.a} i {duel.b} to wartości łączne (suma zabić / suma czasu ze wszystkich sesji). Różnica A − B w ostatniej kolumnie to średnia z różnic w sparowanych sesjach (średnia z różnic kills/h każdej sesji), więc może nie równać się różnicy kolumn obok; łącznie A − B = {f(at.a.killsPerHour - at.b.killsPerHour)}. Tak samo dla pozostałych wskaźników na zabicie lub na godzinę.
+          </p>
           {duel.sweep && (
             <>
               <h2>

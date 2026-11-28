@@ -1,4 +1,5 @@
 // `npm run forever:build -- --build AFF_WRACK --level 47 [--perk 0] [--respec 40]`
+// --respec N: no shipped build has a pre_respec_build (all are null), so this option does nothing today (the respec analysis in forever:report does not use it either).
 import { describeBuild, loadVariant } from '../src/forever/builds';
 
 const args = process.argv.slice(2);

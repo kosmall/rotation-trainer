@@ -3,12 +3,16 @@ import { discover, type Budget, type DiscoverOptions, type DiscoverResult } from
 import type { SpaceFilter } from '../../forever/discover/space';
 import type { Settings } from '../../forever/web/api';
 import { VARIANT_IDS } from '../../forever/builds';
+import { SIM_VERSION } from '../../forever/version';
 import { enumerateCombos } from '../../forever/discover/space';
 import { discoverEtaSec, discoverOptions, workerCount, type DiscoverBudget } from '../../forever/web/discover';
 import { completeBuilds, completeEtaSec, rotationChoices, COMPLETE_FULL, COMPLETE_QUICK, type CompleteBudget, type CompletedBuild, type CompleteResult, type CompleteTask } from '../../forever/discover/complete';
 import type { Runner } from '../../forever/discover/engine';
 import { discoverPool, type Pool } from '../../forever/web/discover-client';
 import type { AnyResult, AnyTask } from '../../forever/web/discover-tasks';
+
+/** Whether a saved discovery was computed by older simulator code than the running one. */
+export const isStaleDiscovery = (d: Pick<SavedDiscovery, 'simVersion'>): boolean => d.simVersion !== SIM_VERSION;
 
 export const DISCOVER_STORAGE_KEY = 'wow-forever-sim:discover:v1';
 
@@ -30,6 +34,8 @@ export interface SavedDiscovery {
   settings: Settings;
   budget: DiscoverBudget;
   result: DiscoverResult;
+  /** Version of the simulator code that produced the result (`SIM_VERSION`); missing or different = computed by older code. */
+  simVersion?: string;
   /** Found builds completed to the last level (dropped when a new search replaces the result). */
   completions?: CompletedBuild[];
 }
@@ -181,7 +187,7 @@ export function useDiscover(makePool: PoolFactory = defaultPool, tuning: Discove
       discover(options, pool.runner.bind(pool) as unknown as Runner, { progress })
         .then((result) => {
           if (!current()) return;
-          persist({ settings: s, budget, result });
+          persist({ settings: s, budget, result, simVersion: SIM_VERSION });
           setStatus('done');
         })
         .catch((e: unknown) => failWith(ctl, e))

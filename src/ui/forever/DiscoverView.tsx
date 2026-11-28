@@ -12,7 +12,7 @@ import { TalentTrees } from './TalentTrees';
 import { routeHref } from '../shell/router';
 import { PET_NAMES } from './buildFacts';
 import { DiscoverDetails } from './DiscoverDetails';
-import type { DiscoverRun } from './useDiscover';
+import { isStaleDiscovery, type DiscoverRun } from './useDiscover';
 
 const STAGES: Record<string, string> = {
   screen: '1/3: przegląd wszystkich kombinacji',
@@ -114,6 +114,11 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
           <h2>
             Level {res.meta.level} ({res.meta.points} pkt), {shown.settings.profile}, {res.meta.mobs} mob{res.meta.mobs === 1 ? '' : 'y'}, {shown.budget === 'full' ? 'pełne' : 'szybkie'}
           </h2>
+          {isStaleDiscovery(shown) && (
+            <p className="fv-note fv-warn" role="status">
+              Wynik ze starszej wersji symulatora: liczby mogą różnić się od tych, które policzy obecna wersja. Uruchom Szukaj ponownie, żeby dostać aktualny wynik.
+            </p>
+          )}
           {best && (
             <p className="fv-note">
               Najlepszy znany: {best.id} {f1(best.metrics.killsPerHour)} kills/h. Sprawdzono {res.meta.combos} kombinacji{res.meta.mixed ? ` i ${res.meta.mixed} wariantów z mieszanymi fillerami i progami` : ''}, {res.meta.searched} dokładnie, {res.meta.evaluations} symulacji. ✓ = różnica istotna (95%), ~ = w granicach szumu, ≈#1 = nie gorszy istotnie od pierwszego.

@@ -62,3 +62,12 @@ describe('discovery report', () => {
     expect(j).not.toContain('"raw"');
   });
 });
+
+describe('discovery report: condition texts (A5-018)', () => {
+  it('words the "late in the fight" condition instead of printing the op name', () => {
+    const late = { ...wrackCombo!, genes: { ...wrackCombo!.genes, alt: { when: 'late' as const, filler: 'drain_life' as const } } };
+    const md = renderDiscoverReport({ ...result, top: [row(1, late, wrackRanks, 112.3, true)] }, 10);
+    expect(md).not.toContain('combat_sec_at_least');
+    expect(md).toContain('fight lasted ≥ 20 s');
+  });
+});
