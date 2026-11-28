@@ -7,7 +7,7 @@ import { ranksAt } from './builds';
 import { brandAttacks, brandDamage, brandSchool, demonicKnowledgeSp, effectNum, petSchoolMult, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
-import { estimateOf, evaluateSteps, type DataRotation } from './rotation-spec';
+import { estimateOf, evaluateSteps, type DataRotation, type SpecCtx } from './rotation-spec';
 import { buildRotation } from './rotation-genes';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
@@ -566,8 +566,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   // ---- rotation context ---------------------------------------------------------------------
   const dataRotation = dataRotationCfg;
   const rotation: (ctx: RotationCtx) => Candidate[] = dataRotation ? (ctx) => evaluateSteps(dataRotation, ctx) : rotationFor(variant.rotation);
-  const makeCtx = (m: Mob): RotationCtx => ({
+  const makeCtx = (m: Mob): SpecCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance, hpPct: (hp / maxHp) * 100,
+    // the facts the second-filler conditions read ("mana below 30 / 50 %", "fight longer than 20 s"); without them they could never hold
+    manaPct: (mana / maxMana) * 100, combatSec: t / 1000,
     known, talentRank: (id) => rk(ranks, id),
     targetHasDot: (id) => m.dots.some((d) => d.id === id && dotActive(d)),
     targetDotRemainingMs: (id) => { const d = m.dots.find((x) => x.id === id && dotActive(x)); return d ? Math.max(0, d.expiresAt - t) : 0; },
