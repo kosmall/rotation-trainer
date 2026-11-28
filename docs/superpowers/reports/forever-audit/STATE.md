@@ -11,6 +11,6 @@ Branch: claude/youthful-hopper-op9tox (merged origin/claude/peaceful-goldberg-kb
 - [x] Task 1 baseline + determinism check (two runs identical except discover run-time line, now normalized) + before-snapshot
 - [x] Task 2 audit wave (A1-A5 done; A1 and A5 agents hit the weekly API limit right after writing their final files, files complete)
 - [x] Task 3 dedup and fix plan (fix-plan.md)
-- [ ] Task 4 fix waves
+- [ ] Task 4 fix waves (wave 1 merged at d92c407: F-settings, F-custom, F-data, F-fight; wave 2 F-runner and F-genes next, then wave 3 F-stats and F-tools)
 - [ ] Task 5 diff review
 - [ ] Task 6 verification and report

@@ -199,7 +199,7 @@
    },
    "unlock": 10,
    "threatMult": 1,
-   "tormentNote": "Torment: 5 s cooldown, 20 mana, taunt (allthings.how/?p=353577). The threat amount and the Torment mana use are NOT known (estimate).",
+   "tormentNote": "Torment: 5 s cooldown, 20 mana, taunt (allthings.how/?p=353577). The threat amount is NOT known (estimate); the 20 mana is charged by the simulator (audit A4-001).",
    "swingMs": 2000
   },
   "felhunter": {
