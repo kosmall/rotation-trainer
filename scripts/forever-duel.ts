@@ -1,5 +1,6 @@
 // `npm run forever:duel -- --a DEMO_PACT_R1 --b AFF_WRACK --levels 40-59 --profile average --mobs 1 --sessions 200 --seed 1
 //   [--param bane_per_rank=0.2 ...] [--a-file build.json] [--b-file build.json] [--detail 50] [--respec 40] [--perk 0]`
+// --respec N: no shipped build has a pre_respec_build (all are null), so for them the option does nothing; it matters only for a --a-file/--b-file build that sets pre_respec_build. The respec analysis in forever:report does not use it.
 import { readFileSync } from 'node:fs';
 import { variantFromJson } from '../src/forever/builds';
 import { duelBuilds, formatDetail, formatSummary, type BuildRef } from '../src/forever/duel';
