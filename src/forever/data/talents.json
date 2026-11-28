@@ -629,7 +629,7 @@
    "status": "modelled",
    "effect": {
     "destroDmgAtMax": 0.1,
-    "critDmgPctAtMax": 0.1
+    "searingPainCritPctAtMax": 0.1
    },
    "source": "Confirmed: Searing Pain crit +3.3% per rank and all Destruction spell damage +3.3% per rank, 10% at 3/3 (guildorder.com/games/wow_forever/tools/talents/warlock (rank 1 tooltip); timesaver.gg/tools/wow-forever/talent-calculator/warlock (full rank, checked 13 Nov 2026))"
   },

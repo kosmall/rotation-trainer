@@ -269,7 +269,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const critPct = (spellId: string): number => {
     let c = stats.critPct;
     if (getSpell(spellId).school === 'shadow') c += effectNum('malevolence', 'critPctPerRank') * rk(ranks, 'malevolence');
-    if (spellId === 'searing_pain') c += 100 * effectNum('agonizing_flames', 'critDmgPctAtMax') * (rk(ranks, 'agonizing_flames') / 3);
+    if (spellId === 'searing_pain') c += 100 * effectNum('agonizing_flames', 'searingPainCritPctAtMax') * (rk(ranks, 'agonizing_flames') / 3);
     return c;
   };
   const critMult = (spellId: string, periodic: boolean): number => {
@@ -347,7 +347,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
 
   // ---- spell numbers ------------------------------------------------------------------------
-  const aftermathMult = (spellId: string): number => {
+  const agonizingFlamesMult = (spellId: string): number => {
     let m = 1;
     if (DESTRO_SPELLS.has(spellId)) m *= 1 + effectNum('agonizing_flames', 'destroDmgAtMax') * (rk(ranks, 'agonizing_flames') / 3);
     return m;
@@ -357,7 +357,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const spell = getSpell(spellId);
     const coeff = (r.coeff ?? spell.coeffDirect ?? 0) * coeffMult(spellId, r);
     let base = averageDirect(r) + spEff(spellId) * coeff * downrankFactor(params.downrank_penalty_model, r.level);
-    base *= aftermathMult(spellId);
+    base *= agonizingFlamesMult(spellId);
     if (spellId === 'immolate') base *= 1 + effectNum('aftermath', 'immolateInitialDmgPerRank') * rk(ranks, 'aftermath');
     return base;
   };
@@ -379,7 +379,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (spellId === 'corruption') tick *= 1 + effectNum('improved_corruption', 'dmgMultPerRank') * rk(ranks, 'improved_corruption');
     if (spellId === 'bane_of_agony') tick *= (1 + effectNum('improved_bane_of_agony', 'dmgMultPerRank') * rk(ranks, 'improved_bane_of_agony'));
     if (spellId === 'drain_life' || spellId === 'drain_soul') tick *= (1 + effectNum('improved_drains', 'drainDmgMultAtMax') * (rk(ranks, 'improved_drains') / 3)) * params.drain_dmg_mult;
-    if (spellId === 'immolate') tick *= aftermathMult('immolate');
+    if (spellId === 'immolate') tick *= agonizingFlamesMult('immolate');
     return { tickDmg: tick, tickMs, ticks };
   };
 
