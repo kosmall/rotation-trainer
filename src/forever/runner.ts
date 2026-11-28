@@ -167,8 +167,10 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     if (petHp !== undefined) petHp = Math.min(petMax, petHp + petMax * params.pet_ooc_regen_pct_per_sec * sec);
     if (petMana !== undefined && petKindLast !== 'imp') petMana = Math.min(petMaxMana, petMana + params.pet_ooc_mana_per_sec * sec);
   };
-  for (let i = 0; i < params.session_pulls; i++) {
-    // Between mobs: Life Tap by the rules first (it spends HP), then food and water if HP is below the break threshold.
+  /** Life Tap time of the current walk to the next mob: the first `transition_sec` of it is free (the tap is instant, cast while walking). */
+  let walkTapSec = 0;
+  /** Between mobs: Life Tap by the rules (it spends HP). Returns the number of taps. */
+  const tapBetweenMobs = (): number => {
     let taps = 0;
     while (ltRank && taps < 40 && mana < stats.maxMana && hp - ltCost >= stats.maxHp * params.lt_safety_hp_pct && lifeTapWanted(mana, stats.maxMana, hp, stats.maxHp, params, true)) {
       const got = Math.min(ltGain, stats.maxMana - mana);
@@ -180,13 +182,20 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       taps++;
     }
     if (taps > 0) {
-      // Life Tap is instant: casting it on the way to the next mob costs no extra time while the walk lasts.
       const tapSec = (taps * gcd) / 1000;
-      const paid = Math.max(0, tapSec - params.transition_sec);
+      const paidBefore = Math.max(0, walkTapSec - params.transition_sec);
+      walkTapSec += tapSec;
+      const paid = Math.max(0, walkTapSec - params.transition_sec) - paidBefore;
       out.lifeTapSec += tapSec;
       out.restSec += paid;
       out.totalSec += paid;
     }
+    return taps;
+  };
+  for (let i = 0; i < params.session_pulls; i++) {
+    // Between mobs: Life Tap by the rules first (it spends HP), then food and water if HP is below the break threshold.
+    walkTapSec = 0;
+    tapBetweenMobs();
     // Health Funnel a hurt demon: one channel, standing still, paid with health (food restores it in the next break).
     if (funnel && petHp !== undefined && petHp < petMax * params.pet_funnel_below_pct) {
       const floor = stats.maxHp * params.lt_safety_hp_pct;
@@ -214,6 +223,8 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
         out.breaks++;
         out.totalSec += plan.restSec;
         petRegen(plan.restSec);
+        // The break leaves HP full and mana lower than the between-mobs rule wants: tap again on the way to the next mob.
+        tapBetweenMobs();
       } else out.pullsWithoutBreak++; // already at the targets: no break to take
     } else out.pullsWithoutBreak++;
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
