@@ -3,6 +3,7 @@
 // Used by build discovery and by builds that carry their own rotation. Framework-free.
 
 import { all, knows, lacksDot, not, T } from './conds';
+import { loadParams } from './data/load';
 import type { Cond, DataRotation, RotationEstimate, SpecStep } from './rotation-spec';
 import type { Params } from './types';
 
@@ -112,7 +113,31 @@ export function altCond(w: AltWhen): Cond {
   }
 }
 
+/** The default of `corruption_min_ttk_sec`: a value different from it is an override, which replaces the gene floor. */
+const DEFAULT_MIN_TTK_SEC = loadParams().corruption_min_ttk_sec;
+
+/**
+ * The rotation of the genes as steps the fight plays, with the parameters combined the way the template rotations
+ * combine them with their variant (`rotationSpec`, `stepsOf`), so a parameter override acts on a genes build as on a
+ * known build and the defaults change nothing:
+ * - a switch that the parameter can only turn off (`use_curse_of_elements`, `use_drain_soul_finisher`) is ANDed with the gene;
+ * - a switch that the parameter can only turn on (`aff_use_immolate`, `demo_use_agony`) is ORed with the gene;
+ * - `wrack_min_hp_pct` is the HP floor of the Wrack fillers whose name does not carry one (`wrack`, `wrack_single_then_drain_life`);
+ *   a floor in the filler gene (`wrack_hp50`, `wrack_hp70`) wins, like `variant.wrack_min_hp_pct` over the parameter;
+ * - `corruption_min_ttk_sec`, when changed from its default, replaces `minTtkSec`; a per-effect floor (`dotTtk`) stays.
+ * `fire_filler` has no gene (it belongs to the Fire rotation) and is not read.
+ */
 export function buildRotation(g: RotationGenes, p: Params): DataRotation {
+  const on = {
+    coe: g.coe && p.use_curse_of_elements,
+    agony: g.agony || p.demo_use_agony,
+    corruption: g.corruption,
+    siphon: g.siphon,
+    immolate: g.immolate || p.aff_use_immolate,
+    drainSoulFinisher: g.drainSoulFinisher && p.use_drain_soul_finisher,
+  };
+  const floorOf = (k: DotKey): number => (p.corruption_min_ttk_sec !== DEFAULT_MIN_TTK_SEC ? (g.dotTtk?.[k] ?? p.corruption_min_ttk_sec) : ttkOf(g, k));
+  const wrackFloorOf = (f: FillerGene): number => WRACK_FLOOR[f] || p.wrack_min_hp_pct;
   const steps: SpecStep[] = [];
   const step = (id: string, spell: string, rank: number | 'max', when: Cond, filler = false): void => {
     steps.push(filler ? { id, spell, rank, when, filler } : { id, spell, rank, when });
@@ -127,12 +152,12 @@ export function buildRotation(g: RotationGenes, p: Params): DataRotation {
     'max',
     all({ op: 'talent_rank_at_least', id: 'demonic_brand', rank: 1 }, { op: 'pet_alive' }, knows('searing_pain'), { op: 'brand_needs_refresh', marginSec: 1.5 }),
   );
-  if (g.coe) step('curse_of_elements', 'curse_of_elements', 'max', all(skip, not({ op: 'target_has_curse' }), knows('curse_of_elements'), ttkCond(ttkOf(g, 'coe'))));
-  if (g.agony) step('bane_of_agony', 'bane_of_agony', 'max', all(skip, lacksDot('bane_of_agony'), knows('bane_of_agony'), ttkCond(ttkOf(g, 'agony'))));
-  if (g.corruption) step('corruption', 'corruption', 'max', all(lacksDot('corruption'), knows('corruption'), ttkCond(ttkOf(g, 'corruption'))));
-  if (g.siphon) step('siphon_life', 'siphon_life', 'max', all(knows('siphon_life'), lacksDot('siphon_life'), ttkCond(ttkOf(g, 'siphon'))));
-  if (g.immolate) step('immolate', 'immolate', 'max', all(knows('immolate'), lacksDot('immolate'), ttkCond(ttkOf(g, 'immolate'))));
-  if (g.drainSoulFinisher)
+  if (on.coe) step('curse_of_elements', 'curse_of_elements', 'max', all(skip, not({ op: 'target_has_curse' }), knows('curse_of_elements'), ttkCond(floorOf('coe'))));
+  if (on.agony) step('bane_of_agony', 'bane_of_agony', 'max', all(skip, lacksDot('bane_of_agony'), knows('bane_of_agony'), ttkCond(floorOf('agony'))));
+  if (on.corruption) step('corruption', 'corruption', 'max', all(lacksDot('corruption'), knows('corruption'), ttkCond(floorOf('corruption'))));
+  if (on.siphon) step('siphon_life', 'siphon_life', 'max', all(knows('siphon_life'), lacksDot('siphon_life'), ttkCond(floorOf('siphon'))));
+  if (on.immolate) step('immolate', 'immolate', 'max', all(knows('immolate'), lacksDot('immolate'), ttkCond(floorOf('immolate'))));
+  if (on.drainSoulFinisher)
     step(
       'drain_soul_finisher',
       'drain_soul',
@@ -157,11 +182,12 @@ export function buildRotation(g: RotationGenes, p: Params): DataRotation {
       return { spell: 'drain_life', rank: 'max' };
     }
     if (f === 'wrack_single_then_drain_life') {
-      add('filler_wrack_single_mob', 'wrack', 'max', all(knows('wrack'), { op: 'mobs_in_pull_is', count: 1 }), true);
+      const single = wrackFloorOf(f);
+      add('filler_wrack_single_mob', 'wrack', 'max', all(knows('wrack'), single > 0 ? { op: 'hp_pct_above', pct: single * 100 } : null, { op: 'mobs_in_pull_is', count: 1 }), true);
       add('filler_drain_life', 'drain_life', 'max', knows('drain_life'), true);
       return { spell: 'drain_life', rank: 'max' };
     }
-    const floor = WRACK_FLOOR[f] ?? 0;
+    const floor = wrackFloorOf(f);
     add('filler_wrack', 'wrack', 'max', floor > 0 ? all(knows('wrack'), { op: 'hp_pct_above', pct: floor * 100 }) : knows('wrack'), true);
     add('filler_drain_life', 'drain_life', 'max', knows('drain_life'), false);
     return { spell: 'wrack', rank: 'max' };
@@ -175,7 +201,7 @@ export function buildRotation(g: RotationGenes, p: Params): DataRotation {
   step('shadow_bolt_r2', 'shadow_bolt', 2, T);
   step('shadow_bolt_r1', 'shadow_bolt', 1, T);
 
-  const dotSpells = (['corruption', 'agony', 'siphon', 'immolate'] as const).filter((k) => g[k]).map((k) => (k === 'agony' ? 'bane_of_agony' : k === 'siphon' ? 'siphon_life' : k));
+  const dotSpells = (['corruption', 'agony', 'siphon', 'immolate'] as const).filter((k) => on[k]).map((k) => (k === 'agony' ? 'bane_of_agony' : k === 'siphon' ? 'siphon_life' : k));
   const estimate: RotationEstimate = { filler, fillerRank, dotSpells };
   return { steps, estimate };
 }
