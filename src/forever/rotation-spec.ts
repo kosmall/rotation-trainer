@@ -349,7 +349,9 @@ export interface DataRotation {
 export function estimateOf(v: BuildVariant, p: Params): RotationEstimate {
   const fire = v.rotation === 'fire';
   const filler = fire ? (p.fire_filler === 'searing_pain' ? 'searing_pain' : 'shadow_bolt') : v.filler === 'wrack' ? 'wrack' : v.filler === 'drain_life' ? 'drain_life' : 'shadow_bolt';
-  const dotSpells = ['corruption', 'bane_of_agony', 'siphon_life', ...(v.rotation === 'affliction' && (p.aff_use_immolate || v.immolate) ? ['immolate'] : [])];
+  // only the periodic effects the rotation has a step for (a Demonology or Fire build never casts Siphon Life)
+  const cast = new Set(stepsOf(v, p).map((s) => s.spell));
+  const dotSpells = ['corruption', 'bane_of_agony', 'siphon_life', 'immolate'].filter((id) => cast.has(id));
   return { filler, fillerRank: fire ? 1 : v.rank, dotSpells };
 }
 

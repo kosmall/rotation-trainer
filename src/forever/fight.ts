@@ -530,12 +530,22 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
   // ---- estimates for rotation rules ---------------------------------------------------------
   const est = dataRotationCfg?.estimate ?? estimateOf(variant, params);
+  // The filler the rotation really plays: Wrack, else Drain Life, else Shadow Bolt (a spell not yet learned is skipped).
   const fillerRank = (): { id: string; r: SpellRank } => {
-    const id = est.filler === 'wrack' && !known('wrack') ? 'shadow_bolt' : est.filler;
+    const chain = est.filler === 'wrack' ? ['wrack', 'drain_life', 'shadow_bolt'] : est.filler === 'drain_life' ? ['drain_life', 'shadow_bolt'] : [est.filler, 'shadow_bolt'];
+    const id = chain.find((x) => known(x)) ?? 'shadow_bolt';
     const r = rankAt(id, id === 'shadow_bolt' ? est.fillerRank : 'max', level) ?? (rankAt('shadow_bolt', 'max', level) as SpellRank);
     return { id, r };
   };
-  const fillerCastMs = (id: string, r: SpellRank): number => Math.max(gcd, hastedCastMs(castMsOf(getSpell(id), r, rk(ranks, 'bane'), params), params.haste_pct));
+  // A channel is paid over its whole length (not per GCD), a cast over its cast time or the GCD.
+  const fillerCastMs = (id: string, r: SpellRank): number => {
+    const spell = getSpell(id);
+    if (spell.kind === 'channel') {
+      const b = dotTickBase(id, r);
+      return Math.max(gcd, b.ticks * b.tickMs);
+    }
+    return Math.max(gcd, hastedCastMs(castMsOf(spell, r, rk(ranks, 'bane'), params), params.haste_pct));
+  };
   const expectedDirect = (id: string, r: SpellRank): number => {
     const spell = getSpell(id);
     if (spell.kind === 'channel') {
@@ -545,13 +555,22 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const c = critPct(id) / 100;
     return directBase(id, r) * (spell.school === 'shadow' ? mults().shadow : mults().fire) * (1 + c * (critMult(id, false) - 1));
   };
+  // The demon's damage per second as the fight deals it (hit roll, Improved Imp / Improved Sayaad, the mob's armor, Lash of Pain).
+  // Left out: Curse of the Elements and Demonic Brand (they depend on the state of the target), and mana (a demon that runs dry).
   const estPetDps = (): number => {
     if (!pd || !petAlive) return 0;
+    const hit = params.pet_hit_chance;
+    const dk = demonicKnowledgeSp(level, ranks, true);
     if (petKind === 'imp') {
       const fr = petRank(pd.fireboltRanks);
-      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult * petMd('fire')) / ((pd.fireboltCastMs as number) / 1000) : 0;
+      return fr ? ((fr.dmg + dk * fr.coeff) * petDmgMult * petMd('fire') * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp')) * hit) / ((pd.fireboltCastMs as number) / 1000) : 0;
     }
-    return (petBase.meleeAvg / ((pd.swingMs as number) / 1000)) * petDmgMult * params.pet_hit_chance;
+    let dps = ((petBase.meleeAvg * (1 - armorReduction(mobBase.armor, level))) / ((pd.swingMs as number) / 1000)) * petDmgMult * hit;
+    if (petKind === 'succubus') {
+      const lr = petRank(pd.lashRanks);
+      if (lr) dps += (((lr.dmg + dk * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * hit) / ((pd.lashCdMs as number) / 1000));
+    }
+    return dps;
   };
   const estDps = (): number => {
     const f = fillerRank();
