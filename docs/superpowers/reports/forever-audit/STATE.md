@@ -8,7 +8,7 @@ Branch: claude/youthful-hopper-op9tox (merged origin/claude/peaceful-goldberg-kb
 - Snapshot config: seed 1, levels 40,50,59 (duels 40-59), profile average, mobs 1, sessions 100; discover level 40 quick.
 
 ## Progress
-- [ ] Task 1 snapshot determinism check + before-snapshot
+- [x] Task 1 baseline + determinism check (two runs identical except discover run-time line, now normalized) + before-snapshot
 - [ ] Task 2 audit wave
 - [ ] Task 3 dedup and fix plan
 - [ ] Task 4 fix waves
