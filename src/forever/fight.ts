@@ -7,7 +7,7 @@ import { ranksAt } from './builds';
 import { brandAttacks, brandDamage, brandSchool, demonicKnowledgeSp, effectNum, petSchoolMult, rank as rk, schoolMults, soulHarvest, summonDemon, sacrificeDemon, type DemonState } from './effects';
 import { lifeTapWanted } from './policy';
 import { rotationFor, type Candidate, type RotationCtx } from './rotations';
-import { estimateOf, evaluateSteps, type DataRotation } from './rotation-spec';
+import { estimateOf, evaluateSteps, type DataRotation, type SpecCtx } from './rotation-spec';
 import { buildRotation } from './rotation-genes';
 import { averageDirect, castMsOf, downrankFactor, getSpell, rankAt } from './spells';
 import { armorReduction, combatRegenPerSec, demonArmorOf, demonsAt, gcdMs, gcdWasteMs, hastedCastMs, lifeTapGain, lifeTapHealthCost, mobAt, petBaseAt, petData, playerStatsFor } from './stats';
@@ -123,6 +123,8 @@ interface Mob {
 interface CastState { spellId: string; rank: SpellRank; mob: Mob; endsAt: number; free: boolean }
 interface ChannelState { spellId: string; mob: Mob; nextTickAt: number; endsAt: number; tickMs: number; tickDmg: number; healFrac: number; isDrainSoul: boolean }
 
+/** Mana of one Voidwalker Torment (docs/forever-data-ledger.md section 1, "Pet unlock levels"). */
+const TORMENT_MANA = 20;
 const SOUL_SIPHON_EFFECTS = new Set(['corruption', 'siphon_life', 'bane_of_agony']);
 const DRAINS = new Set(['drain_life', 'drain_soul', 'wrack']);
 const NIGHTFALL_SPELLS = new Set(['corruption', 'drain_soul', 'drain_life', 'wrack']);
@@ -136,6 +138,21 @@ const pv = (pair: unknown, level: number): number => {
   const [slope, add] = pair as [number, number];
   return slope * level + add;
 };
+
+/**
+ * Demonic Energies: the share of the mana a Life Tap gives the warlock that the demon gets as well.
+ * Returns the demon's mana after the tap, at most `petMaxMana` (the same value when the talent is not taken).
+ * Call it only for a living demon. The fight and the runner (the Life Taps between pulls) share it.
+ * @param ranks talent ranks of the build
+ * @param lifeTapMana mana the warlock actually gained from the tap (after the cap at its own maximum)
+ * @param petMana the demon's mana before the tap
+ * @param petMaxMana the demon's maximum mana
+ */
+export function grantDemonicEnergiesMana(ranks: Ranks, lifeTapMana: number, petMana: number, petMaxMana: number): number {
+  const r = rk(ranks, 'demonic_energies');
+  if (r <= 0) return petMana;
+  return Math.min(petMaxMana, petMana + lifeTapMana * effectNum('demonic_energies', 'lifeTapManaToPetPerRank') * r);
+}
 
 export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const { variant, level, params } = cfg;
@@ -399,10 +416,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
 
   // ---- cast resolution ----------------------------------------------------------------------
-  const manaCost = (spellId: string, r: SpellRank): number => {
+  const manaCost = (spellId: string, r: SpellRank, eurekaStarts = false): number => {
     let c = r.mana;
     if (DESTRO_SPELLS.has(spellId)) c *= 1 - effectNum('cataclysm', 'destroManaCostReduceAtMax') * (rk(ranks, 'cataclysm') / 3);
-    if (EUREKA_COST.has(spellId) && eurekaOn()) c *= 1 - params.eureka_mod;
+    if (EUREKA_COST.has(spellId) && (eurekaOn() || eurekaStarts)) c *= 1 - params.eureka_mod;
     return Math.round(c);
   };
 
@@ -491,7 +508,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.manaFromLifeTap += got;
     res.lifeTapCount++;
     res.lifeTapHpSpent += cost;
-    if (rk(ranks, 'demonic_energies') > 0) pet.mana += got * effectNum('demonic_energies', 'lifeTapManaToPetPerRank') * rk(ranks, 'demonic_energies');
+    if (petAlive) pet.mana = grantDemonicEnergiesMana(ranks, got, pet.mana, petMaxMana);
     gcdUntil = t + gcd;
     res.gcdBusyMs += gcd;
     busyEnd = t + gcd;
@@ -513,12 +530,22 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
   // ---- estimates for rotation rules ---------------------------------------------------------
   const est = dataRotationCfg?.estimate ?? estimateOf(variant, params);
+  // The filler the rotation really plays: Wrack, else Drain Life, else Shadow Bolt (a spell not yet learned is skipped).
   const fillerRank = (): { id: string; r: SpellRank } => {
-    const id = est.filler === 'wrack' && !known('wrack') ? 'shadow_bolt' : est.filler;
+    const chain = est.filler === 'wrack' ? ['wrack', 'drain_life', 'shadow_bolt'] : est.filler === 'drain_life' ? ['drain_life', 'shadow_bolt'] : [est.filler, 'shadow_bolt'];
+    const id = chain.find((x) => known(x)) ?? 'shadow_bolt';
     const r = rankAt(id, id === 'shadow_bolt' ? est.fillerRank : 'max', level) ?? (rankAt('shadow_bolt', 'max', level) as SpellRank);
     return { id, r };
   };
-  const fillerCastMs = (id: string, r: SpellRank): number => Math.max(gcd, hastedCastMs(castMsOf(getSpell(id), r, rk(ranks, 'bane'), params), params.haste_pct));
+  // A channel is paid over its whole length (not per GCD), a cast over its cast time or the GCD.
+  const fillerCastMs = (id: string, r: SpellRank): number => {
+    const spell = getSpell(id);
+    if (spell.kind === 'channel') {
+      const b = dotTickBase(id, r);
+      return Math.max(gcd, b.ticks * b.tickMs);
+    }
+    return Math.max(gcd, hastedCastMs(castMsOf(spell, r, rk(ranks, 'bane'), params), params.haste_pct));
+  };
   const expectedDirect = (id: string, r: SpellRank): number => {
     const spell = getSpell(id);
     if (spell.kind === 'channel') {
@@ -528,13 +555,22 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const c = critPct(id) / 100;
     return directBase(id, r) * (spell.school === 'shadow' ? mults().shadow : mults().fire) * (1 + c * (critMult(id, false) - 1));
   };
+  // The demon's damage per second as the fight deals it (hit roll, Improved Imp / Improved Sayaad, the mob's armor, Lash of Pain).
+  // Left out: Curse of the Elements and Demonic Brand (they depend on the state of the target), and mana (a demon that runs dry).
   const estPetDps = (): number => {
     if (!pd || !petAlive) return 0;
+    const hit = params.pet_hit_chance;
+    const dk = demonicKnowledgeSp(level, ranks, true);
     if (petKind === 'imp') {
       const fr = petRank(pd.fireboltRanks);
-      return fr ? ((fr.dmg + demonicKnowledgeSp(level, ranks, true) * fr.coeff) * petDmgMult * petMd('fire')) / ((pd.fireboltCastMs as number) / 1000) : 0;
+      return fr ? ((fr.dmg + dk * fr.coeff) * petDmgMult * petMd('fire') * (1 + effectNum('improved_imp', 'fireboltDmgPerRank') * rk(ranks, 'improved_imp')) * hit) / ((pd.fireboltCastMs as number) / 1000) : 0;
     }
-    return (petBase.meleeAvg / ((pd.swingMs as number) / 1000)) * petDmgMult * params.pet_hit_chance;
+    let dps = ((petBase.meleeAvg * (1 - armorReduction(mobBase.armor, level))) / ((pd.swingMs as number) / 1000)) * petDmgMult * hit;
+    if (petKind === 'succubus') {
+      const lr = petRank(pd.lashRanks);
+      if (lr) dps += (((lr.dmg + dk * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * hit) / ((pd.lashCdMs as number) / 1000));
+    }
+    return dps;
   };
   const estDps = (): number => {
     const f = fillerRank();
@@ -566,8 +602,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   // ---- rotation context ---------------------------------------------------------------------
   const dataRotation = dataRotationCfg;
   const rotation: (ctx: RotationCtx) => Candidate[] = dataRotation ? (ctx) => evaluateSteps(dataRotation, ctx) : rotationFor(variant.rotation);
-  const makeCtx = (m: Mob): RotationCtx => ({
+  const makeCtx = (m: Mob): SpecCtx => ({
     params, variant, mobsInPull: nMobs, petAlive, hasShadowTrance: trance, hpPct: (hp / maxHp) * 100,
+    // the facts the second-filler conditions read ("mana below 30 / 50 %", "fight longer than 20 s"); without them they could never hold
+    manaPct: (mana / maxMana) * 100, combatSec: t / 1000,
     known, talentRank: (id) => rk(ranks, id),
     targetHasDot: (id) => m.dots.some((d) => d.id === id && dotActive(d)),
     targetDotRemainingMs: (id) => { const d = m.dots.find((x) => x.id === id && dotActive(x)); return d ? Math.max(0, d.expiresAt - t) : 0; },
@@ -600,8 +638,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const r = rankAt(c.spellId, c.rankWant, level);
     if (!r) return false;
     const free = trance && c.spellId === 'shadow_bolt';
-    const cost = manaCost(c.spellId, r);
+    // Eureka! is spent only on a cast that really starts; the cost is checked with the discount it would give.
+    const eureka = eurekaWanted(c, m);
+    const cost = manaCost(c.spellId, r, eureka);
     if (mana < cost) return false;
+    if (eureka) startEureka();
     if (free) trance = false;
     mana -= cost;
     res.manaSpent += cost;
@@ -621,18 +662,19 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return true;
   };
 
-  /** Gnome Eureka!: instant, off the GCD; used by the policy when the cast about to start suits it. */
-  const useEureka = (c: Candidate, m: Mob): void => {
+  /** Gnome Eureka!: instant, off the GCD; the policy decides whether the cast about to start suits it. */
+  const eurekaWanted = (c: Candidate, m: Mob): boolean => {
     const pol = params.eureka_policy;
-    if (pol === 'off' || t < eurekaReadyAt || eurekaOn()) return;
+    if (pol === 'off' || t < eurekaReadyAt || eurekaOn()) return false;
     const affected = EUREKA_COST.has(c.spellId);
-    let ok = false;
-    if (pol === 'pull_start') ok = true;
-    else if (pol === 'first_affected') ok = affected;
-    else if (pol === 'filler') ok = c.spellId === fillerRank().id;
-    else if (pol === 'delay') ok = affected && t >= params.eureka_delay_sec * 1000;
-    else if (pol === 'ttk') ok = affected && m.hp / Math.max(1, dpsEstimate) <= params.eureka_dur_sec;
-    if (!ok) return;
+    if (pol === 'pull_start') return true;
+    if (pol === 'first_affected') return affected;
+    if (pol === 'filler') return c.spellId === fillerRank().id;
+    if (pol === 'delay') return affected && t >= params.eureka_delay_sec * 1000;
+    if (pol === 'ttk') return affected && m.hp / Math.max(1, dpsEstimate) <= params.eureka_dur_sec;
+    return false;
+  };
+  const startEureka = (): void => {
     eurekaUntil = t + params.eureka_dur_sec * 1000;
     eurekaReadyAt = t + params.eureka_cd_sec * 1000;
     res.eurekaUses++;
@@ -644,7 +686,6 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (!m) return;
     if (known('life_tap') && lifeTapWanted(mana, maxMana, hp, maxHp, params, false) && lifeTap(params.lt_safety_hp_pct)) return;
     for (const c of rotation(makeCtx(m))) {
-      useEureka(c, m);
       if (startCast(c, m)) return;
     }
     // Emergency: nothing is affordable, so Life Tap down to the safety floor even below the usual HP rule (otherwise the warlock idles).
@@ -694,10 +735,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const lr = petRank(pd.lashRanks);
     if (lr && pet.mana >= lr.mana) {
       pet.mana -= lr.mana;
-      const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * curseMult(m);
-      log(t, `pet lash ${d.toFixed(3)}`);
-      dealToMob(m, d, false, 1);
-      if (m.alive) brandHit(m);
+      // the same hit roll as Firebolt and the melee swing (the mana is spent either way)
+      if (rng.next() < params.pet_hit_chance) {
+        const d = (lr.dmg + demonicKnowledgeSp(level, ranks, true) * lr.coeff) * petDmgMult * petMd('shadow') * (1 + effectNum('improved_sayaad', 'lashMultPerRank') * rk(ranks, 'improved_sayaad')) * curseMult(m);
+        log(t, `pet lash ${d.toFixed(3)}`);
+        dealToMob(m, d, false, 1);
+        if (m.alive) brandHit(m);
+      }
     }
     pet.nextLash = t + (pd.lashCdMs as number);
   };
@@ -739,7 +783,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       const newBusyEnd = Math.max(t, busyEnd - channel.tickMs);
       res.gcdBusyMs -= busyEnd - newBusyEnd;
       busyEnd = newBusyEnd;
-      if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
+      if (channel.endsAt <= t) {
+        // The pushback took the rest of the channel: it ends now, with the ticks it already delivered (no extra tick at the hit).
+        log(t, `${channel.spellId} channel cut`);
+        if (channel.spellId === 'wrack') setDotSpeed(channel.mob, 1);
+        channel = null;
+        cutBusy();
+      } else if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
     }
   };
 
@@ -836,8 +886,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       if (petAlive && petKind === 'voidwalker' && pd && t >= pet.nextTorment) {
         const m = firstAlive();
         const tor = pd.torment as { intervalMs: number; threatPerLevel: number };
-        if (m) {
+        // Torment costs 20 mana (ledger, allthings.how/?p=353577); a Voidwalker that cannot pay does not taunt.
+        if (m && pet.mana >= TORMENT_MANA) {
+          pet.mana -= TORMENT_MANA;
           m.threatPet += tor.threatPerLevel * level * (1 + effectNum('improved_voidwalker', 'tormentEffectPerRank') * rk(ranks, 'improved_voidwalker'));
+          log(t, 'pet torment');
           reevaluate(m);
         }
         pet.nextTorment = t + tor.intervalMs;

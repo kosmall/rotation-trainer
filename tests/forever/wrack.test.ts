@@ -37,12 +37,13 @@ function applications(evs: Ev[], spell: string): { at: number; rank: number; tic
   return out;
 }
 
-/** Wrack channel windows [start, end] from the trace (end = its last tick). */
+/** Wrack channel windows [start, end] from the trace (end = its last tick, or the moment a hit cut the channel short: audit A1-005). */
 function wrackWindows(evs: Ev[]): [number, number][] {
   const out: [number, number][] = [];
   for (const e of evs) {
     if (e.text.startsWith('wrack r') && e.text.endsWith(' lands')) out.push([e.t, e.t]);
     else if (e.text.startsWith('tick wrack ') && out.length) out[out.length - 1]![1] = e.t;
+    else if (e.text === 'wrack channel cut' && out.length) out[out.length - 1]![1] = e.t;
   }
   return out;
 }
