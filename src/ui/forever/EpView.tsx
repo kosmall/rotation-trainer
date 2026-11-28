@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { EP_STATS } from '../../forever/ep';
 import { epCell } from '../../forever/ep-report';
 import { POLICIES, type EpOutcome, type Settings } from '../../forever/web/api';
+import { EpChart } from './charts/EpChart';
 import type { ForeverRun } from './useForeverRun';
 
 const SHAPING: readonly (readonly [keyof Settings, string])[] = [
@@ -59,6 +60,7 @@ export function EpView({ settings, run, outcome, ids, initial, onRun }: { settin
               Dla {noSp.join(', ')} spell power nie zwiększa zabić/h, więc wagi względem SP są niedostępne (n/a).
             </p>
           )}
+          {results.some((r) => r.valid) && <EpChart results={results.filter((r) => r.valid)} />}
           <div className="fv-scroll">
             <table className="fv-table fv-eptable" aria-label="Wagi statów (EP)">
               <thead>

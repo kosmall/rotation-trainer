@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { VARIANT_IDS } from '../../forever/builds';
 import { MAX_LEVEL, MIN_LEVEL, type DuelOutcome, type Settings } from '../../forever/web/api';
+import { DUEL_METRICS, type DuelMetric } from './charts/chartModel';
+import { DiffChart } from './charts/DiffChart';
 import { SweepChart } from './SweepChart';
 import type { ForeverRun } from './useForeverRun';
 
@@ -11,6 +13,8 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
   const [a, setA] = useState(VARIANT_IDS[0] as string);
   const [b, setB] = useState(VARIANT_IDS[2] as string);
   const [sweep, setSweep] = useState(true);
+  const [metricId, setMetricId] = useState('kph');
+  const metric = DUEL_METRICS[metricId] as DuelMetric;
   const running = run.status === 'running';
   const at = duel?.at;
   const rows: { name: string; a: number; b: number; d: { mean: number; ci95: [number, number]; significant: boolean }; dec: number }[] = at
@@ -86,17 +90,32 @@ export function CompareView({ settings, run, duel, onRun, ids = VARIANT_IDS }: {
           {duel.sweep && (
             <>
               <h2>
-                Zabicia na godzinę, levele {MIN_LEVEL}–{MAX_LEVEL}
+                Levele {MIN_LEVEL}–{MAX_LEVEL} na wykresach
               </h2>
+              <div className="fv-row">
+                <label>
+                  Metryka na wykresach{' '}
+                  <select value={metricId} onChange={(e) => setMetricId(e.target.value)}>
+                    {Object.entries(DUEL_METRICS).map(([id, m]) => (
+                      <option key={id} value={id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <SweepChart
-                title={`${duel.a} vs ${duel.b}: zabicia na godzinę wg levelu`}
+                title={`${duel.a} vs ${duel.b}: ${metric.label} wg levelu`}
                 levels={duel.sweep.map((r) => r.level)}
                 series={[
-                  { id: 'a', label: duel.a, values: duel.sweep.map((r) => r.a.killsPerHour) },
-                  { id: 'b', label: duel.b, values: duel.sweep.map((r) => r.b.killsPerHour) },
+                  { id: 'a', label: duel.a, values: duel.sweep.map((r) => metric.of(r.a)) },
+                  { id: 'b', label: duel.b, values: duel.sweep.map((r) => metric.of(r.b)) },
                 ]}
-                valueName="zabić/h"
+                valueName={metric.label}
+                higherIsBetter={metric.higherIsBetter}
+                decimals={metric.decimals}
               />
+              <DiffChart sweep={duel.sweep} a={duel.a} b={duel.b} metric={metric} />
               <p className="fv-note">
                 Zwycięzca na levelu: {duel.sweep.map((r) => `${r.level}: ${r.verdict.moreKillsPerHour === 'a' ? 'A' : r.verdict.moreKillsPerHour === 'b' ? 'B' : '≈'}`).join(', ')}
               </p>

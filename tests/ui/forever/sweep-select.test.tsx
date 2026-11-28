@@ -56,17 +56,18 @@ describe('SweepChart', () => {
     render(<SweepChart title="T" levels={[10, 11, 12]} series={series({ A: [20, 10, 30], B: [10, 15, 25] })} valueName="zabić/h" />);
     const table = screen.getByRole('table', { name: 'Dane: T', hidden: true });
     const best = [...table.querySelectorAll('td.fv-top')].map((c) => c.textContent);
+    const rank = (name: string) => screen.getByRole('table', { name, hidden: true });
     expect(best).toEqual(['20.0', '15.0', '30.0']);
     const rows = (name: string) =>
-      [...screen.getByRole('table', { name }).querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent).join(' '));
+      [...rank(name).querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent).join(' '));
     expect(rows('Ile razy najlepszy')).toEqual(['1 A 2', '2 B 1']);
     expect(rows('Ile razy najgorszy')).toEqual(['1 B 2', '2 A 1']);
-    expect(screen.getByRole('table', { name: 'Ile razy najlepszy' }).querySelector('caption')?.textContent).toBe('Ile razy najlepszy (z 3 leveli)');
+    expect(rank('Ile razy najlepszy').querySelector('caption')?.textContent).toBe('Ile razy najlepszy (z 3 leveli)');
   });
 
   it('shows no ranking for a single build', () => {
     render(<SweepChart title="T" levels={[10]} series={series({ A: [1] })} valueName="zabić/h" />);
-    expect(screen.queryByRole('table', { name: 'Ile razy najlepszy' })).toBeNull();
+    expect(screen.queryByRole('table', { name: 'Ile razy najlepszy', hidden: true })).toBeNull();
   });
 });
 
@@ -74,23 +75,23 @@ describe('picking builds for the curve', () => {
   const start = async () => {
     const view = render(<ForeverApp view="sim" runner={runner} />);
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
-    await screen.findByRole('table', { name: 'Ranking buildów' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Tabela' }));
     return view;
   };
 
   it('computes nothing until builds are ticked, then only those', async () => {
     await start();
-    const button = () => screen.getByRole('button', { name: /^Policz zaznaczone/ }) as HTMLButtonElement;
+    const button = () => screen.getByRole('button', { name: /^Krzywa 10–59 dla zaznaczonych/ }) as HTMLButtonElement;
     expect(button().disabled).toBe(true);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Na krzywej: DT_SS' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Na krzywej: DEMO_FIRE' }));
-    expect(button().textContent).toBe('Policz zaznaczone (2, 100 komórek)');
+    expect(button().textContent).toBe('Krzywa 10–59 dla zaznaczonych (2)');
     fireEvent.click(button());
     const table = await screen.findByRole('table', { name: /^Dane: Zabicia/, hidden: true }, { timeout: 20000 });
     const sweep = requests.find((r) => r.kind === 'sweep');
     expect([...(sweep?.builds ?? [])].sort()).toEqual(['DEMO_FIRE', 'DT_SS']);
     expect(within(table).getAllByRole('columnheader', { hidden: true })).toHaveLength(3);
-    for (const name of ['Ile razy najlepszy', 'Ile razy najgorszy']) expect(screen.getByRole('table', { name }).querySelectorAll('tbody tr')).toHaveLength(2);
+    for (const name of ['Ile razy najlepszy', 'Ile razy najgorszy']) expect(screen.getByRole('table', { name, hidden: true }).querySelectorAll('tbody tr')).toHaveLength(2);
   }, 30000);
 
   it('ticks the best five or all, and clears', async () => {
@@ -109,6 +110,7 @@ describe('picking builds for the curve', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Na krzywej: AFF_WRACK' }));
     rerender(<ForeverApp view="builds" runner={runner} />);
     rerender(<ForeverApp view="sim" runner={runner} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tabela' }));
     expect((screen.getByRole('checkbox', { name: 'Na krzywej: AFF_WRACK' }) as HTMLInputElement).checked).toBe(true);
   });
 });
