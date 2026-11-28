@@ -2,11 +2,11 @@
 // aggregated per-cell metrics (build x level x gear profile) including kills per hour.
 
 import { ranksAt, type BuildVariant, type PicksOptions } from './builds';
-import { simulatePull, type PullConfig } from './fight';
+import { grantDemonicEnergiesMana, simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
-import { soulHarvest } from './effects';
+import { effectNum, rank as rk, soulHarvest, sacrificeDemon, summonDemon, type DemonState } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
-import { gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec, walkManaRegen } from './stats';
+import { demonsAt, gcdMs, healthFunnelAt, healthRegenPerSec, lifeTapGain, lifeTapHealthCost, playerStatsFor, spiritManaRegenPerSec, walkManaRegen } from './stats';
 import type { DataRotation } from './rotation-spec';
 import type { Ranks } from './talents';
 import type { Params, StatDelta } from './types';
@@ -49,7 +49,8 @@ const REST_CAP_SEC = 600;
 /**
  * A food and water break (only taken when HP is below `break_hp_pct`): eat until HP is full. With
  * `eat_and_drink_together` the warlock drinks only while eating (as little as possible; Life Tap
- * fills the rest of the mana afterwards); otherwise he also drinks to `rest_to_mana_pct`.
+ * fills the rest of the mana afterwards); otherwise he also drinks to `rest_to_mana_pct`. A break for
+ * mana alone (HP already full, `break_mana_pct`) always drinks to the target.
  */
 export function planRest(i: RestInput): RestPlan {
   const p = i.params;
@@ -65,9 +66,13 @@ export function planRest(i: RestInput): RestPlan {
   } else if (p.drink_to_mana_pct > 0) {
     drinkSec = needDrink;
     restSec = Math.max(eatSec, drinkSec);
-  } else {
+  } else if (eatSec > 0) {
     drinkSec = Math.min(needDrink, eatSec);
     restSec = eatSec;
+  } else {
+    // Nothing to eat (a break for mana alone): drinking is the whole break, otherwise it would last 0 s and restore nothing.
+    drinkSec = needDrink;
+    restSec = needDrink;
   }
   return { eatSec, drinkSec, restSec, mana: Math.min(i.maxMana, i.mana + i.drinkPerSec * drinkSec), hp: Math.max(i.hp, targetHp) };
 }
@@ -107,6 +112,23 @@ export interface SessionResult {
   eurekaUses: number;
 }
 
+/**
+ * The seed of pull `i` of a session. Up to the largest integer a double holds exactly it is the original
+ * `sessionSeed * 100003 + i` (so every result for the usual seeds stays as it was). Above that the product
+ * is rounded and neighbouring pulls collapse onto one value, so a 32-bit hash of the pair is used instead.
+ */
+export function pullSeed(sessionSeed: number, i: number): number {
+  const plain = sessionSeed * 100003 + i;
+  if (Math.abs(plain) <= Number.MAX_SAFE_INTEGER) return plain;
+  const text = `${sessionSeed}:${i}`;
+  let h = 0x811c9dc5;
+  for (let k = 0; k < text.length; k++) {
+    h ^= text.charCodeAt(k);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 export function killsPerHour(kills: number, totalSec: number): number {
   return totalSec > 0 ? (3600 * kills) / totalSec : 0;
 }
@@ -126,7 +148,8 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   let hp = stats.maxHp * params.rest_to_hp_pct;
   const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks, statDelta: cfg.statDelta, ...(cfg.rotation ? { rotation: cfg.rotation } : {}) };
   const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
-  let shCarryMs = 0;
+  // Soul Harvest left when the last pull ended; whatever time passes before the next pull (death, resummon, walk, taps, funnel, break) is taken off it.
+  let shLeftMs = 0;
   // Gnome Eureka!: cooldown and buff left, as they were when the last pull ended; the time since then is taken off at the next pull.
   let eurekaCdMs = 0;
   let eurekaBuffMs = 0;
@@ -145,24 +168,50 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     if (petHp !== undefined) petHp = Math.min(petMax, petHp + petMax * params.pet_ooc_regen_pct_per_sec * sec);
     if (petMana !== undefined && petKindLast !== 'imp') petMana = Math.min(petMaxMana, petMana + params.pet_ooc_mana_per_sec * sec);
   };
-  for (let i = 0; i < params.session_pulls; i++) {
-    // Between mobs: Life Tap by the rules first (it spends HP), then food and water if HP is below the break threshold.
+  // Demonic Sacrifice: the buff of a sacrificed Voidwalker (mana) or Felhunter (health) ticks all the time, as in the fight.
+  const own = demonsAt(variant, level, cfg.mobs ?? params.mobs_per_pull);
+  let demons: DemonState = { out: null, sacrificed: null };
+  if (own.sacrificed && rk(ranks, 'demonic_sacrifice') > 0) demons = sacrificeDemon({ out: own.sacrificed, sacrificed: null });
+  if (own.pet) demons = summonDemon(demons, own.pet, rk(ranks, 'demonic_pact') > 0);
+  const sacOn = rk(ranks, 'demonic_sacrifice') > 0;
+  const sacManaPerSec = sacOn && demons.sacrificed === 'voidwalker' ? (effectNum('demonic_sacrifice', 'voidwalkerManaPctPer4s') * stats.maxMana) / 4 : 0;
+  const sacHpPerSec = sacOn && demons.sacrificed === 'felhunter' ? (effectNum('demonic_sacrifice', 'felhunterHealPctPer4s') * stats.maxHp) / 4 : 0;
+  /** Out-of-combat time during which only the sacrifice regenerates (the walk, drinking and eating have their own rates). */
+  const sacRegen = (sec: number): void => {
+    if (sec <= 0) return;
+    mana = Math.min(stats.maxMana, mana + sacManaPerSec * sec);
+    hp = Math.min(stats.maxHp, hp + sacHpPerSec * sec);
+  };
+  /** Life Tap time of the current walk to the next mob: the first `transition_sec` of it is free (the tap is instant, cast while walking). */
+  let walkTapSec = 0;
+  /** Between mobs: Life Tap by the rules (it spends HP). Returns the number of taps. */
+  const tapBetweenMobs = (): number => {
     let taps = 0;
     while (ltRank && taps < 40 && mana < stats.maxMana && hp - ltCost >= stats.maxHp * params.lt_safety_hp_pct && lifeTapWanted(mana, stats.maxMana, hp, stats.maxHp, params, true)) {
       const got = Math.min(ltGain, stats.maxMana - mana);
       mana += got;
       hp -= ltCost;
       out.manaFromLifeTap += got;
+      // Demonic Energies: the living demon gets its share of the mana as in the fight (undefined = full, nothing to add).
+      if (petMana !== undefined) petMana = grantDemonicEnergiesMana(ranks, got, petMana, petMaxMana);
       taps++;
     }
     if (taps > 0) {
-      // Life Tap is instant: casting it on the way to the next mob costs no extra time while the walk lasts.
       const tapSec = (taps * gcd) / 1000;
-      const paid = Math.max(0, tapSec - params.transition_sec);
+      const paidBefore = Math.max(0, walkTapSec - params.transition_sec);
+      walkTapSec += tapSec;
+      const paid = Math.max(0, walkTapSec - params.transition_sec) - paidBefore;
       out.lifeTapSec += tapSec;
       out.restSec += paid;
       out.totalSec += paid;
+      sacRegen(paid);
     }
+    return taps;
+  };
+  for (let i = 0; i < params.session_pulls; i++) {
+    // Between mobs: Life Tap by the rules first (it spends HP), then food and water if HP is below the break threshold.
+    walkTapSec = 0;
+    tapBetweenMobs();
     // Health Funnel a hurt demon: one channel, standing still, paid with health (food restores it in the next break).
     if (funnel && petHp !== undefined && petHp < petMax * params.pet_funnel_below_pct) {
       const floor = stats.maxHp * params.lt_safety_hp_pct;
@@ -173,6 +222,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
         hp -= cost;
         petHp = Math.min(petMax, petHp + funnel.healPerSec);
         petRegen(1);
+        sacRegen(1);
         sec++;
       }
       out.funnelSec += sec;
@@ -181,19 +231,24 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     }
     if (needsBreak(hp, stats.maxHp, params, mana, stats.maxMana)) {
       const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + (params.drink_adds_spirit_regen ? spiritManaRegenPerSec(stats.spirit) : 0), foodPerSec: stats.foodHpPerSec, params });
-      mana = plan.mana;
-      hp = plan.hp;
-      out.restSec += plan.restSec;
-      out.drinkSec += plan.drinkSec;
-      out.eatSec += plan.eatSec;
-      out.breaks++;
-      out.totalSec += plan.restSec;
-      petRegen(plan.restSec);
+      if (plan.restSec > 0) {
+        mana = plan.mana;
+        hp = plan.hp;
+        out.restSec += plan.restSec;
+        out.drinkSec += plan.drinkSec;
+        out.eatSec += plan.eatSec;
+        out.breaks++;
+        out.totalSec += plan.restSec;
+        petRegen(plan.restSec);
+        sacRegen(plan.restSec);
+        // The break leaves HP full and mana lower than the between-mobs rule wants: tap again on the way to the next mob.
+        tapBetweenMobs();
+      } else out.pullsWithoutBreak++; // already at the targets: no break to take
     } else out.pullsWithoutBreak++;
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
     const r = simulatePull(
-      { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
-      seed * 100003 + i,
+      { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: Math.max(0, shLeftMs - gapMs), startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
+      pullSeed(seed, i),
     );
     out.eurekaUses += r.eurekaUses;
     eurekaCdMs = r.eurekaCdLeftMs;
@@ -244,9 +299,12 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     out.totalSec += params.transition_sec;
     // Spirit mana regeneration resumes `fsr_sec` after the last cast (Classic five-second rule); Soul Harvest
     // keeps running after the kill and regenerates inside that rule too. Health regenerates out of combat.
-    shCarryMs = Math.max(0, r.soulHarvestLeftMs - params.transition_sec * 1000);
-    mana = Math.min(stats.maxMana, mana + walkManaRegen(stats.spirit, params, sh, r.soulHarvestLeftMs / 1000));
+    shLeftMs = r.soulHarvestLeftMs;
+    // The buff runs down during the death penalty and the resummon, which come before the walk.
+    const shAtWalkSec = Math.max(0, r.soulHarvestLeftMs / 1000 - (r.playerDied ? params.death_penalty_sec : 0) - (r.petDied ? params.pet_resummon_sec : 0));
+    mana = Math.min(stats.maxMana, mana + walkManaRegen(stats.spirit, params, sh, shAtWalkSec));
     hp = Math.min(stats.maxHp, hp + healthRegenPerSec(stats.spirit) * params.transition_sec);
+    sacRegen(params.transition_sec);
     petRegen(params.transition_sec);
   }
   return out;

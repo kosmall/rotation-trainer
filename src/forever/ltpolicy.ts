@@ -14,11 +14,11 @@ export const LT_PRESETS: Record<string, { description: string; params: PolicyOve
   USER: { description: "The user's rule: in combat mana<60% & HP>80%, or mana<20% & HP>30%; between mobs also HP=100% & mana<90%; break only below 30% HP, drinking only while eating.", params: {} },
   OLD_THRESHOLD: {
     description: 'First version of this simulator: Life Tap in combat only at mana<35% & HP>60%, no Life Tap between mobs; stop and drink whenever mana<40% or HP<50%, then drink and eat up to 90%.',
-    params: { lt_combat_mana_pct: 0.35, lt_combat_hp_pct: 0.6, lt_low_mana_pct: 0, lt_between_mana_pct: 0, break_hp_pct: 0.5, break_mana_pct: 0.4, drink_to_mana_pct: 0.9, rest_to_mana_pct: 0.9, rest_to_hp_pct: 0.9 },
+    params: { sb_filler_lifetap_when_oom: false, lt_combat_mana_pct: 0.35, lt_combat_hp_pct: 0.6, lt_low_mana_pct: 0, lt_between_mana_pct: 0, break_hp_pct: 0.5, break_mana_pct: 0.4, drink_to_mana_pct: 0.9, rest_to_mana_pct: 0.9, rest_to_hp_pct: 0.9 },
   },
   NO_LIFE_TAP: { description: 'Never Life Tap; stop and drink at mana<25% or HP<30%, drink to full.', params: { sb_filler_lifetap_when_oom: false, lt_combat_mana_pct: 0, lt_low_mana_pct: 0, lt_between_mana_pct: 0, break_hp_pct: 0.3, break_mana_pct: 0.25, drink_to_mana_pct: 1 } },
-  COMBAT_ONLY: { description: "User's rule without the between-mobs Life Tap.", params: { lt_between_mana_pct: 0 } },
-  BETWEEN_ONLY: { description: 'No Life Tap in combat; between mobs tap whenever HP>=60% and mana<100%; break below 30% HP.', params: { lt_combat_mana_pct: 0, lt_low_mana_pct: 0, lt_between_hp_pct: 0.6, lt_between_mana_pct: 1 } },
+  COMBAT_ONLY: { description: "User's rule without the between-mobs Life Tap (the emergency tap when nothing is affordable stays: it is a combat tap).", params: { lt_between_mana_pct: 0 } },
+  BETWEEN_ONLY: { description: 'No Life Tap in combat; between mobs tap whenever HP>=60% and mana<100%; break below 30% HP.', params: { sb_filler_lifetap_when_oom: false, lt_combat_mana_pct: 0, lt_low_mana_pct: 0, lt_between_hp_pct: 0.6, lt_between_mana_pct: 1 } },
   AGGRESSIVE_BETWEEN: { description: "User's rule, but between mobs tap down to 60% HP whenever mana<100%.", params: { lt_between_hp_pct: 0.6, lt_between_mana_pct: 1 } },
   CAUTIOUS: { description: "User's rule with stricter HP (combat tap needs HP>90%, break below 40% HP).", params: { lt_combat_hp_pct: 0.9, lt_low_hp_pct: 0.4, break_hp_pct: 0.4 } },
 };

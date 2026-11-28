@@ -1,12 +1,26 @@
 // The demon keeps its health between pulls: it regenerates out of combat, the warlock may channel Health Funnel,
 // and a demon that died comes back at full health.
-import { describe, expect, it } from 'vitest';
-import { loadVariant, type BuildVariant } from '../../src/forever/builds';
+import { describe, expect, it, vi } from 'vitest';
+import { loadVariant, ranksAt, type BuildVariant } from '../../src/forever/builds';
 import { loadParams } from '../../src/forever/data/load';
-import { simulatePull } from '../../src/forever/fight';
+import { simulatePull, type PullResult } from '../../src/forever/fight';
 import { runCell, runSession } from '../../src/forever/runner';
 import { healthFunnelAt } from '../../src/forever/stats';
 import type { Params } from '../../src/forever/types';
+
+// Every pull a session plays: the demon mana it was given and what the pull left (runSession does not report them).
+const pulls: { startPetMana: number | undefined; result: PullResult }[] = [];
+vi.mock('../../src/forever/fight', async (orig) => {
+  const m = await orig<typeof import('../../src/forever/fight')>();
+  return {
+    ...m,
+    simulatePull: (cfg: Parameters<typeof m.simulatePull>[0], seed: number) => {
+      const result = m.simulatePull(cfg, seed);
+      pulls.push({ startPetMana: cfg.startPetMana, result });
+      return result;
+    },
+  };
+});
 
 const imp: BuildVariant = { ...loadVariant('DEMO_PACT_R1_NOCOE'), pet: 'imp', sacrificed: 'voidwalker', pet_rules: undefined };
 /** No regeneration and no Health Funnel: every wound stays. */
@@ -99,14 +113,36 @@ describe('a pull starts with the mana the demon has', () => {
     expect(pull(1e9).endPetMana).toBe(r.endPetMana);
   });
   it('an empty demon ends its pull with less mana than the first one did', () => {
-    const r = pull();
-    expect(pull(0).endPetMana).toBeLessThan(r.petMaxMana);
-    expect(r.endPetMana).toBeLessThanOrEqual(r.petMaxMana);
+    const full = pull();
+    const empty = pull(0);
+    expect(full.endPetMana).toBeLessThanOrEqual(full.petMaxMana);
+    expect(empty.endPetMana).toBeLessThan(full.endPetMana);
+    // it only got what the fight regenerates, so it is still far from full
+    expect(empty.endPetMana).toBeLessThan(full.petMaxMana / 2);
   });
+  /** What a session left the demon with after each pull, and what the next pull started with (demon alive, player alive). */
+  const transitions = (petOocManaPerSec: number): { end: number; next: number; max: number }[] => {
+    pulls.length = 0;
+    const ranks = { ...ranksAt(vw, 30), demonic_energies: 0 }; // so Life Tap does not feed the demon either
+    runSession({ variant: vw, level: 30, profile: 'average', params: loadParams({ pet_ooc_mana_per_sec: petOocManaPerSec, session_pulls: 30 }), mobs: 1, ranks }, 1);
+    const out: { end: number; next: number; max: number }[] = [];
+    for (let k = 1; k < pulls.length; k++) {
+      const prev = pulls[k - 1]!.result;
+      if (prev.petDied || prev.playerDied) continue;
+      out.push({ end: prev.endPetMana, next: pulls[k]!.startPetMana ?? prev.petMaxMana, max: prev.petMaxMana });
+    }
+    return out;
+  };
   it('a demon without mana regeneration out of combat keeps the mana it ended with', () => {
-    const noRegen = runCell({ variant: vw, level: 30, profile: 'average', params: loadParams({ pet_ooc_mana_per_sec: 0 }), mobs: 1 }, 20, 1);
-    const regen = runCell({ variant: vw, level: 30, profile: 'average', params: loadParams({ pet_ooc_mana_per_sec: 5 }), mobs: 1 }, 20, 1);
-    expect(noRegen.metrics.killsPerHour).toBeGreaterThan(0);
-    expect(regen.metrics.killsPerHour).toBeGreaterThan(0);
+    const t = transitions(0);
+    expect(t.filter((x) => x.end < x.max - 1).length).toBeGreaterThan(3);
+    for (const x of t) expect(x.next).toBe(x.end);
+  });
+  it('a demon with mana regeneration out of combat starts the next pull with more than it ended with', () => {
+    const t = transitions(5);
+    const hurt = t.filter((x) => x.end < x.max - 100);
+    expect(hurt.length).toBeGreaterThan(3);
+    for (const x of hurt) expect(x.next).toBeGreaterThan(x.end);
+    for (const x of t) expect(x.next).toBeLessThanOrEqual(x.max);
   });
 });
