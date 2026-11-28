@@ -49,7 +49,8 @@ const REST_CAP_SEC = 600;
 /**
  * A food and water break (only taken when HP is below `break_hp_pct`): eat until HP is full. With
  * `eat_and_drink_together` the warlock drinks only while eating (as little as possible; Life Tap
- * fills the rest of the mana afterwards); otherwise he also drinks to `rest_to_mana_pct`.
+ * fills the rest of the mana afterwards); otherwise he also drinks to `rest_to_mana_pct`. A break for
+ * mana alone (HP already full, `break_mana_pct`) always drinks to the target.
  */
 export function planRest(i: RestInput): RestPlan {
   const p = i.params;
@@ -65,9 +66,13 @@ export function planRest(i: RestInput): RestPlan {
   } else if (p.drink_to_mana_pct > 0) {
     drinkSec = needDrink;
     restSec = Math.max(eatSec, drinkSec);
-  } else {
+  } else if (eatSec > 0) {
     drinkSec = Math.min(needDrink, eatSec);
     restSec = eatSec;
+  } else {
+    // Nothing to eat (a break for mana alone): drinking is the whole break, otherwise it would last 0 s and restore nothing.
+    drinkSec = needDrink;
+    restSec = needDrink;
   }
   return { eatSec, drinkSec, restSec, mana: Math.min(i.maxMana, i.mana + i.drinkPerSec * drinkSec), hp: Math.max(i.hp, targetHp) };
 }
@@ -198,14 +203,16 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     }
     if (needsBreak(hp, stats.maxHp, params, mana, stats.maxMana)) {
       const plan = planRest({ mana, hp, maxMana: stats.maxMana, maxHp: stats.maxHp, drinkPerSec: stats.drinkManaPerSec + (params.drink_adds_spirit_regen ? spiritManaRegenPerSec(stats.spirit) : 0), foodPerSec: stats.foodHpPerSec, params });
-      mana = plan.mana;
-      hp = plan.hp;
-      out.restSec += plan.restSec;
-      out.drinkSec += plan.drinkSec;
-      out.eatSec += plan.eatSec;
-      out.breaks++;
-      out.totalSec += plan.restSec;
-      petRegen(plan.restSec);
+      if (plan.restSec > 0) {
+        mana = plan.mana;
+        hp = plan.hp;
+        out.restSec += plan.restSec;
+        out.drinkSec += plan.drinkSec;
+        out.eatSec += plan.eatSec;
+        out.breaks++;
+        out.totalSec += plan.restSec;
+        petRegen(plan.restSec);
+      } else out.pullsWithoutBreak++; // already at the targets: no break to take
     } else out.pullsWithoutBreak++;
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
     const r = simulatePull(
