@@ -4,8 +4,8 @@ Talents × rotations composed from the simulator's spells × pet setups, ranked 
 
 - Gear profile: average; mobs per pull: 1; seed: 1; Talented perk: 0
 - Changed parameters: none (params.json defaults)
-- Searched: 36288 rotation × pet combinations screened, 204 searched in depth, 472930 simulations; run time 31 min
-- Data and settings hash: `dd567291-f7e1de59`
+- Searched: 36288 rotation × pet combinations screened, 204 searched in depth, 472930 simulations; run time 30 min
+- Data and settings hash: `fcd5bcc5-f7e1de59`
 
 How to read: **✓** the difference to the best known build is significant (95% CI on paired sessions), **~** it is within the noise; **≈#1** the row is not significantly worse than row 1. "Nearest known" is the known build with the fewest talent points moved (in brackets).
 
@@ -32,9 +32,9 @@ How to read: **✓** the difference to the best known build is significant (95% 
 | DEMO_PACT_MAXRANK | 105.7 | 105.2–106.3 |
 | AFF_DRAINTANK_IMMO | 104.9 | 104.1–105.7 |
 | DEMO_FIRE | 90.5 | 89.6–91.3 |
-| AFF_WRACK_IMMO | 80.1 | 78.8–81.3 |
-| AFF_WRACK | 78.1 | 76.8–79.4 |
-| AFF_WRACK_SH_PET | 78.1 | 76.8–79.4 |
+| AFF_WRACK_IMMO | 84.1 | 82.7–85.6 |
+| AFF_WRACK | 81.8 | 80.4–83.2 |
+| AFF_WRACK_SH_PET | 81.8 | 80.4–83.2 |
 
 ## Top 20
 

@@ -1,4 +1,4 @@
-> **Uwaga (27 XI 2026): ten raport jest nieaktualny.** Liczby i wnioski poniżej pochodzą z 26 XI, z modelu, w którym demon zaczynał każdy pull z pełnym HP i maną. Od 27 XI HP i mana peta są przenoszone między pullami, reguła Succubusa na 20-29 została usunięta (patrz `builds.json`). Aktualne tabele są w sekcji na końcu. Wnioski z 26 XI o Succubusie nie obowiązują. Wnioski o AFF_WRACK zmieniły się wyraźnie (poziom 40: 91 → 77 kph w nowych tabelach); DT_SS prawie bez zmian.
+> **Uwaga (27 XI 2026): ten raport jest nieaktualny.** Liczby i wnioski poniżej pochodzą z 26 XI, z modelu, w którym demon zaczynał każdy pull z pełnym HP i maną. Od 27 XI HP i mana peta są przenoszone między pullami, Soul Harvest 1/2 zachowuje tylko połowę regeneracji podczas rzucania, reguła Succubusa na 20-29 została usunięta (patrz `builds.json`). Aktualne tabele są w sekcji na końcu. Wnioski z 26 XI o Succubusie nie obowiązują. Wnioski o AFF_WRACK zmieniły się wyraźnie (poziom 40: 91 → 82 kph w nowych tabelach); DT_SS prawie bez zmian.
 
 # Wrack: weryfikacja implementacji i porównanie AFF_WRACK z DT_SS
 
@@ -273,7 +273,7 @@ Gear good, 1 mob: +1.1 / -0.2 / -0.4 / +0.2 / +1.1.
 - **Rekomendacja:** DT_SS_WRACK_70 jako domyślny. DT_SS_WRACK_50 daje mały zysk tylko w środku zakresu poziomów.
 
 
-## Aktualizacja 27 XI 2026: tabele po przeniesieniu HP i many peta
+## Aktualizacja 27 XI 2026: tabele po przeniesieniu HP i many peta i poprawce Soul Harvest
 
 Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
@@ -281,8 +281,8 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 76.5 (30.7, 18) | 110.0 (19.2, 32) | 105.5 (19.0, 30) | 111.0 (17.6, 29) | 108.2 (17.9, 24) |
-| W_DL | 103.3 (23.3, 15) | 111.3 (22.4, 12) | 113.5 (21.3, 12) | 120.4 (20.7, 6) | 119.6 (21.0, 4) |
+| AFF_WRACK | 82.2 (28.3, 19) | 111.8 (19.1, 30) | 107.4 (19.0, 27) | 113.3 (17.5, 27) | 112.3 (17.4, 23) |
+| W_DL | 105.7 (23.4, 10) | 114.9 (22.1, 8) | 116.1 (21.1, 9) | 123.4 (20.7, 3) | 122.9 (20.9, 1) |
 | DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 108.2 (18.1, 24) |
 | DW_WRACK | 95.5 (23.6, 21) | 117.4 (18.4, 27) | 109.8 (19.2, 25) | 114.8 (17.3, 26) | 108.2 (18.1, 24) |
 
@@ -290,8 +290,8 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 62.1 (38.9, 17) | 93.0 (24.2, 29) | 85.6 (24.8, 25) | 97.0 (20.8, 28) | 96.5 (20.6, 25) |
-| W_DL | 85.4 (28.8, 16) | 96.8 (26.3, 15) | 99.2 (25.3, 12) | 106.1 (23.9, 9) | 106.6 (23.9, 7) |
+| AFF_WRACK | 63.9 (37.6, 17) | 94.1 (24.0, 28) | 88.5 (24.1, 26) | 97.1 (20.9, 27) | 99.3 (20.0, 25) |
+| W_DL | 89.7 (27.9, 13) | 97.3 (26.5, 12) | 103.7 (24.5, 9) | 110.5 (23.5, 5) | 110.3 (23.7, 4) |
 | DT_SS | 109.7 (24.3, 2) | 108.3 (25.3, 0) | 119.2 (22.2, 0) | 117.1 (22.5, 1) | 92.0 (22.1, 23) |
 | DW_WRACK | 89.7 (25.3, 25) | 98.2 (24.4, 24) | 92.4 (23.4, 23) | 98.0 (21.4, 24) | 92.0 (22.1, 23) |
 
@@ -299,8 +299,8 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 106.9 (19.1, 26) | 121.8 (16.5, 29) | 121.7 (15.9, 27) | 123.4 (15.4, 25) | 122.3 (15.3, 22) |
-| W_DL | 114.7 (20.7, 11) | 123.0 (19.9, 8) | 126.4 (18.8, 9) | 133.8 (18.5, 2) | 132.4 (18.8, 2) |
+| AFF_WRACK | 111.3 (18.8, 23) | 125.2 (16.4, 26) | 125.6 (15.6, 24) | 127.1 (15.4, 22) | 124.9 (15.3, 20) |
+| W_DL | 118.4 (20.5, 8) | 125.4 (19.9, 5) | 129.2 (18.7, 6) | 135.7 (18.5, 0) | 134.5 (18.7, 0) |
 | DT_SS | 124.7 (20.9, 0) | 124.4 (20.9, 0) | 135.6 (18.5, 0) | 137.0 (18.3, 0) | 124.7 (14.7, 23) |
 | DW_WRACK | 115.2 (17.6, 24) | 127.4 (16.0, 26) | 124.9 (15.7, 24) | 129.1 (14.6, 23) | 124.9 (14.6, 23) |
 
@@ -308,8 +308,8 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 67.7 (30.2, 10) | 83.3 (26.6, 15) | 83.8 (25.3, 15) | 100.3 (21.4, 20) | 111.5 (19.1, 23) |
-| W_DL | 93.9 (25.7, 13) | 107.3 (23.9, 13) | 110.6 (22.6, 13) | 122.6 (21.5, 9) | 123.5 (21.5, 7) |
+| AFF_WRACK | 70.0 (29.5, 10) | 87.6 (25.7, 17) | 89.1 (24.1, 17) | 104.6 (20.7, 22) | 105.9 (20.0, 20) |
+| W_DL | 97.8 (25.1, 13) | 109.4 (23.7, 12) | 113.8 (22.2, 13) | 124.6 (21.4, 7) | 126.2 (21.4, 6) |
 | DT_SS | 115.8 (23.7, 7) | 126.1 (23.1, 2) | 140.0 (21.2, 0) | 141.6 (21.1, 1) | 135.3 (21.5, 3) |
 | DW_WRACK | 90.7 (24.3, 18) | 125.3 (19.0, 29) | 102.8 (22.5, 21) | 98.5 (22.8, 18) | 103.9 (20.7, 21) |
 | DW_DL | 110.8 (23.3, 8) | 117.4 (23.1, 6) | 138.7 (21.4, 0) | 143.3 (21.1, 0) | 135.3 (21.5, 3) |
@@ -318,8 +318,8 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 108.1 (19.9, 34) | 114.7 (19.0, 34) | 101.7 (19.2, 26) | 84.8 (21.1, 14) | 70.9 (24.3, 3) |
-| W_DL | 76.9 (25.8, 4) | 89.6 (24.6, 6) | 90.0 (23.3, 6) | 108.5 (22.2, 6) | 113.5 (22.0, 6) |
+| AFF_WRACK | 105.8 (20.0, 32) | 107.4 (19.6, 29) | 94.1 (20.1, 20) | 78.3 (22.3, 10) | 70.4 (24.5, 2) |
+| W_DL | 79.2 (25.5, 4) | 90.7 (24.5, 6) | 91.9 (23.1, 6) | 109.7 (22.1, 5) | 114.9 (21.9, 6) |
 | DT_SS | 102.5 (23.9, 7) | 116.7 (23.4, 7) | 123.3 (21.9, 4) | 124.4 (21.8, 5) | 121.6 (22.1, 6) |
 | DW_WRACK | 69.9 (24.7, 6) | 74.8 (23.9, 8) | 67.6 (26.1, 0) | 64.4 (28.5, 0) | 65.2 (28.7, 1) |
 | DW_DL | 99.8 (24.0, 5) | 110.3 (23.9, 6) | 122.5 (22.0, 4) | 133.3 (21.5, 2) | 121.6 (22.1, 6) |
@@ -328,7 +328,7 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 98.4 (22.7, 23) | 112.1 (20.0, 25) | 111.4 (19.8, 22) | 119.0 (18.8, 16) | 118.2 (18.6, 15) |
+| AFF_WRACK | 103.0 (21.8, 21) | 113.8 (20.1, 22) | 115.6 (19.2, 21) | 121.7 (18.8, 13) | 119.7 (18.5, 14) |
 | DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 122.4 (18.5, 12) |
 | DW_WRACK | 113.5 (21.4, 11) | 119.7 (20.8, 9) | 126.5 (19.3, 7) | 129.2 (18.9, 5) | 122.4 (18.5, 12) |
 
@@ -336,7 +336,7 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 100.1 (22.9, 20) | 112.1 (20.5, 22) | 113.4 (20.0, 18) | 121.4 (19.5, 10) | 120.1 (19.6, 10) |
+| AFF_WRACK | 104.9 (22.2, 18) | 114.1 (20.7, 17) | 117.1 (19.7, 16) | 124.2 (19.6, 7) | 123.7 (19.6, 6) |
 | DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 124.7 (19.4, 5) |
 | DW_WRACK | 116.3 (21.9, 5) | 119.9 (22.0, 0) | 127.7 (20.2, 0) | 131.1 (19.5, 0) | 124.7 (19.4, 5) |
 
@@ -344,7 +344,7 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 103.5 (22.6, 17) | 112.2 (21.3, 17) | 116.1 (20.2, 15) | 122.8 (19.8, 7) | 121.3 (20.1, 6) |
+| AFF_WRACK | 107.6 (22.2, 14) | 115.3 (21.2, 13) | 118.6 (20.0, 13) | 124.9 (19.8, 5) | 124.3 (20.1, 3) |
 | DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 126.9 (19.8, 3) |
 | DW_WRACK | 119.5 (21.8, 2) | 120.9 (21.8, 0) | 128.1 (20.1, 0) | 130.8 (19.5, 0) | 126.9 (19.8, 3) |
 
@@ -352,7 +352,7 @@ Wyjście `npm run forever:wrack-study` (120 sesji na komórkę, seed 11).
 
 | build | 40: kph (TTK s, przerwy/h) | 45: kph (TTK s, przerwy/h) | 50: kph (TTK s, przerwy/h) | 55: kph (TTK s, przerwy/h) | 59: kph (TTK s, przerwy/h) |
 |---|---:|---:|---:|---:|---:|
-| AFF_WRACK | 103.7 (23.3, 14) | 113.0 (21.9, 12) | 115.6 (20.8, 12) | 121.8 (20.5, 5) | 120.8 (20.8, 4) |
+| AFF_WRACK | 108.7 (22.7, 11) | 115.5 (21.9, 8) | 117.4 (20.8, 10) | 124.0 (20.5, 3) | 124.0 (20.7, 1) |
 | DT_SS | 119.0 (22.1, 1) | 118.7 (22.3, 0) | 126.7 (20.4, 0) | 127.1 (20.3, 0) | 126.9 (20.2, 1) |
 | DW_WRACK | 120.7 (21.8, 0) | 119.1 (22.2, 0) | 126.0 (20.6, 0) | 127.7 (20.2, 0) | 126.9 (20.2, 1) |
 
@@ -493,10 +493,10 @@ Crossover: from level 45 the winner is DW_DL.
 ```
 DT_SS (a) vs AFF_WRACK (b) - kills per hour; differences are a - b with paired 95% CI
 level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b
-   40 |  119.1 |  101.4 |   17.3 (16.4..18.2)          |      a | 22.1/22.6 | 1212/1184 | 0.1/4.6 | 0.6/20.1
-   45 |  118.6 |  112.1 |    6.3 (5.7..6.9)            |      a | 22.4/20.7 | 1279/1286 | 0.0/3.3 | 0.0/20.5
-   50 |  126.7 |  114.1 |   12.3 (11.5..13.1)          |      a | 20.4/20.2 | 1604/1481 | 0.0/3.2 | 0.0/16.8
-   55 |  127.0 |  122.0 |    5.0 (4.6..5.4)            |      a | 20.3/19.6 | 1825/1702 | 0.1/1.9 | 0.3/9.1
-   58 |  126.1 |  121.5 |    4.8 (4.1..5.5)            |      a | 19.3/19.4 | 1857/1850 | 1.2/2.2 | 5.3/9.2
+   40 |  119.1 |  104.9 |   13.8 (12.8..14.7)          |      a | 22.1/22.3 | 1212/1192 | 0.1/3.7 | 0.6/16.9
+   45 |  118.6 |  114.6 |    3.9 (3.3..4.4)            |      a | 22.4/20.9 | 1279/1296 | 0.0/2.5 | 0.0/15.9
+   50 |  126.7 |  117.7 |    8.7 (8.0..9.4)            |      a | 20.4/19.9 | 1604/1493 | 0.0/2.6 | 0.0/14.1
+   55 |  127.0 |  124.5 |    2.4 (2.1..2.8)            |      a | 20.3/19.6 | 1825/1700 | 0.1/1.3 | 0.3/6.1
+   58 |  126.1 |  124.1 |    2.1 (1.4..2.8)            |      a | 19.3/19.4 | 1857/1853 | 1.2/1.6 | 5.3/6.8
 No crossover: the winner does not change over these levels.
 ```
