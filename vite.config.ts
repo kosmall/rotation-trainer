@@ -6,6 +6,9 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   test: {
+    // Many tests run real simulations, and the CI runner is 2-3x slower than a developer machine: at the 5 s
+    // default whichever crosses the line first fails the Pages deploy. A hung test still fails, just later.
+    testTimeout: 30_000,
     // Only the UI tests need a DOM; everything else runs in plain Node (much faster to start).
     projects: [
       {
