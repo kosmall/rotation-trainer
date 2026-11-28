@@ -136,7 +136,14 @@ export function stateHash(o: DiscoverOptions): string {
 
 const STAGE_SEED = { screen: 1, search: 2, final: 3 } as const;
 /** Session seeds of a stage: seed+1..seed+n. Stages and run seeds use disjoint ranges, so the final re-run never reuses the sessions a finalist was selected on. */
-export const stageSeed = (o: DiscoverOptions, stage: keyof typeof STAGE_SEED): number => o.seed * 1_000_000 + STAGE_SEED[stage] * 100_000;
+export function stageSeed(o: DiscoverOptions, stage: keyof typeof STAGE_SEED): number {
+  const offset = STAGE_SEED[stage] * 100_000;
+  const plain = o.seed * 1_000_000 + offset;
+  // Exact for every seed up to about 9e9 (the CLI allows 2^31-1): such results stay as they were. Beyond that the product is
+  // rounded and stages would share sessions, so the seed is hashed to 32 bits first (the stage ranges stay 100 000 apart).
+  if (Math.abs(plain) <= Number.MAX_SAFE_INTEGER - 100_000) return plain;
+  return fnv1a(`${o.seed}`) * 1_000_000 + offset;
+}
 
 /** The variant a combination is simulated as (its pets; the rotation comes as data). */
 export function comboVariant(c: Combo): BuildVariant {

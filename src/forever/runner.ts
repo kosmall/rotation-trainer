@@ -107,6 +107,23 @@ export interface SessionResult {
   eurekaUses: number;
 }
 
+/**
+ * The seed of pull `i` of a session. Up to the largest integer a double holds exactly it is the original
+ * `sessionSeed * 100003 + i` (so every result for the usual seeds stays as it was). Above that the product
+ * is rounded and neighbouring pulls collapse onto one value, so a 32-bit hash of the pair is used instead.
+ */
+export function pullSeed(sessionSeed: number, i: number): number {
+  const plain = sessionSeed * 100003 + i;
+  if (Math.abs(plain) <= Number.MAX_SAFE_INTEGER) return plain;
+  const text = `${sessionSeed}:${i}`;
+  let h = 0x811c9dc5;
+  for (let k = 0; k < text.length; k++) {
+    h ^= text.charCodeAt(k);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 export function killsPerHour(kills: number, totalSec: number): number {
   return totalSec > 0 ? (3600 * kills) / totalSec : 0;
 }
@@ -193,7 +210,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
     const r = simulatePull(
       { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
-      seed * 100003 + i,
+      pullSeed(seed, i),
     );
     out.eurekaUses += r.eurekaUses;
     eurekaCdMs = r.eurekaCdLeftMs;

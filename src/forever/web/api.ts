@@ -14,6 +14,8 @@ import type { EurekaPolicy, Params } from '../types';
 export { customId, MY_GEAR };
 export const MIN_LEVEL = 10;
 export const MAX_LEVEL = 59;
+/** The largest seed the settings accept (the CLI's limit for discovery); larger ones are clamped. */
+export const MAX_SEED = 2_147_483_647;
 
 /** Life Tap / rest policies selectable in the UI (values from the strategy search, see reports/forever_lifetap_*.md). */
 export const POLICIES: Readonly<Record<string, { label: string; description: string; params: Partial<Params> }>> = {
@@ -72,7 +74,7 @@ export function normalizeSettings(s: Partial<Settings>): Settings {
     spellstone: s.spellstone === true,
     eureka: s.eureka !== undefined && s.eureka in EUREKA_CHOICES ? s.eureka : d.eureka,
     sessions: Math.min(500, Math.max(5, Math.round(num(s.sessions, d.sessions)))),
-    seed: Math.round(num(s.seed, d.seed)),
+    seed: Math.min(MAX_SEED, Math.max(0, Math.round(num(s.seed, d.seed)))),
   };
 }
 
