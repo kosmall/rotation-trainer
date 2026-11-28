@@ -137,6 +137,21 @@ const pv = (pair: unknown, level: number): number => {
   return slope * level + add;
 };
 
+/**
+ * Demonic Energies: the share of the mana a Life Tap gives the warlock that the demon gets as well.
+ * Returns the demon's mana after the tap, at most `petMaxMana` (the same value when the talent is not taken).
+ * Call it only for a living demon. The fight and the runner (the Life Taps between pulls) share it.
+ * @param ranks talent ranks of the build
+ * @param lifeTapMana mana the warlock actually gained from the tap (after the cap at its own maximum)
+ * @param petMana the demon's mana before the tap
+ * @param petMaxMana the demon's maximum mana
+ */
+export function grantDemonicEnergiesMana(ranks: Ranks, lifeTapMana: number, petMana: number, petMaxMana: number): number {
+  const r = rk(ranks, 'demonic_energies');
+  if (r <= 0) return petMana;
+  return Math.min(petMaxMana, petMana + lifeTapMana * effectNum('demonic_energies', 'lifeTapManaToPetPerRank') * r);
+}
+
 export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   const { variant, level, params } = cfg;
   const rng: Rng = createRng(seed);
@@ -491,7 +506,7 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     res.manaFromLifeTap += got;
     res.lifeTapCount++;
     res.lifeTapHpSpent += cost;
-    if (rk(ranks, 'demonic_energies') > 0) pet.mana += got * effectNum('demonic_energies', 'lifeTapManaToPetPerRank') * rk(ranks, 'demonic_energies');
+    if (petAlive) pet.mana = grantDemonicEnergiesMana(ranks, got, pet.mana, petMaxMana);
     gcdUntil = t + gcd;
     res.gcdBusyMs += gcd;
     busyEnd = t + gcd;
