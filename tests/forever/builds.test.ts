@@ -4,7 +4,7 @@ import { validatePicks } from '../../src/forever/talents';
 
 describe('builds', () => {
   it('every order validates at every level 10-60', () => {
-    for (const id of ORDER_IDS.filter((x) => x !== 'DEMO_CORE')) {
+    for (const id of ORDER_IDS) {
       const order = loadOrder(id);
       expect(order.length, id).toBe(51);
       for (let level = 10; level <= 60; level++) {
