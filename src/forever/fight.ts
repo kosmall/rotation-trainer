@@ -123,6 +123,8 @@ interface Mob {
 interface CastState { spellId: string; rank: SpellRank; mob: Mob; endsAt: number; free: boolean }
 interface ChannelState { spellId: string; mob: Mob; nextTickAt: number; endsAt: number; tickMs: number; tickDmg: number; healFrac: number; isDrainSoul: boolean }
 
+/** Mana of one Voidwalker Torment (docs/forever-data-ledger.md section 1, "Pet unlock levels"). */
+const TORMENT_MANA = 20;
 const SOUL_SIPHON_EFFECTS = new Set(['corruption', 'siphon_life', 'bane_of_agony']);
 const DRAINS = new Set(['drain_life', 'drain_soul', 'wrack']);
 const NIGHTFALL_SPELLS = new Set(['corruption', 'drain_soul', 'drain_life', 'wrack']);
@@ -862,8 +864,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       if (petAlive && petKind === 'voidwalker' && pd && t >= pet.nextTorment) {
         const m = firstAlive();
         const tor = pd.torment as { intervalMs: number; threatPerLevel: number };
-        if (m) {
+        // Torment costs 20 mana (ledger, allthings.how/?p=353577); a Voidwalker that cannot pay does not taunt.
+        if (m && pet.mana >= TORMENT_MANA) {
+          pet.mana -= TORMENT_MANA;
           m.threatPet += tor.threatPerLevel * level * (1 + effectNum('improved_voidwalker', 'tormentEffectPerRank') * rk(ranks, 'improved_voidwalker'));
+          log(t, 'pet torment');
           reevaluate(m);
         }
         pet.nextTorment = t + tor.intervalMs;
