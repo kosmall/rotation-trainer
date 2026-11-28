@@ -127,7 +127,10 @@ const f = (x: number, d = 1): string => x.toFixed(d);
 const who = (s: Side, a: string, b: string): string => (s === 'a' ? a : s === 'b' ? b : '~');
 
 export function formatSummary(r: DuelReport): string {
-  const lines = [`${r.a} (a) vs ${r.b} (b) - kills per hour; differences are a - b with paired 95% CI`, 'level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b'];
+  const lines = [
+    `${r.a} (a) vs ${r.b} (b) - kills per hour; kph a/b are pooled (sum of kills / sum of time over all sessions); diff is the mean of per-session differences (a - b of each session's kills/h) with paired 95% CI, so it can differ from kph a - kph b`,
+    'level |  kph a |  kph b |  diff (CI)            | winner | ttk a/b s | mana/kill a/b | rest s/kill a/b | breaks/h a/b',
+  ];
   for (const x of r.results) {
     const d = x.diff.killsPerHour;
     lines.push(
@@ -139,6 +142,9 @@ export function formatSummary(r: DuelReport): string {
   return lines.join('\n');
 }
 
+/** Kills per break is meaningless without breaks (the runner reports the total kill count then): show a dash. */
+const killsPerBreakText = (c: CellMetrics): string => (c.breaksPerHour > 0 ? f(c.killsPerBreak) : '-');
+
 export function formatDetail(x: DuelResult, a: string, b: string): string {
   const row = (name: string, va: number, vb: number, key: DiffKey | null, d = 1): string => {
     const diff = key ? `${f(x.diff[key].mean, d)} (${f(x.diff[key].ci95[0], d)}..${f(x.diff[key].ci95[1], d)})${x.diff[key].significant ? ' *' : ''}` : '';
@@ -149,7 +155,8 @@ export function formatDetail(x: DuelResult, a: string, b: string): string {
   return [
     `Level ${x.level}: ${a} (a) vs ${b} (b); * = significant paired difference`,
     `${''.padEnd(28)} ${'a'.padStart(9)} ${'b'.padStart(9)}   a - b (95% CI)`,
-    row('kills per hour', m.killsPerHour, n.killsPerHour, 'killsPerHour'),
+    `a and b: pooled over all sessions (sum / sum); a - b column: mean of per-session differences (pooled a - b ${f(m.killsPerHour - n.killsPerHour)} kills/h)`,
+    row('kills per hour (pooled)', m.killsPerHour, n.killsPerHour, 'killsPerHour'),
     row('TTK per mob (s)', m.ttkMean, n.ttkMean, 'ttk'),
     row('TTK std (s)', m.ttkStd, n.ttkStd, null),
     row('mana per kill', m.manaPerKill, n.manaPerKill, 'manaPerKill', 0),
@@ -161,7 +168,7 @@ export function formatDetail(x: DuelResult, a: string, b: string): string {
     row('rest s per kill', m.restSecPerKill, n.restSecPerKill, 'restSecPerKill'),
     row('downtime share', m.downtimeShare, n.downtimeShare, 'downtimeShare', 3),
     row('breaks per hour', m.breaksPerHour, n.breaksPerHour, 'breaksPerHour'),
-    row('kills per break', m.killsPerBreak, n.killsPerBreak, null),
+    `${'kills per break'.padEnd(28)} ${killsPerBreakText(m).padStart(9)} ${killsPerBreakText(n).padStart(9)}`,
     row('pulls without a break (%)', m.breakFreePullPct, n.breakFreePullPct, null, 0),
     row('GCD utilisation', m.gcdUtil, n.gcdUtil, null, 2),
     row('wasted cast s per kill', m.gcdWasteSecPerKill, n.gcdWasteSecPerKill, null, 2),

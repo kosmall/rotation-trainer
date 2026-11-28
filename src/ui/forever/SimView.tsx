@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_SETTINGS, MAX_LEVEL, MIN_LEVEL, type RankingResult, type SweepResult } from '../../forever/web/api';
+import { DEFAULT_SETTINGS, EUREKA_CHOICES, MAX_LEVEL, MIN_LEVEL, MY_GEAR, POLICIES, type RankingResult, type Settings, type SweepResult } from '../../forever/web/api';
+import type { GearTotals } from '../../forever/web/gear';
 import { VARIANT_IDS } from '../../forever/builds';
 import { routeHref } from '../shell/router';
 import { RankingChart } from './charts/RankingChart';
@@ -7,6 +8,32 @@ import { SweepChart } from './SweepChart';
 import type { ForeverRun } from './useForeverRun';
 
 const f = (x: number, d = 1) => x.toFixed(d);
+
+/** The settings that shape a result, with the labels used in the headers (the ones a different result depends on). */
+export const SHAPING: readonly (readonly [keyof Settings, string])[] = [
+  ['profile', 'sprzęt'],
+  ['mobs', 'moby na pull'],
+  ['policy', 'strategia Life Tapa'],
+  ['spellstone', 'Spellstone'],
+  ['eureka', 'Eureka!'],
+  ['sessions', 'sesje'],
+  ['seed', 'seed'],
+];
+
+/** Labels of the settings (not the level) in which two settings differ. */
+export const shapingDiffs = (a: Settings, b: Settings): string[] => SHAPING.filter(([k]) => a[k] !== b[k]).map(([, label]) => label);
+
+const gearText = (g: GearTotals): string =>
+  `suma: moc zaklęć ${f(g.spellPower, 0)}, Shadow ${f(g.shadowSpellPower, 0)}, int ${f(g.intellect, 0)}, wyt ${f(g.stamina, 0)}, duch ${f(g.spirit, 0)}, crit ${f(g.critPct)}%, hit ${f(g.hitPct)}%`;
+
+/**
+ * One line that says which settings produced a result: level, gear (with the totals of "mój sprzęt"), mobs,
+ * sessions, seed, the Life Tap policy, the Spellstone and the Eureka! timing.
+ */
+export function settingsText(s: Settings, gear?: GearTotals): string {
+  const sprzet = s.profile === MY_GEAR && gear ? `${s.profile} (${gearText(gear)})` : s.profile;
+  return `Level ${s.level}, sprzęt: ${sprzet}, ${s.mobs} mob/pull, ${s.sessions} sesji, seed ${s.seed}, strategia Life Tapa: ${POLICIES[s.policy]?.label ?? s.policy}, Spellstone: ${s.spellstone ? 'tak' : 'nie'}, Eureka!: ${EUREKA_CHOICES[s.eureka] ?? s.eureka}`;
+}
 
 export function RankingTable({ ranking, highlight, onOpenBuild, selected, onToggle }: { ranking: RankingResult; highlight?: string; onOpenBuild?(id: string): void; selected?: ReadonlySet<string>; onToggle?(id: string): void }) {
   const best = ranking.rows[0]?.metrics.killsPerHour ?? 1;
@@ -89,6 +116,8 @@ export function SimView({
   onSelect,
   onSweep,
   onOpenBuild,
+  gear,
+  sweepGear,
 }: {
   run: ForeverRun;
   ranking: RankingResult | undefined;
@@ -99,6 +128,10 @@ export function SimView({
   /** Computes the curve of these builds. */
   onSweep(builds: readonly string[]): void;
   onOpenBuild(id: string): void;
+  /** Totals of the player's items that the ranking used (when its gear was "mine"). */
+  gear?: GearTotals;
+  /** Totals of the player's items that the curve used. */
+  sweepGear?: GearTotals;
 }) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
   // a freshly computed curve is brought into view: it lies below the ranking
@@ -118,6 +151,7 @@ export function SimView({
   const ids = ranking.rows.map((r) => r.metrics.variant);
   // only builds of the current ranking can be computed (a scenario or a custom build may have been switched off since)
   const chosen = ids.filter((id) => selected.has(id));
+  const curveDiffs = sweep ? [...(sweep.settings.level !== s.level ? [`level ${sweep.settings.level} (ranking: ${s.level})`] : []), ...shapingDiffs(sweep.settings, s)] : [];
   const toggle = (id: string) => onSelect(selected.has(id) ? [...selected].filter((x) => x !== id) : [...selected, id]);
   return (
     <>
@@ -134,13 +168,13 @@ export function SimView({
           </div>
         </div>
         <p className="fv-note">
-          Level {s.level}, sprzęt: {s.profile}, {s.mobs} mob/pull, {s.sessions} sesji, seed {s.seed}. Wyniki zależą od założeń oznaczonych do weryfikacji (zakładka Założenia).
+          {settingsText(s, gear)}. Wyniki zależą od założeń oznaczonych do weryfikacji (zakładka Założenia).
         </p>
         <div className="fv-selectbar" role="group" aria-label="Zaznaczone buildy">
           <span>
             Zaznaczone: <b>{chosen.length}</b>
           </span>
-          <button type="button" className="btn primary" disabled={run.status === 'running' || chosen.length === 0} onClick={() => onSweep(chosen)}>
+          <button type="button" className="btn primary" disabled={run.status === 'running' || chosen.length === 0} onClick={() => onSweep(chosen)} title="Krzywa jest liczona z bieżącymi ustawieniami (strategia Life Tapa, Spellstone, Eureka!, sprzęt, sesje, seed), nie z ustawieniami rankingu">
             Krzywa {MIN_LEVEL}–{MAX_LEVEL} dla zaznaczonych{chosen.length > 0 ? ` (${chosen.length})` : ''}
           </button>
           <span className="fv-selectbar-more">
@@ -170,6 +204,10 @@ export function SimView({
             Krzywa kills/h po levelach {MIN_LEVEL}–{MAX_LEVEL}
           </h2>
           <SweepChart title="Zabicia na godzinę wg levelu" levels={sweep.levels} series={sweep.series.map((x) => ({ id: x.build, label: x.build, values: x.kph }))} valueName="zabić/h" />
+          <p className="fv-note">
+            Krzywa liczona z ustawieniami z chwili kliknięcia „Krzywa”: {settingsText(sweep.settings, sweepGear ?? gear)}.
+            {curveDiffs.length > 0 ? ` Różni się od rankingu powyżej: ${curveDiffs.join(', ')}.` : ''}
+          </p>
           {sweep.settings.sessions !== DEFAULT_SETTINGS.sessions && <p className="fv-note">Krzywa użyła {sweep.settings.sessions} sesji.</p>}
         </section>
       )}
