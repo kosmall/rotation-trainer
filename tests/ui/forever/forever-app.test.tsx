@@ -32,16 +32,18 @@ describe('ForeverApp', () => {
     render(<ForeverApp view="sim" runner={runner} />);
     fireEvent.change(screen.getByLabelText('Level postaci (liczba)'), { target: { value: '45' } });
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
-    const table = await screen.findByRole('table', { name: 'Ranking buildów' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Tabela' }));
+    const table = screen.getByRole('table', { name: 'Ranking buildów' });
     expect(table.querySelectorAll('tbody tr')).toHaveLength(22);
     expect(screen.getByText(/Level 45/)).toBeTruthy();
-    expect(screen.getByText('najlepszy')).toBeTruthy();
+    expect(within(table).getByText('najlepszy')).toBeTruthy();
   });
 
   it('clicking a build in the ranking opens its talent trees in the Builds tab', async () => {
     const { rerender } = render(<ForeverApp view="sim" runner={runner} />);
     fireEvent.click(screen.getByRole('button', { name: 'Uruchom symulację' }));
-    const table = await screen.findByRole('table', { name: 'Ranking buildów' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Tabela' }));
+    const table = screen.getByRole('table', { name: 'Ranking buildów' });
     const link = [...table.querySelectorAll('tbody a')].at(-1) as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('#/forever/builds');
     const id = link.textContent as string;
@@ -70,6 +72,16 @@ describe('ForeverApp', () => {
     open('DEMO_FIRE');
     expect(select().value).toBe('DEMO_FIRE');
     expect(screen.getByRole('list', { name: 'Diagram rotacji DEMO_FIRE' })).toBeTruthy();
+  });
+
+  it('own builds are folded away, with the number of those in the ranking', () => {
+    const build = (name: string) => ({ name, picks: ['suppression'], rotation: 'affliction', filler: 'drain_life', rank: 'max', pet: 'voidwalker', sacrificed: null });
+    window.localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify({ builds: [build('A'), build('B')], active: 'A', included: ['A'] }));
+    render(<ForeverApp view="sim" runner={runner} />);
+    const summary = screen.getByText('Własne buildy w rankingu (1 z 2)');
+    expect(summary.closest('details')!.open).toBe(false);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'B (1/51)', hidden: true }));
+    expect(screen.getByText('Własne buildy w rankingu (2 z 2)')).toBeTruthy();
   });
 
   it('marks Eureka! in the rotation diagram before the spells of the chosen timing', () => {
@@ -119,7 +131,8 @@ describe('ForeverApp', () => {
     render(<ForeverApp view="compare" runner={runner} />);
     fireEvent.click(screen.getByRole('button', { name: 'Porównaj' }));
     await waitFor(() => expect(screen.getByRole('table', { name: 'Porównanie buildów' })).toBeTruthy());
-    expect(screen.getByRole('img', { name: /zabicia na godzinę/i })).toBeTruthy();
+    expect(screen.getByRole('figure', { name: /Zabić\/h wg levelu/ })).toBeTruthy();
+    expect(screen.getByRole('figure', { name: /Różnica A − B/ })).toBeTruthy();
   });
 
   it('lists the facts of a build one per row, with icons', () => {

@@ -167,7 +167,7 @@ async function openCombatText(): Promise<HTMLElement> {
 async function readFightCss(): Promise<string> {
   const nodeFs = 'node:' + 'fs';
   const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
-  const testFile = decodeURIComponent(new URL(import.meta.url).pathname);
+  const testFile = decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1');
   return fs.readFileSync(testFile.replace(/tests\/ui\/[^/]+$/, 'src/ui/fight/fight.css'), 'utf8');
 }
 
@@ -175,7 +175,7 @@ async function readCss(): Promise<string> {
   // Vitest serves stylesheets empty, so the file is read from disk (as player-buffs.test.tsx does).
   const nodeFs = 'node:' + 'fs';
   const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
-  const testFile = decodeURIComponent(new URL(import.meta.url).pathname);
+  const testFile = decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1');
   return fs.readFileSync(testFile.replace(/tests\/ui\/[^/]+$/, 'src/ui/game.css'), 'utf8');
 }
 

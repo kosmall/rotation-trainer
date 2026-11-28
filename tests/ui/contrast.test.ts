@@ -9,8 +9,9 @@ async function read(path: string): Promise<string> {
   // Vitest serves stylesheets empty, so the files are read from disk.
   const nodeFs = 'node:' + 'fs';
   const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
-  const root = decodeURIComponent(new URL(import.meta.url).pathname).replace(/tests\/ui\/[^/]+$/, '');
-  return fs.readFileSync(root + path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const root = decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1').replace(/tests\/ui\/[^/]+$/, '');
+  // LF as in the repository: a Windows checkout has CRLF, and the selectors looked up below span lines
+  return fs.readFileSync(root + path, 'utf8').replaceAll('\r\n', '\n').replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 /** The declarations of the first rule whose selector is exactly `selector`. */

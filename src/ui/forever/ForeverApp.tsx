@@ -102,8 +102,10 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFet
       </nav>
       <SettingsBar settings={s} hasGear={gear !== null} onChange={setSettings} run={run} onRun={view === 'compare' || view === 'custom' || view === 'ep' || view === 'discover' ? () => undefined : runRanking} runLabel={view === 'compare' ? 'Uruchom (użyj Porównaj)' : view === 'custom' ? 'Uruchom (użyj Sprawdź)' : view === 'ep' ? 'Uruchom (użyj Policz EP)' : view === 'discover' ? 'Uruchom (użyj Szukaj)' : 'Uruchom symulację'} />
       {view === 'sim' && customData.length > 0 && (
-        <fieldset className="fv-panel">
-          <legend>Własne buildy w rankingu</legend>
+        <details className="fv-panel fv-own">
+          <summary>
+            Własne buildy w rankingu ({includedData.length} z {customData.length})
+          </summary>
           {customData.map((b) => (
             <label key={b.name} className="fv-inline">
               <input
@@ -114,7 +116,7 @@ export function ForeverApp({ view, runner, discoverPool, discoverTuning, itemFet
               {b.name} ({b.picks.length}/51)
             </label>
           ))}
-        </fieldset>
+        </details>
       )}
       {view === 'sim' && <SimView run={run} ranking={ranking} sweep={sweep} selected={curveSet} onSelect={setCurveIds} onSweep={(builds) => go({ kind: 'sweep', settings: s, builds: [...builds], custom: includedData })} onOpenBuild={setBuildId} />}
       {view === 'builds' && <BuildsView level={s.level} mobs={s.mobs} ids={allIds} id={buildId} onIdChange={setBuildId} onOpenRotation={setRotationId} />}

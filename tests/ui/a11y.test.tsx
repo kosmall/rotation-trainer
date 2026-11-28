@@ -142,11 +142,11 @@ describe('Accessibility: stylesheets', () => {
       readFileSync(path: string, encoding: 'utf8'): string;
       readdirSync(path: string, options: { recursive: true }): string[];
     };
-    const root = decodeURIComponent(new URL(import.meta.url).pathname).replace(/tests\/ui\/[^/]+$/, 'src/');
+    const root = decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1').replace(/tests\/ui\/[^/]+$/, 'src/');
     return fs
       .readdirSync(root, { recursive: true })
       .filter((f) => f.endsWith('.css'))
-      .map((f) => ({ path: f, text: fs.readFileSync(root + f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '') }));
+      .map((f) => ({ path: f.replaceAll('\\', '/'), text: fs.readFileSync(root + f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '') }));
   }
 
   it('there are stylesheets to check', async () => {

@@ -1,14 +1,8 @@
-import { useId } from 'react';
+import { TrendChart } from './charts/TrendChart';
+import type { Series } from './charts/chartModel';
 import { extremesAt, summarize, type RankRow } from './sweepStats';
 
-export interface SweepSeries {
-  id: string;
-  label: string;
-  values: readonly number[];
-}
-
-const DASH = ['', '6 4', '2 3', '10 3 2 3', '1 5', '8 2', '4 4'];
-const COLORS = ['var(--class)', 'var(--text-dim, #8a8aa0)', '#e0a030', '#4aa3d8', '#d85a7a', '#5ac08a', '#b07ad8'];
+export type SweepSeries = Series;
 
 /** The builds by the number of levels on which they led (or trailed). */
 function RankTable({ title, rows, levels, nameOf }: { title: string; rows: readonly RankRow[]; levels: number; nameOf(id: string): string }) {
@@ -38,65 +32,17 @@ function RankTable({ title, rows, levels, nameOf }: { title: string; rows: reado
   );
 }
 
-/** Lines over levels with a data table behind a disclosure (accessible: role=img + table). */
-export function SweepChart({ title, levels, series, valueName }: { title: string; levels: readonly number[]; series: readonly SweepSeries[]; valueName: string }) {
-  const id = useId();
-  const W = 640;
-  const H = 260;
-  const m = { l: 44, r: 12, t: 12, b: 28 };
-  const all = series.flatMap((s) => s.values);
-  const lo = Math.min(...all);
-  const hi = Math.max(...all);
-  const pad = (hi - lo || 1) * 0.1;
-  const y0 = Math.max(0, lo - pad);
-  const y1 = hi + pad;
-  const x = (i: number) => m.l + (i * (W - m.l - m.r)) / Math.max(1, levels.length - 1);
-  const y = (v: number) => H - m.b - ((v - y0) / (y1 - y0 || 1)) * (H - m.t - m.b);
-  const ticks = [0, 1, 2, 3, 4].map((k) => y0 + ((y1 - y0) * k) / 4);
-  const summary = summarize(series, levels.length);
+/** The chart of builds over levels (see TrendChart); the data table and the rank counts sit behind a disclosure. */
+export function SweepChart({ title, levels, series, valueName, higherIsBetter = true, decimals = 1 }: { title: string; levels: readonly number[]; series: readonly SweepSeries[]; valueName: string; higherIsBetter?: boolean; decimals?: number }) {
+  // the statistics count the highest value as the best: turn the values around when less is better
+  const scored = higherIsBetter ? series : series.map((s) => ({ ...s, values: s.values.map((v) => -v) }));
+  const summary = summarize(scored, levels.length);
   const labelOf = new Map(series.map((s) => [s.id, s.label]));
   return (
-    <figure className="fv-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={`${id}-t`} width="100%">
-        <title id={`${id}-t`}>{title}</title>
-        {ticks.map((t) => (
-          <g key={t}>
-            <line x1={m.l} x2={W - m.r} y1={y(t)} y2={y(t)} stroke="currentColor" opacity={0.15} />
-            <text x={m.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="currentColor">
-              {t.toFixed(0)}
-            </text>
-          </g>
-        ))}
-        {levels.map((l, i) =>
-          i % 3 === 0 || i === levels.length - 1 ? (
-            <text key={l} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="currentColor">
-              {l}
-            </text>
-          ) : null,
-        )}
-        {series.map((s, k) => (
-          <polyline
-            key={s.id}
-            fill="none"
-            stroke={COLORS[k % COLORS.length]}
-            strokeWidth={2}
-            strokeDasharray={DASH[k % DASH.length]}
-            points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(' ')}
-          />
-        ))}
-      </svg>
-      <ul className="fv-legend">
-        {series.map((s, k) => (
-          <li key={s.id}>
-            <svg width="28" height="8" aria-hidden="true">
-              <line x1="0" x2="28" y1="4" y2="4" stroke={COLORS[k % COLORS.length]} strokeWidth={2} strokeDasharray={DASH[k % DASH.length]} />
-            </svg>
-            {s.label}
-          </li>
-        ))}
-      </ul>
+    <div className="fv-chart">
+      <TrendChart title={title} levels={levels} series={series} valueName={valueName} higherIsBetter={higherIsBetter} decimals={decimals} />
       <details>
-        <summary>Pokaż dane</summary>
+        <summary>{series.length > 1 ? 'Pokaż dane i statystyki' : 'Pokaż dane'}</summary>
         <div className="fv-scroll">
         <table className="fv-table" aria-label={`Dane: ${title}`}>
           <thead>
@@ -111,17 +57,17 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
           </thead>
           <tbody>
             {levels.map((l, i) => {
-              const top = new Set(extremesAt(series, i).best);
+              const top = new Set(extremesAt(scored, i).best);
               return (
                 <tr key={l}>
                   <th scope="row">{l}</th>
                   {series.map((s) =>
                     top.has(s.id) ? (
                       <td key={s.id} className="fv-top" title={`Najlepszy wynik na levelu ${l}`}>
-                        <strong>{(s.values[i] ?? 0).toFixed(1)}</strong>
+                        <strong>{(s.values[i] ?? 0).toFixed(decimals)}</strong>
                       </td>
                     ) : (
-                      <td key={s.id}>{(s.values[i] ?? 0).toFixed(1)}</td>
+                      <td key={s.id}>{(s.values[i] ?? 0).toFixed(decimals)}</td>
                     ),
                   )}
                 </tr>
@@ -130,16 +76,16 @@ export function SweepChart({ title, levels, series, valueName }: { title: string
           </tbody>
         </table>
         </div>
+        {series.length > 1 &&
+          (summary.levels === 0 ? (
+            <p className="fv-note">Buildy nie różnią się na żadnym levelu.</p>
+          ) : (
+            <div className="fv-ranks">
+              <RankTable title="Ile razy najlepszy" rows={summary.best} levels={summary.levels} nameOf={(x) => labelOf.get(x) ?? x} />
+              <RankTable title="Ile razy najgorszy" rows={summary.worst} levels={summary.levels} nameOf={(x) => labelOf.get(x) ?? x} />
+            </div>
+          ))}
       </details>
-      {series.length > 1 &&
-        (summary.levels === 0 ? (
-          <p className="fv-note">Buildy nie różnią się na żadnym levelu.</p>
-        ) : (
-          <div className="fv-ranks">
-            <RankTable title="Ile razy najlepszy" rows={summary.best} levels={summary.levels} nameOf={(x) => labelOf.get(x) ?? x} />
-            <RankTable title="Ile razy najgorszy" rows={summary.worst} levels={summary.levels} nameOf={(x) => labelOf.get(x) ?? x} />
-          </div>
-        ))}
-    </figure>
+    </div>
   );
 }

@@ -799,10 +799,11 @@ npm run dev      # tryb deweloperski
 npm run build    # produkcyjny build (tsc + vite)
 ```
 
-- **Symulacja**: ustaw level postaci (40-59) i uruchom; ranking 7 buildów (zabić/h, TTK, mana/HP na zabicie, picie, jedzenie, Life Tap, przerwy, zgony, GCD) z różnicą wobec najlepszego (sparowany przedział 95%) oraz krzywa kills/h po levelach 40-59.
+- **Symulacja**: ustaw level postaci (10-59) i uruchom; ranking buildów (zabić/h, TTK, mana/HP na zabicie, picie, jedzenie, Life Tap, przerwy, zgony, GCD) z różnicą wobec najlepszego (sparowany przedział 95%), przełącznik **Wykres / Tabela** (wykres: 10 najlepszych z wynikiem i różnicą do najlepszego, kolor wg rodziny buildu, wybór metryki; tabela: wszystkie liczby, kolumna z nazwą zostaje widoczna przy przewijaniu w bok). Buildy zaznacza się polem przy nazwie, a pasek nad listą liczy dla zaznaczonych krzywą kills/h po levelach 10-59, która pojawia się pod rankingiem. Własne buildy do rankingu wybiera się w zwijanym bloku nad rankingiem.
 - **Buildy**: talenty rozdane na wybranym levelu i kolejność punktów. Przycisk „Pokaż rotację” otwiera rotację wybranego builda w zakładce Rotacje.
 - **Rotacje**: listy priorytetów rotacji używanych przez symulator.
-- **Porównanie**: dwa buildy head-to-head na wspólnych seedach, wykres 40-59.
+- **Porównanie**: dwa buildy head-to-head na wspólnych seedach, wykresy 10-59 z wyborem metryki: obie linie i różnica A − B na każdym levelu z przedziałem 95%.
+- **Wykresy** (biblioteka Recharts, `src/ui/forever/charts/`): najechanie pokazuje wartości wszystkich buildów na levelu, kliknięcie w legendzie dodaje lub zdejmuje kolor (do 8 buildów naraz, reszta w szarym tle), widok „Strata do najlepszego (%)” rozdziela bliskie linie, suwak pod wykresem zawęża levele. Wagi statów (EP) mają wykres słupkowy z przedziałami.
 - **Własny build**: układasz talenty po swojemu (klik dodaje punkt, kolejność kliknięć to kolejność rozdawania), wybierasz szablon rotacji, pet i filler. Pierwsze wejście pokazuje puste drzewo, kolejne ostatnio edytowany build (zapis w localStorage). Build można zduplikować, skopiować z wbudowanego, wyeksportować i zaimportować jako JSON, dołączyć do rankingu i porównania.
 - **Założenia**: lista parametrów oznaczonych `verify: true`.
 
