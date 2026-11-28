@@ -741,7 +741,13 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
       const newBusyEnd = Math.max(t, busyEnd - channel.tickMs);
       res.gcdBusyMs -= busyEnd - newBusyEnd;
       busyEnd = newBusyEnd;
-      if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
+      if (channel.endsAt <= t) {
+        // The pushback took the rest of the channel: it ends now, with the ticks it already delivered (no extra tick at the hit).
+        log(t, `${channel.spellId} channel cut`);
+        if (channel.spellId === 'wrack') setDotSpeed(channel.mob, 1);
+        channel = null;
+        cutBusy();
+      } else if (channel.endsAt <= channel.nextTickAt) channel.nextTickAt = Math.min(channel.nextTickAt, channel.endsAt);
     }
   };
 
