@@ -148,7 +148,8 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
   let hp = stats.maxHp * params.rest_to_hp_pct;
   const pull: PullConfig = { variant, level, profile: cfg.profile, params, mobs: cfg.mobs, ranks, statDelta: cfg.statDelta, ...(cfg.rotation ? { rotation: cfg.rotation } : {}) };
   const ltCost = ltRank ? lifeTapHealthCost(ltRank.base ?? 0, stats.spirit, params) : 0;
-  let shCarryMs = 0;
+  // Soul Harvest left when the last pull ended; whatever time passes before the next pull (death, resummon, walk, taps, funnel, break) is taken off it.
+  let shLeftMs = 0;
   // Gnome Eureka!: cooldown and buff left, as they were when the last pull ended; the time since then is taken off at the next pull.
   let eurekaCdMs = 0;
   let eurekaBuffMs = 0;
@@ -229,7 +230,7 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     } else out.pullsWithoutBreak++;
     const gapMs = (out.totalSec - lastPullEndSec) * 1000;
     const r = simulatePull(
-      { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: shCarryMs, startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
+      { ...pull, startPetHp: petHp, startPetMana: petMana, startMana: mana, startHp: hp, startSoulHarvestMs: Math.max(0, shLeftMs - gapMs), startEurekaCdMs: Math.max(0, eurekaCdMs - gapMs), startEurekaBuffMs: Math.max(0, eurekaBuffMs - gapMs) },
       pullSeed(seed, i),
     );
     out.eurekaUses += r.eurekaUses;
@@ -281,8 +282,10 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
     out.totalSec += params.transition_sec;
     // Spirit mana regeneration resumes `fsr_sec` after the last cast (Classic five-second rule); Soul Harvest
     // keeps running after the kill and regenerates inside that rule too. Health regenerates out of combat.
-    shCarryMs = Math.max(0, r.soulHarvestLeftMs - params.transition_sec * 1000);
-    mana = Math.min(stats.maxMana, mana + walkManaRegen(stats.spirit, params, sh, r.soulHarvestLeftMs / 1000));
+    shLeftMs = r.soulHarvestLeftMs;
+    // The buff runs down during the death penalty and the resummon, which come before the walk.
+    const shAtWalkSec = Math.max(0, r.soulHarvestLeftMs / 1000 - (r.playerDied ? params.death_penalty_sec : 0) - (r.petDied ? params.pet_resummon_sec : 0));
+    mana = Math.min(stats.maxMana, mana + walkManaRegen(stats.spirit, params, sh, shAtWalkSec));
     hp = Math.min(stats.maxHp, hp + healthRegenPerSec(stats.spirit) * params.transition_sec);
     petRegen(params.transition_sec);
   }
