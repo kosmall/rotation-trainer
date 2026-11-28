@@ -2,7 +2,7 @@
 // aggregated per-cell metrics (build x level x gear profile) including kills per hour.
 
 import { ranksAt, type BuildVariant, type PicksOptions } from './builds';
-import { simulatePull, type PullConfig } from './fight';
+import { grantDemonicEnergiesMana, simulatePull, type PullConfig } from './fight';
 import { rankAt } from './spells';
 import { soulHarvest } from './effects';
 import { lifeTapWanted, needsBreak } from './policy';
@@ -175,6 +175,8 @@ export function runSession(cfg: CellConfig, seed: number): SessionResult {
       mana += got;
       hp -= ltCost;
       out.manaFromLifeTap += got;
+      // Demonic Energies: the living demon gets its share of the mana as in the fight (undefined = full, nothing to add).
+      if (petMana !== undefined) petMana = grantDemonicEnergiesMana(ranks, got, petMana, petMaxMana);
       taps++;
     }
     if (taps > 0) {
