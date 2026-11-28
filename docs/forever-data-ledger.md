@@ -47,9 +47,14 @@ HP; Wrack is a 6 s channel of 60 per tick, not a 2 s cast; Fel Concentration 23%
 
 ## 3. Conflicts between sources and the choice made
 
+(Written on 25-27 Nov. Where a later section settles a point, the bullet says so: read it as history, the later section is the rule.)
+
 - Wrack tick damage: 60 (wiki, timesaver) vs 124 (guildorder). Probably level-dependent tooltips
-  (timesaver/wiki show the level the talent unlocks, guildorder shows level 60). **Used: 60 at
-  level 40, 124 at level 60, linear in between** (assumption, flagged).
+  (timesaver/wiki show the level the talent unlocks, guildorder shows level 60). **SUPERSEDED by
+  section 7 item 6 (and section 1):** the model uses (36 + 2.5 x (level - 40) + 0.286 x SP) x 0.7 per
+  tick, i.e. about 25 at level 40 and 60 at level 60; there is no 60-to-124 interpolation in the code.
+  The old choice here ("60 at level 40, 124 at level 60, linear in between") is no longer used;
+  guildorder's 124 stays unexplained.
 - Siphon Life: 11 per 3 s (rank 1) vs 27 on guildorder (probably the top rank) vs Wowhead ranks
   11/19/29/41. Wowhead used.
 - Demonic Brand: user text says "next 3 attacks"; sources say 6 attacks at 3/3 (2 per rank). Sources used.
@@ -92,17 +97,17 @@ real value and the report regenerated.
    `life_tap_spirit_coeff`, `life_tap_mana_per_health`. Affects downtime and therefore kills per hour.
 4. **Gear profiles per level** (spell power, Spirit, Intellect, crit, hit, health). The three
    profiles in `levels.json` are invented. Best replaced by the user's real character stats.
-5. **Wrack**: the damage scaling with level (60 vs 124), its spell power coefficient, and whether
-   the DoT acceleration works exactly as modelled (the page text and the hotfix note differ in
-   wording).
+5. **Wrack**: the damage scaling with level and the spell power coefficient are **RESOLVED** (section 7
+   item 6; the "60 vs 124" conflict of section 3 is superseded). Still open: whether the DoT
+   acceleration works exactly as modelled (the page text and the hotfix note differ in wording).
 6. **Bane of Agony damage ramp** (shape over 24 s). Classic thirds assumed (flagged, in sensitivity).
 7. **Downranking spell-power penalty**: the Forever beta notes (1 Oct) say low ranks get "less
    benefit from Spell Damage"; the formula is not published (rankedboost: level-20 rule
    unconfirmed). Default model `none` (flagged, in sensitivity).
 8. **Rank levels** for Bane of Agony, Drain Life, Drain Soul, Siphon Life, Life Tap (Classic levels
    assumed; only rank 1 confirmed), and the damage **spread** of Shadow Bolt ranks 3+ (only averages).
-9. **Curse of the Elements** ranks 2-4 (4 ranks, rank 1 = +4% magic damage taken, level 20);
-   Wowhead ids for the other ranks not found. Amplify Curse cooldown.
+9. **Curse of the Elements** ranks 2-4: **found on 27 Nov** (Wowhead Forever: 4/6/8/10% for 50/100/150/200
+   mana at levels 20/30/40/50, see section 3). Still open: Amplify Curse cooldown.
 10. **Threat**: Searing Pain's threat factor ("high amount"), Torment's threat, how mobs choose
     targets in Forever, initial aggro on pulls. `searing_pain_threat_mult`, `pet_initial_threat_per_level`.
 11. **Demonic Brand**: rank 2 damage, whether the 60 in the formula is the caster level, and whether
@@ -136,7 +141,8 @@ In combat and between mobs: Life Tap when mana < 60% and HP > 80%, or mana < 20%
 between mobs also when HP = 100% and mana < 90%. The only break is food and water below 30% HP; it
 lasts until HP is full and the warlock drinks only during the meal. A Life Tap cast on the walk to the
 next mob costs no extra time while the walk lasts (`transition_sec`). Assumptions to check:
-**out-of-combat HP regeneration is taken as zero** (formula not found), HP is not healed by pets
+out-of-combat HP regeneration was taken as zero here (formula not found); **superseded by section 8:
+the code uses the Classic formula (Spirit x 0.12 + 1.5 per 2 s tick)**. HP is not healed by pets
 or healing spells, and the HP safety floor of a Life Tap is 10% (`lt_safety_hp_pct`).
 
 ## 7. Second research round (25 Nov 2026): the eight open items
@@ -155,7 +161,7 @@ numbers, the item stays open. Blizzard's own text (beta development notes, 3 Nov
 | 6 | Wrack scaling | **RESOLVED.** Blizzard (3 Nov): coefficient doubled to 0.286 per second, base damage per second +2.5 per level, 36 at level 40 and 86 at level 60 (hotfix 10 Nov: -30%, so 60 at level 60 = the wiki/timesaver tooltip). In the model: (36 + 2.5 x (level - 40) + 0.286 x SP) x 0.7 per tick (the -30% on the coefficient is confirmed by Wowhead's SP mod 0.2002, 26 Nov). Until 26 Nov the model kept the DoT tick count fixed under Wrack, so the effects expired early and Wrack added no DoT damage; fixed (tests/forever/wrack.test.ts). guildorder's 124 stays unexplained. |
 | 7 | Bane of Agony ramp | **NOT FOUND.** Blizzard (3 Nov): Bane of Agony "now updates dynamically" and Amplify Curse (+50%, 30 s) now affects it. The 0.5/1.0/1.5 thirds pattern stays an assumption (in the sensitivity analysis). |
 | 8a | Downranking | **Partly.** Blizzard (1 Oct, character sheet): spells at ranks "vastly below" your level "receive less benefit from your Spell Damage and Spell Healing". No formula or threshold published. Blizzard (3 Nov): "various talents no longer have a penalty to their chance to trigger" with low ranks; the penalty stays only for Arcane Concentration, Frostbite and Fingers of Frost (ranks learned more than 12 levels lower), so the warlock procs (Nightfall, Improved Shadow Bolt) are modelled without a penalty. |
-| 8b | Curse of the Elements ranks 2-4 | **NOT FOUND** (rank 1: +4% magic damage taken, level 20). |
+| 8b | Curse of the Elements ranks 2-4 | **NOT FOUND on 25 Nov; found on 27 Nov** (Wowhead Forever: ranks 4/6/8/10% for 50/100/150/200 mana at levels 20/30/40/50, section 3). |
 | 8c | Threat | **Partly.** Searing Pain "causes a high amount of threat" (wiki), Demonic Brand: Searing Pain -50% threat at 3/3, the Brand bonus damage "only does high threat when it deals Shadow damage" (Blizzard, 8 Oct); Torment 5 s cooldown, 20 mana. Factors not published. |
 | - | Spell miss vs same level | Conflict: 4% (Method.gg) vs 3% (Warcraft Tavern); in the sensitivity analysis. |
 
@@ -174,7 +180,7 @@ use Classic for items 1-4 below and to treat them as valid for Forever.
 | Item | Result |
 |---|---|
 | Mob health | Wowhead Forever NPC pages show Health for 46 of the 292 mobs sampled in levels 38-60 (only "discovered" NPCs have stats). **44 of 46 equal the Classic value exactly**, so the pages carry Classic health, not Blizzard's pre-launch increase ("increased the health of higher level creatures", no number). Model: Classic health = class-1 base health x (1.15 + 0.01 x (level-40)) (fits the Classic medians at levels 38, 40, 45, 50, 55); `mob_hp_mult` (default 1.0) is the unknown Forever factor, tested at 1.25 and 1.5. |
-| Mob damage and armor | Classic only: median melee damage per swing of normal mobs by level (line through the medians: -49.5 + 2.97 x level; 65 at 40, 99 at 50, about 126 at 59), attack speed 2.0 s, armor from `creature_template_classlevelstats` (class 1: 1964 at 40, 2999 at 50, 3489 at 59). |
+| Mob damage and armor | Classic only: median melee damage per swing of normal mobs by level (line through the medians: -49.5 + 2.97 x level; 65 at 40, 99 at 50, about 126 at 59; levels 13, 27, 32 and 33 corrected on 28 Nov, section 11), attack speed 2.0 s, armor from `creature_template_classlevelstats` (class 1: 1964 at 40, 2999 at 50, 3489 at 59). |
 | Warlock base health and mana | `player_classlevelstats` (class 9): e.g. level 40: 634 health, 923 mana; level 50: 979, 1163; level 59: 1366, 1352. Stamina gives 1 health per point for the first 20 and 10 after; Intellect 1 mana for the first 20 and 15 after (cmangos StatSystem.cpp). Third-party Forever guides say the same (10 per Stamina, 15 per Intellect). (Checked in game, see section 9: health matches, mana does not.) |
 | Gnome warlock base stats | `player_levelstats` (race 7, class 9): level 40: Str 29, Agi 40, Sta 45, Int 79, Spi 75; level 50: 34/46/54/98/93; level 59: 39/52/63/117/111. (Gnome Expansion was first applied as +5% Intellect: wrong in Forever, see section 9.) |
 | Spirit mana regeneration | Classic warlock: (Spirit/5 + 15) per 2 s tick outside the five-second rule (cmangos `OCTRegenMPPerSpirit`). That is 15 mana/s at Spirit 75: much more than the 5.8/s the first versions assumed. After a cast the regeneration waits 5 s (`fsr_sec`). Forever has not published a formula (rankedboost: untested). |
@@ -230,3 +236,16 @@ Source: Wowhead Forever spell 1259821, read in the browser (the plain page reque
   (`pull_start`) gives about half (it opens with Corruption and Bane, which it does not modify); keeping it for
   the end of the fight (`ttk`) or using it 9+ s in loses a third to nine tenths of the gain. Over a whole session
   the gain is 0.3-1 kills per hour (under 1%): it is a small bonus, one use per about five pulls.
+
+## 11. Audit corrections (28 Nov 2026)
+
+- **Mob damage per swing (audit A2-003).** The data in `classic_base.json` (`mob.<level>.swing`) was negative at
+  level 13 (-10.9) and below the previous level at 27, 32 and 33, because levels with fewer than 8 sampled mobs
+  fell back to the line fitted on levels 38-60 (section 8), which is far off below level 38. **Rule now (in
+  `scripts/forever-extract-classic.py`, `repair_swings`):** below level 38 a level with fewer than 8 sampled mobs
+  takes the linear interpolation between the nearest levels with 8+ mobs on each side (their real medians), and a
+  running maximum keeps the series non-decreasing. Changed values, nothing else: level 13 -10.9 -> 19.9,
+  level 27 30.6 -> 44.2, level 32 50.5 -> 51 (the real median 50.5 is below level 31's 51), level 33 48.4 -> 51.5.
+  Levels 38-60 (including the snapshot levels 40, 50, 59) are unchanged. The test is in
+  `tests/forever/spells-stats.test.ts` (positive and non-decreasing over 10-60). This is a Classic-derived
+  stand-in like the rest of the series (section 8), not a Forever measurement.
