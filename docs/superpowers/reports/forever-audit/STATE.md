@@ -9,8 +9,8 @@ Branch: claude/youthful-hopper-op9tox (merged origin/claude/peaceful-goldberg-kb
 
 ## Progress
 - [x] Task 1 baseline + determinism check (two runs identical except discover run-time line, now normalized) + before-snapshot
-- [ ] Task 2 audit wave
-- [ ] Task 3 dedup and fix plan
+- [x] Task 2 audit wave (A1-A5 done; A1 and A5 agents hit the weekly API limit right after writing their final files, files complete)
+- [x] Task 3 dedup and fix plan (fix-plan.md)
 - [ ] Task 4 fix waves
 - [ ] Task 5 diff review
 - [ ] Task 6 verification and report
