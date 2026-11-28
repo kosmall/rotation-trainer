@@ -399,10 +399,10 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
   };
 
   // ---- cast resolution ----------------------------------------------------------------------
-  const manaCost = (spellId: string, r: SpellRank): number => {
+  const manaCost = (spellId: string, r: SpellRank, eurekaStarts = false): number => {
     let c = r.mana;
     if (DESTRO_SPELLS.has(spellId)) c *= 1 - effectNum('cataclysm', 'destroManaCostReduceAtMax') * (rk(ranks, 'cataclysm') / 3);
-    if (EUREKA_COST.has(spellId) && eurekaOn()) c *= 1 - params.eureka_mod;
+    if (EUREKA_COST.has(spellId) && (eurekaOn() || eurekaStarts)) c *= 1 - params.eureka_mod;
     return Math.round(c);
   };
 
@@ -602,8 +602,11 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     const r = rankAt(c.spellId, c.rankWant, level);
     if (!r) return false;
     const free = trance && c.spellId === 'shadow_bolt';
-    const cost = manaCost(c.spellId, r);
+    // Eureka! is spent only on a cast that really starts; the cost is checked with the discount it would give.
+    const eureka = eurekaWanted(c, m);
+    const cost = manaCost(c.spellId, r, eureka);
     if (mana < cost) return false;
+    if (eureka) startEureka();
     if (free) trance = false;
     mana -= cost;
     res.manaSpent += cost;
@@ -623,18 +626,19 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     return true;
   };
 
-  /** Gnome Eureka!: instant, off the GCD; used by the policy when the cast about to start suits it. */
-  const useEureka = (c: Candidate, m: Mob): void => {
+  /** Gnome Eureka!: instant, off the GCD; the policy decides whether the cast about to start suits it. */
+  const eurekaWanted = (c: Candidate, m: Mob): boolean => {
     const pol = params.eureka_policy;
-    if (pol === 'off' || t < eurekaReadyAt || eurekaOn()) return;
+    if (pol === 'off' || t < eurekaReadyAt || eurekaOn()) return false;
     const affected = EUREKA_COST.has(c.spellId);
-    let ok = false;
-    if (pol === 'pull_start') ok = true;
-    else if (pol === 'first_affected') ok = affected;
-    else if (pol === 'filler') ok = c.spellId === fillerRank().id;
-    else if (pol === 'delay') ok = affected && t >= params.eureka_delay_sec * 1000;
-    else if (pol === 'ttk') ok = affected && m.hp / Math.max(1, dpsEstimate) <= params.eureka_dur_sec;
-    if (!ok) return;
+    if (pol === 'pull_start') return true;
+    if (pol === 'first_affected') return affected;
+    if (pol === 'filler') return c.spellId === fillerRank().id;
+    if (pol === 'delay') return affected && t >= params.eureka_delay_sec * 1000;
+    if (pol === 'ttk') return affected && m.hp / Math.max(1, dpsEstimate) <= params.eureka_dur_sec;
+    return false;
+  };
+  const startEureka = (): void => {
     eurekaUntil = t + params.eureka_dur_sec * 1000;
     eurekaReadyAt = t + params.eureka_cd_sec * 1000;
     res.eurekaUses++;
@@ -646,7 +650,6 @@ export function simulatePull(cfg: PullConfig, seed: number): PullResult {
     if (!m) return;
     if (known('life_tap') && lifeTapWanted(mana, maxMana, hp, maxHp, params, false) && lifeTap(params.lt_safety_hp_pct)) return;
     for (const c of rotation(makeCtx(m))) {
-      useEureka(c, m);
       if (startCast(c, m)) return;
     }
     // Emergency: nothing is affordable, so Life Tap down to the safety floor even below the usual HP rule (otherwise the warlock idles).
