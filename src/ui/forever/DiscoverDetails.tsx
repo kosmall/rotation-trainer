@@ -25,7 +25,8 @@ const STATS: readonly [string, (m: CellMetrics) => string][] = [
   ['Odpoczynek na zabicie', (m) => `${n1(m.restSecPerKill)} s`],
   ['Przestoje', (m) => pct(m.downtimeShare)],
   ['Przerwy na godzinę', (m) => n1(m.breaksPerHour)],
-  ['Zabicia na przerwę', (m) => n1(m.killsPerBreak)],
+  // without breaks the runner reports the total kill count: that is not kills per break
+  ['Zabicia na przerwę', (m) => (m.breaksPerHour > 0 ? n1(m.killsPerBreak) : '–')],
   ['Pulle bez przerwy', (m) => `${n1(m.breakFreePullPct)}%`],
   ['Wykorzystanie GCD', (m) => pct(m.gcdUtil)],
   ['Strata GCD na zabicie', (m) => `${n2(m.gcdWasteSecPerKill)} s (${pct(m.gcdWasteShare)})`],

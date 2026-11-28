@@ -101,6 +101,8 @@ function condText(c: Cond): string {
       return `mana < ${c.pct}%`;
     case 'hp_pct_above':
       return `health > ${c.pct}%`;
+    case 'combat_sec_at_least':
+      return `fight lasted ≥ ${c.sec} s`;
     default:
       return c.op;
   }

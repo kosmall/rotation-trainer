@@ -28,6 +28,13 @@ describe('sweep statistics', () => {
     expect(extremesAt(s, 1)).toEqual({ best: ['A', 'B'], worst: ['C'] });
   });
 
+  it('compares at the precision of the metric: 0.04 and 0.01 differ at two decimals (A5-018)', () => {
+    const s = series({ A: [0.04], B: [0.01] });
+    expect(extremesAt(s, 0)).toEqual({ best: [], worst: [] });
+    expect(extremesAt(s, 0, 2)).toEqual({ best: ['A'], worst: ['B'] });
+    expect(summarize(s, 1, 2).levels).toBe(1);
+  });
+
   it('has no best or worst when the builds do not differ, or there is only one', () => {
     expect(extremesAt(series({ A: [7], B: [7.01] }), 0)).toEqual({ best: [], worst: [] });
     expect(extremesAt(series({ A: [7] }), 0)).toEqual({ best: [], worst: [] });

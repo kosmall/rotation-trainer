@@ -43,4 +43,14 @@ describe('Odkrywanie: row details', () => {
     fireEvent.click(toggle);
     expect(screen.queryByRole('region', { name: 'Szczegóły wyniku #1' })).toBeNull();
   });
+
+  it('shows no kills per break when there were no breaks (A5-018)', () => {
+    const noBreaks = { ...result, top: result.top.map((t) => ({ ...t, metrics: { ...t.metrics, breaksPerHour: 0, killsPerBreak: 4321 } })) };
+    window.localStorage.setItem(DISCOVER_STORAGE_KEY, JSON.stringify({ settings, budget: 'full', result: noBreaks }));
+    render(<ForeverApp view="discover" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Szczegóły #1' }));
+    const row = within(screen.getByRole('table', { name: 'Statystyki #1' })).getByRole('rowheader', { name: 'Zabicia na przerwę' }).closest('tr')!;
+    expect(row.textContent).not.toContain('4321');
+    expect(row.textContent).toContain('–');
+  });
 });

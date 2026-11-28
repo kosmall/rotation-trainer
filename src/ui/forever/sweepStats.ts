@@ -5,12 +5,12 @@ export interface LevelSeries {
   values: readonly number[];
 }
 
-/** Values are compared as they are shown (one decimal), so builds that look equal are a tie. */
-const shown = (v: number): number => Math.round(v * 10) / 10;
+/** Values are compared as they are shown (`decimals`, one by default), so builds that look equal are a tie. */
+const shown = (v: number, decimals: number): number => Math.round(v * 10 ** decimals) / 10 ** decimals;
 
-/** The ids with the highest and the lowest value at level index `i`; both empty when the builds do not differ. */
-export function extremesAt(series: readonly LevelSeries[], i: number): { best: string[]; worst: string[] } {
-  const row = series.map((s) => ({ id: s.id, v: shown(s.values[i] ?? 0) }));
+/** The ids with the highest and the lowest value at level index `i`; both empty when the builds do not differ. `decimals`: the precision the values are shown with. */
+export function extremesAt(series: readonly LevelSeries[], i: number, decimals = 1): { best: string[]; worst: string[] } {
+  const row = series.map((s) => ({ id: s.id, v: shown(s.values[i] ?? 0, decimals) }));
   if (row.length < 2) return { best: [], worst: [] };
   const hi = Math.max(...row.map((r) => r.v));
   const lo = Math.min(...row.map((r) => r.v));
@@ -38,12 +38,12 @@ const ranking = (series: readonly LevelSeries[], counts: ReadonlyMap<string, num
   series.map((s) => ({ id: s.id, count: counts.get(s.id) ?? 0 })).sort((a, b) => b.count - a.count);
 
 /** Counts, over all levels, how often each build is the best and the worst (a tie counts for every tied build). */
-export function summarize(series: readonly LevelSeries[], levelCount: number): SweepSummary {
+export function summarize(series: readonly LevelSeries[], levelCount: number, decimals = 1): SweepSummary {
   const best = new Map<string, number>();
   const worst = new Map<string, number>();
   let levels = 0;
   for (let i = 0; i < levelCount; i++) {
-    const e = extremesAt(series, i);
+    const e = extremesAt(series, i, decimals);
     if (e.best.length === 0) continue;
     levels++;
     for (const id of e.best) best.set(id, (best.get(id) ?? 0) + 1);
