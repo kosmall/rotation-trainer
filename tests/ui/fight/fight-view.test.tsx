@@ -268,7 +268,7 @@ describe('Fight screen: aura icons and stylesheet', () => {
   it('the stylesheet pulses expiring auras, outlines them instead under reduced motion, and never animates layout', async () => {
     const nodeFs = 'node:' + 'fs';
     const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
-    const testFile = decodeURIComponent(new URL(import.meta.url).pathname);
+    const testFile = decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1');
     const css = fs.readFileSync(testFile.replace(/tests\/ui\/fight\/[^/]+$/, 'src/ui/fight/fight.css'), 'utf8');
     expect(css).toMatch(/\.fv-aura\.pulse \.fv-aura-icon \{[^}]*animation: fv-pulse/);
     expect(css).toMatch(/\.fv-aura\.expiring:not\(\.pulse\) \.fv-aura-icon \{[^}]*outline: 2px solid/);

@@ -162,7 +162,7 @@ th .fv-wh, li .fv-wh { display: inline; width: auto; height: auto; text-decorati
 .fv-rank-ticked { fill: var(--text); font-weight: 600; }
 .fv-rank-value { fill: var(--text); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fv-rank-gap { fill: var(--text-dim); font-size: 12px; font-variant-numeric: tabular-nums; }
-.fv-rank-check { cursor: pointer; outline: none; }
+.fv-rank-check { cursor: pointer; }
 .fv-rank-hit { fill: transparent; }
 .fv-rank-box { fill: var(--surface); stroke: var(--text-dim); stroke-width: 1.5; }
 .fv-rank-check[aria-checked='true'] .fv-rank-box { fill: var(--class); stroke: var(--class); }

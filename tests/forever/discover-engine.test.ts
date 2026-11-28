@@ -58,7 +58,8 @@ describe('discovery engine', async () => {
     const again = await discover(o, reversed(o));
     expect(again.top).toEqual(res.top);
   });
-  it('resumes from a saved state and starts over when the inputs change', async () => {
+  // three whole searches, mixing stage included: about 2 s on a desktop, over the default 5 s on the build server
+  it('resumes from a saved state and starts over when the inputs change', { timeout: 30_000 }, async () => {
     let saved: DiscoverState | undefined;
     await discover(o, inlineRunner(o), { save: (s) => (saved = structuredClone(s)) });
     expect(saved?.hash).toBe(stateHash(o));

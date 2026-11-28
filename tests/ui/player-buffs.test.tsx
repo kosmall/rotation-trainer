@@ -139,7 +139,7 @@ describe('Your buffs (PlayerBuffs)', () => {
     const nodeFs = 'node:' + 'fs';
     const fs = (await import(/* @vite-ignore */ nodeFs)) as { readFileSync(path: string, encoding: 'utf8'): string };
     // (Not `new URL(path, import.meta.url)`: Vite rewrites that into a served asset URL.)
-    const testFile = decodeURIComponent(new URL(import.meta.url).pathname);
+    const testFile = decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1');
     const css = fs.readFileSync(testFile.replace(/tests\/ui\/[^/]+$/, 'src/ui/fight/fight.css'), 'utf8');
     expect(css).toMatch(/\.fv-aura\.pulse[^{]*\{[^}]*animation:/);
     const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)?.join('\n') ?? '';
