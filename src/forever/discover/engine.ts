@@ -14,6 +14,7 @@ import { pairedDiff, type MetricDiff } from '../duel';
 import { runCell, type CellMetrics, type SessionResult } from '../runner';
 import { pointsAtLevel, TALENT_BY_ID, TALENTS, validatePicks, type Ranks } from '../talents';
 import type { Params, Tree } from '../types';
+import { SIM_VERSION } from '../version';
 import { buildRotation, effectiveKey, enumerateCombos, mixVariants, playedLabel, requiredRanks, type Combo, type FillerGene, type SpaceFilter } from './space';
 import { canonicalPicks, hillClimb, isLegal, modelledDistance, modelledKey, pointDistance, type Scored } from './talent-search';
 
@@ -128,9 +129,9 @@ export function fnv1a(s: string): number {
 
 const DATA_TEXT = JSON.stringify([spellsJson, talentsJson, levelsJson, classicBase]);
 
-/** Identifies the inputs of a run: a saved state with another hash is not resumed. */
+/** Identifies the inputs of a run: a saved state with another hash is not resumed. The simulator version is part of it, so a state made by older simulator code is not resumed either. */
 export function stateHash(o: DiscoverOptions): string {
-  const inputs = JSON.stringify([o.params, o.level, o.profile, o.mobs, o.seed, o.perk, o.budget, o.space ?? null]);
+  const inputs = JSON.stringify([SIM_VERSION, o.params, o.level, o.profile, o.mobs, o.seed, o.perk, o.budget, o.space ?? null]);
   return `${fnv1a(DATA_TEXT).toString(16)}-${fnv1a(inputs).toString(16)}`;
 }
 
