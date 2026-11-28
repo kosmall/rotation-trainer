@@ -35,7 +35,20 @@ export function registerGearProfile(totals: GearTotals | null): void {
   myGear = totals;
 }
 
-const clampLevel = (level: number): string => (Math.round(level) === 1 ? '1' : String(Math.min(60, Math.max(10, Math.round(level)))));
+/**
+ * The table level a (possibly out-of-table) level stands for. The Classic tables have level 1 and levels 10-60 only, so the
+ * rule is explicit: the level is rounded to a whole level, levels 2-9 use the level 10 row and levels above 60 the level 60
+ * row, and everything else that grows with the level (gear profile growth, mana base offset, consumable rates) uses this same
+ * table level, so fractional or clamped levels never mix rounded tables with unrounded growth. A level below 1 or a
+ * non-finite one is a caller bug and throws. The UI and API only reach whole levels 10-60.
+ */
+export function statLevel(level: number): number {
+  if (!Number.isFinite(level) || level < 1) throw new RangeError(`level ${level}: expected a finite level of at least 1`);
+  const r = Math.round(level);
+  return r <= 1 ? 1 : Math.min(60, Math.max(10, r));
+}
+
+const clampLevel = (level: number): string => String(statLevel(level));
 
 /** GCD in ms: fixed 1.5 s unless haste shortens it (`haste_shortens_gcd`), never below `min_gcd_ms`. */
 export function gcdMs(hastePct: number, params: Params): number {
@@ -55,7 +68,7 @@ export function gcdWasteMs(castMs: number, gcd: number): number {
 
 export interface MobStats { hp: number; swing: number; armor: number }
 
-/** Normal same-level mob (WoW Classic data, classic_base.json); levels clamp to 10-60. */
+/** Normal same-level mob (WoW Classic data, classic_base.json); levels outside the table follow `statLevel`. */
 export function mobAt(level: number): MobStats {
   const m = BASE.mob[clampLevel(level)] as MobRow;
   return { hp: m.hp, swing: m.swing, armor: m.armor };
@@ -122,7 +135,7 @@ export function manaBaseOffset(level: number): number {
  * gnome Intellect 25 -> 194.
  */
 export function maxManaOf(level: number, intellect: number, racialMult = 1): number {
-  const base = (BASE.warlock[clampLevel(level)] as BaseRow).mana + manaBaseOffset(level);
+  const base = (BASE.warlock[clampLevel(level)] as BaseRow).mana + manaBaseOffset(statLevel(level));
   return Math.round((base + manaFromIntellect(intellect)) * racialMult);
 }
 
@@ -132,32 +145,32 @@ export function maxManaOf(level: number, intellect: number, racialMult = 1): num
  * (+5% maximum mana), Demonic Embrace (+3% Stamina per rank) and Fel Vitality (+5% mana per rank).
  */
 export function playerStatsFor(level: number, profile: string, ranks: Ranks, delta: StatDelta = {}): PlayerStats {
-  const L = clampLevel(level);
-  const base = BASE.gnomeWarlockBase[L] as StatRow;
-  const sta = (base.sta + prof(profile, 'stamina', level) + (delta.stamina ?? 0)) * (1 + 0.03 * (ranks['demonic_embrace'] ?? 0));
-  const int = base.int + prof(profile, 'intellect', level) + (delta.intellect ?? 0);
+  const lv = statLevel(level);
+  const base = BASE.gnomeWarlockBase[String(lv)] as StatRow;
+  const sta = (base.sta + prof(profile, 'stamina', lv) + (delta.stamina ?? 0)) * (1 + effectNum('demonic_embrace', 'staminaMultPerRank') * (ranks['demonic_embrace'] ?? 0));
+  const int = base.int + prof(profile, 'intellect', lv) + (delta.intellect ?? 0);
   const maxHp = maxHealthOf(level, sta);
-  const maxMana = Math.round(maxManaOf(level, int, BASE.foreverObserved.gnomeMaxManaMult) * (1 + 0.05 * (ranks['fel_vitality'] ?? 0)));
+  const maxMana = Math.round(maxManaOf(level, int, BASE.foreverObserved.gnomeMaxManaMult) * (1 + effectNum('fel_vitality', 'playerManaPerRank') * (ranks['fel_vitality'] ?? 0)));
   return {
     level,
     maxHp,
     maxMana,
     stamina: sta,
     intellect: int,
-    spellPower: prof(profile, 'spellPower', level) + (delta.spellPower ?? 0),
-    spirit: base.spi + prof(profile, 'spirit', level) + (delta.spirit ?? 0),
-    critPct: prof(profile, 'critPct', level) + (delta.critPct ?? 0),
-    hitPct: prof(profile, 'hitPct', level) + (delta.hitPct ?? 0),
-    armor: base.agi * 2 + prof(profile, 'armor', level),
-    foodHpPerSec: consumableRate(LV.consumables.food, level, 'hpPerSec'),
-    drinkManaPerSec: consumableRate(LV.consumables.drink, level, 'manaPerSec'),
+    spellPower: prof(profile, 'spellPower', lv) + (delta.spellPower ?? 0),
+    spirit: base.spi + prof(profile, 'spirit', lv) + (delta.spirit ?? 0),
+    critPct: prof(profile, 'critPct', lv) + (delta.critPct ?? 0),
+    hitPct: prof(profile, 'hitPct', lv) + (delta.hitPct ?? 0),
+    armor: base.agi * 2 + prof(profile, 'armor', lv),
+    foodHpPerSec: consumableRate(LV.consumables.food, lv, 'hpPerSec'),
+    drinkManaPerSec: consumableRate(LV.consumables.drink, lv, 'manaPerSec'),
   };
 }
 
 export function demonArmorOf(level: number, ranks: Ranks): number {
   let armor = 0;
   for (const [lv, a] of LV.demonArmor.ranks) if (level >= lv) armor = a;
-  return armor * (1 + 0.15 * (ranks['demonic_aegis'] ?? 0));
+  return armor * (1 + effectNum('demonic_aegis', 'demonArmorMultPerRank') * (ranks['demonic_aegis'] ?? 0));
 }
 
 /** Physical damage reduction from armor (Classic formula, capped at 75%). */
@@ -172,7 +185,7 @@ export function lifeTapHealthCost(rankBase: number, spirit: number, params: Para
 
 /** Mana gained by Life Tap: health cost x conversion x (1 + Improved Life Tap). */
 export function lifeTapGain(rankBase: number, spirit: number, ranks: Ranks, params: Params): number {
-  return lifeTapHealthCost(rankBase, spirit, params) * params.life_tap_mana_per_health * (1 + 0.1 * (ranks['improved_life_tap'] ?? 0));
+  return lifeTapHealthCost(rankBase, spirit, params) * params.life_tap_mana_per_health * (1 + effectNum('improved_life_tap', 'gainMultPerRank') * (ranks['improved_life_tap'] ?? 0));
 }
 
 /** Spirit mana regeneration per second outside the five-second rule: warlock (Spirit/5 + 15) per 2 s tick (Classic, cmangos). */
