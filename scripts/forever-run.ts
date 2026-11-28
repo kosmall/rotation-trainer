@@ -1,5 +1,7 @@
-// `npm run forever:run -- --levels 40-59 --profile average --sessions 100 --seed 1 [--mobs 2] [--param bane_per_rank=0.2] [--builds A,B]`
+// `npm run forever:run -- --levels 40-59 --profile average --sessions 100 --seed 1 [--mobs 2 | --param mobs_per_pull=2] [--param bane_per_rank=0.2] [--builds A,B]`
 import { compareBuilds, renderMarkdownTable } from '../src/forever/compare';
+import { resolveMobs } from '../src/forever/ep-cli';
+import { formatRunHeader } from '../src/forever/report';
 import type { Params } from '../src/forever/types';
 
 const args = process.argv.slice(2);
@@ -14,13 +16,19 @@ for (const kv of all('param')) {
   const [k, v] = kv.split('=');
   params[k as string] = v === 'true' ? true : v === 'false' ? false : Number.isNaN(Number(v)) ? v : Number(v);
 }
+const levels = parseLevels(arg('levels', '40,50,59'));
+const sessions = Number(arg('sessions', '60'));
+const seed = Number(arg('seed', '1'));
+// --mobs N wins; without it --param mobs_per_pull=N applies (default 1)
+const mobs = resolveMobs(arg('mobs', ''), params);
 const rows = compareBuilds({
-  levels: parseLevels(arg('levels', '40,50,59')),
+  levels,
   profiles: arg('profile', 'average').split(','),
-  sessions: Number(arg('sessions', '60')),
-  seed: Number(arg('seed', '1')),
-  mobs: Number(arg('mobs', '1')) as 1 | 2 | 3,
+  sessions,
+  seed,
+  mobs,
   params: params as Partial<Params>,
   builds: arg('builds', '') ? arg('builds', '').split(',') : undefined,
 });
+console.log(formatRunHeader({ levels, profiles: arg('profile', 'average').split(','), mobs: mobs ?? (params.mobs_per_pull as number | undefined) ?? 1, sessions, seed, params }));
 console.log(renderMarkdownTable(rows));

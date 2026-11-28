@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs';
 import { variantFromJson } from '../src/forever/builds';
 import { duelBuilds, formatDetail, formatSummary, type BuildRef } from '../src/forever/duel';
+import { resolveMobs } from '../src/forever/ep-cli';
+import { formatRunHeader } from '../src/forever/report';
 import type { Params } from '../src/forever/types';
 
 const args = process.argv.slice(2);
@@ -20,17 +22,19 @@ for (const kv of all('param')) {
   const [k, v] = kv.split('=');
   params[k as string] = v === 'true' ? true : v === 'false' ? false : Number.isNaN(Number(v)) ? v : Number(v);
 }
-if (arg('mobs', '')) params.mobs_per_pull = Number(arg('mobs', '1'));
+// --mobs N wins; without it --param mobs_per_pull=N applies (default 1)
+const mobs = resolveMobs(arg('mobs', ''), params);
 const levels = parseLevels(arg('levels', '40-59'));
 const report = duelBuilds(ref(arg('a', 'DEMO_PACT_R1'), all('a-file')[0]), ref(arg('b', 'AFF_WRACK'), all('b-file')[0]), {
   levels,
   profile: arg('profile', 'average'),
-  mobs: Number(arg('mobs', '1')) as 1 | 2 | 3,
+  mobs,
   sessions: Number(arg('sessions', '200')),
   seed: Number(arg('seed', '1')),
   params: params as Partial<Params>,
   picks: { legacyPerk: Number(arg('perk', '0')), respecLevel: arg('respec', '') ? Number(arg('respec', '40')) : undefined },
 });
+console.log(formatRunHeader({ title: 'Forever duel', levels, profiles: [arg('profile', 'average')], mobs: mobs ?? (params.mobs_per_pull as number | undefined) ?? 1, sessions: Number(arg('sessions', '200')), seed: Number(arg('seed', '1')), params }));
 console.log(formatSummary(report));
 const detail = arg('detail', '');
 if (detail) {

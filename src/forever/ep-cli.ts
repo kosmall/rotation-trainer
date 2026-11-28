@@ -14,6 +14,19 @@ const parseLevels = (s: string): number[] => {
 };
 const parseValue = (v: string | undefined): unknown => (v === 'true' ? true : v === 'false' ? false : Number.isNaN(Number(v)) ? v : Number(v));
 
+/**
+ * The mobs per pull of a command line: `--mobs N` when given (also written to `params.mobs_per_pull`, so both
+ * agree), otherwise undefined, which leaves `params.mobs_per_pull` (default 1, or `--param mobs_per_pull=N`) in
+ * charge. Throws on a value other than 1, 2, 3.
+ */
+export function resolveMobs(flag: string | undefined, params: Record<string, unknown>): 1 | 2 | 3 | undefined {
+  if (flag === undefined || flag === '') return undefined;
+  const mobs = Number(flag);
+  if (mobs !== 1 && mobs !== 2 && mobs !== 3) throw new Error(`--mobs must be 1, 2 or 3, got ${flag}`);
+  params.mobs_per_pull = mobs;
+  return mobs;
+}
+
 /** Runs the command on its arguments; throws an Error with a readable message on bad input. */
 export function runEpCli(args: string[]): { text: string; out?: string } {
   const all = (name: string): string[] => args.flatMap((x, i) => (x === `--${name}` && args[i + 1] ? [args[i + 1] as string] : []));
@@ -32,8 +45,7 @@ export function runEpCli(args: string[]): { text: string; out?: string } {
   const builds = args.includes('--all') ? [...VARIANT_IDS] : arg('builds', '') ? arg('builds', '').split(',') : [arg('build', 'AFF_WRACK')];
   const levels = parseLevels(arg('levels', '40-59'));
   if (levels.length === 0 || levels.some((l) => !Number.isFinite(l))) throw new Error(`--levels wants a range like 40-59 (low to high) or a list like 45,50,55; got "${arg('levels', '40-59')}"`);
-  const mobs = Number(arg('mobs', '1'));
-  if (mobs !== 1 && mobs !== 2 && mobs !== 3) throw new Error(`--mobs must be 1, 2 or 3, got ${arg('mobs', '1')}`);
+  const mobs = resolveMobs(arg('mobs', ''), params);
   const report = epReport(builds, levels, {
     profile: arg('profile', 'average'),
     mobs,
