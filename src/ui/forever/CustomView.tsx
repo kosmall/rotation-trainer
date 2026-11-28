@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { customVariant, loadVariant, picksAt, VARIANT_IDS } from '../../forever/builds';
 import { MAX_TALENT_POINTS, pointsAtLevel, TALENT_BY_ID, validatePicks } from '../../forever/talents';
 import { DEFAULT_GENES, FILLERS, PETS, ROTATIONS, customId, emptyBuild, exportBuild, parseBuild, uniqueName, type CustomBuildData, type CustomState } from '../../forever/web/custom';
-import { FILLER_NAME, FILLERS as GENE_FILLERS, MIN_TTKS, type RotationGenes } from '../../forever/rotation-genes';
+import { ALT_FILLERS, ALT_WHEN_NAME, ALT_WHENS, DOT_KEYS, FILLER_NAME, FILLERS as GENE_FILLERS, MIN_TTKS, type AltWhen, type DotKey, type FillerGene, type MinTtk, type RotationGenes } from '../../forever/rotation-genes';
 import { isAddonExport, parseAddonExport } from '../../forever/web/addon-import';
 import { fetchGear, gearIdsOf, type MyGear } from '../../forever/web/gear';
 import { GearList } from './GearList';
@@ -368,6 +368,8 @@ const GENE_FLAGS: readonly [keyof RotationGenes, string][] = [
   ['drainSoulFinisher', 'Drain Soul na dobicie'],
 ];
 
+const DOT_LABEL: Record<DotKey, string> = { coe: 'Curse of the Elements', agony: 'Bane of Agony', corruption: 'Corruption', siphon: 'Siphon Life', immolate: 'Immolate' };
+
 /** The blocks of a rotation composed from spells: maintained effects, their time-to-kill floor, the finisher and the filler. */
 function GeneControls({ genes, onChange }: { genes: RotationGenes; onChange(g: RotationGenes): void }) {
   return (
@@ -397,6 +399,58 @@ function GeneControls({ genes, onChange }: { genes: RotationGenes; onChange(g: R
           ))}
         </select>
       </label>
+      <label>
+        Drugi filler (mieszanie)
+        <select
+          value={genes.alt?.filler ?? ''}
+          onChange={(e) => {
+            const { alt: _drop, ...rest } = genes;
+            const filler = e.target.value as FillerGene | '';
+            onChange(filler === '' ? rest : { ...rest, alt: { when: genes.alt?.when ?? 'mana_lt_30', filler } });
+          }}
+        >
+          <option value="">brak</option>
+          {ALT_FILLERS.filter((f) => f !== genes.filler).map((f) => (
+            <option key={f} value={f}>
+              {FILLER_NAME[f]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {genes.alt && (
+        <label>
+          Drugi filler gdy
+          <select value={genes.alt.when} onChange={(e) => onChange({ ...genes, alt: { filler: (genes.alt as NonNullable<RotationGenes['alt']>).filler, when: e.target.value as AltWhen } })}>
+            {ALT_WHENS.map((w) => (
+              <option key={w} value={w}>
+                {ALT_WHEN_NAME[w]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {DOT_KEYS.filter((k) => genes[k]).map((k) => (
+        <label key={k}>
+          {DOT_LABEL[k]}: TTK ≥
+          <select
+            value={genes.dotTtk?.[k] === undefined ? '' : String(genes.dotTtk[k])}
+            onChange={(e) => {
+              const { dotTtk, ...rest } = genes;
+              const next: Partial<Record<DotKey, MinTtk>> = { ...dotTtk };
+              if (e.target.value === '') delete next[k];
+              else next[k] = Number(e.target.value) as MinTtk;
+              onChange(Object.keys(next).length ? { ...rest, dotTtk: next } : rest);
+            }}
+          >
+            <option value="">jak DoT-y</option>
+            {MIN_TTKS.map((t) => (
+              <option key={t} value={String(t)}>
+                {t === 0 ? 'zawsze' : `${t} s`}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
     </>
   );
 }

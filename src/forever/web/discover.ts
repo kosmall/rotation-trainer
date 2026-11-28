@@ -48,6 +48,9 @@ export interface EtaInput {
   baselines: number;
 }
 
+/** About how many mixed neighbours one base rotation has. */
+const MIX_VARIANTS_PER_BASE = 45;
+
 /** Insensitivity re-runs of the top 5 (about a dozen talents each). */
 const INSENSITIVITY_TASKS = 60;
 
@@ -59,9 +62,9 @@ const INSENSITIVITY_TASKS = 60;
 export function discoverEtaSec(i: EtaInput): number | null {
   if (i.done <= 0 || i.stageElapsedSec <= 0) return null;
   const b = i.budget;
-  const order = ['screen', 'search', 'final', 'insensitivity'];
-  const unit: Record<string, number> = { screen: b.screen.evals * b.screen.sessions, search: b.search.evals * b.search.sessions, final: b.finalSessions, insensitivity: b.finalSessions };
-  const tasks: Record<string, number> = { screen: i.combos, search: Math.min(i.combos, b.keep + 9 * b.perFamilyMin), final: b.final + i.baselines, insensitivity: INSENSITIVITY_TASKS };
+  const order = ['screen', 'search', 'mix', 'mix-search', 'final', 'insensitivity'];
+  const unit: Record<string, number> = { screen: b.screen.evals * b.screen.sessions, search: b.search.evals * b.search.sessions, mix: b.screen.evals * b.screen.sessions, 'mix-search': b.search.evals * b.search.sessions, final: b.finalSessions, insensitivity: b.finalSessions };
+  const tasks: Record<string, number> = { screen: i.combos, search: Math.min(i.combos, b.keep + 9 * b.perFamilyMin), mix: MIX_VARIANTS_PER_BASE * (b.mixBases + Math.ceil(b.mixBases / 3)), 'mix-search': 2 * b.mixKeep, final: b.final + i.baselines, insensitivity: INSENSITIVITY_TASKS };
   const at = order.indexOf(i.stage);
   if (at < 0) return null;
   const rate = (i.done * (unit[i.stage] as number)) / i.stageElapsedSec;

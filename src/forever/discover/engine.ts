@@ -14,7 +14,7 @@ import { pairedDiff, type MetricDiff } from '../duel';
 import { runCell, type CellMetrics, type SessionResult } from '../runner';
 import { pointsAtLevel, TALENT_BY_ID, TALENTS, validatePicks, type Ranks } from '../talents';
 import type { Params, Tree } from '../types';
-import { buildRotation, effectiveKey, enumerateCombos, playedLabel, requiredRanks, type Combo, type FillerGene, type SpaceFilter } from './space';
+import { buildRotation, effectiveKey, enumerateCombos, mixVariants, playedLabel, requiredRanks, type Combo, type FillerGene, type SpaceFilter } from './space';
 import { canonicalPicks, hillClimb, isLegal, modelledDistance, modelledKey, pointDistance, type Scored } from './talent-search';
 
 export interface StageBudget {
@@ -34,10 +34,14 @@ export interface Budget {
   /** Distinct results re-run on many seeds. */
   final: number;
   finalSessions: number;
+  /** Best rotations whose neighbours are tried with mixed fillers and other effect floors (round 1; a third of it in round 2). 0 = no mixing. */
+  mixBases: number;
+  /** Mixed variants of a round that get the long search. */
+  mixKeep: number;
 }
 
-export const DEFAULT_BUDGET: Budget = { screen: { starts: 2, evals: 30, sessions: 2 }, keep: 200, perFamilyMin: 3, search: { starts: 8, evals: 200, sessions: 10 }, final: 60, finalSessions: 200 };
-export const QUICK_BUDGET: Budget = { screen: { starts: 1, evals: 8, sessions: 1 }, keep: 20, perFamilyMin: 1, search: { starts: 2, evals: 20, sessions: 3 }, final: 25, finalSessions: 20 };
+export const DEFAULT_BUDGET: Budget = { screen: { starts: 2, evals: 30, sessions: 2 }, keep: 200, perFamilyMin: 3, search: { starts: 8, evals: 200, sessions: 10 }, final: 60, finalSessions: 200, mixBases: 24, mixKeep: 60 };
+export const QUICK_BUDGET: Budget = { screen: { starts: 1, evals: 8, sessions: 1 }, keep: 20, perFamilyMin: 1, search: { starts: 2, evals: 20, sessions: 3 }, final: 25, finalSessions: 20, mixBases: 4, mixKeep: 8 };
 
 export interface DiscoverOptions {
   level: number;
@@ -104,6 +108,8 @@ export interface DiscoverResult {
     changedParams: Record<string, unknown>;
     hash: string;
     combos: number;
+    /** Mixed variants (second filler, other effect floors) screened around the best rotations. */
+    mixed?: number;
     searched: number;
     evaluations: number;
   };
@@ -244,18 +250,18 @@ export async function discover(o: DiscoverOptions, run: Runner, io: DiscoverIo =
   const points = pointsAtLevel(o.level, o.perk);
   const combos = enumerateCombos(o.level, o.space);
 
-  const searchStage = async (stage: 'screen' | 'search', list: Combo[]): Promise<void> => {
+  const searchStage = async (stage: 'screen' | 'search', list: Combo[], label: string = stage): Promise<void> => {
     const store = state[stage];
     const todo = list.filter((c) => !store[c.id]);
     let done = list.length - todo.length;
-    io.progress?.(stage, done, list.length);
+    io.progress?.(label, done, list.length);
     await run(
       todo.map((combo) => ({ kind: 'search', stage, combo })),
       (r) => {
         if (r.kind !== 'search') return;
         store[r.comboId] = r;
         done++;
-        io.progress?.(stage, done, list.length);
+        io.progress?.(label, done, list.length);
         if (done % 50 === 0) io.save?.(state);
       },
     );
@@ -278,9 +284,43 @@ export async function discover(o: DiscoverOptions, run: Runner, io: DiscoverIo =
   const searchList = combos.filter((c) => chosen.has(c.id));
   await searchStage('search', searchList);
 
+  // 2b. mixing: the neighbours of the best rotations (a second filler under a condition, other floors per effect),
+  // screened and searched like the rest; round 2 mixes the winners of round 1 again (the two kinds combine)
+  const searched = [...searchList];
+  const known = new Set(combos.map((c) => c.id));
+  let screenedExtra = 0;
+  let roundBases = searchList;
+  for (let round = 1; round <= 2 && o.budget.mixBases > 0; round++) {
+    const n = round === 1 ? o.budget.mixBases : Math.max(1, Math.ceil(o.budget.mixBases / 3));
+    const bases = roundBases
+      .filter((c) => bestOf(state.search[c.id]) > -Infinity)
+      .sort((a, b) => bestOf(state.search[b.id]) - bestOf(state.search[a.id]) || (a.id < b.id ? -1 : 1))
+      .slice(0, n);
+    const variants: Combo[] = [];
+    for (const b of bases) {
+      const r = state.search[b.id];
+      const ranks = r && r.kind === 'search' && r.found[0] ? r.found[0].ranks : {};
+      for (const v of mixVariants(b, o.level, ranks)) {
+        if (known.has(v.id)) continue;
+        known.add(v.id);
+        variants.push(v);
+      }
+    }
+    if (variants.length === 0) break;
+    screenedExtra += variants.length;
+    await searchStage('screen', variants, 'mix');
+    const best = variants
+      .filter((c) => bestOf(state.screen[c.id]) > -Infinity)
+      .sort((a, b) => bestOf(state.screen[b.id]) - bestOf(state.screen[a.id]) || (a.id < b.id ? -1 : 1))
+      .slice(0, o.budget.mixKeep);
+    await searchStage('search', best, 'mix-search');
+    searched.push(...best);
+    roundBases = best;
+  }
+
   // 3. distinct results, re-run on many common seeds next to the known builds
   const cands = new Map<string, { combo: Combo; ranks: Ranks; kph: number; effKey: string }>();
-  for (const c of searchList) {
+  for (const c of searched) {
     const r = state.search[c.id];
     if (!r || r.kind !== 'search') continue;
     for (const f of r.found) {
@@ -376,7 +416,7 @@ export async function discover(o: DiscoverOptions, run: Runner, io: DiscoverIo =
   const evaluations =
     [...Object.values(state.screen), ...Object.values(state.search)].reduce((a, r) => a + (r.kind === 'search' ? r.evals : 0), 0) + finalTasks.length + insTasks.length;
   return {
-    meta: { level: o.level, points, profile: o.profile, mobs: o.mobs, seed: o.seed, perk: o.perk, changedParams: changedParams(o.params), hash, combos: combos.length, searched: searchList.length, evaluations },
+    meta: { level: o.level, points, profile: o.profile, mobs: o.mobs, seed: o.seed, perk: o.perk, changedParams: changedParams(o.params), hash, combos: combos.length, mixed: screenedExtra, searched: searched.length, evaluations },
     baseline: baselineRaw.map((b) => ({ id: b.id, metrics: b.metrics, kphCi: ci(b.metrics) })).sort((a, b) => b.metrics.killsPerHour - a.metrics.killsPerHour),
     top,
   };

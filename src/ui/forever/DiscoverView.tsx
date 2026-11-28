@@ -17,6 +17,8 @@ import type { DiscoverRun } from './useDiscover';
 const STAGES: Record<string, string> = {
   screen: '1/3: przegląd wszystkich kombinacji',
   search: '2/3: dokładne szukanie talentów',
+  mix: '2b: mieszanie fillerów i progów (warianty najlepszych)',
+  'mix-search': '2b: dokładne szukanie dla wariantów',
   final: '3/3: przeliczenie najlepszych',
   insensitivity: '3/3: talenty bez wpływu',
   'complete-greedy': 'uzupełniania 1/3: droga zachłanna',
@@ -73,7 +75,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
     <>
       <section className="fv-panel" aria-label="Odkrywanie buildów">
         <p className="fv-note">
-          Szuka najlepszych buildów dla levelu {settings.level}: sprawdza wszystkie rotacje złożone z czarów (DoT-y, filler, Drain Soul) z każdym ustawieniem petów i dla każdej kombinacji szuka talentów. Profil, liczba mobów, polityka Life Tapa i Eureka! są z ustawień powyżej. Liczy w tle na kilku wątkach; wynik można zapisać jako własny build.
+          Szuka najlepszych buildów dla levelu {settings.level}: sprawdza wszystkie rotacje złożone z czarów (DoT-y, filler, Drain Soul) z każdym ustawieniem petów i dla każdej kombinacji szuka talentów, a potem miesza najlepsze rotacje: drugi filler włączany warunkiem (mana, HP, czas do zabicia, wielu mobów, długa walka, śmierć peta) i osobne progi TTK dla każdego DoT-a. Profil, liczba mobów, polityka Life Tapa i Eureka! są z ustawień powyżej. Liczy w tle na kilku wątkach; wynik można zapisać jako własny build.
         </p>
         <div className="fv-row">
           <label>
@@ -114,7 +116,7 @@ export function DiscoverView({ settings, discovery, existingNames, onSave }: { s
           </h2>
           {best && (
             <p className="fv-note">
-              Najlepszy znany: {best.id} {f1(best.metrics.killsPerHour)} kills/h. Sprawdzono {res.meta.combos} kombinacji, {res.meta.searched} dokładnie, {res.meta.evaluations} symulacji. ✓ = różnica istotna (95%), ~ = w granicach szumu, ≈#1 = nie gorszy istotnie od pierwszego.
+              Najlepszy znany: {best.id} {f1(best.metrics.killsPerHour)} kills/h. Sprawdzono {res.meta.combos} kombinacji{res.meta.mixed ? ` i ${res.meta.mixed} wariantów z mieszanymi fillerami i progami` : ''}, {res.meta.searched} dokładnie, {res.meta.evaluations} symulacji. ✓ = różnica istotna (95%), ~ = w granicach szumu, ≈#1 = nie gorszy istotnie od pierwszego.
             </p>
           )}
           {savedNote && savedNote.from === res && (

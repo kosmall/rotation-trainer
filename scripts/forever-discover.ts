@@ -1,6 +1,6 @@
 // `npm run forever:discover -- --level 40 [--profile average] [--mobs 1] [--seed 1] [--perk 0] [--top 20]
 //   [--param key=value ...] [--quick] [--workers N] [--screen-sessions N] [--search-sessions N]
-//   [--final-sessions N] [--keep N] [--state path] [--fresh]`
+//   [--final-sessions N] [--keep N] [--mix-bases N] [--mix-keep N] [--state path] [--fresh]`
 // Searches talents × generated rotations × pet setups for one level and writes
 // reports/forever_discover_L<level>.md and .json (resumable: the state file is saved as it goes).
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -47,6 +47,8 @@ const budget = {
   screen: { ...base.screen, sessions: int('screen-sessions', base.screen.sessions, 1, 1000) },
   search: { ...base.search, sessions: int('search-sessions', base.search.sessions, 1, 1000) },
   keep: int('keep', base.keep, 1, 100000),
+  mixBases: int('mix-bases', base.mixBases, 0, 1000),
+  mixKeep: int('mix-keep', base.mixKeep, 1, 100000),
   finalSessions: int('final-sessions', base.finalSessions, 2, 10000),
 };
 const options: DiscoverOptions = {
@@ -123,7 +125,10 @@ const combos = enumerateCombos(level);
   const perEval = one / budget.screen.evals / budget.screen.sessions;
   const screenSec = (one * combos.length) / workers;
   const searchSec = (perEval * budget.search.evals * budget.search.sessions * (budget.keep + 9 * budget.perFamilyMin)) / workers;
-  console.error(`level ${level}: ${combos.length} combinations, ${workers} workers; estimate ~${Math.round((screenSec + searchSec) / 60)} min (screen ~${Math.round(screenSec / 60)}, search ~${Math.round(searchSec / 60)})`);
+  // mixing: ~45 neighbours per base screened, the best `mixKeep` searched, in two rounds
+  const mixBases = budget.mixBases + Math.ceil(budget.mixBases / 3);
+  const mixSec = budget.mixBases > 0 ? (one * 45 * mixBases + perEval * budget.search.evals * budget.search.sessions * 2 * budget.mixKeep) / workers : 0;
+  console.error(`level ${level}: ${combos.length} combinations, ${workers} workers; estimate ~${Math.round((screenSec + searchSec + mixSec) / 60)} min (screen ~${Math.round(screenSec / 60)}, search ~${Math.round(searchSec / 60)}, mixing ~${Math.round(mixSec / 60)})`);
 }
 const started = Date.now();
 let last = { stage: '', at: 0 };
